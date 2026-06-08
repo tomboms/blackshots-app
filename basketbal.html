@@ -414,14 +414,38 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         window.firebaseDB = db;
-        window.fireDoc = doc;
-        window.fireSetDoc = setDoc;
-        window.fireGetDoc = getDoc;
+
+        // SLIMME STATUS FUNCTIE
+        function updateStatus(status) {
+            let wolkje = document.getElementById('cloud-status-indicator');
+            if(!wolkje) return;
+            
+            if (status === 'offline') {
+                wolkje.innerText = "❌ Offline (Lokaal opgeslagen)";
+                wolkje.style.background = "#e74c3c"; // Rood
+            } else if (status === 'online') {
+                wolkje.innerText = "☁️ Cloud Actief";
+                wolkje.style.background = "#27ae60"; // Groen
+            } else if (status === 'opslaan') {
+                wolkje.innerText = "⏳ Opslaan...";
+                wolkje.style.background = "#3498db"; // Blauw
+            } else if (status === 'bijgewerkt') {
+                wolkje.innerText = "🔄 Bijgewerkt!";
+                wolkje.style.background = "#2ecc71"; // Lichtgroen
+                setTimeout(() => { if(navigator.onLine) updateStatus('online'); }, 2000);
+            }
+        }
+
+        // Luister naar de internetverbinding van je telefoon/pc
+        window.addEventListener('offline', () => updateStatus('offline'));
+        window.addEventListener('online', () => updateStatus('online'));
+        
+        // Direct bij opstarten checken of we internet hebben
+        if (!navigator.onLine) updateStatus('offline');
 
         // 1. REAL-TIME SYNCHRONISATIE (DOWNLOADEN)
-        // Luistert onmiddellijk naar veranderingen uit de cloud en tekent je UI live opnieuw!
         onSnapshot(doc(db, "blackshots", "clubdata"), (docSnap) => {
-            if (docSnap.exists()) {
+            if (docSnap.exists() && navigator.onLine) {
                 let data = docSnap.data();
                 let isGewijzigd = false;
                 
@@ -433,35 +457,27 @@
                 });
                 
                 if (isGewijzigd && document.visibilityState === 'visible') {
-                    console.log("Real-time update verwerkt uit de cloud!");
-                    
-                    // UI direct updaten zonder verversen
                     if(typeof window.renderToernooi === 'function') window.renderToernooi();
                     if(typeof window.renderWeekAgenda === 'function') {
                         if (document.getElementById('agenda-team-controls') && document.getElementById('agenda-team-controls').style.display === 'flex') {
                             window.renderTeamAgenda();
-                        } else {
-                            window.renderWeekAgenda();
-                        }
+                        } else window.renderWeekAgenda();
                     }
                     if(typeof window.renderOefeningenLijst === 'function') window.renderOefeningenLijst();
                     if(typeof window.vulInstellingenLijsten === 'function') window.vulInstellingenLijsten();
                     
-                    let cloudStatus = document.getElementById('cloud-status-indicator');
-                    if(cloudStatus) {
-                        cloudStatus.innerText = "🔄 Bijgewerkt!";
-                        cloudStatus.style.background = "#2ecc71";
-                        setTimeout(() => {
-                            cloudStatus.innerText = "☁️ Cloud Actief";
-                            cloudStatus.style.background = "#27ae60";
-                        }, 2000);
-                    }
+                    updateStatus('bijgewerkt');
                 }
             }
         });
 
         // 2. STILLE OPSLAG OP DE ACHTERGROND (UPLOADEN)
         window.autoUpload = async function(col) {
+            if (!navigator.onLine) {
+                updateStatus('offline');
+                return; // Stop met uploaden als er geen internet is
+            }
+
             let data = {};
             for (let i = 0; i < localStorage.length; i++) {
                 let key = localStorage.key(i);
@@ -470,13 +486,14 @@
             
             try {
                 await setDoc(doc(db, col, "clubdata"), data, { merge: true });
-                console.log("Achtergrond cloud opslag voltooid.");
+                updateStatus('online'); // Zet weer op groen na succesvolle upload
             } catch(e) {
-                console.warn("Cloud sync gepauzeerd (lokaal bestand geopend): " + e.message);
+                console.warn("Upload gefaald: " + e.message);
+                updateStatus('offline'); // Zet op rood als Firebase blokkeert
             }
         };
 
-        // 3. SLIMME COUPLING: OVERVAL ELKE WIJZIGING IN DE APP
+        // 3. SLIMME COUPLING
         const origineleSetItem = localStorage.setItem;
         let typTimer;
         
@@ -484,13 +501,10 @@
             origineleSetItem.apply(this, arguments);
             
             if(key && typeof key === 'string' && key.startsWith('blackshots_')) {
-                let cloudStatus = document.getElementById('cloud-status-indicator');
-                if(cloudStatus) { cloudStatus.innerText = "⏳ Opslaan..."; cloudStatus.style.background = "#3498db"; }
-                
+                updateStatus('opslaan');
                 clearTimeout(typTimer);
                 typTimer = setTimeout(async () => {
                     await window.autoUpload("blackshots");
-                    if(cloudStatus) { cloudStatus.innerText = "☁️ Cloud Actief"; cloudStatus.style.background = "#27ae60"; }
                 }, 1500);
             }
         };
