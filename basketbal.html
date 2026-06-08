@@ -440,7 +440,6 @@
         window.addEventListener('offline', () => updateStatus('offline'));
         window.addEventListener('online', () => updateStatus('online'));
         
-        // Direct bij opstarten checken of we internet hebben
         if (!navigator.onLine) updateStatus('offline');
 
         // 1. REAL-TIME SYNCHRONISATIE (DOWNLOADEN)
@@ -471,11 +470,11 @@
             }
         });
 
-        // 2. STILLE OPSLAG OP DE ACHTERGROND (UPLOADEN)
-        window.autoUpload = async function(col) {
+        // 2. STILLE OPSLAG OP DE ACHTERGROND (Niet meer vastlopen!)
+        window.autoUpload = function(col) {
             if (!navigator.onLine) {
                 updateStatus('offline');
-                return; // Stop met uploaden als er geen internet is
+                return; 
             }
 
             let data = {};
@@ -484,13 +483,14 @@
                 if (col === "blackshots" && key.startsWith('blackshots_')) data[key] = localStorage.getItem(key);
             }
             
-            try {
-                await setDoc(doc(db, col, "clubdata"), data, { merge: true });
-                updateStatus('online'); // Zet weer op groen na succesvolle upload
-            } catch(e) {
-                console.warn("Upload gefaald: " + e.message);
-                updateStatus('offline'); // Zet op rood als Firebase blokkeert
-            }
+            // Laat Firebase het op de achtergrond uitzoeken (zonder 'await')
+            setDoc(doc(db, col, "clubdata"), data, { merge: true }).catch(e => console.warn(e));
+            
+            // Forceer het wolkje na 1 seconde altijd terug naar de juiste status
+            setTimeout(() => {
+                if (navigator.onLine) updateStatus('online');
+                else updateStatus('offline');
+            }, 1000);
         };
 
         // 3. SLIMME COUPLING
@@ -501,11 +501,17 @@
             origineleSetItem.apply(this, arguments);
             
             if(key && typeof key === 'string' && key.startsWith('blackshots_')) {
-                updateStatus('opslaan');
-                clearTimeout(typTimer);
-                typTimer = setTimeout(async () => {
-                    await window.autoUpload("blackshots");
-                }, 1500);
+                // Als je al offline bent, direct rood en stop
+                if (!navigator.onLine) {
+                    updateStatus('offline');
+                } else {
+                    // Wel internet? Maak blauw en stuur door
+                    updateStatus('opslaan');
+                    clearTimeout(typTimer);
+                    typTimer = setTimeout(() => {
+                        window.autoUpload("blackshots");
+                    }, 1500);
+                }
             }
         };
     </script>
