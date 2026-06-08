@@ -456,7 +456,7 @@
     
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
-        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAZXtE9MSgveV8kYlh68rpMZvKh5_oLhBc",
@@ -470,64 +470,76 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+        window.firebaseDB = db;
 
-        async function autoDownload() {
-            let cloudStatus = document.getElementById('cloud-status-indicator');
-            if(cloudStatus) { cloudStatus.innerText = "⏳ Syncen..."; cloudStatus.style.background = "#f39c12"; }
-            
+        // STATUS FUNCTIE (Paars bij update!)
+        function updateStatus(status) {
+            let wolkje = document.getElementById('cloud-status-indicator');
+            if(!wolkje) return;
+            if (status === 'offline') { wolkje.innerText = "❌ Offline"; wolkje.style.background = "#e74c3c"; }
+            else if (status === 'online') { wolkje.innerText = "☁️ Cloud Actief"; wolkje.style.background = "#27ae60"; }
+            else if (status === 'opslaan') { wolkje.innerText = "⏳ Opslaan..."; wolkje.style.background = "#3498db"; }
+            else if (status === 'bijgewerkt') {
+                wolkje.innerText = "🟣 Cloud Bijgewerkt!";
+                wolkje.style.background = "#9b59b6";
+                setTimeout(() => { if(navigator.onLine) updateStatus('online'); }, 2000);
+            }
+        }
+
+        // FORCEER UPDATE MET REFRESH
+        window.forceerCloudCheck = async function() {
+            if (!navigator.onLine) return;
             try {
                 const docSnap = await getDoc(doc(db, "koken", "maaltijddata"));
                 if (docSnap.exists()) {
-                    let result = docSnap.data();
-                    Object.keys(result).forEach(key => {
-                        localStorage.setItem(key, result[key]);
+                    let data = docSnap.data();
+                    let isGewijzigd = false;
+                    Object.keys(data).forEach(key => {
+                        if (localStorage.getItem(key) !== data[key]) {
+                            origineleSetItem.call(localStorage, key, data[key]);
+                            isGewijzigd = true;
+                        }
                     });
                     
-                    // Herlaad UI nadat de data is binnengehaald
-                    if(typeof window.checkLoginStatus === 'function') window.checkLoginStatus();
+                    if (isGewijzigd) {
+                        updateStatus('bijgewerkt');
+                        setTimeout(() => {
+                            if (!document.querySelector('input:focus, textarea:focus')) {
+                                location.reload();
+                            }
+                        }, 1500);
+                    }
                 }
-            } catch(e) { console.error("Cloud fout:", e); }
+            } catch(e) { updateStatus('offline'); }
+        };
 
-            if(cloudStatus) { cloudStatus.innerText = "☁️ Cloud Actief"; cloudStatus.style.background = "#27ae60"; }
-        }
+        // REAL-TIME LUISTERAAR
+        onSnapshot(doc(db, "koken", "maaltijddata"), () => window.forceerCloudCheck());
 
-        async function autoUpload() {
+        // AUTO UPLOAD MET 5 SEC TIMER
+        window.autoUpload = function() {
+            if (!navigator.onLine) { updateStatus('offline'); return; }
             let kookData = {};
             for (let i = 0; i < localStorage.length; i++) {
                 let key = localStorage.key(i);
-                if (!key.startsWith('blackshots_') && key !== 'avondeet_ingelogd_als') {
+                if (!key.startsWith('blackshots_') && key !== 'avondeet_ingelogd_als' && key !== 'cloud_status') {
                     kookData[key] = localStorage.getItem(key);
                 }
             }
-            try { await setDoc(doc(db, "koken", "maaltijddata"), kookData); } 
-            catch(e) { console.error("Upload fout:", e); }
-        }
-
-        const origineleSetItem = localStorage.setItem;
-        let typTimer;
-        
-        localStorage.setItem = function(key, value) {
-            origineleSetItem.apply(this, arguments);
-            
-            // Als het geen basketbal data is, en niet je tijdelijke login, stuur naar de cloud
-            if(!key.startsWith('blackshots_') && key !== 'avondeet_ingelogd_als' && key !== 'cloud_status') {
-                clearTimeout(typTimer);
-                let cloudStatus = document.getElementById('cloud-status-indicator');
-                if(cloudStatus) { cloudStatus.innerText = "⏳ Opslaan..."; cloudStatus.style.background = "#3498db"; }
-                
-                typTimer = setTimeout(async () => {
-                    await autoUpload();
-                    if(cloudStatus) { cloudStatus.innerText = "☁️ Cloud Actief"; cloudStatus.style.background = "#27ae60"; }
-                }, 1500);
-            }
+            let firebaseUpload = setDoc(doc(db, "koken", "maaltijddata"), kookData, { merge: true });
+            let timer = new Promise((resolve) => setTimeout(() => resolve('te_traag'), 5000));
+            Promise.race([firebaseUpload, timer]).then((res) => res === 'te_traag' ? updateStatus('offline') : updateStatus('online'));
         };
 
-        // Start met downloaden
-        let hasDownloaded = false;
-        if(!hasDownloaded) {
-            hasDownloaded = true;
-            autoDownload();
-        }
+        const origineleSetItem = localStorage.setItem;
+        localStorage.setItem = function(key, value) {
+            origineleSetItem.apply(this, arguments);
+            if(!key.startsWith('blackshots_') && key !== 'avondeet_ingelogd_als') {
+                updateStatus('opslaan');
+                clearTimeout(window.timer);
+                window.timer = setTimeout(() => window.autoUpload(), 1000);
+            }
+        };
     </script>
 
     <script>
