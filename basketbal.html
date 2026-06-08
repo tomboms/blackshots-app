@@ -452,7 +452,7 @@
             }
         });
 
-        // FORCEER UPDATE FUNCTIE (Nu mét visuele scherm-refresh!)
+        // FORCEER UPDATE FUNCTIE (Nu met automatische refresh!)
         window.forceerCloudCheck = async function() {
             if (!navigator.onLine) return;
             try {
@@ -468,26 +468,22 @@
                     });
                     
                     if (isGewijzigd) {
-                        // 1. Toon direct de nieuwe paarse melding
-                        updateStatus('bijgewerkt');
+                        updateStatus('bijgewerkt'); // Laat het paarse wolkje zien
                         
-                        // 2. DE MAGISCHE FIX: Dwing het scherm om zichzelf opnieuw te tekenen
-                        let actieveTab = document.querySelector('.content-sectie.active');
-                        if (actieveTab && typeof window.switchTab === 'function') {
-                            // Dit 'fopt' de app door de huidige tab opnieuw aan te klikken, 
-                            // waardoor alle lijstjes direct met de verse data worden getekend!
-                            window.switchTab(actieveTab.id);
-                        }
-                        
-                        // 3. Extra back-up push voor de zekerheid
-                        if(typeof window.renderToernooi === 'function') window.renderToernooi();
-                        if(typeof window.renderWeekAgenda === 'function') {
-                            if (document.getElementById('agenda-team-controls') && document.getElementById('agenda-team-controls').style.display === 'flex') {
-                                window.renderTeamAgenda();
-                            } else window.renderWeekAgenda();
-                        }
-                        if(typeof window.renderOefeningenLijst === 'function') window.renderOefeningenLijst();
-                        if(typeof window.vulInstellingenLijsten === 'function') window.vulInstellingenLijsten();
+                        // DE FIX: Als de data van je mobiel komt, moet de laptop de bestanden 
+                        // opnieuw inlezen. Een slimme automatische refresh doet dit feilloos!
+                        setTimeout(() => {
+                            // Doe dit ALLEEN als je niet toevallig net in een tekstvak aan het typen bent op de laptop
+                            if (!document.querySelector('input:focus, textarea:focus')) {
+                                
+                                // Onthoud op welk tabblad je was (zodat je na de refresh niet terugschiet naar Dashboard)
+                                let actieveTab = document.querySelector('.content-sectie.active');
+                                if(actieveTab) sessionStorage.setItem('laatste_tab', actieveTab.id);
+                                
+                                // Ververs de pagina onzichtbaar
+                                location.reload();
+                            }
+                        }, 1500); // Wacht 1,5 seconde
                     }
                 }
             } catch(e) {
@@ -561,11 +557,6 @@
     
     <script>
         window.switchTab = function(tabId) {
-            // Check altijd even de cloud als je van scherm wisselt
-            if (typeof window.forceerCloudCheck === 'function') {
-                window.forceerCloudCheck();
-            }
-
             document.querySelectorAll('.content-sectie').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
             const actiefScherm = document.getElementById(tabId);
@@ -573,6 +564,7 @@
             document.querySelectorAll(`.tab-btn`).forEach(btn => {
                 if(btn.getAttribute('onclick').includes(tabId)) btn.classList.add('active');
             });
+            
             if (tabId === 'agenda' && window.renderWeekAgenda) {
                 if (document.getElementById('agenda-team-controls').style.display === 'flex') window.renderTeamAgenda();
                 else window.renderWeekAgenda();
@@ -586,8 +578,16 @@
         };
 
         document.addEventListener('DOMContentLoaded', () => {
-            if (typeof window.switchTab === 'function') {
-                window.switchTab('dashboard');
+            // DE MAGIE: Check of we net een automatische refresh hebben gehad via Firebase
+            let bewaardeTab = sessionStorage.getItem('laatste_tab');
+            
+            if (bewaardeTab && typeof window.switchTab === 'function') {
+                // Ja! We hebben zojuist ververst, spring onzichtbaar terug naar waar we waren
+                window.switchTab(bewaardeTab);
+                sessionStorage.removeItem('laatste_tab'); // Wis het geheugen weer
+            } else if (typeof window.switchTab === 'function') {
+                // Nee, dit is een normale start
+                window.switchTab('dashboard'); 
             }
         });
     </script>
