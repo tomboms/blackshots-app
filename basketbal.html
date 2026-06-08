@@ -415,43 +415,44 @@
         const db = getFirestore(app);
         window.firebaseDB = db;
 
-        // SLIMME STATUS FUNCTIE
+        // SLIMME STATUS FUNCTIE (Nu met Paarse melding!)
         function updateStatus(status) {
             let wolkje = document.getElementById('cloud-status-indicator');
             if(!wolkje) return;
             
             if (status === 'offline') {
-                wolkje.innerText = "❌ Offline (Lokaal opgeslagen)";
-                wolkje.style.background = "#e74c3c"; 
+                wolkje.innerText = "❌ Offline (Lokaal)";
+                wolkje.style.background = "#e74c3c"; // Rood
             } else if (status === 'online') {
                 wolkje.innerText = "☁️ Cloud Actief";
-                wolkje.style.background = "#27ae60"; 
+                wolkje.style.background = "#27ae60"; // Groen
             } else if (status === 'opslaan') {
                 wolkje.innerText = "⏳ Opslaan...";
-                wolkje.style.background = "#3498db"; 
+                wolkje.style.background = "#3498db"; // Blauw
             } else if (status === 'bijgewerkt') {
-                wolkje.innerText = "🔄 Bijgewerkt!";
-                wolkje.style.background = "#2ecc71"; 
-                setTimeout(() => { if(navigator.onLine) updateStatus('online'); }, 2000);
+                wolkje.innerText = "🟣 Cloud Bijgewerkt!";
+                wolkje.style.background = "#9b59b6"; // PAARS (valt lekker op!)
+                setTimeout(() => { if(navigator.onLine) updateStatus('online'); }, 3000);
             }
         }
 
         window.addEventListener('offline', () => updateStatus('offline'));
         window.addEventListener('online', () => updateStatus('online'));
         if (!navigator.onLine) updateStatus('offline');
-// DE WAKE-UP CALL: Als je de app weer opent na het minimaliseren/vergrendelen
+
+        // DE WAKE-UP CALL
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible' && navigator.onLine) {
                 let wolkje = document.getElementById('cloud-status-indicator');
                 if(wolkje) { wolkje.innerText = "⏳ Syncen..."; wolkje.style.background = "#f39c12"; }
                 
-                // Wacht een halve seconde tot de wifi van de telefoon weer goed wakker is
                 setTimeout(() => {
                     if(typeof window.forceerCloudCheck === 'function') window.forceerCloudCheck();
                 }, 500);
             }
         });
-        // FORCEER UPDATE FUNCTIE
+
+        // FORCEER UPDATE FUNCTIE (Nu mét visuele scherm-refresh!)
         window.forceerCloudCheck = async function() {
             if (!navigator.onLine) return;
             try {
@@ -467,6 +468,18 @@
                     });
                     
                     if (isGewijzigd) {
+                        // 1. Toon direct de nieuwe paarse melding
+                        updateStatus('bijgewerkt');
+                        
+                        // 2. DE MAGISCHE FIX: Dwing het scherm om zichzelf opnieuw te tekenen
+                        let actieveTab = document.querySelector('.content-sectie.active');
+                        if (actieveTab && typeof window.switchTab === 'function') {
+                            // Dit 'fopt' de app door de huidige tab opnieuw aan te klikken, 
+                            // waardoor alle lijstjes direct met de verse data worden getekend!
+                            window.switchTab(actieveTab.id);
+                        }
+                        
+                        // 3. Extra back-up push voor de zekerheid
                         if(typeof window.renderToernooi === 'function') window.renderToernooi();
                         if(typeof window.renderWeekAgenda === 'function') {
                             if (document.getElementById('agenda-team-controls') && document.getElementById('agenda-team-controls').style.display === 'flex') {
@@ -475,7 +488,6 @@
                         }
                         if(typeof window.renderOefeningenLijst === 'function') window.renderOefeningenLijst();
                         if(typeof window.vulInstellingenLijsten === 'function') window.vulInstellingenLijsten();
-                        updateStatus('bijgewerkt');
                     }
                 }
             } catch(e) {
