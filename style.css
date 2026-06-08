@@ -1,0 +1,436 @@
+/* ==========================================================================
+   1. VARIABELEN (KLEUREN & THEMA'S)
+   ========================================================================== */
+:root {
+    --bg-color: #f4f7f6;
+    --card-bg: #ffffff;
+    --text-main: #2c3e50;
+    --primary-color: #18bc9c;
+    --primary-hover: #128f76;
+    --border-color: #ecf0f1;
+    --input-bg: #ffffff;
+    --input-text: #2c3e50;
+    --li-bg: #f9fbfb;
+}
+
+body.dark-mode {
+    --bg-color: #1a1e23;
+    --card-bg: #22272e;
+    --text-main: #ecf0f1;
+    --border-color: #343a40;
+    --input-bg: #2c3138;
+    --input-text: #ecf0f1;
+    --li-bg: #2a3038;
+}
+
+/* ==========================================================================
+   2. ALGEMENE OPMAAK
+   ========================================================================== */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-main);
+    margin: 0;
+    padding: 0;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+h2, h3, h4 { color: var(--primary-color); }
+
+/* ==========================================================================
+   3. TOP NAVIGATIE & DROPDOWN MENU
+   ========================================================================== */
+.top-nav-header { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    background-color: var(--card-bg); 
+    padding: 15px 20px; 
+    border-bottom: 2px solid var(--border-color); 
+    position: relative; 
+    z-index: 1000; 
+}
+
+#menu-toggle-btn { 
+    background-color: var(--primary-color); 
+    color: white; 
+    border: none; 
+    padding: 10px 15px; 
+    border-radius: 6px; 
+    font-size: 1.1rem; 
+    font-weight: bold; 
+    cursor: pointer; 
+    display: flex; 
+    align-items: center; 
+    gap: 8px; 
+    transition: background-color 0.2s;
+}
+#menu-toggle-btn:hover { background-color: var(--primary-hover); }
+
+.dropdown-container { position: relative; }
+
+.dropdown-content { 
+    display: none; 
+    position: absolute; 
+    top: 50px; 
+    right: 0; 
+    background-color: var(--card-bg); 
+    min-width: 250px; 
+    box-shadow: 0 8px 16px rgba(0,0,0,0.4); 
+    border: 1px solid var(--border-color); 
+    border-radius: 8px; 
+    overflow: hidden; 
+}
+
+.dropdown-content.show { display: block; }
+
+.dropdown-content .tab-btn { 
+    width: 100%; 
+    text-align: left; 
+    padding: 12px 20px; 
+    border: none; 
+    background: none; 
+    font-size: 1rem; 
+    color: var(--text-main); 
+    cursor: pointer; 
+    border-bottom: 1px solid var(--border-color); 
+    display: flex; 
+    align-items: center; 
+    gap: 10px; 
+}
+.dropdown-content .tab-btn:hover { background-color: rgba(24, 188, 156, 0.1); }
+.dropdown-content .tab-btn.active { 
+    background-color: rgba(24, 188, 156, 0.15); 
+    border-left: 4px solid var(--primary-color); 
+    padding-left: 16px; 
+    color: var(--primary-color); 
+    font-weight: bold; 
+}
+
+.menu-divider { 
+    padding: 15px 20px 5px; 
+    font-size: 0.8rem; 
+    text-transform: uppercase; 
+    color: #7f8c8d; 
+    font-weight: bold; 
+    background-color: var(--bg-color); 
+}
+
+.menu-small-btn {
+    width: 100%;
+    text-align: left;
+    padding: 10px 20px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: var(--text-main);
+    border-bottom: 1px solid var(--border-color);
+}
+.menu-small-btn:hover { background-color: var(--li-bg); }
+
+/* ==========================================================================
+   4. HOOFD LAYOUT & TABBLADEN
+   ========================================================================== */
+.main-content-area { 
+    padding: 20px; 
+    max-width: 95%; /* Zorgt dat de zondag niet te ver wordt uitgerekt */
+    margin: 0 auto; 
+}
+
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* ==========================================================================
+   5. WEEKPLANNING (KALENDER)
+   ========================================================================== */
+.week-navigatie {
+    display: flex; justify-content: space-between; align-items: center;
+    background: var(--card-bg); padding: 15px; border-radius: 8px; margin-bottom: 20px;
+    border: 1px solid var(--border-color);
+}
+
+.week-navigatie button {
+    background-color: #3498db; color: white; border: none; padding: 10px 20px;
+    border-radius: 6px; cursor: pointer; font-weight: bold;
+}
+
+/* --- WEEKPLANNER GRID --- */
+#dagen-container { 
+    display: grid; 
+    /* Standaard voor mobiel: iets smallere kaarten zodat er 2 naast elkaar passen indien mogelijk */
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); 
+    gap: 15px; 
+    margin-bottom: 20px; 
+    padding-bottom: 10px; 
+}
+
+@media (min-width: 1000px) {
+    #dagen-container {
+        /* Op laptops/desktops: dwing een strak 4-bij-3 blok af (4 boven, 3 onder) */
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+.dag-kaart { 
+    background: var(--card-bg); 
+    border: 1px solid var(--border-color); 
+    padding: 10px; 
+    border-radius: 6px; 
+    display: flex; 
+    flex-direction: column; 
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
+    transition: opacity 0.3s, filter 0.3s; 
+    min-width: 155px; /* Voorkomt het pletten van kaarten */
+}
+
+/* ==========================================================================
+   6. DRAG & DROP (SLEPEN VAN KAARTEN EN LIJSTEN)
+   ========================================================================== */
+.dag-kaart[draggable="true"], .draggable-item { cursor: grab; }
+.dag-kaart[draggable="true"]:active, .draggable-item:active { cursor: grabbing; }
+.dag-kaart.dragging, .draggable-item.dragging { opacity: 0.5; }
+.dag-kaart.drag-over, .draggable-item.drag-over { 
+    border: 2px dashed var(--primary-color) !important; 
+    background-color: rgba(24, 188, 156, 0.1); 
+}
+
+/* ==========================================================================
+   7. FORMULIEREN, INPUTS & BUTTONS
+   ========================================================================== */
+input, select, textarea {
+    width: 100%; padding: 10px; margin: 5px 0; border: 1px solid var(--border-color);
+    border-radius: 4px; box-sizing: border-box; background-color: var(--input-bg);
+    color: var(--input-text); font-family: inherit; font-size: 1rem;
+}
+
+/* FIX: Zorg dat checkboxes klein blijven en niet de hele regel overnemen! */
+input[type="checkbox"], input[type="radio"] {
+    width: auto;
+    margin: 0;
+    padding: 0;
+    cursor: pointer;
+}
+
+button { font-family: inherit; transition: opacity 0.2s; }
+button:hover { opacity: 0.8; }
+
+.select-met-knop { display: flex; gap: 5px; }
+.dobbel-btn { background-color: #9b59b6; color: white; border: none; padding: 0 10px; border-radius: 4px; cursor: pointer; }
+
+.grote-actie-knop {
+    background-color: #e67e22; color: white; border: none; padding: 15px 30px;
+    font-size: 1.2rem; border-radius: 8px; cursor: pointer; font-weight: bold;
+}
+.agenda-knop {
+    background-color: #3498db; color: white; border: none; padding: 15px 30px;
+    font-size: 1.2rem; border-radius: 8px; cursor: pointer; font-weight: bold;
+}
+.primary-btn {
+    background-color: var(--primary-color); color: white; border: none; padding: 10px;
+    border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%; font-size: 1.1rem;
+}
+
+.actie-knoppen { display: flex; gap: 5px; }
+.delete-btn { background-color: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
+.edit-btn { background-color: #f1c40f; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
+
+.recept-formulier {
+    background: var(--card-bg); padding: 20px; border-radius: 8px; margin-bottom: 20px;
+    border: 1px solid var(--border-color);
+}
+.input-groep-verticaal { display: flex; flex-direction: column; flex: 1; }
+.tags-input-sectie { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+
+.verborgen-melding { opacity: 0; color: #27ae60; font-weight: bold; transition: opacity 0.3s; margin-top: 10px; }
+.verborgen-melding.toon { opacity: 1; }
+
+/* ==========================================================================
+   8. SPECIALE STATUS (Bv. "Bij ouders" / "Kliekjes")
+   ========================================================================== */
+.status-speciaal { opacity: 0.5; filter: grayscale(100%); pointer-events: none; }
+.status-speciaal-container > div.select-met-knop { opacity: 1 !important; filter: none !important; pointer-events: auto; }
+.status-speciaal-container > label { opacity: 1 !important; filter: none !important; pointer-events: auto; }
+.status-speciaal-container > input[type="text"] { opacity: 1 !important; filter: none !important; pointer-events: auto; }
+
+/* ==========================================================================
+   9. KOOKPLAN & TIMERS (Keuken Modus)
+   ========================================================================== */
+.kookplan-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
+@media(min-width: 900px) { .kookplan-split { grid-template-columns: 1fr 1fr; } }
+
+.kook-kaart { 
+    background: var(--card-bg); padding: 25px; border-radius: 8px; 
+    border: 1px solid var(--border-color); box-shadow: 0 4px 10px rgba(0,0,0,0.1); 
+}
+.kook-kaart h4 { color: var(--primary-color); margin-top: 20px; margin-bottom: 10px; font-size: 1.1rem; }
+
+.apparatuur-badge { 
+    background: #34495e; color: white; padding: 5px 10px; 
+    border-radius: 4px; font-size: 0.9rem; font-weight: bold; 
+}
+.recept-tags-badge {
+    background: var(--primary-color); color: white; padding: 4px 10px; 
+    border-radius: 12px; font-size: 0.85rem; font-weight: bold;
+}
+
+@keyframes knipper { 
+    0% { opacity: 1; transform: scale(1); } 
+    50% { opacity: 0.7; transform: scale(1.05); } 
+    100% { opacity: 1; transform: scale(1); } 
+}
+.timer-btn { 
+    background:#f1c40f; color:#2c3e50; font-size:0.85rem; padding:4px 10px; 
+    border-radius:12px; font-weight:bold; border:none; cursor:pointer; 
+    white-space:nowrap; transition: background 0.3s;
+}
+.timer-btn:hover { background: #f39c12; }
+
+.schaal-btn {
+    background: var(--border-color); border: none; padding: 2px 8px; border-radius: 4px;
+    cursor: pointer; font-weight: bold; color: var(--text-main);
+}
+.schaal-btn:hover { background: #bdc3c7; }
+
+/* Focus Modus overschrijvingen */
+body.focus-modus .top-nav-header, 
+body.focus-modus .kookplan-controls { display: none !important; }
+body.focus-modus .main-content-area { padding: 10px; max-width: 100%; }
+body.focus-modus .kook-kaart { transform: scale(1.02); transform-origin: top center; font-size: 1.1rem; }
+
+/* ==========================================================================
+   10. LIJSTEN (Gerechten, Producten, Instellingen)
+   ========================================================================== */
+ul { list-style-type: none; padding: 0; margin: 0; }
+li {
+    background: var(--li-bg); margin-bottom: 5px; padding: 10px 15px;
+    border-radius: 4px; display: flex; justify-content: space-between;
+    align-items: center; border: 1px solid var(--border-color);
+}
+.instellingen-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+.instellingen-scroll-lijst { max-height: 250px; overflow-y: auto; padding-right: 5px; }
+
+/* ==========================================================================
+   11. PRINT MODUS (Voor op de Koelkast)
+   ========================================================================== */
+@media print {
+    body * { visibility: hidden; }
+    #weekplanner, #weekplanner * { visibility: visible; }
+    #weekplanner { position: absolute; left: 0; top: 0; width: 100%; padding: 0; margin: 0; }
+    .top-nav-header, .week-navigatie, .actie-balk, .no-print, button { display: none !important; }
+    body { background-color: white !important; color: black !important; }
+    .main-content-area { padding: 0; margin: 0; }
+    
+    #dagen-container { display: grid !important; grid-template-columns: 1fr; gap: 5px; }
+    .dag-kaart { 
+        border: 1px solid #ccc; box-shadow: none; break-inside: avoid; padding: 10px; 
+        min-width: 100%; display: flex; justify-content: space-between; 
+        align-items: center; flex-direction: row; 
+    }
+    .dag-kaart h3 { border: none; font-size: 1.2rem; width: 120px; text-align: left; margin: 0; }
+    select, input { 
+        -webkit-appearance: none; appearance: none; border: none; background: transparent; 
+        color: black; font-weight: bold; font-size: 1.1rem; pointer-events: none; 
+    }
+    .notitie-input { font-style: italic; font-weight: normal; font-size: 0.9rem; }
+}
+
+/* ==========================================================================
+   12. LOGIN SCHERM (DE VOORDEUR)
+   ========================================================================== */
+.login-overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background-color: var(--bg-color);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.login-box {
+    background: var(--card-bg);
+    padding: 40px;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    max-width: 400px;
+    width: 90%;
+}
+
+/* ==========================================================================
+   13. DASHBOARD KAARTEN (KIEZEN, KOPEN, KOKEN)
+   ========================================================================== */
+.dash-kaart {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 30px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+}
+
+.dash-kaart:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    border-color: var(--primary-color);
+}
+
+.dash-icon {
+    width: 60px;
+    height: 60px;
+    margin: 0 auto 15px auto;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.8rem;
+    color: white;
+}
+
+.dash-kaart h3 {
+    margin: 0 0 10px 0;
+    font-size: 1.4rem;
+    color: var(--text-main);
+}
+
+.dash-kaart p {
+    margin: 0;
+    color: #7f8c8d;
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+/* Dashboard Grid (Geforceerde eilandjes) */
+.dashboard-grid { 
+    display: grid; 
+    grid-template-columns: repeat(3, 1fr); /* Dwingt 3 kolommen af */
+    gap: 20px; 
+    max-width: 1000px; 
+    margin: 20px auto; 
+}
+@media (max-width: 800px) {
+    .dashboard-grid { grid-template-columns: 1fr; } /* Alleen op kleine telefoons onder elkaar */
+}
+
+.dash-kaart {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 30px;
+    text-align: center;
+    cursor: pointer;
+    transition: 0.2s;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+.dash-kaart:hover { transform: translateY(-5px); border-color: var(--primary-color); }
+
+/* Drag & Drop Effect Agenda */
+.drag-over {
+    border: 2px dashed var(--primary-color) !important;
+    background-color: var(--li-bg) !important;
+    opacity: 0.7;
+}

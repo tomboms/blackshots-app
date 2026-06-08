@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>De Maaltijdplanner</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        @media print {
+            body { background-color: white !important; color: black !important; }
+            .top-nav-header, .actie-balk, .week-navigatie button, #login-scherm, select, .tab-btn { display: none !important; }
+            #app-container { display: block !important; }
+            .tab-content { display: none !important; }
+            #agenda.tab-content { display: block !important; }
+            #agenda-container { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
+            .dag-kaart { border: 1px solid #ccc !important; box-shadow: none !important; page-break-inside: avoid !important; }
+        }
+    </style>
+</head>
+<body>
+    
+    <div id="login-scherm" class="login-overlay">
+        <div class="login-box">
+            <h1 style="color: var(--primary-color); margin-bottom: 10px;">🍽️ Maaltijdplanner</h1>
+            <h2 style="margin-top: 0; color: var(--text-main);">Wie is de chef vandaag?</h2>
+            <div id="login-knoppen-container" style="display:flex; gap:15px; justify-content:center; margin-top:25px; flex-wrap:wrap;">
+                <button class="grote-actie-knop" onclick="window.loginApp('Tom')">👨‍🍳 Tom</button>
+                <button class="grote-actie-knop" style="background-color: #9b59b6;" onclick="window.loginApp('Ike')">👩‍🍳 Ike</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="app-container" style="display: none;">
+        <header class="top-nav-header">
+            <h2 style="margin: 0; color: var(--primary-color); display: flex; align-items: center; gap: 10px; cursor:pointer;" onclick="switchTab('dashboard')">🍽️ Dashboard</h2>
+            <div class="dropdown-container">
+                <button id="menu-toggle-btn">☰ Menu</button>
+                <div id="hoofd-menu-dropdown" class="dropdown-content">
+                    <button class="tab-btn active" data-tab="dashboard">🏠 Home / Dashboard</button>
+                    <button class="tab-btn" data-tab="agenda">📅 Agenda (Overzicht)</button>
+                    <button class="tab-btn" data-tab="dagplanner">📝 Dagplanner</button>
+                    <button class="tab-btn" data-tab="boodschappen">🛒 Boodschappen</button>
+                    <button class="tab-btn" data-tab="voorraad">📦 Voorraadkast</button>
+                    <button class="tab-btn" data-tab="kookplan">👨‍🍳 Koken</button>
+                    <div class="menu-divider">Beheer & Data</div>
+                    <button class="tab-btn" data-tab="statistieken">📊 Data & Inzichten</button>
+                    <button class="tab-btn" data-tab="recepten">📖 Gerechten</button>
+                    <button class="tab-btn" data-tab="ingredienten">🍅 Producten</button>
+                    <button class="tab-btn" data-tab="instellingen">⚙️ Instellingen</button>
+                    <div class="menu-divider">Database Back-up</div>
+                    <button id="export-btn" class="menu-small-btn">💾 Database Exporteren</button>
+                    <button id="import-btn" class="menu-small-btn">📂 Database Importeren</button>
+                    <input type="file" id="import-file" accept=".json" style="display:none;">
+                    <div class="menu-divider">Sessie</div>
+                    <button class="menu-small-btn" onclick="window.logUit()" style="color: #e74c3c; font-weight:bold;">🚪 Uitloggen</button>
+                </div>
+            </div>
+        </header>
+
+        <div class="main-content-area">
+            
+            <main id="dashboard" class="tab-content active">
+                <div style="text-align: center; margin-bottom: 40px; margin-top: 20px;">
+                    <h1 id="welkomst-tekst" style="font-size: 2.5rem; color: var(--primary-color); margin-bottom: 5px;">Goededag!</h1>
+                    <p style="color: #7f8c8d; font-size: 1.2rem; margin-top: 0;">Wat staat er vandaag op het menu?</p>
+                </div>
+                <div class="dashboard-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; max-width: 1000px; margin: 0 auto;">
+                    <div class="dash-kaart" onclick="window.switchTab('agenda')"><div class="dash-icon" style="background-color: #3498db;">📅</div><h3>Kiezen</h3><p style="font-size:0.85rem; color:#7f8c8d;">Plan je week in</p></div>
+                    <div class="dash-kaart" onclick="window.switchTab('boodschappen')"><div class="dash-icon" style="background-color: #27ae60;">🛒</div><h3>Kopen</h3><p style="font-size:0.85rem; color:#7f8c8d;">Check je lijstje</p></div>
+                    <div class="dash-kaart" onclick="window.switchTab('voorraad')"><div class="dash-icon" style="background-color: #8e44ad;">📦</div><h3>Kijken</h3><p style="font-size:0.85rem; color:#7f8c8d;">Wat ligt in de kast?</p></div>
+                    <div class="dash-kaart" onclick="window.switchTab('kookplan')"><div class="dash-icon" style="background-color: #e67e22;">👨‍🍳</div><h3>Koken</h3><p style="font-size:0.85rem; color:#7f8c8d;">Duik de keuken in</p></div>
+                </div>
+                <div id="slimme-suggestie-container" style="max-width: 1000px; margin: 40px auto 0;"></div>
+                <div style="max-width: 1000px; margin: 40px auto 0;">
+                    <h2 style="text-align:center; border-bottom: 2px solid var(--border-color); padding-bottom:10px;">Op het menu</h2>
+                    <div id="dashboard-3daagse-container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-top: 20px;"></div>
+                </div>
+            </main>
+
+            <main id="agenda" class="tab-content">
+                <div class="week-navigatie">
+                    <button id="agenda-prev-btn">◀ Vorige</button>
+                    <div style="display: flex; flex-direction: column; align-items: center;">
+                        <h2 id="agenda-titel" style="border: none; padding-bottom: 0; margin-bottom: 5px;">Agenda Overzicht</h2>
+                        <div style="display: flex; gap: 10px; align-items: center; margin-top: 5px;">
+                            <button id="agenda-vandaag-btn" style="background-color: #f39c12; font-size: 0.85rem; padding: 6px 12px; border-radius: 20px;">Vandaag</button>
+                            <select id="agenda-view-select" onchange="window.setAgendaWeergave(this.value)" style="font-size: 0.85rem; padding: 6px 10px; border-radius: 6px; font-weight:bold; cursor:pointer;">
+                                <option value="week">📅 Per Week</option>
+                                <option value="maand">🗓️ Per Maand</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button id="agenda-next-btn">Volgende ▶</button>
+                </div>
+                <div id="agenda-container" style="display: grid; gap: 15px; margin-bottom: 20px;"></div>
+                <div class="actie-balk" style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 20px;">
+                    <button class="grote-actie-knop" onclick="window.kopieerVorigeWeek()" style="background-color: #34495e;">🔄 Kopieer Vorige Week</button>
+                    <button class="grote-actie-knop" onclick="window.switchTab('boodschappen')">🛒 Boodschappenlijst</button>
+                    <button id="print-week-btn" class="agenda-knop" style="background-color: #9b59b6;" onclick="window.print()">🖨️ Print Agenda</button>
+                </div>
+            </main>
+
+            <main id="dagplanner" class="tab-content">
+                <div style="margin-bottom: 15px; text-align: center;">
+                    <button onclick="window.switchTab('agenda')" style="background-color: #95a5a6; color: white; border: none; padding: 10px 20px; border-radius: 30px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">◀ Terug naar de Agenda</button>
+                </div>
+                <div class="week-navigatie" style="background-color: var(--card-bg); border: 2px solid var(--primary-color);">
+                    <button id="dag-prev-btn">◀ Vorige Dag</button>
+                    <h2 id="dagplanner-titel" style="border: none; margin: 0; color: var(--primary-color);">Dagplanner</h2>
+                    <button id="dag-next-btn">Volgende Dag ▶</button>
+                </div>
+                <div id="dagplanner-container" style="max-width: 800px; margin: 20px auto 0;"></div>
+                <p id="opslaan-melding" class="verborgen-melding" style="text-align: center;">✔ Wijzigingen automatisch opgeslagen</p>
+            </main>
+
+            <main id="statistieken" class="tab-content">
+                <h2 style="color: var(--primary-color);">📊 Data & Inzichten</h2>
+                <p style="color:#7f8c8d; margin-top:0;">Een overzicht van al jullie kook- en plangedrag!</p>
+                <div id="statistieken-container"></div>
+            </main>
+
+            <main id="boodschappen" class="tab-content">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+                    <h2 style="margin: 0; border: none; padding: 0;">Boodschappenlijst</h2>
+                    <div style="display: flex; gap: 10px; align-items: center; background: var(--card-bg); padding: 8px 15px; border-radius: 8px; border: 1px solid var(--border-color); box-shadow: 0 2px 4px rgba(0,0,0,0.05); flex-wrap:wrap;">
+                        <strong style="color:var(--text-main);">Periode:</strong>
+                        <input type="date" id="boodschappen-start" onchange="window.berekenBoodschappen()" style="margin:0; padding:6px; border:none; background:var(--bg-color); border-radius:4px;">
+                        <span style="color:#7f8c8d; font-weight:bold;">t/m</span>
+                        <input type="date" id="boodschappen-eind" onchange="window.berekenBoodschappen()" style="margin:0; padding:6px; border:none; background:var(--bg-color); border-radius:4px;">
+                        <select id="boodschappen-winkel-filter" onchange="window.berekenBoodschappen()" style="margin:0 0 0 10px; padding:6px; border-radius:4px; font-weight:bold;">
+                            <option value="Alle">🏢 Alle winkels</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; margin-bottom: 20px;">
+                    <div style="background: var(--card-bg); padding: 20px; border-radius: 8px; border: 1px solid var(--border-color); box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+                        <h3 style="margin-top: 0; margin-bottom: 15px; font-size: 1.1rem; color: var(--primary-color);">🍅 Uit Database Toevoegen</h3>
+                        <div style="display: flex; flex-direction: column; gap: 5px; margin-bottom:10px;">
+                            <input type="text" id="zoek-extra-db" placeholder="🔎 Typ om product te zoeken..." onkeyup="window.updateSelectMetIngredienten('extra-db-select', this.value)" style="width: 100%; box-sizing: border-box; padding: 8px; border-radius: 4px; border: 1px solid var(--border-color);">
+                            <select id="extra-db-select" style="margin: 0; padding: 8px; width:100%; box-sizing: border-box;"></select>
+                        </div>
+                        <div style="display: flex; gap: 10px; align-items: center; margin-top:5px;">
+                            <input type="number" id="extra-db-aantal" placeholder="Aantal" style="margin: 0; padding: 8px; flex: 1;">
+                            <span id="extra-db-eenheid" style="color: #7f8c8d; font-weight: bold; min-width: 40px; text-align: center;"></span>
+                            <select id="extra-db-wie" style="margin: 0; padding: 8px; flex: 1;"></select>
+                        </div>
+                        <button id="voeg-extra-db-toe-btn" class="primary-btn" style="margin-top: 10px; padding: 8px; font-size: 1rem; width:100%;">+ Stapel op lijst</button>
+                    </div>
+                    <div style="background: var(--card-bg); padding: 20px; border-radius: 8px; border: 1px solid var(--border-color); box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+                        <h3 style="margin-top: 0; margin-bottom: 15px; font-size: 1.1rem; color: #3498db;">✍️ Vrije Tekst Toevoegen</h3>
+                        <div style="display: flex; flex-direction: column; gap: 10px;">
+                            <input type="text" id="handmatig-item" placeholder="Niet in DB (Bijv. Vuilniszakken)" style="margin: 0; padding: 8px;">
+                            <div style="display: flex; gap: 10px;">
+                                <select id="handmatig-categorie" style="margin: 0; padding: 8px; flex: 2;"></select>
+                                <input type="number" id="handmatig-prijs" placeholder="Prijs (€)" step="0.01" style="margin: 0; padding: 8px; flex: 1;">
+                                <select id="handmatig-wie" style="margin: 0; padding: 8px; flex: 1.5;"></select>
+                            </div>
+                            <button id="voeg-handmatig-toe-btn" style="background-color: #3498db; color: white; border: none; padding: 8px; border-radius: 4px; font-weight: bold; cursor: pointer; margin-top: 5px; width: 100%; transition: opacity 0.2s;">+ Zet los op lijst</button>
+                        </div>
+                    </div>
+                </div>
+                <ul id="extra-db-lijst" style="margin-bottom: 20px; list-style:none; padding:0;"></ul>
+                <div id="gegroepeerde-boodschappen-container"></div>
+                <div class="totaal-sectie" style="margin-top: 20px; background: var(--card-bg); padding: 20px; border-radius: 8px; border: 1px solid var(--border-color); text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+                    <h3 style="margin: 0; font-size: 1.5rem;">Kassa-totaal: <span id="totaal-prijs" style="color: #27ae60;">€0.00</span></h3>
+                    <div id="kosten-splitsing-container" style="font-size: 1.1rem; margin-top: 10px; color: #18bc9c; font-weight: bold;"></div>
+                    <div style="display: flex; gap: 15px; justify-content: center; margin-top: 20px; flex-wrap: wrap;">
+                        <button id="whatsapp-btn" style="background-color: #25D366; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 1rem;">📱 Deel via WhatsApp</button>
+                        <button id="txt-btn" style="background-color: #34495e; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 1rem;">📄 Opslaan (.txt)</button>
+                    </div>
+                </div>
+            </main>
+
+            <main id="voorraad" class="tab-content">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+                    <h2 style="color: var(--primary-color); margin:0;">📦 Mijn Voorraadkast</h2>
+                    <div style="background: #e74c3c; color: white; padding: 8px 15px; border-radius: 8px; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                        Verspild (30 dgn): <span id="waste-totaal">€0.00</span>
+                    </div>
+                </div>
+                <div style="background: var(--card-bg); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid var(--border-color); display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                    <strong style="color:var(--primary-color);">+ Direct in kast zetten:</strong>
+                    <select id="voorraad-handmatig-select" style="flex:2; margin:0; padding:8px;"></select>
+                    <input type="number" id="voorraad-handmatig-aantal" placeholder="Aantal" style="flex:1; margin:0; padding:8px;">
+                    <button onclick="window.voegHandmatigAanVoorraadToe()" class="primary-btn" style="flex:1; margin:0; padding:8px;">Toevoegen</button>
+                </div>
+                <ul id="voorraad-lijst" style="list-style:none; padding:0;"></ul>
+            </main>
+
+            <main id="kookplan" class="tab-content">
+                <div class="kookplan-controls" style="background: var(--card-bg); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px dashed var(--border-color); padding-bottom: 10px; margin-bottom: 10px; flex-wrap: wrap; gap: 10px;">
+                        <h2 style="border: none; margin: 0; padding: 0; color: var(--primary-color);">👨‍🍳 Wat schaft de pot?</h2>
+                        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                            <button id="toggle-focus-btn" style="background-color: #e74c3c; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold;">🔍 Focus Modus</button>
+                            <button id="kookplan-vorige-btn" onclick="window.veranderKookplanDatum(-1)" style="background-color: #3498db; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">◀ Vorige</button>
+                            <button id="kookplan-vandaag-btn" onclick="window.zetKookplanVandaag()" style="background-color: #f39c12; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold;">Vandaag</button>
+                            <input type="date" id="kookplan-datum-picker" onchange="window.kiesKookplanDatum(this.value)" style="margin: 0; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--input-bg); color: var(--text-main);">
+                            <button id="kookplan-volgende-btn" onclick="window.veranderKookplanDatum(1)" style="background-color: #3498db; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">Volgende ▶</button>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <strong style="color: var(--text-main); min-width: 150px;">Of zoek direct een gerecht:</strong>
+                        <input type="text" id="kookplan-zoek-input" placeholder="🔎 Typ om te zoeken..." onkeyup="window.filterKookplanSelect(this.value)" style="flex: 1; min-width: 200px; padding: 8px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main);">
+                        <select id="kookplan-direct-select" onchange="window.laadDirectRecept(this.value)" style="flex: 2; min-width: 200px; padding: 8px; border-radius: 4px; background: var(--input-bg); color: var(--text-main);">
+                            <option value="">-- Selecteer een gerecht --</option>
+                        </select>
+                        <button onclick="window.laadDirectRecept('')" title="Wis selectie en bekijk agenda planning" style="background: #95a5a6; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight:bold;">X</button>
+                    </div>
+                </div>
+
+                <div id="kookplan-container" class="kookplan-grid"></div>
+                <button id="exit-focus-btn" style="display: none; position: fixed; bottom: 20px; right: 20px; z-index: 9999; background-color: #e74c3c; color: white; border: none; padding: 15px 25px; border-radius: 30px; cursor: pointer; font-weight: bold; font-size: 1.2rem; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">❌ Sluit Focus / Terug</button>
+            </main>
+
+            <main id="recepten" class="tab-content">
+                <h2 id="recept-form-titel">Nieuw Gerecht Toevoegen</h2>
+                <div class="recept-formulier">
+                    <div style="display: flex; gap:10px;">
+                        <input type="text" id="recept-naam" placeholder="Naam (bijv. Pasta Pesto)" style="flex:2;">
+                        <input type="number" id="recept-personen" placeholder="Personen" style="flex:1;">
+                    </div>
+                    <div class="tags-input-sectie">
+                        <div class="input-groep-verticaal"><label>⏱ Bereiding (min)</label><input type="number" id="recept-tijd" value="20" min="1"></div>
+                        <div class="input-groep-verticaal"><label>💪 Moeilijkheid (1-5)</label><input type="number" id="recept-moeilijkheid" value="2" min="1" max="5"></div>
+                        <div class="input-groep-verticaal"><label>🔪 Snijwerk</label><select id="recept-snijwerk"><option value="Weinig">Weinig</option><option value="Gemiddeld" selected>Gemiddeld</option><option value="Veel">Veel</option></select></div>
+                        <div class="input-groep-verticaal"><label>⭐ Waardering (1-5)</label><input type="number" id="recept-waardering" value="4" min="1" max="5"></div>
+                        <div class="input-groep-verticaal" style="flex: 2; min-width: 200px;">
+                            <label>🏷️ Tags & Stijlen</label>
+                            <div id="recept-tags-container" style="max-height: 100px; overflow-y: auto; background: var(--bg-color); border: 1px solid var(--border-color); padding: 5px; border-radius: 4px; display: flex; flex-direction: column; gap: 5px;"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="input-groep-verticaal" style="margin-top: 10px; background: var(--border-color); padding: 10px; border-radius: 6px;">
+                        <label>🍳 Benodigde Apparatuur</label>
+                        <div id="apparatuur-checkboxes-container" style="display: flex; gap: 15px; flex-wrap: wrap; margin-top: 5px;"></div>
+                        <div id="oven-extras" style="display: none; gap: 10px; margin-top: 10px; background: var(--card-bg); padding: 10px; border-radius: 4px; border: 1px dashed var(--border-color);"><div class="input-groep-verticaal"><label>🔥 Oven Temp (°C)</label><input type="number" id="recept-oven-graden"></div></div>
+                        <div id="airfryer-extras" style="display: none; gap: 10px; margin-top: 10px; background: var(--card-bg); padding: 10px; border-radius: 4px; border: 1px dashed var(--border-color);"><div class="input-groep-verticaal"><label>🍟 Airfryer Temp (°C)</label><input type="number" id="recept-airfryer-graden"></div><div class="input-groep-verticaal"><label>⏱ Airfryer Tijd (min)</label><input type="number" id="recept-airfryer-tijd"></div></div>
+                    </div>
+
+                    <div class="input-groep-verticaal" style="margin-top: 15px;">
+                        <label>📖 Kookinstructies (Stappenplan)</label>
+                        <div id="recept-stappen-container" style="display: flex; flex-direction: column; gap: 10px; margin-top: 5px;"></div>
+                        <button type="button" id="voeg-stap-toe-btn" style="background-color: #3498db; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; align-self: flex-start; font-size: 0.9rem; margin-top: 10px; font-weight: bold;">+ Extra stap toevoegen</button>
+                    </div>
+
+                    <div class="ingrediënt-toevoegen" style="margin-top: 20px;">
+                        <h4>Kies Producten uit Database</h4>
+                        <input type="text" id="zoek-recept-ing" placeholder="🔎 Typ om product te zoeken..." onkeyup="window.updateSelectMetIngredienten('recept-ing-select', this.value); window.updateSelectMetIngredienten('recept-ing-alt-select', this.value);" style="width: 100%; box-sizing: border-box; padding: 8px; margin-bottom: 5px; border-radius: 4px; border: 1px solid var(--border-color);">
+                        
+                        <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                            <select id="recept-ing-select" style="flex:3;"></select>
+                            <input type="number" id="recept-ing-aantal" placeholder="Hoeveel?" style="flex:1;">
+                            <span id="recept-ing-eenheid-label" style="display:flex; align-items:center; color:#7f8c8d; min-width:40px; font-weight:bold;"></span>
+                        </div>
+                        
+                        <div style="display: flex; gap: 10px; margin-bottom: 10px; align-items:center;">
+                            <label style="flex:1; color:var(--text-main); font-weight:bold; font-size:0.9rem;">🔄 Alternatief (optioneel):</label>
+                            <select id="recept-ing-alt-select" style="flex:2; padding: 8px; border-radius: 4px; background:var(--input-bg); border: 1px solid var(--border-color); color:var(--text-main);">
+                                <option value="">-- Geen alternatief --</option>
+                            </select>
+                        </div>
+
+                        <button id="voeg-ing-toe-btn" style="width:100%; padding:10px; font-size:1rem; font-weight:bold; background:#3498db; color:white; border:none; border-radius:6px; cursor:pointer;">+ Zet in gerecht</button>
+                    </div>
+                    <ul id="tijdelijke-ingredienten-lijst"></ul>
+                    <div style="display: flex; gap: 10px; margin-top: 15px;">
+                        <button id="annuleer-edit-btn" style="display: none; background-color: #95a5a6; flex: 1;">Annuleren</button>
+                        <button id="sla-recept-op-btn" class="primary-btn" style="margin-top: 0; flex: 3;" data-edit-id="">Gerecht Opslaan</button>
+                    </div>
+                </div>
+                
+                <h2>Mijn Gerechten</h2>
+                <input type="text" id="zoek-recept" placeholder="🔎 Zoek op naam in je gerechten..." onkeyup="window.filterRecepten()" style="width: 100%; box-sizing: border-box; padding: 12px; margin-bottom: 15px; border-radius: 6px; border: 1px solid var(--primary-color); background: var(--input-bg); color: var(--text-main); font-size: 1rem; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);">
+                <ul id="recepten-database-lijst"></ul>
+            </main>
+
+            <main id="ingredienten" class="tab-content">
+                <h2 id="ing-form-titel">Nieuw Product Toevoegen</h2>
+                <div class="recept-formulier">
+                    <div style="display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">
+                        <input type="text" id="db-ing-naam" placeholder="Naam (bijv. Melk)" style="flex:2; min-width: 150px;">
+                        <select id="db-ing-winkel" style="flex:1; min-width: 100px;"></select>
+                        <input type="text" id="db-ing-merk" placeholder="Merk" style="flex:1; min-width: 100px;">
+                        <select id="db-ing-categorie" style="flex:1; min-width: 150px;"></select>
+                    </div>
+                    <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; border-bottom: 1px dashed var(--border-color); padding-bottom: 15px;">
+                        <select id="db-ing-soort" style="flex:1; min-width: 120px; padding: 8px;">
+                            <option value="Houdbaar">🥫 Lang Houdbaar</option>
+                            <option value="Vers">🥬 Vers / Gekoeld</option>
+                        </select>
+                        <select id="db-ing-locatie" style="flex:1; min-width: 120px; padding: 8px;">
+                            <option value="Voorraadkast">🥫 Voorraadkast (Plank)</option>
+                            <option value="Koelkast">❄️ Koelkast</option>
+                            <option value="Diepvries">🧊 Diepvries</option>
+                        </select>
+                        <input type="number" id="db-ing-houdbaarheid" placeholder="Houdb. (dagen)" style="flex:1; min-width: 100px; padding: 8px;" title="Hoeveel dagen blijft dit product goed na aankoop?">
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <select id="db-ing-eenheid" style="flex:1; max-width: 150px;"></select>
+                        <div style="flex:3; display: flex; flex-direction: column; gap: 5px;">
+                            <div style="display: flex; gap: 10px;">
+                                <input type="number" id="db-ing-verpakking-aantal" placeholder="Grootte" style="flex:1;">
+                                <input type="number" id="db-ing-verpakking-prijs" placeholder="Prijs (€)" step="0.01" style="flex:1;">
+                            </div>
+                            <div id="verpakking-optie-2" style="display: none; gap: 10px;"><input type="number" id="db-ing-verpakking-aantal2" placeholder="Grootte 2" style="flex:1;"><input type="number" id="db-ing-verpakking-prijs2" placeholder="Prijs 2 (€)" step="0.01" style="flex:1;"></div>
+                            <div id="verpakking-optie-3" style="display: none; gap: 10px;"><input type="number" id="db-ing-verpakking-aantal3" placeholder="Grootte 3" style="flex:1;"><input type="number" id="db-ing-verpakking-prijs3" placeholder="Prijs 3 (€)" step="0.01" style="flex:1;"></div>
+                            <div id="verpakking-optie-4" style="display: none; gap: 10px;"><input type="number" id="db-ing-verpakking-aantal4" placeholder="Grootte 4" style="flex:1;"><input type="number" id="db-ing-verpakking-prijs4" placeholder="Prijs 4 (€)" step="0.01" style="flex:1;"></div>
+                            <div id="verpakking-optie-5" style="display: none; gap: 10px;"><input type="number" id="db-ing-verpakking-aantal5" placeholder="Grootte 5" style="flex:1;"><input type="number" id="db-ing-verpakking-prijs5" placeholder="Prijs 5 (€)" step="0.01" style="flex:1;"></div>
+                            <button id="voeg-formaat-toe-btn" type="button" style="background-color: #7f8c8d; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; align-self: flex-start; font-size: 0.9rem; margin-top: 5px;">+ Extra formaat toevoegen</button>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 10px; margin-top: 15px;">
+                        <button id="annuleer-ing-edit-btn" style="display: none; background-color: #95a5a6; flex: 1;">Annuleren</button>
+                        <button id="sla-ing-op-btn" class="primary-btn" style="margin-top: 0; flex: 3;" data-edit-id="">Opslaan in Database</button>
+                    </div>
+                </div>
+
+                <div style="background: var(--card-bg); padding: 15px; border-radius: 8px; border: 1px dashed var(--primary-color); margin-top: 20px; margin-bottom: 20px;">
+                    <h3 style="margin-top: 0; font-size: 1.1rem; color: var(--text-main);">📦 Bulk Import (Excel / CSV)</h3>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button id="download-csv-btn" style="background-color: #f39c12; color: white; border: none; padding: 8px 15px; border-radius: 4px; font-weight: bold; cursor: pointer;">⬇️ Download Sjabloon</button>
+                        <button id="upload-csv-btn" style="background-color: #27ae60; color: white; border: none; padding: 8px 15px; border-radius: 4px; font-weight: bold; cursor: pointer;">⬆️ Importeer Ingevuld Sjabloon</button>
+                        <input type="file" id="csv-file-input" accept=".csv" style="display: none;">
+                    </div>
+                </div>
+                
+                <h2 style="margin-top: 30px;">Mijn Producten</h2>
+                <input type="text" id="zoek-ingredient" placeholder="🔎 Zoek op naam of merk in je producten..." onkeyup="window.filterIngredienten()" style="width: 100%; box-sizing: border-box; padding: 12px; margin-bottom: 15px; border-radius: 6px; border: 1px solid var(--primary-color); background: var(--input-bg); color: var(--text-main); font-size: 1rem; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);">
+                <ul id="ingredienten-lijst"></ul>
+            </main>
+
+            <main id="instellingen" class="tab-content">
+                <h2>App Instellingen</h2>
+                <div class="instellingen-grid">
+                    <div class="recept-formulier">
+                        <h3>⚙️ Algemeen</h3>
+                        <div class="input-groep-verticaal" style="margin-top: 10px;"><label>Standaard aantal personen</label><input type="number" id="inst-personen" min="1" value="2" style="max-width: 100px;"></div>
+                        <div class="input-groep-verticaal" style="margin-top: 15px; border-top: 1px dashed var(--border-color); padding-top: 15px;">
+                            <label>Zichtbaarheid Kalender</label>
+                            <label style="display:flex; align-items:center; gap:5px; cursor:pointer; margin-top:5px; font-weight:bold; color:var(--text-main);"><input type="checkbox" id="inst-toon-ontbijt" style="width:auto; margin:0;"> 🍞 Toon Ontbijt</label>
+                            <label style="display:flex; align-items:center; gap:5px; cursor:pointer; margin-top:5px; font-weight:bold; color:var(--text-main);"><input type="checkbox" id="inst-toon-lunch" style="width:auto; margin:0;"> 🥪 Toon Lunch</label>
+                        </div>
+                        <div class="input-groep-verticaal" style="margin-top: 15px; border-top: 1px dashed var(--border-color); padding-top: 15px;">
+                            <label>Uiterlijk</label>
+                            <button id="toggle-theme-btn" class="primary-btn" style="max-width: 200px; margin-top: 5px;">🌙 Schakel Dark Mode in</button>
+                        </div>
+                    </div>
+                    <div class="recept-formulier">
+                        <h3>🏷️ Recept Tags & Kookstijlen</h3>
+                        <p style="font-size:0.85rem; color:#7f8c8d; margin-top:0;">Vink aan als een tag een kookstijl is (voor de dobbelsteen afwisseling).</p>
+                        <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                            <input type="text" id="nieuwe-tag-naam" placeholder="Bijv. Pasta, Snel..." style="flex: 2;">
+                            <label style="display:flex; align-items:center; gap:5px; flex:1; font-weight:bold; color:var(--text-main); font-size:0.85rem;">
+                                <input type="checkbox" id="nieuwe-tag-isStijl" style="margin:0;"> Is kookstijl?
+                            </label>
+                            <button onclick="window.voegTagToe()" style="flex: 1;">Toevoegen</button>
+                        </div>
+                        <ul id="tags-instellingen-lijst" class="instellingen-scroll-lijst"></ul>
+                    </div>
+                    <div class="recept-formulier"><h3>👥 Gezinsleden / Huisgenoten</h3><div style="display: flex; gap: 10px; margin-bottom: 15px;"><input type="text" id="nieuw-gezin-naam" placeholder="Naam toevoegen..." style="flex: 2;"><button id="voeg-gezin-toe-btn" style="flex: 1;">Toevoegen</button></div><ul id="gezin-instellingen-lijst" class="instellingen-scroll-lijst"></ul></div>
+                    <div class="recept-formulier"><h3>🍳 Pannen & Apparatuur</h3><div style="display: flex; gap: 10px; margin-bottom: 15px;"><input type="text" id="nieuwe-apparatuur-naam" placeholder="Bijv. Wokpan..." style="flex: 2;"><button id="voeg-apparatuur-toe-btn" style="flex: 1;">Toevoegen</button></div><ul id="apparatuur-instellingen-lijst" class="instellingen-scroll-lijst"></ul></div>
+                    <div class="recept-formulier"><h3>🏪 Supermarkten / Winkels</h3><div style="display: flex; gap: 10px; margin-bottom: 15px;"><input type="text" id="nieuwe-winkel-naam" placeholder="Nieuwe winkel..." style="flex: 2;"><button id="voeg-winkel-toe-btn" style="flex: 1;">Toevoegen</button></div><ul id="winkel-instellingen-lijst" class="instellingen-scroll-lijst"></ul></div>
+                    <div class="recept-formulier"><h3>🏷️ Speciale Eet-Statussen</h3><div style="display: flex; gap: 10px; margin-bottom: 15px;"><input type="text" id="nieuwe-status-naam" placeholder="Bijv. Kliekjes, Bij ouders..." style="flex: 2;"><button id="voeg-status-toe-btn" style="flex: 1;">Toevoegen</button></div><ul id="status-instellingen-lijst" class="instellingen-scroll-lijst"></ul></div>
+                    <div class="recept-formulier"><h3>⚖️ Eenheden / Hoeveelheden</h3><div style="display: flex; gap: 10px; margin-bottom: 15px;"><input type="text" id="nieuwe-eenheid-naam" placeholder="Nieuwe eenheid..." style="flex: 2;"><button id="voeg-eenheid-toe-btn" style="flex: 1;">Toevoegen</button></div><ul id="eenheden-instellingen-lijst" class="instellingen-scroll-lijst"></ul></div>
+                    <div class="recept-formulier" style="grid-column: 1 / -1;"><h3>🗺️ Looproute Supermarkt (Categorieën)</h3><div style="display: flex; gap: 10px; margin-bottom: 15px;"><input type="text" id="nieuwe-categorie-naam" placeholder="Nieuwe categorie..." style="flex: 3;"><button id="voeg-categorie-toe-btn" style="flex: 1;">Toevoegen</button></div><ul id="categorie-instellingen-lijst"></ul></div>
+                    
+                    <div class="recept-formulier" style="grid-column: 1 / -1; border: 2px dashed #e74c3c;"><h3 style="color: #e74c3c;">⚠️ Gevarenzone (Data Beheer)</h3><div style="display: flex; gap: 15px; flex-wrap: wrap;"><button onclick="window.resetWaste()" style="background:#f39c12; color:white; border:none; padding:10px 15px; border-radius:6px; font-weight:bold; cursor:pointer;">♻️ Reset Verspillingskosten</button><button onclick="window.wisAlleData()" style="background:#e74c3c; color:white; border:none; padding:10px 15px; border-radius:6px; font-weight:bold; cursor:pointer;">🧨 Wis ALLE App Data</button></div></div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <div id="voorraad-modal" class="login-overlay" style="display:none; z-index:9999;">
+        <div class="login-box" style="max-width: 400px; text-align:center;">
+            <h2 id="modal-titel" style="color:var(--primary-color); margin-top:0;">Product Beheren</h2>
+            <p id="modal-desc" style="color:#7f8c8d; margin-bottom: 20px; font-weight:bold;"></p>
+            <div id="modal-acties" style="display:flex; flex-direction:column; gap:15px;">
+                <div style="background:var(--li-bg); padding:15px; border-radius:8px; border:1px solid var(--border-color);"><h4 style="margin-top:0; color:#3498db;">🥣 Ik heb een deel gebruikt</h4><div style="display:flex; gap:10px;"><input type="number" id="modal-verbruik-aantal" placeholder="Hoeveel?" style="flex:2; margin:0;"><button onclick="window.voerVoorraadActieUit('verbruik')" class="primary-btn" style="flex:1; margin:0;">Opslaan</button></div></div>
+                <div style="background:var(--li-bg); padding:15px; border-radius:8px; border:1px solid #e74c3c;"><h4 style="margin-top:0; color:#e74c3c;">🗑️ Weggooien (Waste)</h4><input type="text" id="modal-waste-reden" placeholder="Reden? (Bijv. beschimmeld)" style="width:100%; margin-bottom:10px; box-sizing:border-box;"><button onclick="window.voerVoorraadActieUit('weggooien')" style="background:#e74c3c; color:white; border:none; padding:10px; border-radius:4px; font-weight:bold; width:100%; cursor:pointer;">Dit is bedorven / weggegooid</button></div>
+                <button onclick="window.voerVoorraadActieUit('op')" style="background:#27ae60; color:white; border:none; padding:12px; border-radius:6px; font-weight:bold; cursor:pointer;">✅ Product is netjes helemaal op</button>
+            </div>
+            <button onclick="document.getElementById('voorraad-modal').style.display='none'" style="margin-top:20px; background:#95a5a6; width:100%; color:white; border:none; padding:10px; border-radius:4px; cursor:pointer; font-weight:bold;">Annuleren</button>
+        </div>
+    </div>
+
+    <div id="kliekje-modal" class="login-overlay" style="display:none; z-index:9999;">
+        <div class="login-box" style="max-width: 400px; text-align:center;">
+            <h2 style="color:var(--primary-color); margin-top:0;">👨‍🍳 Lekker gewerkt!</h2>
+            <p style="color:#7f8c8d; font-weight:bold; margin-bottom:5px;">Zijn er nog porties over gebleven die de koelkast in gaan?</p>
+            <p id="kliekje-modal-desc" style="color:var(--text-main); font-size:0.95rem; margin-bottom:20px; font-style:italic;"></p>
+            <div style="background:var(--li-bg); padding:15px; border-radius:8px; border:1px solid var(--border-color); margin-bottom:15px;">
+                <label style="display:block; text-align:left; color:var(--primary-color); font-weight:bold; margin-bottom:5px;">Aantal porties (bijv. 0.5 of 2):</label>
+                <input type="number" id="modal-kliekje-aantal" placeholder="0" step="0.1" min="0" style="width:100%; box-sizing:border-box; margin:0; padding:10px; font-size:1.1rem;">
+            </div>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <button onclick="window.opslaanKliekje()" style="background:#27ae60; color:white; border:none; padding:12px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">💾 Opslaan in Voorraadkast</button>
+                <button onclick="window.sluitKliekjeModal()" style="background:#95a5a6; color:white; border:none; padding:12px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:1rem;">Geen kliekjes / Sluiten</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="dobbelsteen-modal" class="login-overlay" style="display:none; z-index:9999;">
+        <div class="login-box" style="max-width: 500px; text-align:center;">
+            <h2 style="color:var(--primary-color); margin-top:0;">🎲 Slimme Suggesties</h2>
+            <p style="color:#7f8c8d; margin-bottom: 20px; font-weight:bold;">Kies een van deze vijf slimme opties:</p>
+            <div id="dobbel-opties-container" style="display:flex; flex-direction:column; gap:10px; max-height:60vh; overflow-y:auto; padding-right:5px;"></div>
+            <button onclick="document.getElementById('dobbelsteen-modal').style.display='none'" style="margin-top:20px; background:#95a5a6; width:100%; color:white; border:none; padding:10px; border-radius:4px; cursor:pointer; font-weight:bold;">Annuleren</button>
+        </div>
+    </div>
+
+    <div id="bekijk-recept-modal" class="login-overlay" style="display:none; z-index:9999;">
+        <div class="login-box" style="max-width: 600px; text-align:left; max-height:90vh; overflow-y:auto;">
+            <h2 id="lees-recept-naam" style="color:var(--primary-color); margin-top:0; border-bottom:2px solid var(--border-color); padding-bottom:10px;"></h2>
+            <div style="display:flex; gap:10px; margin-bottom: 15px; flex-wrap:wrap;" id="lees-recept-tags"></div>
+            <h4 style="margin-bottom:5px; color:#e67e22;">🍅 Ingrediënten</h4>
+            <ul id="lees-recept-ing" style="list-style:none; padding:0; margin-bottom:20px; background:var(--li-bg); border-radius:8px; padding:10px; border:1px solid var(--border-color);"></ul>
+            <h4 style="margin-bottom:5px; color:#3498db;">📖 Instructies</h4>
+            <div id="lees-recept-stappen" style="display:flex; flex-direction:column; gap:10px; margin-bottom:20px;"></div>
+            <button onclick="document.getElementById('bekijk-recept-modal').style.display='none'" class="primary-btn" style="width:100%;">Sluiten</button>
+        </div>
+    </div>
+
+    <div id="plan-recept-modal" class="login-overlay" style="display:none; z-index:9999;">
+        <div class="login-box" style="max-width: 400px; text-align:center;">
+            <h2 style="color:var(--primary-color); margin-top:0;">📅 Gerecht Inplannen</h2>
+            <p id="plan-recept-naam" style="color:var(--text-main); font-weight:bold; font-size:1.1rem;"></p>
+            <div style="background:var(--li-bg); padding:15px; border-radius:8px; border:1px solid var(--border-color); margin-bottom:15px; text-align:left;">
+                <label style="display:block; margin-bottom:5px; color:#7f8c8d; font-weight:bold;">Kies een datum:</label>
+                <input type="date" id="plan-recept-datum" style="width:100%; box-sizing:border-box; margin-bottom:15px; padding:10px;">
+                <label style="display:block; margin-bottom:5px; color:#7f8c8d; font-weight:bold;">Kies een maaltijd:</label>
+                <select id="plan-recept-maaltijd" style="width:100%; padding:10px;">
+                    <option value="diner">🍽️ Diner (Samen)</option>
+                    <option value="lunch">🥪 Lunch (Samen)</option>
+                    <option value="extra">🍰 Extra / Snack (Samen)</option>
+                </select>
+            </div>
+            <button onclick="window.bevestigPlanRecept()" class="primary-btn" style="width:100%; font-size:1.1rem;">Zet in de Agenda!</button>
+            <button onclick="document.getElementById('plan-recept-modal').style.display='none'" style="margin-top:10px; background:#95a5a6; width:100%; color:white; border:none; padding:10px; border-radius:4px; cursor:pointer; font-weight:bold;">Annuleren</button>
+        </div>
+    </div>
+
+    <div id="cloud-status-indicator" style="position: fixed; bottom: 20px; right: 20px; background: #27ae60; color: white; padding: 10px 20px; border-radius: 30px; font-weight: bold; font-size: 0.9rem; box-shadow: 0 4px 10px rgba(0,0,0,0.2); z-index: 99999; transition: 0.3s;">
+        ☁️ Cloud Actief
+    </div>
+
+    <script src="data.js"></script>
+    <script src="beheer.js"></script>
+    <script src="kalender.js"></script>
+    <script src="dobbelsteen.js"></script>
+    <script src="boodschappen.js"></script>
+    <script src="voorraad.js"></script>
+    <script src="statistieken.js"></script>
+    <script src="kookplan.js"></script>
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
+        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAZXtE9MSgveV8kYlh68rpMZvKh5_oLhBc",
+            authDomain: "tomsdata-87267.firebaseapp.com",
+            projectId: "tomsdata-87267",
+            storageBucket: "tomsdata-87267.firebasestorage.app",
+            messagingSenderId: "241271213707",
+            appId: "1:241271213707:web:d853c52ac0afcfa1f90e8e",
+            measurementId: "G-RCVH31FL97"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        async function autoDownload() {
+            let cloudStatus = document.getElementById('cloud-status-indicator');
+            if(cloudStatus) { cloudStatus.innerText = "⏳ Syncen..."; cloudStatus.style.background = "#f39c12"; }
+            
+            try {
+                const docSnap = await getDoc(doc(db, "koken", "maaltijddata"));
+                if (docSnap.exists()) {
+                    let result = docSnap.data();
+                    Object.keys(result).forEach(key => {
+                        localStorage.setItem(key, result[key]);
+                    });
+                    
+                    // Herlaad UI nadat de data is binnengehaald
+                    if(typeof window.checkLoginStatus === 'function') window.checkLoginStatus();
+                }
+            } catch(e) { console.error("Cloud fout:", e); }
+
+            if(cloudStatus) { cloudStatus.innerText = "☁️ Cloud Actief"; cloudStatus.style.background = "#27ae60"; }
+        }
+
+        async function autoUpload() {
+            let kookData = {};
+            for (let i = 0; i < localStorage.length; i++) {
+                let key = localStorage.key(i);
+                if (!key.startsWith('blackshots_') && key !== 'avondeet_ingelogd_als') {
+                    kookData[key] = localStorage.getItem(key);
+                }
+            }
+            try { await setDoc(doc(db, "koken", "maaltijddata"), kookData); } 
+            catch(e) { console.error("Upload fout:", e); }
+        }
+
+        const origineleSetItem = localStorage.setItem;
+        let typTimer;
+        
+        localStorage.setItem = function(key, value) {
+            origineleSetItem.apply(this, arguments);
+            
+            // Als het geen basketbal data is, en niet je tijdelijke login, stuur naar de cloud
+            if(!key.startsWith('blackshots_') && key !== 'avondeet_ingelogd_als' && key !== 'cloud_status') {
+                clearTimeout(typTimer);
+                let cloudStatus = document.getElementById('cloud-status-indicator');
+                if(cloudStatus) { cloudStatus.innerText = "⏳ Opslaan..."; cloudStatus.style.background = "#3498db"; }
+                
+                typTimer = setTimeout(async () => {
+                    await autoUpload();
+                    if(cloudStatus) { cloudStatus.innerText = "☁️ Cloud Actief"; cloudStatus.style.background = "#27ae60"; }
+                }, 1500);
+            }
+        };
+
+        // Start met downloaden
+        let hasDownloaded = false;
+        if(!hasDownloaded) {
+            hasDownloaded = true;
+            autoDownload();
+        }
+    </script>
+
+    <script>
+        window.checkLoginStatus = function() {
+            let actieveGebruiker = localStorage.getItem('avondeet_ingelogd_als');
+            if(actieveGebruiker) {
+                document.getElementById('login-scherm').style.display = 'none';
+                document.getElementById('app-container').style.display = 'block';
+                document.getElementById('welkomst-tekst').innerText = `Goededag ${actieveGebruiker}!`;
+                window.startApp();
+            } else {
+                document.getElementById('login-scherm').style.display = 'flex';
+                document.getElementById('app-container').style.display = 'none';
+            }
+        };
+
+        window.loginApp = function(naam) { localStorage.setItem('avondeet_ingelogd_als', naam); window.checkLoginStatus(); };
+        window.logUit = function() { localStorage.removeItem('avondeet_ingelogd_als'); window.checkLoginStatus(); };
+
+        window.startApp = function() {
+            huidigeDatum = new Date(); 
+            if(typeof appInstellingen !== 'undefined' && appInstellingen.darkMode) { 
+                document.body.classList.add('dark-mode'); 
+                const toggleBtn = document.getElementById('toggle-theme-btn');
+                if(toggleBtn) toggleBtn.innerText = "☀️ Schakel Light Mode in"; 
+            }
+            const pInst = document.getElementById('inst-personen');
+            const pRec = document.getElementById('recept-personen');
+            if(pInst && typeof appInstellingen !== 'undefined') pInst.value = appInstellingen.personen; 
+            if(pRec && typeof appInstellingen !== 'undefined') pRec.value = appInstellingen.personen;
+            
+            if (typeof renderApparatuurCheckboxes === "function") renderApparatuurCheckboxes();
+            if (typeof vulDynamischeDropdowns === "function") vulDynamischeDropdowns(); 
+            if (typeof updateSelectMetIngredienten === "function") {
+                updateSelectMetIngredienten('recept-ing-select'); 
+                updateSelectMetIngredienten('recept-ing-alt-select'); 
+                updateSelectMetIngredienten('extra-db-select');
+            }
+            if (typeof renderAgenda === "function") renderAgenda(); 
+            
+            setTimeout(() => { 
+                const wFilter = document.getElementById('boodschappen-winkel-filter');
+                if(wFilter && typeof winkelLijst !== 'undefined') {
+                    winkelLijst.forEach(w => wFilter.innerHTML += `<option value="${w}">${w}</option>`);
+                }
+                if(typeof window.berekenBoodschappen === 'function') window.berekenBoodschappen();
+                if(typeof window.renderVoorraad === 'function') window.renderVoorraad();
+                if(typeof window.renderSlimmeSuggestie === 'function') window.renderSlimmeSuggestie(false);
+                window.switchTab('dashboard'); 
+            }, 100); 
+        };
+        
+        window.switchTab = function(tabId) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            const nieuwScherm = document.getElementById(tabId);
+            if(nieuwScherm) nieuwScherm.classList.add('active');
+            document.querySelectorAll(`.tab-btn[data-tab="${tabId}"]`).forEach(btn => btn.classList.add('active'));
+            
+            if(tabId === 'agenda' && typeof renderAgenda === "function") renderAgenda();
+            if(tabId === 'dagplanner' && typeof renderDagPlanner === "function") renderDagPlanner();
+            if(tabId === 'statistieken' && typeof renderStatistieken === "function") renderStatistieken();
+            if(tabId === 'boodschappen' && typeof berekenBoodschappen === "function") berekenBoodschappen();
+            if(tabId === 'voorraad' && typeof renderVoorraad === "function") renderVoorraad();
+            if(tabId === 'recepten' && typeof renderReceptenLijst === "function") {
+                if(document.getElementById('zoek-recept')) document.getElementById('zoek-recept').value = '';
+                renderReceptenLijst();
+            }
+            if(tabId === 'ingredienten' && typeof renderIngredientenLijst === "function") {
+                if(document.getElementById('zoek-ingredient')) document.getElementById('zoek-ingredient').value = '';
+                renderIngredientenLijst();
+            }
+            if(tabId === 'dashboard') {
+                if(typeof renderDashboardDrieDagen === "function") renderDashboardDrieDagen();
+                if(typeof renderSlimmeSuggestie === "function") renderSlimmeSuggestie(false);
+            }
+            if(tabId === 'kookplan' && typeof window.renderKookplan === "function") {
+                window.renderKookplan();
+                window.filterKookplanSelect('');
+            }
+            
+            const dropdown = document.getElementById('hoofd-menu-dropdown');
+            if(dropdown) dropdown.classList.remove('show');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
+
+        document.querySelectorAll('.tab-btn').forEach(button => { button.addEventListener('click', () => window.switchTab(button.dataset.tab)); });
+        const menuToggle = document.getElementById('menu-toggle-btn');
+        if(menuToggle) { menuToggle.addEventListener('click', (e) => { e.stopPropagation(); document.getElementById('hoofd-menu-dropdown').classList.toggle('show'); }); }
+        window.addEventListener('click', (e) => {
+            const dropdown = document.getElementById('hoofd-menu-dropdown');
+            if (dropdown && dropdown.classList.contains('show') && !e.target.closest('.dropdown-container')) dropdown.classList.remove('show');
+        });
+        document.addEventListener('DOMContentLoaded', () => { window.checkLoginStatus(); });
+    </script>
+</body>
+</html>

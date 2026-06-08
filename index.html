@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mijn Portaal</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: #f4f7f6; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            height: 100vh; 
+            margin: 0; 
+        }
+        h1 { 
+            color: #2c3e50; 
+            margin-bottom: 40px; 
+            font-size: 2.5rem;
+        }
+        .knop-container { 
+            display: flex; 
+            gap: 30px; 
+            flex-wrap: wrap; 
+            justify-content: center; 
+        }
+        .app-knop { 
+            background: white; 
+            border: 2px solid #bdc3c7; 
+            border-radius: 16px; 
+            padding: 50px 30px; 
+            text-align: center; 
+            text-decoration: none; 
+            color: #2c3e50; 
+            width: 220px; 
+            transition: all 0.3s ease; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05); 
+        }
+        .app-knop:hover { 
+            transform: translateY(-10px); 
+            box-shadow: 0 12px 20px rgba(0,0,0,0.15); 
+        }
+        .app-knop.koken:hover { border-color: #27ae60; color: #27ae60; }
+        .app-knop.basketbal:hover { border-color: #e67e22; color: #e67e22; }
+        .icoon { 
+            font-size: 5rem; 
+            display: block; 
+            margin-bottom: 20px; 
+            transition: transform 0.3s ease;
+        }
+        .app-knop:hover .icoon { transform: scale(1.1); }
+        .titel { 
+            font-size: 1.4rem; 
+            font-weight: bold; 
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Welkom! Waar gaan we mee aan de slag?</h1>
+    
+    <div class="knop-container">
+        <!-- Zorg dat je huidige index.html is hernoemd naar koken.html -->
+        <a href="koken.html" class="app-knop koken">
+            <span class="icoon">🍳</span>
+            <span class="titel">Maaltijden</span>
+        </a>
+        
+        <!-- Dit wordt de nieuwe pagina -->
+        <a href="basketbal.html" class="app-knop basketbal">
+            <span class="icoon">🏀</span>
+            <span class="titel">Basketbal</span>
+        </a>
+    </div>
+
+</body>
+</html>
