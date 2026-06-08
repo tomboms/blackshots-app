@@ -598,8 +598,7 @@
             const nieuwScherm = document.getElementById(tabId);
             if(nieuwScherm) nieuwScherm.classList.add('active');
             document.querySelectorAll(`.tab-btn[data-tab="${tabId}"]`).forEach(btn => btn.classList.add('active'));
-                if(btn.getAttribute('onclick').includes(tabId)) btn.classList.add('active');
-            });
+            
             if(tabId === 'agenda' && typeof renderAgenda === "function") renderAgenda();
             if(tabId === 'dagplanner' && typeof renderDagPlanner === "function") renderDagPlanner();
             if(tabId === 'statistieken' && typeof renderStatistieken === "function") renderStatistieken();
@@ -634,25 +633,7 @@
             const dropdown = document.getElementById('hoofd-menu-dropdown');
             if (dropdown && dropdown.classList.contains('show') && !e.target.closest('.dropdown-container')) dropdown.classList.remove('show');
         });
-
-        document.addEventListener('DOMContentLoaded', () => {
-            // DE MAGIE: Check of we net een automatische refresh hebben gehad via Firebase
-            let bewaardeTab = sessionStorage.getItem('laatste_tab');
-            
-            if (bewaardeTab && typeof window.switchTab === 'function') {
-                // Ja! We hebben zojuist ververst, spring onzichtbaar terug naar waar we waren
-                window.switchTab(bewaardeTab);
-                sessionStorage.removeItem('laatste_tab'); // Wis het geheugen weer
-            } else if (typeof window.switchTab === 'function') {
-                // Nee, dit is een normale start
-                window.switchTab('dashboard'); 
-            }
-        });
+        document.addEventListener('DOMContentLoaded', () => { window.checkLoginStatus(); });
     </script>
 </body>
 </html>
-
-
-
-
-
