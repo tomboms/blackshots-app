@@ -198,3 +198,65 @@ body.rol-trainer .tab-btn[onclick*="'instellingen.html'"] {
 body.rol-trainer .admin-only {
     display: none !important;
 }
+
+/* ==========================================================================
+   🌙 DARK MODE (Veilig: raakt de layout NIET aan!)
+   ========================================================================== */
+
+/* De hoofdachtergrond en tekst */
+body.dark-mode {
+    background-color: #121212 !important;
+    color: #e0e0e0 !important;
+}
+
+/* Alle witte vlakken, kaarten en invulvelden donker maken */
+body.dark-mode .card, 
+body.dark-mode div[style*="background:white"],
+body.dark-mode div[style*="background:#fafafa"],
+body.dark-mode div[style*="background: white"],
+body.dark-mode div[style*="background: #fafafa"] {
+    background-color: #1e1e1e !important;
+    color: #e0e0e0 !important;
+    border-color: #333333 !important;
+}
+
+/* Grijze achtergronden (zoals datumbalkjes) */
+body.dark-mode div[style*="background:#eef2f5"] {
+    background-color: #2c3e50 !important;
+    color: #ffffff !important;
+}
+
+/* Knoppen en Menubalk */
+body.dark-mode .tab-menu { 
+    background-color: #1e1e1e !important; 
+    border-bottom: 2px solid #333 !important; 
+}
+body.dark-mode .tab-btn { color: #bdc3c7 !important; }
+body.dark-mode .tab-btn:hover { background-color: #333 !important; color: white !important; }
+body.dark-mode .tab-btn.active { background-color: #e67e22 !important; color: white !important; }
+
+/* Invoervelden (Inputs, Selects, Textareas) */
+body.dark-mode input, 
+body.dark-mode select, 
+body.dark-mode textarea {
+    background-color: #2c3e50 !important;
+    color: #ffffff !important;
+    border-color: #34495e !important;
+}
+
+/* Teksten die normaal zwart of donkerblauw zijn, wit maken */
+body.dark-mode h1, 
+body.dark-mode h2, 
+body.dark-mode h3, 
+body.dark-mode h4, 
+body.dark-mode strong,
+body.dark-mode span[style*="color:black"],
+body.dark-mode span[style*="color:#333"],
+body.dark-mode div[style*="color:var(--secondary-color)"] {
+    color: #ffffff !important;
+}
+
+/* Tabellen (zoals bij de toernooi stand) */
+body.dark-mode table th { background-color: #2c3e50 !important; color: white !important; border-color: #444 !important; }
+body.dark-mode table td { border-color: #444 !important; color: #e0e0e0 !important; }
+body.dark-mode table tr { border-bottom: 1px solid #444 !important; }
