@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Black Shots - Weekagenda</title>
+    <link rel="stylesheet" href="basketbal.css">
+</head>
+<body style="overflow-y: auto;">
+
+    <div id="cloud-status-indicator" style="position: fixed; bottom: 20px; right: 20px; background: #27ae60; color: white; padding: 10px 20px; border-radius: 30px; font-weight: bold; font-size: 0.9rem; box-shadow: 0 4px 10px rgba(0,0,0,0.2); z-index: 99999; transition: 0.3s;">
+        ☁️ Cloud Actief
+    </div>
+
+    <nav class="top-nav">
+        <h1>🏀 Black Shots Clubbeheer</h1>
+        <a href="koken.html" class="terug-knop">🏠 Terug naar Portaal</a>
+    </nav>
+
+    <div class="tab-menu">
+        <button class="tab-btn" onclick="window.location.href='basketbal.html'">📊 Dashboard</button>
+        <button class="tab-btn active" onclick="window.location.href='basketbal_agenda.html'">📅 Weekagenda</button>
+        <button class="tab-btn" onclick="window.location.href='basketbal_oefeningen.html'">📋 Oefeningen</button>
+        <button class="tab-btn" onclick="window.location.href='basketbal_toernooien.html'">🏆 Interne Toernooien</button>
+        <button class="tab-btn" onclick="window.location.href='basketbal_instellingen.html'">⚙️ Instellingen</button>
+    </div>
+
+    <main class="content-sectie active">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; margin-bottom:15px; border-bottom:2px solid var(--border-color); padding-bottom:10px;">
+            <div>
+                <h2 style="margin:0;">Trainingsagenda</h2>
+                <p style="color: #7f8c8d; margin-top:5px;">Bekijk je planning per week of per team.</p>
+            </div>
+            <div style="display:flex; background:#eef2f5; padding:5px; border-radius:8px;">
+                <button id="btn-view-week" onclick="window.wisselAgendaView('week')" style="background:var(--primary-color); color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; transition:0.2s;">📅 Weekagenda</button>
+                <button id="btn-view-team" onclick="window.wisselAgendaView('team')" style="background:transparent; color:var(--secondary-color); border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; transition:0.2s;">👕 Lijst per Team</button>
+                <button onclick="document.getElementById('bulk-cancel-modal').style.display='flex'" style="background:#e74c3c; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; margin-left:5px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">🏝️ Vakantie (Bulk) Aflassen</button>
+            </div>
+        </div>
+
+        <div id="agenda-week-controls" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; background:white; padding:10px; border-radius:8px; border:1px solid var(--border-color);">
+            <button onclick="window.veranderWeek(-7)" style="background:var(--secondary-color); color:white; border:none; padding:8px 12px; border-radius:4px; cursor:pointer;">◀ Vorige</button>
+            <h3 id="week-titel" style="margin:0; color:var(--primary-color); text-align:center; flex:1;"></h3>
+            <button onclick="window.gaNaarHuidigeWeek()" style="background:var(--primary-color); color:white; border:none; padding:8px 12px; border-radius:4px; cursor:pointer; font-weight:bold; margin-right:10px;">Deze Week</button>
+            <button onclick="window.veranderWeek(7)" style="background:var(--secondary-color); color:white; border:none; padding:8px 12px; border-radius:4px; cursor:pointer;">Volgende ▶</button>
+        </div>
+        
+        <div class="week-grid" id="week-agenda-container"></div>
+
+        <div id="agenda-team-controls" style="display:none; flex-direction:column; gap:15px;">
+            <div style="background:white; padding:15px; border-radius:8px; border:1px solid var(--border-color); display:flex; gap:15px; align-items:center;">
+                <strong style="color:var(--secondary-color); font-size:1.1rem;">Bekijk het traject voor:</strong>
+                <select id="agenda-team-select" onchange="window.renderTeamAgenda()" style="padding:10px; border-radius:4px; border:1px solid var(--border-color); flex:1; max-width:300px; font-size:1rem; font-weight:bold;">
+                </select>
+            </div>
+            <div id="team-agenda-container" style="display:flex; flex-direction:column; gap:10px;"></div>
+        </div>
+    </main>
+
+    <div id="planner-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid var(--border-color); padding-bottom:10px; margin-bottom:15px;">
+                <div>
+                    <h2 id="planner-titel" style="margin:0; color:var(--secondary-color);">Training Plannen</h2>
+                    <span id="planner-datum-weergave" style="color:var(--primary-color); font-weight:bold;"></span>
+                </div>
+                <button onclick="window.sluitPlanner()" class="sluit-knop">X</button>
+            </div>
+            
+            <div class="planner-layout">
+                <div class="planner-kolom" style="max-height: 70vh; overflow-y: auto; padding-right: 15px;">
+                    <h3>⏱️ Tijdlijn (<span id="planner-tijd-over">0</span> min vrij)</h3>
+                    <p style="font-size:0.85rem; color:#7f8c8d; margin-top:-10px;">Dit is het draaiboek voor je training.</p>
+                    <div id="planner-tijdlijn"></div>
+                    
+                    <div style="margin-top:15px; border-top:1px dashed var(--border-color); padding-top:15px; display:flex; gap:10px;">
+                        <button id="save-training-btn" onclick="window.slaTrainingOp()" class="primary-btn" style="background:#27ae60; font-size:1.2rem; box-shadow:0 4px 6px rgba(0,0,0,0.1); transition: 0.3s; flex:2;">💾 Opslaan</button>
+                        <button onclick="window.annuleerTrainingPrompt()" style="background:#e74c3c; color:white; border:none; padding:10px; border-radius:6px; font-weight:bold; cursor:pointer; flex:1; box-shadow:0 4px 6px rgba(0,0,0,0.1);">❌ Aflassen</button>
+                    </div>
+                </div>
+                
+                <div class="planner-kolom" style="max-height: 70vh; overflow-y: auto; padding-right: 15px;">
+                    <h3>📋 Voeg oefening toe</h3>
+                    <div style="background:var(--bg-color); padding:12px; border-radius:6px; border:1px solid var(--border-color); margin-bottom:15px;">
+                        <h4 style="margin-top:0; margin-bottom:8px;">✍️ Los Vrij Blok Toevoegen</h4>
+                        <div style="display:flex; gap:10px;">
+                            <input type="text" id="vrij-blok-naam" placeholder="Bijv. Uitleg tactiek, pauze..." style="flex:3; margin:0; padding:8px;">
+                            <input type="number" id="vrij-blok-tijd" placeholder="Min" style="flex:1; margin:0; padding:8px;" value="5">
+                            <button onclick="window.voegVrijBlokToe()" class="primary-btn" style="flex:1; margin:0; padding:8px; font-size:0.9rem; background:#f1c40f; color:#2c3e50;">+ Zet in plan</button>
+                        </div>
+                        <div style="margin-top:10px; padding-top:10px; border-top:1px dashed #ccc;">
+                            <button onclick="document.getElementById('vrij-blok-naam').value = '🏆 Interne Competitie'; document.getElementById('vrij-blok-tijd').value = Math.max(10, parseInt(document.getElementById('planner-tijd-over').innerText || 0)); window.voegVrijBlokToe();" style="width:100%; background:#8e44ad; color:white; border:none; padding:8px; border-radius:4px; font-weight:bold; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.1);">🏆 Vul resterende trainingstijd met Interne Competitie</button>
+                        </div>
+                    </div>
+                    
+                    <p id="planner-team-filter-text" style="font-size:0.85rem; color:#27ae60; font-weight:bold; margin-bottom:5px;">Oefeningen gefilterd op geselecteerde team:</p>
+                    <div style="display:flex; gap:10px; margin-bottom:15px; flex-wrap:wrap;">
+                        <input type="number" id="planner-spelers" placeholder="👥 Spelers?" onkeyup="window.filterPlannerOefeningen()" onchange="window.filterPlannerOefeningen()" style="flex:1; min-width:80px; margin:0; padding:8px;">
+                        <input type="text" id="planner-zoek" placeholder="🔎 Zoek op naam..." onkeyup="window.filterPlannerOefeningen()" style="flex:2; margin:0; padding:8px;">
+                        <select id="planner-cat-filter" onchange="window.filterPlannerOefeningen()" style="flex:1.5; margin:0; padding:8px;"></select>
+                    </div>
+
+                    <div id="planner-progressie-sectie" style="display:none; margin-bottom:20px; background:#fdf2e9; border:2px solid #e67e22; border-radius:8px; padding:10px;">
+                        <h4 style="margin:0 0 10px 0; color:#d35400;">🎯 Focus Oefeningen (Aangeraden)</h4>
+                        <div id="planner-progressie-lijst" style="display:flex; flex-direction:column; gap:10px;"></div>
+                    </div>
+                    <div id="planner-oefeningen-lijst" style="display:flex; flex-direction:column; gap:10px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="custom-prompt-modal" class="modal-overlay" style="display:none; z-index:999999;">
+        <div class="modal-content" style="max-width:400px; text-align:center; height:auto;">
+            <h3 id="prompt-titel" style="margin-top:0; color:var(--primary-color);">Titel</h3>
+            <p id="prompt-tekst" style="color:#7f8c8d;"></p>
+            <input type="text" id="prompt-input" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px; margin-bottom:15px; font-size:1rem;">
+            <div style="display:flex; gap:10px;">
+                <button onclick="document.getElementById('custom-prompt-modal').style.display='none'" style="flex:1; background:#95a5a6; color:white; border:none; padding:10px; border-radius:4px;">Annuleren</button>
+                <button id="prompt-confirm-btn" style="flex:1; background:#27ae60; color:white; border:none; padding:10px; border-radius:4px; font-weight:bold;">Bevestigen</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="custom-confirm-modal" class="modal-overlay" style="display:none; z-index:999999;">
+        <div class="modal-content" style="max-width:400px; text-align:center; height:auto;">
+            <h3 id="confirm-titel" style="margin-top:0; color:#e74c3c;">Weet je het zeker?</h3>
+            <p id="confirm-tekst" style="color:#7f8c8d;"></p>
+            <div style="display:flex; gap:10px; margin-top:20px;">
+                <button onclick="document.getElementById('custom-confirm-modal').style.display='none'" style="flex:1; background:#95a5a6; color:white; border:none; padding:10px; border-radius:4px;">Annuleren</button>
+                <button id="confirm-yes-btn" style="flex:1; background:#e74c3c; color:white; border:none; padding:10px; border-radius:4px; font-weight:bold;">Ja, doen!</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="bulk-cancel-modal" class="modal-overlay" style="display:none; z-index:999999;">
+        <div class="modal-content" style="max-width:450px; height:auto;">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #eee; padding-bottom:10px; margin-bottom:15px;">
+                <h3 style="margin:0; color:#e74c3c;">🏝️ Vakantie / Bulk Aflassen</h3>
+                <button onclick="document.getElementById('bulk-cancel-modal').style.display='none'" class="sluit-knop">X</button>
+            </div>
+            <p style="font-size:0.9rem; color:#7f8c8d; margin-top:0;">Annuleer met één klik de trainingen voor alle teams.</p>
+            <label style="font-weight:bold; display:block; margin-top:10px;">Reden:</label>
+            <input type="text" id="bulk-reden" placeholder="Zomervakantie, Feestdag..." style="width:100%; padding:10px;">
+            <div style="display:flex; gap:10px; margin-bottom:15px;">
+                <div style="flex:1;">
+                    <label style="font-weight:bold; font-size:0.85rem;">Vanaf (datum):</label>
+                    <input type="date" id="bulk-start" style="width:100%; padding:8px;">
+                </div>
+                <div style="flex:1;">
+                    <label style="font-weight:bold; font-size:0.85rem;">Tot en met:</label>
+                    <input type="date" id="bulk-eind" style="width:100%; padding:8px;">
+                </div>
+            </div>
+            <button onclick="window.voerBulkAnnuleringUit()" style="width:100%; background:#e74c3c; color:white; border:none; padding:12px; border-radius:6px; font-weight:bold; font-size:1.1rem;">❌ Annuleer deze hele periode</button>
+        </div>
+    </div>
+
+    <script src="basketbal_data.js"></script>
+    <script src="basketbal_agenda.js"></script>
+    <script type="module" src="firebase_motor.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            if(window.renderWeekAgenda) window.renderWeekAgenda();
+            if(window.vulAgendaTeamSelect) window.vulAgendaTeamSelect();
+        });
+    </script>
+</body>
+</html>
