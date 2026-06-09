@@ -1,49 +1,73 @@
-// --- BASKETBAL_SPELERS.JS: LOGICA VOOR LEDENBESTAND & CSV IMPORT ---
+// --- BASKETBAL_SPELERS.JS: LOGICA VOOR LEDENBESTAND, FILTERS & SLIMME CSV IMPORT ---
 
 window.renderSpelers = function() {
     const tbody = document.getElementById('spelers-tabel-body');
     const teamSelect = document.getElementById('nw-speler-team');
+    const filterTeam = document.getElementById('filter-team');
+
     if (!tbody) return;
 
+    // Vul de dropdowns als ze nog leeg zijn
     if(teamSelect && teamSelect.options.length <= 1) {
         teamSelect.innerHTML = '<option value="">-- Geen (Vrije Speler) --</option>';
-        window.teamsDB.forEach(t => {
-            teamSelect.innerHTML += `<option value="${t.id}">${t.naam}</option>`;
-        });
+        if(filterTeam) filterTeam.innerHTML = '<option value="all">-- Alle Teams --</option><option value="vrij">Vrije Spelers (Geen team)</option>';
+        
+        if (Array.isArray(window.teamsDB)) {
+            window.teamsDB.forEach(t => {
+                teamSelect.innerHTML += `<option value="${t.id}">${t.naam}</option>`;
+                if(filterTeam) filterTeam.innerHTML += `<option value="${t.id}">${t.naam}</option>`;
+            });
+        }
     }
 
     let zoekterm = (document.getElementById('zoek-speler') ? document.getElementById('zoek-speler').value.toLowerCase() : "");
+    let selTeam = filterTeam ? filterTeam.value : 'all';
+    let selType = document.getElementById('filter-type') ? document.getElementById('filter-type').value : 'all';
+
     let html = '';
 
     window.spelersDB.forEach((speler, index) => {
+        // Bepaal of het een recreant is (via nieuwe isRecreant tag OF via de text van sportlink)
+        let isRec = speler.isRecreant === true || (speler.clubLidmaatschap && speler.clubLidmaatschap.toLowerCase().includes('rec'));
+
         let teamNaam = "Vrije Speler";
         let teamBadge = "background:#bdc3c7;";
+        let matchTeamId = "vrij";
         
         if(speler.teamId) {
             let tObj = window.teamsDB.find(t => t.id === speler.teamId || t.naam.toLowerCase() === speler.teamId.toLowerCase());
             if(tObj) {
                 teamNaam = tObj.naam;
                 teamBadge = "background:var(--primary-color);";
+                matchTeamId = tObj.id;
             } else {
                 teamNaam = speler.teamId; 
                 teamBadge = "background:#e67e22;";
+                matchTeamId = speler.teamId;
             }
         }
 
+        // --- FILTER LOGICA ---
+        let passTeam = (selTeam === 'all') || (selTeam === matchTeamId);
+        let passType = (selType === 'all') || (selType === 'recreant' && isRec) || (selType === 'wedstrijd' && !isRec);
         let matchText = `${speler.naam} ${speler.bondsnummer || ''} ${teamNaam} ${speler.clubLidmaatschap || ''} ${speler.bondLidmaatschap || ''}`.toLowerCase();
+        let passSearch = matchText.includes(zoekterm);
 
-        if (matchText.includes(zoekterm)) {
+        if (passTeam && passType && passSearch) {
+            // Recreant Badge
+            let recBadge = isRec ? `<span style="background:#f1c40f; color:#2c3e50; padding:2px 6px; border-radius:4px; font-size:0.7rem; font-weight:bold; margin-left:5px; border:1px solid #e67e22;">REC</span>` : '';
+
             html += `
                 <tr style="border-bottom:1px solid #eee; font-size:0.95rem;">
                     <td style="padding:12px; color:#7f8c8d; font-family:monospace;">${speler.bondsnummer || 'Handmatig'}</td>
                     <td style="padding:12px; font-weight:bold; color:var(--secondary-color);">${speler.naam}</td>
-                    <td style="padding:12px;">${speler.leeftijd || '-'} jaar</td>
+                    <td style="padding:12px;">${speler.leeftijd || '-'} jr</td>
                     <td style="padding:12px; font-weight:bold; color:#d35400;">${speler.rugnummer ? `#${speler.rugnummer}` : '-'}</td>
                     <td style="padding:12px;">
-                        <span style="${teamBadge} color:white; padding:4px 8px; border-radius:4px; font-size:0.85rem; font-weight:bold;">${teamNaam}</span>
+                        <span style="${teamBadge} color:white; padding:4px 8px; border-radius:4px; font-size:0.85rem; font-weight:bold;">${teamNaam}</span>${recBadge}
                     </td>
-                    <td style="padding:12px; color:#7f8c8d;">${speler.lidSinds || '-'}</td>
-                    <td style="padding:12px; font-size:0.85rem; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                    <td style="padding:12px; color:#7f8c8d; font-size:0.85rem;">${speler.lidSinds || '-'}</td>
+                    <td style="padding:12px; font-size:0.85rem; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
                         <div style="font-weight:bold; color:#2c3e50;">${speler.clubLidmaatschap || '-'}</div>
                         <div style="color:#7f8c8d; font-style:italic;">${speler.bondLidmaatschap || '-'}</div>
                     </td>
@@ -56,11 +80,11 @@ window.renderSpelers = function() {
         }
     });
 
-    if(html === '') html = '<tr><td colspan="8" style="padding:20px; text-align:center; color:#7f8c8d;">Geen spelers gevonden.</td></tr>';
+    if(html === '') html = '<tr><td colspan="8" style="padding:20px; text-align:center; color:#7f8c8d;">Geen spelers gevonden voor dit filter.</td></tr>';
     tbody.innerHTML = html;
 };
 
-// --- NIEUW: BEWERK SPELER ---
+// --- BEWERK SPELER ---
 window.bewerkSpeler = function(index) {
     let speler = window.spelersDB[index];
     
@@ -74,10 +98,11 @@ window.bewerkSpeler = function(index) {
     if (nwRugnr === null) return;
 
     let teamOpties = window.teamsDB.map(t => t.naam).join(", ");
-    let nwTeam = prompt(`Koppel aan een teamnaam (Kies uit: ${teamOpties})\nOf laat leeg om als Vrije Speler in te stellen:`, speler.teamId);
+    let nwTeam = prompt(`Koppel aan een team (Kies uit: ${teamOpties})\nLaat leeg voor 'Vrije Speler':`, speler.teamId);
     if (nwTeam === null) return;
 
-    // Converteer de ingevoerde teamnaam (bijv "X12-1") naar het juiste ID ("x121")
+    let isRecPrompt = confirm("Is deze speler een Recreant (speelt geen wedstrijden)?\nKlik 'OK' voor JA, 'Annuleren' voor NEE.");
+
     let matchedTeam = window.teamsDB.find(t => t.naam.toLowerCase() === nwTeam.trim().toLowerCase());
     let finalTeamId = matchedTeam ? matchedTeam.id : nwTeam.trim();
 
@@ -85,6 +110,7 @@ window.bewerkSpeler = function(index) {
     speler.leeftijd = nwLeeftijd.trim();
     speler.rugnummer = nwRugnr.trim();
     speler.teamId = finalTeamId;
+    speler.isRecreant = isRecPrompt;
 
     localStorage.setItem('blackshots_spelers', JSON.stringify(window.spelersDB));
     window.renderSpelers();
@@ -96,6 +122,7 @@ window.voegSpelerToe = function() {
     let leeftijd = document.getElementById('nw-speler-leeftijd').value;
     let rugnr = document.getElementById('nw-speler-rugnr').value;
     let teamId = document.getElementById('nw-speler-team').value;
+    let isRec = document.getElementById('nw-speler-rec').checked;
 
     if(naam) {
         window.spelersDB.push({
@@ -105,15 +132,17 @@ window.voegSpelerToe = function() {
             leeftijd: leeftijd,
             rugnummer: rugnr,
             teamId: teamId,
+            isRecreant: isRec,
             lidSinds: new Date().toLocaleDateString('nl-NL'),
-            clubLidmaatschap: 'Spelend lid (Handmatig)',
-            bondLidmaatschap: 'Wedstrijdspelend'
+            clubLidmaatschap: isRec ? 'Recreant (Handmatig)' : 'Spelend lid (Handmatig)',
+            bondLidmaatschap: isRec ? 'Niet-spelend' : 'Wedstrijdspelend'
         });
         localStorage.setItem('blackshots_spelers', JSON.stringify(window.spelersDB));
         
         document.getElementById('nw-speler-naam').value = '';
         document.getElementById('nw-speler-leeftijd').value = '';
         document.getElementById('nw-speler-rugnr').value = '';
+        document.getElementById('nw-speler-rec').checked = false;
         window.renderSpelers();
     } else {
         alert("Vul minimaal een naam in!");
@@ -121,14 +150,14 @@ window.voegSpelerToe = function() {
 };
 
 window.verwijderSpeler = function(index) {
-    if(confirm("Weet je zeker dat je deze speler permanent wilt verwijderen?")) {
+    if(confirm("Weet je zeker dat je deze speler wilt wissen?")) {
         window.spelersDB.splice(index, 1);
         localStorage.setItem('blackshots_spelers', JSON.stringify(window.spelersDB));
         window.renderSpelers();
     }
 };
 
-// --- DE SLIMME BOND CSV PARSER ---
+// --- DE SLIMME BOND CSV PARSER (MET RECREANTEN LOGICA) ---
 window.importeerBondCSV = function(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -151,9 +180,7 @@ window.importeerBondCSV = function(event) {
         const idxRugnr = headers.indexOf('_Rug nummer');
         const idxTeam = headers.indexOf('_Team');
 
-        if (idxVoornaam === -1 || idxAchternaam === -1) {
-            return alert("Fout: Dit bestand heeft niet het juiste formaat van de bond.");
-        }
+        if (idxVoornaam === -1 || idxAchternaam === -1) return alert("Fout: CSV formaat komt niet overeen met Sportlink.");
 
         let rapportToegevoegd = [];
         let rapportAangepast = [];
@@ -172,6 +199,7 @@ window.importeerBondCSV = function(event) {
 
             let bondsnummer = row[idxBondsnummer] ? row[idxBondsnummer].trim() : "";
             
+            // Leeftijd berekenen
             let berekendeLeeftijd = "-";
             let gebDatumStr = row[idxGeboorte] ? row[idxGeboorte].trim() : "";
             if (gebDatumStr) {
@@ -185,10 +213,23 @@ window.importeerBondCSV = function(event) {
                 }
             }
 
-            let nwRugnummer = idxRugnr !== -1 && row[idxRugnr] ? row[idxRugnr].trim() : "";
-            let nwTeam = idxTeam !== -1 && row[idxTeam] ? row[idxTeam].trim() : "";
+            let ruwTeam = idxTeam !== -1 && row[idxTeam] ? row[idxTeam].trim() : "";
             let nwClubLid = idxClubLid !== -1 && row[idxClubLid] ? row[idxClubLid].trim() : "";
             let nwBondLid = idxBondLid !== -1 && row[idxBondLid] ? row[idxBondLid].trim() : "";
+            let nwRugnummer = idxRugnr !== -1 && row[idxRugnr] ? row[idxRugnr].trim() : "";
+
+            // DE RECREANTEN CHECK: Zit het woord 'rec' of 'recreant' in de strings?
+            let isRec = nwClubLid.toLowerCase().includes('rec') || ruwTeam.toLowerCase().includes('rec');
+            
+            // SCHOON TEAM OP: Haal 'Rec-' of 'Recreanten ' uit de tekst zodat 'Rec-X10' matcht met 'X10'
+            let opgeschoondTeam = ruwTeam.replace(/rec\s*-?\s*/i, '').replace(/recreanten\s*-?\s*/i, '').trim();
+
+            // Zoek een match in de database (Bijv. CSV zegt "X10", App zegt "X10-1")
+            let matchTeamObj = window.teamsDB.find(t => 
+                t.id.toLowerCase() === opgeschoondTeam.toLowerCase() || 
+                t.naam.toLowerCase().includes(opgeschoondTeam.toLowerCase())
+            );
+            let finalTeamId = matchTeamObj ? matchTeamObj.id : opgeschoondTeam; // Anders gewoon de platte tekst opslaan
 
             let bestaandeSpeler = window.spelersDB.find(s => 
                 (bondsnummer !== "" && s.bondsnummer === bondsnummer) || 
@@ -197,21 +238,23 @@ window.importeerBondCSV = function(event) {
 
             if (bestaandeSpeler) {
                 let wijzigingen = [];
-
                 if (berekendeLeeftijd !== "-" && bestaandeSpeler.leeftijd !== berekendeLeeftijd) {
                     bestaandeSpeler.leeftijd = berekendeLeeftijd; wijzigingen.push("leeftijd");
                 }
-                if (nwTeam !== "" && bestaandeSpeler.teamId !== nwTeam) {
-                    bestaandeSpeler.teamId = nwTeam; wijzigingen.push("team");
+                if (finalTeamId !== "" && bestaandeSpeler.teamId !== finalTeamId) {
+                    bestaandeSpeler.teamId = finalTeamId; wijzigingen.push(`team (${finalTeamId})`);
+                }
+                if (isRec !== bestaandeSpeler.isRecreant) {
+                    bestaandeSpeler.isRecreant = isRec; wijzigingen.push("recreant-status");
                 }
                 if (nwClubLid !== "" && bestaandeSpeler.clubLidmaatschap !== nwClubLid) {
-                    bestaandeSpeler.clubLidmaatschap = nwClubLid; wijzigingen.push("club-lid");
+                    bestaandeSpeler.clubLidmaatschap = nwClubLid;
                 }
                 if (nwBondLid !== "" && bestaandeSpeler.bondLidmaatschap !== nwBondLid) {
-                    bestaandeSpeler.bondLidmaatschap = nwBondLid; wijzigingen.push("bond-status");
+                    bestaandeSpeler.bondLidmaatschap = nwBondLid;
                 }
                 if (nwRugnummer !== "" && bestaandeSpeler.rugnummer !== nwRugnummer) {
-                    bestaandeSpeler.rugnummer = nwRugnummer; wijzigingen.push("rugnummer");
+                    bestaandeSpeler.rugnummer = nwRugnummer; wijzigingen.push(`rugnummer (#${nwRugnummer})`);
                 }
 
                 if (wijzigingen.length > 0) {
@@ -225,7 +268,8 @@ window.importeerBondCSV = function(event) {
                     naam: volledigeNaam,
                     leeftijd: berekendeLeeftijd,
                     rugnummer: nwRugnummer,
-                    teamId: nwTeam,
+                    teamId: finalTeamId,
+                    isRecreant: isRec,
                     lidSinds: idxLidSinds !== -1 && row[idxLidSinds] ? row[idxLidSinds].trim() : "",
                     clubLidmaatschap: nwClubLid,
                     bondLidmaatschap: nwBondLid
@@ -243,7 +287,7 @@ window.importeerBondCSV = function(event) {
             if (rapportAangepast.length > 0) eindBericht += `Geüpdatet (${rapportAangepast.length}):\n${rapportAangepast.join('\n')}`;
             alert(eindBericht);
         } else {
-            alert("✅ Import voltooid. Er waren geen wijzigingen.");
+            alert("✅ Import voltooid. Er waren geen nieuwe wijzigingen in de bondsexport.");
         }
         
         event.target.value = ''; 

@@ -24,15 +24,17 @@ window.renderTeamBeheer = function() {
             let spelersHtml = '';
             if (teamSpelers.length > 0) {
                 teamSpelers.forEach(speler => {
+                    // Check of het een recreant is
+                    let recBadge = speler.isRecreant || (speler.clubLidmaatschap && speler.clubLidmaatschap.toLowerCase().includes('rec')) 
+                        ? `<span style="background:#f1c40f; color:#2c3e50; padding:2px 4px; border-radius:3px; font-size:0.7rem; margin-left:4px;">REC</span>` : '';
+                    
                     spelersHtml += `
                         <span style="display:inline-flex; align-items:center; background:#eef2f5; padding:6px 12px; border-radius:20px; font-size:0.9rem; margin-right:8px; margin-bottom:8px; font-weight:bold; color:var(--secondary-color); border:1px solid #bdc3c7;">
-                            ${speler.naam || 'Onbekend'} ${speler.rugnummer ? `&nbsp; <span style="color:#e67e22;">(#${speler.rugnummer})</span>` : ''}
+                            ${speler.naam || 'Onbekend'} ${speler.rugnummer ? `&nbsp; <span style="color:#e67e22;">(#${speler.rugnummer})</span>` : ''} ${recBadge}
                             <button onclick="window.haalSpelerUitTeam('${speler.id}')" style="background:none; border:none; color:#e74c3c; font-weight:bold; cursor:pointer; margin-left:8px; font-size:1.1rem; padding:0;">&times;</button>
                         </span>
                     `;
                 });
-            } else {
-                spelersHtml = '<span style="color:#bdc3c7; font-style:italic; font-size:0.9rem;">Geen spelers in dit team. Voeg ze toe via de Spelers-pagina of importeer de bonds-CSV.</span>';
             }
 
             // Veilig trainingen ophalen

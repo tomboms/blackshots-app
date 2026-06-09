@@ -17,9 +17,10 @@
 
     <div class="tab-menu">
         <button class="tab-btn" onclick="window.location.href='dashboard.html'">📊 Dashboard</button>
+        <button class="tab-btn" onclick="window.location.href='agenda.html'">📅 Weekagenda</button>
         <button class="tab-btn" onclick="window.location.href='team.html'">👥 Teams</button>
         <button class="tab-btn active" onclick="window.location.href='spelers.html'">👤 Spelers</button>
-        <button class="tab-btn" onclick="window.location.href='agenda.html'">📅 Weekagenda</button>
+        
         <button class="tab-btn" onclick="window.location.href='oefeningen.html'">📋 Oefeningen</button>
         <button class="tab-btn" onclick="window.location.href='toernooien.html'">🏆 Interne Toernooien</button>
         <button class="tab-btn" onclick="window.location.href='instellingen.html'">⚙️ Instellingen</button>
@@ -29,7 +30,7 @@
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; margin-bottom:15px; border-bottom:2px solid var(--border-color); padding-bottom:10px;">
             <div>
                 <h2 style="margin:0;">👤 Spelers Database</h2>
-                <p style="color: #7f8c8d; margin-top:5px;">Beheer handmatig spelers of importeer de officiële CSV-export uit het bondssysteem.</p>
+                <p style="color: #7f8c8d; margin-top:5px;">Beheer handmatig spelers, gebruik filters of importeer de CSV-export.</p>
             </div>
             <div>
                 <button onclick="document.getElementById('import-bond-file').click()" style="background:#8e44ad; color:white; border:none; padding:10px 20px; border-radius:4px; font-weight:bold; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.1);">📥 Importeer Bondsexport (CSV)</button>
@@ -56,11 +57,26 @@
                     <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">Koppel aan Team:</label>
                     <select id="nw-speler-team" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px; font-weight:bold;"></select>
                 </div>
+                <div style="display:flex; align-items:center; gap:5px; margin-bottom:10px;">
+                    <input type="checkbox" id="nw-speler-rec" style="width:18px; height:18px;">
+                    <label style="font-weight:bold; font-size:0.85rem; color:#e67e22;">Is Recreant</label>
+                </div>
                 <button onclick="window.voegSpelerToe()" style="background:#3498db; color:white; border:none; padding:10px 20px; border-radius:4px; font-weight:bold; cursor:pointer; height:41px;">Inschrijven</button>
             </div>
         </div>
 
-        <input type="text" id="zoek-speler" placeholder="🔎 Zoek op naam, team, bondsnummer of lidmaatschap..." onkeyup="window.renderSpelers()" style="width:100%; padding:12px; margin-bottom:15px; border:1px solid var(--primary-color); border-radius:6px;">
+        <div style="display:flex; gap:10px; margin-bottom:15px; flex-wrap:wrap; background:#eef2f5; padding:10px; border-radius:8px; border:1px solid var(--border-color);">
+            <input type="text" id="zoek-speler" placeholder="🔎 Zoek op naam of bondsnummer..." onkeyup="window.renderSpelers()" style="flex:2; padding:10px; border:1px solid #bdc3c7; border-radius:4px; min-width:200px;">
+            <select id="filter-team" onchange="window.renderSpelers()" style="flex:1; padding:10px; border:1px solid #bdc3c7; border-radius:4px; min-width:150px; font-weight:bold;">
+                <option value="all">-- Alle Teams --</option>
+                <option value="vrij">Vrije Spelers (Zonder team)</option>
+            </select>
+            <select id="filter-type" onchange="window.renderSpelers()" style="flex:1; padding:10px; border:1px solid #bdc3c7; border-radius:4px; min-width:150px; font-weight:bold;">
+                <option value="all">-- Alle Spelers --</option>
+                <option value="wedstrijd">Alleen Wedstrijdspelend</option>
+                <option value="recreant">Alleen Recreanten</option>
+            </select>
+        </div>
         
         <div style="overflow-x:auto;">
             <table style="width:100%; border-collapse:collapse; background:white; border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,0.05); text-align:left;">
@@ -72,8 +88,8 @@
                         <th style="padding:12px;">Rugnr</th>
                         <th style="padding:12px;">Gekoppeld Team</th>
                         <th style="padding:12px;">Lid Sinds</th>
-                        <th style="padding:12px;">Lidmaatschap (Club / Bond)</th>
-                        <th style="padding:12px;">Actie</th>
+                        <th style="padding:12px;">Lidmaatschap</th>
+                        <th style="padding:12px;">Acties</th>
                     </tr>
                 </thead>
                 <tbody id="spelers-tabel-body"></tbody>
@@ -84,8 +100,6 @@
     <script src="basketbal_data.js"></script>
     <script src="basketbal_spelers.js"></script>
     <script type="module" src="firebase_motor.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', () => { if(window.renderSpelers) window.renderSpelers(); });
-    </script>
+    <script>document.addEventListener('DOMContentLoaded', () => { if(window.renderSpelers) window.renderSpelers(); });</script>
 </body>
 </html>
