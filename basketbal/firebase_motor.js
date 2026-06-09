@@ -1,5 +1,32 @@
 // --- FIREBASE_MOTOR.JS: VERBorgen WOLK & VERSIE CONTROLE ---
 
+// --- 0. DE PORTIER (BEVEILIGING & ROLLEN) ---
+const actieveRol = localStorage.getItem('bs_rol');
+if (!actieveRol) {
+    // Niet ingelogd? Trap ze direct terug naar het inlogscherm!
+    window.location.href = '../index.html'; 
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Geef de body een "stempel" met de rol, zodat CSS dingen kan verbergen
+    document.body.classList.add('rol-' + actieveRol);
+    
+    // Voeg een Uitlog-knop toe aan de bovenste navigatiebalk
+    const nav = document.querySelector('.top-nav');
+    if (nav) {
+        const uitlogBtn = document.createElement('button');
+        uitlogBtn.innerHTML = '🚪 Uitloggen';
+        uitlogBtn.style.cssText = 'background:#e74c3c; color:white; border:none; padding:8px 15px; border-radius:6px; cursor:pointer; font-weight:bold; margin-left:auto; box-shadow:0 2px 4px rgba(0,0,0,0.1);';
+        uitlogBtn.onclick = function() {
+            localStorage.removeItem('bs_rol'); // Verwijder de sleutel
+            window.location.href = '../index.html'; // Terug naar login
+        };
+        nav.appendChild(uitlogBtn);
+    }
+});
+// --------------------------------------------
+
+
 // 👇 VERANDER DIT NUMMER BIJ ELKE GITHUB PUSH (bijv. v2.1, v2.2) 👇
 const APP_VERSIE = "v2.0";
 

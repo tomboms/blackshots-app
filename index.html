@@ -3,77 +3,56 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mijn Portaal</title>
+    <title>Black Shots - Clubbeheer Login</title>
     <style>
-        body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            background: #f4f7f6; 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            justify-content: center; 
-            height: 100vh; 
-            margin: 0; 
-        }
-        h1 { 
-            color: #2c3e50; 
-            margin-bottom: 40px; 
-            font-size: 2.5rem;
-        }
-        .knop-container { 
-            display: flex; 
-            gap: 30px; 
-            flex-wrap: wrap; 
-            justify-content: center; 
-        }
-        .app-knop { 
-            background: white; 
-            border: 2px solid #bdc3c7; 
-            border-radius: 16px; 
-            padding: 50px 30px; 
-            text-align: center; 
-            text-decoration: none; 
-            color: #2c3e50; 
-            width: 220px; 
-            transition: all 0.3s ease; 
-            box-shadow: 0 4px 10px rgba(0,0,0,0.05); 
-        }
-        .app-knop:hover { 
-            transform: translateY(-10px); 
-            box-shadow: 0 12px 20px rgba(0,0,0,0.15); 
-        }
-        .app-knop.koken:hover { border-color: #27ae60; color: #27ae60; }
-        .app-knop.basketbal:hover { border-color: #e67e22; color: #e67e22; }
-        .icoon { 
-            font-size: 5rem; 
-            display: block; 
-            margin-bottom: 20px; 
-            transition: transform 0.3s ease;
-        }
-        .app-knop:hover .icoon { transform: scale(1.1); }
-        .titel { 
-            font-size: 1.4rem; 
-            font-weight: bold; 
-        }
+        body { font-family: 'Segoe UI', sans-serif; background: #2c3e50; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .login-box { background: white; color: #333; padding: 40px; border-radius: 12px; box-shadow: 0 15px 40px rgba(0,0,0,0.5); text-align: center; max-width: 350px; width: 90%; border-top: 6px solid #e67e22; }
+        .login-box h1 { color: #2c3e50; margin-top: 0; font-size: 1.8rem; }
+        .login-box h1 span { color: #e67e22; }
+        input { width: 100%; padding: 15px; margin: 20px 0; border: 2px solid #bdc3c7; border-radius: 6px; box-sizing: border-box; font-size: 1rem; transition: 0.2s; }
+        input:focus { border-color: #3498db; outline: none; }
+        button { width: 100%; background: #3498db; color: white; border: none; padding: 15px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 1.1rem; transition: 0.2s; }
+        button:hover { background: #2980b9; transform: translateY(-2px); }
+        .error { color: #e74c3c; margin-bottom: 10px; display: none; font-weight: bold; background: #fdedec; padding: 10px; border-radius: 4px; }
     </style>
 </head>
 <body>
-
-    <h1>Welkom! Waar gaan we mee aan de slag?</h1>
-    
-    <div class="knop-container">
-        <!-- Zorg dat je huidige index.html is hernoemd naar koken.html -->
-        <a href="koken.html" class="app-knop koken">
-            <span class="icoon">🍳</span>
-            <span class="titel">Maaltijden</span>
-        </a>
+    <div class="login-box">
+        <h1>Black<span>Shots</span></h1>
+        <p style="color: #7f8c8d; margin-bottom: 20px;">Log in om toegang te krijgen tot het systeem.</p>
         
-        <!-- Dit wordt de nieuwe pagina -->
-        <a href="basketbal/dashboard.html" class="app-knop basketbal">
-            <span class="icoon">🏀</span>
-            <span class="titel">Basketbal</span>
-        </a>
+        <div id="error-msg" class="error">⚠️ Wachtwoord onjuist.</div>
+        
+        <input type="password" id="wachtwoord" placeholder="Vul je wachtwoord in..." onkeypress="if(event.key === 'Enter') checkLogin()">
+        <button onclick="checkLogin()">Inloggen</button>
     </div>
 
+    <script>
+        function checkLogin() {
+            const ww = document.getElementById('wachtwoord').value;
+            const error = document.getElementById('error-msg');
+            
+            // 👑 JOUW ADMIN WACHTWOORD
+            if (ww === 'AdminTom26') {
+                localStorage.setItem('bs_rol', 'admin');
+                window.location.href = 'basketbal/dashboard.html';
+            } 
+            // 🏀 HET TRAINER WACHTWOORD (voor Marc, Thijmen, etc.)
+            else if (ww === 'Trainer26') {
+                localStorage.setItem('bs_rol', 'trainer');
+                window.location.href = 'basketbal/agenda.html'; // Trainers gaan direct naar de agenda
+            } 
+            else {
+                error.style.display = 'block';
+            }
+        }
+        
+        // Auto-login: Als ze al ingelogd zijn, skip dit scherm!
+        window.onload = function() {
+            let rol = localStorage.getItem('bs_rol');
+            if(rol === 'admin') window.location.href = 'basketbal/dashboard.html';
+            if(rol === 'trainer') window.location.href = 'basketbal/agenda.html';
+        }
+    </script>
 </body>
 </html>

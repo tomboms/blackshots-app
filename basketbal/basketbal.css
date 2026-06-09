@@ -179,3 +179,22 @@ body.show-mode { font-size: 1.2rem; background: #fdfdfd; }
     /* Zorgt dat grote tabellen (toernooistand / spelerslijst) scrollbaar zijn op mobiel */
     table { display: block; width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 }
+
+
+/* ==========================================================================
+   ROLLEN & BEVEILIGING (RBAC)
+   ========================================================================== */
+
+/* Als de rol TRAINER is, verbergen we deze specifieke tab-knoppen */
+body.rol-trainer .tab-btn[onclick*="'dashboard.html'"],
+body.rol-trainer .tab-btn[onclick*="'team.html'"],
+body.rol-trainer .tab-btn[onclick*="'spelers.html'"],
+body.rol-trainer .tab-btn[onclick*="'instellingen.html'"] {
+    display: none !important;
+}
+
+/* We kunnen ook direct specifieke elementen de class "admin-only" geven in de HTML 
+   om ze te verbergen voor trainers (zoals prullenbakken) */
+body.rol-trainer .admin-only {
+    display: none !important;
+}
