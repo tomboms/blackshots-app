@@ -1,34 +1,7 @@
-// --- FIREBASE_MOTOR.JS: VERBorgen WOLK & VERSIE CONTROLE ---
-
-// --- 0. DE PORTIER (BEVEILIGING & ROLLEN) ---
-const actieveRol = localStorage.getItem('bs_rol');
-if (!actieveRol) {
-    // Niet ingelogd? Trap ze direct terug naar het inlogscherm!
-    window.location.href = '../index.html'; 
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-    // Geef de body een "stempel" met de rol, zodat CSS dingen kan verbergen
-    document.body.classList.add('rol-' + actieveRol);
-    
-    // Voeg een Uitlog-knop toe aan de bovenste navigatiebalk
-    const nav = document.querySelector('.top-nav');
-    if (nav) {
-        const uitlogBtn = document.createElement('button');
-        uitlogBtn.innerHTML = '🚪 Uitloggen';
-        uitlogBtn.style.cssText = 'background:#e74c3c; color:white; border:none; padding:8px 15px; border-radius:6px; cursor:pointer; font-weight:bold; margin-left:auto; box-shadow:0 2px 4px rgba(0,0,0,0.1);';
-        uitlogBtn.onclick = function() {
-            localStorage.removeItem('bs_rol'); // Verwijder de sleutel
-            window.location.href = '../index.html'; // Terug naar login
-        };
-        nav.appendChild(uitlogBtn);
-    }
-});
-// --------------------------------------------
-
+// --- FIREBASE_MOTOR.JS: VERBORGEN WOLK & VERSIE CONTROLE ---
 
 // 👇 VERANDER DIT NUMMER BIJ ELKE GITHUB PUSH (bijv. v2.1, v2.2) 👇
-const APP_VERSIE = "v2.0";
+const APP_VERSIE = "v2.1";
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
 import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
@@ -50,8 +23,8 @@ window.isDownloading = false;
 // 1. ZET DE VERSIE IN DE NAVIGATIEBALK
 document.addEventListener('DOMContentLoaded', () => {
     let titel = document.querySelector('.top-nav h1');
-    if (titel) {
-        titel.innerHTML += ` <span style="font-size:0.75rem; background:rgba(255,255,255,0.2); padding:3px 8px; border-radius:12px; margin-left:10px; vertical-align:middle;">${APP_VERSIE}</span>`;
+    if (titel && !document.getElementById('versie-badge')) {
+        titel.innerHTML += ` <span id="versie-badge" style="font-size:0.75rem; background:rgba(255,255,255,0.2); padding:3px 8px; border-radius:12px; margin-left:10px; vertical-align:middle;">${APP_VERSIE}</span>`;
     }
 });
 
@@ -60,12 +33,10 @@ function updateStatus(status) {
     let wolkje = document.getElementById('cloud-status-indicator');
     if (!wolkje) return;
     
-    // Voeg soepele animaties toe via JavaScript (geen extra CSS nodig)
     wolkje.style.transition = "all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)";
     wolkje.style.pointerEvents = "none";
 
     if (status === 'verborgen' || status === 'online') { 
-        // Verberg de wolk rustig als alles in orde is
         wolkje.style.opacity = "0";
         wolkje.style.transform = "translateY(30px)";
     }
@@ -86,31 +57,26 @@ function updateStatus(status) {
         wolkje.style.background = "#9b59b6"; 
         wolkje.style.opacity = "1";
         wolkje.style.transform = "translateY(0)";
-        // Laat hem na 2,5 seconde vanzelf weer verdwijnen
         setTimeout(() => updateStatus('verborgen'), 2500); 
     }
 }
 
-// Luister naar de browser om direct te waarschuwen bij WiFi-verlies
 window.addEventListener('offline', () => updateStatus('offline'));
 window.addEventListener('online', () => updateStatus('verborgen'));
-
-// Start de wolk als verborgen
 setTimeout(() => updateStatus('verborgen'), 100);
-
 
 window.autoUpload = async function(key, value) {
     if (!navigator.onLine || window.isDownloading) return;
     try {
         updateStatus('opslaan');
         await setDoc(doc(db, "blackshots", key), { data: value });
-        // Verberg de wolk na een halve seconde weer succesvol opslaan
         setTimeout(() => updateStatus('verborgen'), 500);
     } catch(e) { console.error("Upload fout:", e); }
 };
 
 window.forceerCloudCheck = async function() {
     if (!navigator.onLine || window.isDownloading) return;
+    // Inclusief de nieuwe gebruikers map!
     const onderdelen = ['blackshots_teams', 'blackshots_spelers', 'blackshots_oefeningen', 'blackshots_toernooi', 'blackshots_trainingen', 'blackshots_gebruikers'];
     window.isDownloading = true;
 
@@ -129,7 +95,7 @@ window.forceerCloudCheck = async function() {
                     if (key === 'blackshots_oefeningen') window.oefeningenDB = JSON.parse(cloudData);
                     if (key === 'blackshots_toernooi') window.toernooiDB = JSON.parse(cloudData);
                     
-                    heeftNieuweData = true; // Er was ergens een update
+                    heeftNieuweData = true; 
                 }
             }
         } catch(e) { console.error("Sync fout:", e); }
@@ -137,13 +103,13 @@ window.forceerCloudCheck = async function() {
     
     window.isDownloading = false;
     
-    // Toon de paarse wolk alléén als er écht data van een ander apparaat is binnengehaald
     if (heeftNieuweData) {
         updateStatus('bijgewerkt');
         if(typeof window.laadDashboardData === 'function') window.laadDashboardData();
         if(typeof window.renderTeamBeheer === 'function') window.renderTeamBeheer();
         if(typeof window.renderSpelers === 'function') window.renderSpelers();
         if(typeof window.renderWeekAgenda === 'function') window.renderWeekAgenda();
+        if(typeof window.renderGebruikers === 'function') window.renderGebruikers();
     }
 };
 
@@ -154,5 +120,4 @@ localStorage.setItem = function(key, value) {
     window.autoUpload(key, JSON.parse(value));
 };
 
-// Check één keer rustig na opstarten
 setTimeout(window.forceerCloudCheck, 1000);
