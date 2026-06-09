@@ -1,38 +1,55 @@
-// --- BASKETBAL_DATA.JS: RECHTSTREEKSE DATABASE KOPPELING ---
+// --- BASKETBAL_DATA.JS: DATABASE, MIGRATIE & DASHBOARD ---
 
 const clubData = { naam: "Black Shots", locatie: "Helmond (Brandevoort)", zalen: ["De Veste", "Westwijzer", "Veka"] };
 
-// 1. DATA RECHTSTREEKS EN DYNAMISCH INLADEN UIT HET GEHEUGEN
+// 1. DATA RECHTSTREEKS INLADEN UIT DE NIEUWE LADES
 window.teamsDB = JSON.parse(localStorage.getItem('blackshots_teams')) || [];
 window.spelersDB = JSON.parse(localStorage.getItem('blackshots_spelers')) || [];
 window.oefeningenDB = JSON.parse(localStorage.getItem('blackshots_oefeningen')) || [];
 window.categorieenDB = JSON.parse(localStorage.getItem('blackshots_categorieen')) || ["Warming-up", "Shooting", "Dribbling", "Passing", "Defense", "Conditioning", "Partijvorm"];
 window.geplandeTrainingenDB = JSON.parse(localStorage.getItem('blackshots_trainingen')) || {};
 
-// 2. DATA OPSCHONING EN STRINGS-NAAR-ARRAYS REPARATIE
-let dataGerepareerd = false;
-window.teamsDB.forEach(team => {
-    if (typeof team.spelers === 'number' || !Array.isArray(team.spelers)) {
-        team.spelers = [];
-        dataGerepareerd = true;
+// 2. MIGRATIE: OUDE DATA REDDEN EN NAAR DE NIEUWE LADES VERPLAATSEN
+if (localStorage.getItem('clubdata')) {
+    let oudeData = JSON.parse(localStorage.getItem('clubdata'));
+    let isGemigreerd = false;
+
+    if (window.teamsDB.length === 0 && oudeData.blackshots_teams) {
+        window.teamsDB = oudeData.blackshots_teams;
+        localStorage.setItem('blackshots_teams', JSON.stringify(window.teamsDB));
+        isGemigreerd = true;
     }
-    if (!Array.isArray(team.trainingen)) {
-        team.trainingen = [];
-        dataGerepareerd = true;
+    if (window.spelersDB.length === 0 && oudeData.blackshots_spelers) {
+        window.spelersDB = oudeData.blackshots_spelers;
+        localStorage.setItem('blackshots_spelers', JSON.stringify(window.spelersDB));
+        isGemigreerd = true;
     }
-});
-if (dataGerepareerd) {
-    localStorage.setItem('blackshots_teams', JSON.stringify(window.teamsDB));
+    // Red de weekagenda!
+    if (Object.keys(window.geplandeTrainingenDB).length === 0 && oudeData.blackshots_trainingen) {
+        window.geplandeTrainingenDB = oudeData.blackshots_trainingen;
+        localStorage.setItem('blackshots_trainingen', JSON.stringify(window.geplandeTrainingenDB));
+        isGemigreerd = true;
+    }
+    
+    if (isGemigreerd) {
+        localStorage.removeItem('clubdata'); // Gooi de oude grote doos weg
+    }
 }
 
-// 3. ALGEMENE DISPLAY FUNCTIES
+// 3. ALGEMENE DISPLAY FUNCTIES (Dashboard repareert 0-spelers bug)
 window.laadDashboardData = function() {
     const teamLijst = document.getElementById('dash-teams-lijst');
     if (teamLijst) {
         teamLijst.innerHTML = '';
         window.teamsDB.forEach(team => { 
-            let count = Array.isArray(team.spelers) ? team.spelers.length : 0;
-            teamLijst.innerHTML += `<li style="margin-bottom:8px;"><strong>${team.naam}</strong> <span style="font-size:0.85rem; background:#bdc3c7; color:white; padding:2px 6px; border-radius:4px; margin-left:5px;">👥 ${count} spelers</span></li>`; 
+            // Tellen hoeveel spelers echt gekoppeld zijn via de spelers database
+            let teamSpelers = window.spelersDB.filter(s => s.teamId === team.id || s.teamId === team.naam);
+            let count = teamSpelers.length;
+            
+            // Controleer of het team een Kader/Vrijwilligers groep is
+            let kaderBadge = team.isVrijwilliger ? ' <span style="font-size:0.7rem; background:#9b59b6; padding:2px 5px; border-radius:4px; color:white; margin-left:5px;">KADER</span>' : '';
+            
+            teamLijst.innerHTML += `<li style="margin-bottom:8px;"><strong>${team.naam}</strong>${kaderBadge} <span style="font-size:0.85rem; background:#bdc3c7; color:white; padding:2px 6px; border-radius:4px; margin-left:5px;">👥 ${count} leden</span></li>`; 
         });
     }
     const oefCount = document.getElementById('dash-oef-count');

@@ -1,4 +1,4 @@
-// --- BASKETBAL_TEAM.JS: KOGELVRIJE LOGICA VOOR TEAM BEHEER MET REC ONDERAAN ---
+// --- BASKETBAL_TEAM.JS: KOGELVRIJE LOGICA VOOR TEAM BEHEER MET REC & KADER ONDERAAN ---
 
 window.renderTeamBeheer = function() {
     try {
@@ -14,18 +14,16 @@ window.renderTeamBeheer = function() {
         window.teamsDB.forEach((team, index) => {
             if (!team) return;
 
-            // Veilig spelers ophalen voor dit specifieke team
             let teamSpelers = window.spelersDB.filter(s => {
                 if (!s) return false;
                 return s.teamId === team.id || (team.naam && s.teamId === team.naam);
             });
 
-            // AUTOMATISCHE TEAM-SORTERING: Recreanten (REC) rollen altijd naar beneden!
             teamSpelers.sort((a, b) => {
                 let aRec = a.isRecreant === true || (a.clubLidmaatschap && a.clubLidmaatschap.toLowerCase().includes('rec'));
                 let bRec = b.isRecreant === true || (b.clubLidmaatschap && b.clubLidmaatschap.toLowerCase().includes('rec'));
-                if (aRec && !bRec) return 1;   // a is recreant, dus onder b zetten
-                if (!aRec && bRec) return -1;  // b is recreant, dus a boven b zetten
+                if (aRec && !bRec) return 1;  
+                if (!aRec && bRec) return -1;  
                 return a.naam.localeCompare(b.naam);
             });
 
@@ -43,7 +41,7 @@ window.renderTeamBeheer = function() {
                     `;
                 });
             } else {
-                spelersHtml = '<span style="color:#bdc3c7; font-style:italic; font-size:0.9rem;">Geen spelers in dit team. Voeg ze toe via de Spelers-pagina of importeer de bonds-CSV.</span>';
+                spelersHtml = '<span style="color:#bdc3c7; font-style:italic; font-size:0.9rem;">Geen leden in deze groep gekoppeld.</span>';
             }
 
             let trainingenHtml = '';
@@ -57,33 +55,37 @@ window.renderTeamBeheer = function() {
                     `;
                 });
             } else {
-                trainingenHtml = '<span style="color:#bdc3c7; font-style:italic; font-size:0.85rem;">Geen vaste tijden.</span>';
+                trainingenHtml = '<span style="color:#bdc3c7; font-style:italic; font-size:0.85rem;">Geen vaste tijden ingepland.</span>';
             }
 
+            // Kader Badge logic
+            let kaderBadge = team.isVrijwilliger ? '<span style="background:#9b59b6; color:white; padding:4px 8px; border-radius:4px; font-size:0.8rem; margin-left:10px; vertical-align:middle;">KADER / VRIJWILLIGERS</span>' : '';
+            let ringColor = team.isVrijwilliger ? '#9b59b6' : 'var(--primary-color)';
+
             lijstHTML += `
-                <li style="background:white; border-radius:8px; border:1px solid var(--border-color); overflow:hidden; box-shadow:0 2px 4px rgba(0,0,0,0.05); margin-bottom: 20px;">
+                <li style="background:white; border-radius:8px; border:1px solid var(--border-color); border-top: 4px solid ${ringColor}; overflow:hidden; box-shadow:0 2px 4px rgba(0,0,0,0.05); margin-bottom: 20px;">
                     <div style="background:#fafafa; padding:15px 20px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
                         <div>
-                            <h3 style="margin:0; color:var(--primary-color); font-size:1.4rem;">${team.naam || 'Naamloos Team'}</h3>
+                            <h3 style="margin:0; color:${ringColor}; font-size:1.4rem; display:inline-block;">${team.naam || 'Groep'}</h3>${kaderBadge}
                             <div style="font-size:0.95rem; color:#34495e; margin-top:5px;">
-                                👨‍💼 Coach: <strong>${team.coach || 'N.n.b.'}</strong> &nbsp;|&nbsp; 🏃‍♂️ Trainer: <strong>${team.trainer || 'N.n.b.'}</strong>
+                                👨‍💼 Coach/Leider: <strong>${team.coach || 'N.n.b.'}</strong> &nbsp;|&nbsp; 🏃‍♂️ Trainer: <strong>${team.trainer || 'N.n.b.'}</strong>
                             </div>
                         </div>
                         <div>
-                            <button onclick="window.bewerkTeam(${index})" style="background:transparent; color:#e67e22; border:1px solid #e67e22; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:0.85rem; margin-right:5px;">✏️ Team Bewerken</button>
-                            <button onclick="window.verwijderTeam(${index})" style="background:transparent; color:#e74c3c; border:1px solid #e74c3c; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:0.85rem;">Team Opheffen</button>
+                            <button onclick="window.bewerkTeam(${index})" style="background:transparent; color:#e67e22; border:1px solid #e67e22; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:0.85rem; margin-right:5px;">✏️ Bewerken</button>
+                            <button onclick="window.verwijderTeam(${index})" style="background:transparent; color:#e74c3c; border:1px solid #e74c3c; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:0.85rem;">Opheffen</button>
                         </div>
                     </div>
 
                     <div style="padding:20px; display:flex; gap:20px; flex-wrap:wrap;">
                         <div style="flex:2; min-width:250px;">
-                            <h4 style="margin-top:0; color:var(--secondary-color); border-bottom:2px solid #eee; padding-bottom:5px;">👥 Spelerspool (${teamSpelers.length})</h4>
+                            <h4 style="margin-top:0; color:var(--secondary-color); border-bottom:2px solid #eee; padding-bottom:5px;">👥 Ledenpool (${teamSpelers.length})</h4>
                             <div style="margin-bottom:15px; display:flex; flex-wrap:wrap;">${spelersHtml}</div>
                             <button onclick="window.location.href='spelers.html'" style="background:#3498db; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.85rem;">+ Beheer via Spelers-pagina</button>
                         </div>
 
                         <div style="flex:1; min-width:250px; border-left:1px dashed #eee; padding-left:20px;">
-                            <h4 style="margin-top:0; color:var(--secondary-color); border-bottom:2px solid #eee; padding-bottom:5px;">🗓️ Trainingen</h4>
+                            <h4 style="margin-top:0; color:var(--secondary-color); border-bottom:2px solid #eee; padding-bottom:5px;">🗓️ Planning</h4>
                             <div style="margin-bottom:15px;">${trainingenHtml}</div>
 
                             <div style="display:flex; flex-direction:column; gap:5px; background:#f9f9f9; padding:10px; border-radius:6px; border:1px solid #eee;">
@@ -93,7 +95,7 @@ window.renderTeamBeheer = function() {
                                     <input type="time" id="tr-start-${index}" style="padding:6px; flex:1; font-size:0.8rem;">
                                 </div>
                                 <div style="display:flex; gap:5px;">
-                                    <input type="text" id="tr-zaal-${index}" placeholder="Zaal..." style="padding:6px; flex:2; font-size:0.8rem;">
+                                    <input type="text" id="tr-zaal-${index}" placeholder="Locatie..." style="padding:6px; flex:2; font-size:0.8rem;">
                                     <button onclick="window.snelleTrainingToevoegen(${index})" style="background:#27ae60; color:white; border:none; padding:6px; flex:1; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.8rem;">Vastzetten</button>
                                 </div>
                             </div>
@@ -107,8 +109,6 @@ window.renderTeamBeheer = function() {
 
     } catch(error) {
         console.error("Fout tijdens renderen teams:", error);
-        let lijst = document.getElementById('team-beheer-lijst');
-        if (lijst) lijst.innerHTML = `<li style="padding:20px; color:red; font-weight:bold;">Er is een fout opgetreden bij het laden van de teams.</li>`;
     }
 };
 
@@ -116,20 +116,24 @@ window.bewerkTeam = function(index) {
     let team = window.teamsDB[index];
     if (!team) return;
     
-    let nieuweNaam = prompt("Pas de teamnaam aan:", team.naam);
+    let nieuweNaam = prompt("Pas de team/groepsnaam aan:", team.naam);
     if (nieuweNaam === null) return; 
     nieuweNaam = nieuweNaam.trim();
-    if (!nieuweNaam) return alert("Teamnaam mag niet leeg zijn.");
+    if (!nieuweNaam) return alert("Naam mag niet leeg zijn.");
 
-    let nieuweCoach = prompt("Pas de coach aan:", team.coach || "");
+    let nieuweCoach = prompt("Pas de coach/leider aan:", team.coach || "");
     if (nieuweCoach === null) return;
 
     let nieuweTrainer = prompt("Pas de trainer aan:", team.trainer || "");
     if (nieuweTrainer === null) return;
 
+    // Is het een kader groep toggle?
+    let isVrijwilligerToggle = confirm("Is deze groep een Kader/Vrijwilligersgroep? (OK = Ja, Annuleren = Nee)");
+
     team.naam = nieuweNaam;
     team.coach = nieuweCoach.trim();
     team.trainer = nieuweTrainer.trim();
+    team.isVrijwilliger = isVrijwilligerToggle;
 
     localStorage.setItem('blackshots_teams', JSON.stringify(window.teamsDB));
     window.renderTeamBeheer();
@@ -139,31 +143,42 @@ window.voegTeamToe = function() {
     const naamEl = document.getElementById('nieuw-team-naam');
     const coachEl = document.getElementById('nieuw-team-coach');
     const trainerEl = document.getElementById('nieuw-team-trainer');
+    const kaderCheckbox = document.getElementById('nieuw-team-is-vrijwilliger');
 
-    if (!naamEl) return alert("Invoerveld voor teamnaam ontbreekt op de pagina!");
+    if (!naamEl) return alert("Invoerveld voor naam ontbreekt op de pagina!");
 
     const naam = naamEl.value.trim();
     const coach = coachEl ? coachEl.value.trim() : "";
     const trainer = trainerEl ? trainerEl.value.trim() : "";
+    const isKader = kaderCheckbox ? kaderCheckbox.checked : false;
 
     if (naam) {
         let nieuwId = naam.toLowerCase().replace(/[^a-z0-9]/g, '');
         if (!Array.isArray(window.teamsDB)) window.teamsDB = [];
         
-        window.teamsDB.push({ id: nieuwId, naam: naam, coach: coach, trainer: trainer, trainingen: [] });
+        window.teamsDB.push({ 
+            id: nieuwId, 
+            naam: naam, 
+            coach: coach, 
+            trainer: trainer, 
+            isVrijwilliger: isKader,
+            trainingen: [] 
+        });
         localStorage.setItem('blackshots_teams', JSON.stringify(window.teamsDB));
 
         naamEl.value = '';
         if(coachEl) coachEl.value = '';
         if(trainerEl) trainerEl.value = '';
+        if(kaderCheckbox) kaderCheckbox.checked = false;
+        
         window.renderTeamBeheer();
     } else {
-        alert("Vul in ieder geval een teamnaam in!");
+        alert("Vul in ieder geval een groepsnaam in!");
     }
 };
 
 window.verwijderTeam = function(index) {
-    if (confirm("Weet je zeker dat je dit team wilt wissen? De spelers worden niet verwijderd, maar worden 'Vrije Speler'.")) {
+    if (confirm("Weet je zeker dat je dit team wilt wissen? De leden worden 'Vrije Speler'.")) {
         let teamId = window.teamsDB[index].id;
         
         if (Array.isArray(window.spelersDB)) {
@@ -181,7 +196,7 @@ window.verwijderTeam = function(index) {
 };
 
 window.haalSpelerUitTeam = function(spelerId) {
-    if(confirm("Wil je deze speler uit dit team halen? (Hij/zij wordt dan een 'Vrije Speler')")) {
+    if(confirm("Wil je dit lid uit deze groep halen? (Hij/zij wordt dan een 'Vrije Speler')")) {
         let speler = window.spelersDB.find(s => s.id === spelerId);
         if(speler) {
             speler.teamId = ""; 
