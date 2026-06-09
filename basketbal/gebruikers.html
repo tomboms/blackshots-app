@@ -36,6 +36,7 @@
 
     <script src="basketbal_auth.js"></script>
     <script src="basketbal_data.js"></script>
+    <script type="module" src="firebase_motor.js"></script>
     <script>
         let ingelogdeGebruiker = JSON.parse(localStorage.getItem('bs_actieve_gebruiker'));
         if(!ingelogdeGebruiker || ingelogdeGebruiker.rol !== 'admin') {
