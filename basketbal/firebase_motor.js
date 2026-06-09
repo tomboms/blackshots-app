@@ -1,4 +1,4 @@
-// --- FIREBASE_MOTOR.JS: DE GEDEELDE CLOUD ENGINE (V5 - LOOP PROOF) ---
+// --- FIREBASE_MOTOR.JS: DE NIEUWE GEDISTRIBUEERDE ENGINE ---
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
 import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
 
@@ -14,120 +14,71 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-window.firebaseDB = db;
 
-// De magische schakelaar om de oneindige loop te blokkeren
 window.isDownloading = false;
 
+// Status-updates voor de gebruiker
 function updateStatus(status) {
     let wolkje = document.getElementById('cloud-status-indicator');
     if(!wolkje) return;
-    
-    if (status === 'offline') {
-        wolkje.innerText = "❌ Offline (Lokaal)"; wolkje.style.background = "#e74c3c"; 
-    } else if (status === 'online') {
-        wolkje.innerText = "☁️ Cloud Actief"; wolkje.style.background = "#27ae60"; 
-    } else if (status === 'opslaan') {
-        wolkje.innerText = "⏳ Opslaan..."; wolkje.style.background = "#3498db"; 
-    } else if (status === 'bijgewerkt') {
-        wolkje.innerText = "🟣 Cloud Bijgewerkt!"; wolkje.style.background = "#9b59b6"; 
-        setTimeout(() => { if(navigator.onLine) updateStatus('online'); }, 3000);
-    }
+    if (status === 'online') { wolkje.innerText = "☁️ Cloud Actief"; wolkje.style.background = "#27ae60"; }
+    else if (status === 'opslaan') { wolkje.innerText = "⏳ Opslaan..."; wolkje.style.background = "#3498db"; }
+    else if (status === 'bijgewerkt') { wolkje.innerText = "🟣 Bijgewerkt!"; wolkje.style.background = "#9b59b6"; setTimeout(() => updateStatus('online'), 2000); }
 }
 
-window.addEventListener('offline', () => updateStatus('offline'));
-window.addEventListener('online', () => updateStatus('online'));
-if (!navigator.onLine) updateStatus('offline');
+// 1. DYNAMISCHE UPLOAD: Uploadt alleen het gewijzigde onderdeel
+window.autoUpload = async function(key, value) {
+    if (!navigator.onLine || window.isDownloading) return;
 
-// FORCEER UPDATE FUNCTIE
+    try {
+        updateStatus('opslaan');
+        // We slaan elk onderdeel op in een apart document binnen de collectie 'blackshots'
+        // Bijvoorbeeld: blackshots/teams, blackshots/spelers, etc.
+        await setDoc(doc(db, "blackshots", key), { data: value }, { merge: true });
+        updateStatus('online');
+    } catch(e) { console.error("Upload fout:", e); }
+};
+
+// 2. DYNAMISCHE DOWNLOAD: Downloadt alleen wat nodig is
 window.forceerCloudCheck = async function() {
     if (!navigator.onLine || window.isDownloading) return;
-    try {
-        let collectie = window.location.pathname.includes('koken') ? "koken" : "blackshots";
-        let docNaam = window.location.pathname.includes('koken') ? "maaltijddata" : "clubdata";
+    
+    const onderdelen = ['blackshots_teams', 'blackshots_spelers', 'blackshots_oefeningen', 'blackshots_toernooi'];
+    window.isDownloading = true;
 
-        const docSnap = await getDoc(doc(db, collectie, docNaam));
-        if (docSnap.exists()) {
-            let data = docSnap.data();
-            let isGewijzigd = false;
-            
-            // Zet de blokkade aan tijdens het wegschrijven
-            window.isDownloading = true;
-
-            Object.keys(data).forEach(key => {
-                if (localStorage.getItem(key) !== data[key]) {
-                    origineleSetItem.call(localStorage, key, data[key]);
-                    isGewijzigd = true;
+    for (let key of onderdelen) {
+        try {
+            const docSnap = await getDoc(doc(db, "blackshots", key));
+            if (docSnap.exists()) {
+                let cloudData = JSON.stringify(docSnap.data().data);
+                if (localStorage.getItem(key) !== cloudData) {
+                    localStorage.setItem(key, cloudData);
+                    // Update globale variabelen als ze bestaan
+                    if (key === 'blackshots_teams') window.teamsDB = JSON.parse(cloudData);
+                    if (key === 'blackshots_spelers') window.spelersDB = JSON.parse(cloudData);
+                    updateStatus('bijgewerkt');
                 }
-            });
-            
-            // Schakel de blokkade weer uit
-            window.isDownloading = false;
-            
-            if (isGewijzigd) {
-                updateStatus('bijgewerkt'); 
-                if(typeof window.laadDashboardData === 'function') window.laadDashboardData();
-                if(typeof window.renderTeamBeheer === 'function') window.renderTeamBeheer();
-                if(typeof window.renderSpelers === 'function') window.renderSpelers();
-                if(typeof window.renderToernooi === 'function') window.renderToernooi();
             }
-        }
-    } catch(e) { 
-        window.isDownloading = false;
-        console.error("Force sync failed:", e); 
-        updateStatus('offline'); 
-    }
-};
-
-// 1. REAL-TIME LUISTERAAR
-let luisterCollectie = window.location.pathname.includes('koken') ? "koken" : "blackshots";
-let luisterDoc = window.location.pathname.includes('koken') ? "maaltijddata" : "clubdata";
-
-onSnapshot(doc(db, luisterCollectie, luisterDoc), (docSnap) => {
-    if (docSnap.exists() && navigator.onLine && !window.isDownloading) { 
-        window.forceerCloudCheck(); 
-    }
-});
-
-// 2. STILLE UPLOAD
-window.autoUpload = function(col) {
-    if (!navigator.onLine || window.isDownloading) return;
-
-    let data = {};
-    for (let i = 0; i < localStorage.length; i++) {
-        let key = localStorage.key(i);
-        if (col === "blackshots" && key.startsWith('blackshots_')) data[key] = localStorage.getItem(key);
-        if (col === "koken" && !key.startsWith('blackshots_') && key !== 'avondeet_ingelogd_als' && key !== 'koken_laatste_tab') data[key] = localStorage.getItem(key);
+        } catch(e) { console.error("Sync fout voor " + key, e); }
     }
     
-    let docNaam = col === "koken" ? "maaltijddata" : "clubdata";
-    setDoc(doc(db, col, docNaam), data, { merge: true })
-        .then(() => updateStatus('online'))
-        .catch(() => updateStatus('offline'));
+    // Her-render de pagina onderdelen
+    window.isDownloading = false;
+    if(typeof window.laadDashboardData === 'function') window.laadDashboardData();
+    if(typeof window.renderTeamBeheer === 'function') window.renderTeamBeheer();
+    if(typeof window.renderSpelers === 'function') window.renderSpelers();
+    if(typeof window.renderToernooi === 'function') window.renderToernooi();
 };
 
-// 3. STORAGE INTERCEPTOR
+// 3. STORAGE INTERCEPTOR (De "Loop-Breker")
 const origineleSetItem = localStorage.setItem;
-let typTimer;
-
 localStorage.setItem = function(key, value) {
     origineleSetItem.apply(this, arguments);
+    if (window.isDownloading || !key.startsWith('blackshots_')) return;
     
-    // Als de wijziging vanuit de cloud-download komt, stappen we hier direct uit!
-    if (window.isDownloading) return;
-    
-    if(key && typeof key === 'string' && key !== 'avondeet_ingelogd_als' && key !== 'koken_laatste_tab' && key !== 'laatste_tab') {
-        if (!navigator.onLine) {
-            updateStatus('offline');
-        } else {
-            updateStatus('opslaan');
-            clearTimeout(typTimer);
-            typTimer = setTimeout(() => { 
-                let col = key.startsWith('blackshots_') ? "blackshots" : "koken";
-                window.autoUpload(col); 
-            }, 1000);
-        }
-    }
+    // Upload alleen dit specifieke onderdeel
+    window.autoUpload(key, JSON.parse(value));
 };
 
-setTimeout(() => { window.forceerCloudCheck(); }, 500);
+// Start de sync bij opstarten
+setTimeout(window.forceerCloudCheck, 1000);
