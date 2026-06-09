@@ -1,31 +1,37 @@
-// --- BASKETBAL_DATA.JS: DE DATABASE & DATA FIXER ---
+// --- BASKETBAL_DATA.JS: DE DATABASE & DATA FIXER VOOR BLACK SHOTS ---
 
-// 1. Data inladen uit het geheugen
+const clubData = { naam: "Black Shots", locatie: "Helmond (Brandevoort)", zalen: ["De Veste", "Westwijzer", "Veka"] };
+
+// 1. DATA INLADEN UIT HET GEHEUGEN
 window.teamsDB = JSON.parse(localStorage.getItem('blackshots_teams')) || [];
+window.spelersDB = JSON.parse(localStorage.getItem('blackshots_spelers')) || [];
 window.oefeningenDB = JSON.parse(localStorage.getItem('blackshots_oefeningen')) || [];
 window.categorieenDB = JSON.parse(localStorage.getItem('blackshots_categorieen')) || ["Warming-up", "Shooting", "Dribbling", "Passing", "Defense", "Conditioning", "Partijvorm"];
 window.geplandeTrainingenDB = JSON.parse(localStorage.getItem('blackshots_trainingen')) || {};
 
-// 2. DATA MIGRATIE (DE CRASH FIX!)
+// 2. DATA MIGRATIE (DE CRASH FIX & STANDAARD TEAMS)
 let dataMoetOpslaan = false;
 
 if (window.teamsDB.length === 0) {
-    // Als de database helemaal leeg is, laden we de standaard test-teams in
+    // Als de database helemaal leeg is, laden we de standaard teams in
     window.teamsDB = [
-        { id: "x10", naam: "X10-1", coach: "Tom", trainer: "Martin", spelers: ["Filip", "Jack", "Semih Kaan"], trainingen: [] },
-        { id: "x12", naam: "X12-1", coach: "Erik", trainer: "Monique", spelers: ["Sem", "Lody", "Roan", "Lucas"], trainingen: [] },
-        { id: "x14", naam: "X14-1", coach: "Vesna", trainer: "Tom", spelers: ["Bledi", "Artun", "Tim", "Wout"], trainingen: [] }
+        { id: "x10", naam: "X10", coach: "", trainer: "", spelers: [], trainingen: [] },
+        { id: "x12", naam: "X12", coach: "", trainer: "", spelers: [], trainingen: [] },
+        { id: "x14", naam: "X14", coach: "", trainer: "", spelers: [], trainingen: [] },
+        { id: "m16", naam: "M16", coach: "", trainer: "", spelers: [], trainingen: [] },
+        { id: "m18", naam: "M18", coach: "", trainer: "", spelers: [], trainingen: [] },
+        { id: "m22", naam: "M22", coach: "", trainer: "", spelers: [], trainingen: [] }
     ];
     dataMoetOpslaan = true;
 } else {
-    // Hier zit de magie: we repareren de oude teams!
+    // We repareren de oude teams!
     window.teamsDB.forEach(team => {
-        // Als 'spelers' vroeger een getal was (bijv. 12), maken we er nu een lege namenlijst van
+        // Als 'spelers' vroeger een getal was (bijv. 12) of niet bestond, maken we er nu een lege namenlijst van
         if (typeof team.spelers === 'number' || !Array.isArray(team.spelers)) {
             team.spelers = [];
             dataMoetOpslaan = true;
         }
-        // Zorg dat de trainingen lijst ook altijd bestaat
+        // Zorg dat de trainingen lijst ook altijd netjes bestaat
         if (!Array.isArray(team.trainingen)) {
             team.trainingen = [];
             dataMoetOpslaan = true;
@@ -33,13 +39,13 @@ if (window.teamsDB.length === 0) {
     });
 }
 
-// Als we iets hebben gerepareerd, slaan we het direct op
+// Als we iets hebben gerepareerd of aangemaakt, slaan we het direct veilig op
 if (dataMoetOpslaan) {
     localStorage.setItem('blackshots_teams', JSON.stringify(window.teamsDB));
 }
 
 
-// 3. Algemene functies voor Dashboard & Instellingen (Categorieën)
+// 3. ALGEMENE FUNCTIES (Dashboard & Instellingen Categorieën)
 window.laadDashboardData = function() {
     const teamLijst = document.getElementById('dash-teams-lijst');
     if (teamLijst) {
@@ -55,19 +61,22 @@ window.laadDashboardData = function() {
 };
 
 window.voegCategorieToe = function() {
-    const naam = document.getElementById('nieuwe-cat-naam').value.trim();
-    if(naam && !window.categorieenDB.includes(naam)) {
+    const inputField = document.getElementById('nieuwe-cat-naam');
+    if (!inputField) return;
+    
+    const naam = inputField.value.trim();
+    if (naam && !window.categorieenDB.includes(naam)) {
         window.categorieenDB.push(naam);
         localStorage.setItem('blackshots_categorieen', JSON.stringify(window.categorieenDB));
-        document.getElementById('nieuwe-cat-naam').value = '';
-        if(window.vulInstellingenLijsten) window.vulInstellingenLijsten();
+        inputField.value = '';
+        if (window.vulInstellingenLijsten) window.vulInstellingenLijsten();
     }
 };
 
 window.verwijderCategorie = function(index) {
     window.categorieenDB.splice(index, 1);
     localStorage.setItem('blackshots_categorieen', JSON.stringify(window.categorieenDB));
-    if(window.vulInstellingenLijsten) window.vulInstellingenLijsten();
+    if (window.vulInstellingenLijsten) window.vulInstellingenLijsten();
 };
 
 window.vulInstellingenLijsten = function() {
@@ -82,6 +91,7 @@ window.vulInstellingenLijsten = function() {
     }
 };
 
+// Start deze acties direct als de pagina is geladen
 document.addEventListener('DOMContentLoaded', () => {
     window.laadDashboardData();
     if (window.vulInstellingenLijsten) window.vulInstellingenLijsten();

@@ -46,10 +46,10 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // FORCEER UPDATE FUNCTIE (Nu met simpele reload voor losse pagina's)
+// FORCEER UPDATE FUNCTIE (ZONDER INFINITE LOOP!)
 window.forceerCloudCheck = async function() {
     if (!navigator.onLine) return;
     try {
-        // Hij checkt slim of we op de basketbal of koken pagina zitten!
         let collectie = window.location.pathname.includes('koken') ? "koken" : "blackshots";
         let docNaam = window.location.pathname.includes('koken') ? "maaltijddata" : "clubdata";
 
@@ -66,11 +66,12 @@ window.forceerCloudCheck = async function() {
             
             if (isGewijzigd) {
                 updateStatus('bijgewerkt'); 
-                setTimeout(() => {
-                    if (!document.querySelector('input:focus, textarea:focus')) {
-                        location.reload(); // Harde refresh omdat we nu op losse pagina's zitten
-                    }
-                }, 1500); 
+                
+                // GEEN location.reload() meer! We updaten gewoon de actieve tab onzichtbaar.
+                if(typeof window.laadDashboardData === 'function') window.laadDashboardData();
+                if(typeof window.renderTeamBeheer === 'function') window.renderTeamBeheer();
+                if(typeof window.renderSpelers === 'function') window.renderSpelers();
+                if(typeof window.renderToernooi === 'function') window.renderToernooi();
             }
         }
     } catch(e) { console.error("Force sync failed:", e); updateStatus('offline'); }
