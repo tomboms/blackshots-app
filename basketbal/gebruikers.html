@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Black Shots - Trainer Beheer</title>
+    <link rel="stylesheet" href="basketbal.css">
+</head>
+<body>
+    <nav class="top-nav">
+        <h1>🔐 Trainer & Bestuursbeheer</h1>
+        <a href="dashboard.html" class="terug-knop">📊 Naar Dashboard</a>
+    </nav>
+
+    <main class="content-sectie active" style="max-width:900px; margin:20px auto; padding:15px;">
+        
+        <div class="card" style="border-top-color:#9b59b6;">
+            <h3 style="margin-top:0; color:var(--secondary-color);">➕ Nieuwe Medewerker / Trainer Toevoegen</h3>
+            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:15px;">
+                <input type="text" id="g_naam" placeholder="Naam (bijv. Marc)" style="flex:1; min-width:150px;">
+                <input type="text" id="g_ww" placeholder="Wachtwoord..." style="flex:1; min-width:150px;">
+                <select id="g_rol" style="flex:1; min-width:150px;">
+                    <option value="trainer">🏀 Trainer / Coach</option>
+                    <option value="bestuur">💼 Bestuurslid / Secretaris</option>
+                    <option value="admin">👑 Hoofdbeheerder (Admin)</option>
+                </select>
+                <button onclick="voegGebruikerToe()" class="primary-btn" style="background:#9b59b6;">Toevoegen</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 style="margin-top:0; color:var(--secondary-color);">👥 Actieve Accounts & Rechten</h3>
+            <div id="gebruikers-lijst-container"></div>
+        </div>
+    </main>
+
+    <script src="basketbal_data.js"></script>
+    <script>
+        // Check of de ingelogde persoon wel admin is, anders direct wegtrappen
+        let checkUser = JSON.parse(localStorage.getItem('bs_actieve_gebruiker'));
+        if(!checkUser || checkUser.rol !== 'admin') {
+            window.location.href = '../index.html';
+        }
+
+        function renderGebruikers() {
+            let gebruikers = JSON.parse(localStorage.getItem('blackshots_gebruikers')) || [];
+            let container = document.getElementById('gebruikers-lijst-container');
+            if(!container) return;
+            
+            container.innerHTML = '';
+
+            gebruikers.forEach((g, index) => {
+                if(g.id === 'tom') return; // Verberg jezelf voor veiligheid
+
+                let teamVinkjes = '';
+                window.teamsDB.forEach(t => {
+                    let isChecked = g.teams.includes('all') || g.teams.includes(t.id) ? 'checked' : '';
+                    let disabled = g.teams.includes('all') ? 'disabled' : '';
+                    teamVinkjes += `
+                        <label style="display:inline-flex; align-items:center; margin-right:12px; font-size:0.85rem; background:#eef2f5; padding:4px 8px; border-radius:4px; margin-bottom:5px;">
+                            <input type="checkbox" ${isChecked} ${disabled} onchange="toggleTeamRecht(${index}, '${t.id}', this.checked)" style="margin-right:4px;"> ${t.naam}
+                        </label>`;
+                });
+
+                let paginaOpties = [
+                    {id:'dashboard', n:'📊 Dashboard'}, {id:'agenda', n:'📅 Agenda'}, 
+                    {id:'team', n:'👥 Teams'}, {id:'spelers', n:'👤 Spelers database'}, 
+                    {id:'oefeningen', n:'📋 Oefeningen'}, {id:'toernooien', n:'🏆 Interne Competitie'}
+                ];
+
+                let paginaVinkjes = '';
+                paginaOpties.forEach(p => {
+                    let isChecked = g.paginas.includes('all') || g.paginas.includes(p.id) ? 'checked' : '';
+                    let disabled = g.paginas.includes('all') ? 'disabled' : '';
+                    paginaVinkjes += `
+                        <label style="display:inline-flex; align-items:center; margin-right:12px; font-size:0.85rem; background:#eaf2f8; padding:4px 8px; border-radius:4px; margin-bottom:5px;">
+                            <input type="checkbox" ${isChecked} ${disabled} onchange="togglePaginaRecht(${index}, '${p.id}', this.checked)" style="margin-right:4px;"> ${p.n}
+                        </label>`;
+                });
+
+                container.innerHTML += `
+                    <div style="border:1px solid #ddd; border-radius:8px; padding:15px; margin-bottom:15px; background:#fafafa; border-left:5px solid #34495e;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eee; padding-bottom:8px; margin-bottom:10px;">
+                            <div>
+                                <strong style="font-size:1.1rem; color:var(--secondary-color);">${g.naam}</strong> 
+                                <span style="background:#bdc3c7; padding:2px 6px; border-radius:4px; font-size:0.75rem; font-weight:bold; text-transform:uppercase; margin-left:5px;">Rol: ${g.rol}</span>
+                            </div>
+                            <button onclick="verwijderGebruiker(${index})" style="background:none; border:none; color:#e74c3c; font-weight:bold; cursor:pointer;">⚠️ Account Wissen</button>
+                        </div>
+                        
+                        <div style="margin-bottom:10px;">
+                            <strong style="display:block; font-size:0.85rem; color:#7f8c8d; margin-bottom:5px;">Toegestane Onderdelen (Pagina's):</strong>
+                            ${g.rol === 'admin' ? '<span style="color:#27ae60; font-weight:bold; font-size:0.9rem;">👑 Heeft overal toegang toe</span>' : paginaVinkjes}
+                        </div>
+
+                        <div>
+                            <strong style="display:block; font-size:0.85rem; color:#7f8c8d; margin-bottom:5px;">Ziet data van welke teams:</strong>
+                            ${g.rol === 'admin' || g.rol === 'bestuur' ? '<span style="color:#2980b9; font-weight:bold; font-size:0.9rem;">💼 Ziet alle clubteams</span>' : teamVinkjes}
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        window.voegGebruikerToe = function() {
+            let naam = document.getElementById('g_naam').value.trim();
+            let ww = document.getElementById('g_ww').value.trim();
+            let rol = document.getElementById('g_rol').value;
+
+            if(!naam || !ww) return alert("Vul een naam and wachtwoord in.");
+
+            let gebruikers = JSON.parse(localStorage.getItem('blackshots_gebruikers')) || [];
+            
+            let nw = {
+                id: naam.toLowerCase().replace(/[^a-z0-9]/g, ''),
+                naam: naam,
+                wachtwoord: ww,
+                rol: rol,
+                teams: rol === 'admin' || rol === 'bestuur' ? ["all"] : [],
+                paginas: rol === 'admin' ? ["all"] : []
+            };
+
+            gebruikers.push(nw);
+            localStorage.setItem('blackshots_gebruikers', JSON.stringify(gebruikers));
+            
+            document.getElementById('g_naam').value = '';
+            document.getElementById('g_ww').value = '';
+            
+            renderGebruikers();
+        };
+
+        window.verwijderGebruiker = function(index) {
+            if(confirm("Account definitief intrekken?")) {
+                let gebruikers = JSON.parse(localStorage.getItem('blackshots_gebruikers')) || [];
+                gebruikers.splice(index, 1);
+                localStorage.setItem('blackshots_gebruikers', JSON.stringify(gebruikers));
+                renderGebruikers();
+            }
+        };
+
+        window.toggleTeamRecht = function(gIdx, teamId, checked) {
+            let gebruikers = JSON.parse(localStorage.getItem('blackshots_gebruikers')) || [];
+            if(!gebruikers[gIdx].teams) gebruikers[gIdx].teams = [];
+            
+            if(checked) {
+                if(!gebruikers[gIdx].teams.includes(teamId)) gebruikers[gIdx].teams.push(teamId);
+            } else {
+                gebruikers[gIdx].teams = gebruikers[gIdx].teams.filter(id => id !== teamId);
+            }
+            localStorage.setItem('blackshots_gebruikers', JSON.stringify(gebruikers));
+        };
+
+        window.togglePaginaRecht = function(gIdx, pagId, checked) {
+            let gebruikers = JSON.parse(localStorage.getItem('blackshots_gebruikers')) || [];
+            if(!gebruikers[gIdx].paginas) gebruikers[gIdx].paginas = [];
+            
+            if(checked) {
+                if(!gebruikers[gIdx].paginas.includes(pagId)) gebruikers[gIdx].paginas.push(pagId);
+            } else {
+                gebruikers[gIdx].paginas = gebruikers[gIdx].paginas.filter(id => id !== pagId);
+            }
+            localStorage.setItem('blackshots_gebruikers', JSON.stringify(gebruikers));
+        };
+
+        renderGebruikers();
+    </script>
+</body>
+</html>
