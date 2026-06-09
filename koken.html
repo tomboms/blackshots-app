@@ -588,11 +588,17 @@
                 if(typeof window.berekenBoodschappen === 'function') window.berekenBoodschappen();
                 if(typeof window.renderVoorraad === 'function') window.renderVoorraad();
                 if(typeof window.renderSlimmeSuggestie === 'function') window.renderSlimmeSuggestie(false);
-                window.switchTab('dashboard'); 
+                
+                // DE FIX: Kijk eerst of er een tabblad is opgeslagen na de cloud refresh, anders dashboard
+                let bewaardeTab = sessionStorage.getItem('koken_laatste_tab') || 'dashboard';
+                window.switchTab(bewaardeTab); 
             }, 100); 
         };
         
         window.switchTab = function(tabId) {
+            // Sla het actieve tabblad op in het tijdelijke geheugen
+            sessionStorage.setItem('koken_laatste_tab', tabId);
+
             document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             const nieuwScherm = document.getElementById(tabId);
@@ -626,13 +632,26 @@
             window.scrollTo({ top: 0, behavior: 'smooth' });
         };
 
-        document.querySelectorAll('.tab-btn').forEach(button => { button.addEventListener('click', () => window.switchTab(button.dataset.tab)); });
+        // Koppel de klik-events aan de knoppen
+        document.querySelectorAll('.tab-btn').forEach(button => { 
+            button.addEventListener('click', () => window.switchTab(button.dataset.tab)); 
+        });
+        
         const menuToggle = document.getElementById('menu-toggle-btn');
-        if(menuToggle) { menuToggle.addEventListener('click', (e) => { e.stopPropagation(); document.getElementById('hoofd-menu-dropdown').classList.toggle('show'); }); }
+        if(menuToggle) { 
+            menuToggle.addEventListener('click', (e) => { 
+                e.stopPropagation(); 
+                document.getElementById('hoofd-menu-dropdown').classList.toggle('show'); 
+            }); 
+        }
+        
         window.addEventListener('click', (e) => {
             const dropdown = document.getElementById('hoofd-menu-dropdown');
-            if (dropdown && dropdown.classList.contains('show') && !e.target.closest('.dropdown-container')) dropdown.classList.remove('show');
+            if (dropdown && dropdown.classList.contains('show') && !e.target.closest('.dropdown-container')) {
+                dropdown.classList.remove('show');
+            }
         });
+        
         document.addEventListener('DOMContentLoaded', () => { window.checkLoginStatus(); });
     </script>
 </body>
