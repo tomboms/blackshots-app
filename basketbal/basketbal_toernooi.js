@@ -1,4 +1,4 @@
-// --- BASKETBAL_TOERNOOI.JS: PERFECTE LAYOUT & HTML MAIL PREVIEW ---
+// --- BASKETBAL_TOERNOOI.JS: PERFECTE LAYOUT, SPACING FIX & HTML MAIL PREVIEW ---
 
 window.toernooiDB = JSON.parse(localStorage.getItem('blackshots_toernooi')) || {};
 let actieveCompId = null;
@@ -119,14 +119,12 @@ function slimmeDatumSorteerder(dStr) {
     return new Date(dStr).getTime() || 0;
 }
 
-// --- DE HTML MAIL GENERATOR (PRECIES ZOALS JE FOTO) ---
 window.genereerToernooiBericht = function() {
     if (!actieveCompId || !window.toernooiDB[actieveCompId]) return alert("Geen toernooi geselecteerd.");
     
     const comp = window.toernooiDB[actieveCompId];
     const berekendeStand = window.berekenStand(comp);
     
-    // --- 1. TEAMS TABEL OPBOUWEN ---
     let maxSpelers = 0;
     let teamKolommen = comp.teams.map(t => {
         let spelersNamen = t.spelers.map(sId => {
@@ -154,7 +152,6 @@ window.genereerToernooiBericht = function() {
     }
     teamTabelHTML += `</tbody></table>`;
 
-    // --- 2. WEDSTRIJDSCHEMA TABEL OPBOUWEN ---
     let matchenPerDatum = {};
     comp.wedstrijden.forEach(w => {
         let d = w.datum || 'Onbekend';
@@ -186,7 +183,6 @@ window.genereerToernooiBericht = function() {
     });
     schemaTabelHTML += `</tbody></table>`;
 
-    // --- 3. HET COMPLETE BERICHT SAMENVOEGEN ---
     let htmlContent = `
         <div style="font-family: Arial, sans-serif; font-size: 14px; color: #333; line-height: 1.6;">
             <p>Beste ouders,</p>
@@ -211,17 +207,14 @@ window.genereerToernooiBericht = function() {
         mDiv.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); display:none; justify-content:center; align-items:center; z-index:999999; backdrop-filter:blur(3px); overflow-y:auto; padding:20px;';
         mDiv.innerHTML = `
             <div style="background:white; padding:0; border-radius:12px; width:100%; max-width:850px; box-shadow:0 10px 30px rgba(0,0,0,0.4); display:flex; flex-direction:column; overflow:hidden;">
-                
                 <div style="background:#fdfdfd; padding:20px 25px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center;">
                     <h2 style="margin:0; color:#e67e22; font-size:1.4rem;">✉️ Bericht Kopiëren</h2>
                     <button onclick="document.getElementById('mail-preview-modal').style.display='none'" style="background:none; border:none; font-size:1.5rem; color:#bdc3c7; cursor:pointer;">&times;</button>
                 </div>
-
                 <div style="padding:20px 25px; background:#fafafa; border-bottom:1px solid #eee;">
                     <p style="margin:0 0 15px 0; color:#7f8c8d; font-size:0.95rem;">Klik op de groene knop om alles in één keer te kopiëren. Plak het daarna in Gmail of Outlook (Ctrl+V) en de tabellen komen perfect mee!</p>
                     <button onclick="window.kopieerHTMLMail()" style="width:100%; background:#27ae60; color:white; border:none; padding:15px; border-radius:6px; font-weight:bold; font-size:1.1rem; cursor:pointer; box-shadow:0 4px 6px rgba(39, 174, 96, 0.2);">📋 Kopieer Bericht naar Klembord</button>
                 </div>
-
                 <div id="html-mail-container" style="padding:30px; overflow-y:auto; max-height:50vh; background:white; border:2px dashed #bdc3c7; margin:20px; border-radius:8px;"></div>
             </div>
         `;
@@ -233,21 +226,15 @@ window.genereerToernooiBericht = function() {
     modal.style.display = 'flex';
 };
 
-// Functie die de opgemaakte HTML tekst naar je klembord gooit
 window.kopieerHTMLMail = function() {
     let container = document.getElementById('html-mail-container');
-    
-    // Selecteer de inhoud van de div
     let range = document.createRange();
     range.selectNodeContents(container);
     let sel = window.getSelection();
     sel.removeAllRanges();
     sel.addRange(range);
-    
-    // Kopieer naar klembord
     document.execCommand("copy");
     sel.removeAllRanges();
-    
     document.getElementById('mail-preview-modal').style.display = 'none';
     alert("✅ Gekopieerd! Je kunt het bericht (inclusief tabellen!) nu plakken in je e-mail.");
 };
@@ -300,7 +287,7 @@ window.renderToernooi = function() {
     standHtml += `</table>`;
     if(document.getElementById('toernooi-stand')) document.getElementById('toernooi-stand').innerHTML = standHtml;
 
-    // 2. SCHEMA RENDERN (GESORTEERD PER DATUM ONDERAAN, NET ALS FOTO)
+    // 2. SCHEMA RENDERN
     let schemaHtml = '';
     let matchenPerDatum = {};
 
@@ -325,6 +312,7 @@ window.renderToernooi = function() {
                 let scT = w.scoreThuis !== null ? w.scoreThuis : '';
                 let scU = w.scoreUit !== null ? w.scoreUit : '';
 
+                // FIX: Score vakjes hebben nu width: 60px; en font-size: 1.1rem; voor betere ademruimte!
                 schemaHtml += `
                     <div style="display:flex; justify-content:space-between; align-items:center; background:white; padding:12px; border:1px solid #ddd; border-radius:4px; margin-top:8px; flex-wrap:wrap; gap:10px; border-left:4px solid ${tThuis.kleur}">
                         <div style="font-size:0.85rem; color:#7f8c8d; min-width:80px;">
@@ -333,9 +321,9 @@ window.renderToernooi = function() {
                         <div style="flex:1; display:flex; justify-content:center; align-items:center; gap:10px; min-width:250px;">
                             <strong style="color:${tThuis.kleur}; text-align:right; flex:1; font-size:1rem;">${tThuis.naam}</strong>
                             <div style="display:flex; align-items:center; gap:5px;">
-                                <input type="number" id="sc_thuis_${w.id}" value="${scT}" style="width:40px; padding:6px; text-align:center; border:1px solid #bdc3c7; border-radius:4px; font-weight:bold;" onchange="window.manualScoreChange('${w.id}')">
+                                <input type="number" id="sc_thuis_${w.id}" value="${scT}" style="width:60px; padding:6px; text-align:center; font-size:1.1rem; border:1px solid #bdc3c7; border-radius:4px; font-weight:bold;" onchange="window.manualScoreChange('${w.id}')">
                                 <span style="color:#bdc3c7;">-</span>
-                                <input type="number" id="sc_uit_${w.id}" value="${scU}" style="width:40px; padding:6px; text-align:center; border:1px solid #bdc3c7; border-radius:4px; font-weight:bold;" onchange="window.manualScoreChange('${w.id}')">
+                                <input type="number" id="sc_uit_${w.id}" value="${scU}" style="width:60px; padding:6px; text-align:center; font-size:1.1rem; border:1px solid #bdc3c7; border-radius:4px; font-weight:bold;" onchange="window.manualScoreChange('${w.id}')">
                             </div>
                             <strong style="color:${tUit.kleur}; text-align:left; flex:1; font-size:1rem;">${tUit.naam}</strong>
                         </div>
@@ -349,7 +337,7 @@ window.renderToernooi = function() {
     }
     if(document.getElementById('toernooi-schema')) document.getElementById('toernooi-schema').innerHTML = schemaHtml;
 
-    // 3. TEAMS RENDERN (INKLAPBAAR!)
+    // 3. TEAMS RENDERN
     let spelersLijstHtml = '<option value="">-- Voeg clublid toe --</option>';
     if (window.spelersDB && window.spelersDB.length > 0) {
         let gesorteerd = [...window.spelersDB].sort((a,b) => (a.naam || '').localeCompare(b.naam || ''));
