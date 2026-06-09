@@ -100,7 +100,8 @@ window.renderTeamAgenda = function() {
         let isoDatum = window.getIsoDatumS(checkDatum); let dagNummer = checkDatum.getDay() || 7; 
         
         team.trainingen.forEach(tr => {
-            if (tr.dag === dagNummer) {
+            // FIX: parseInt toegevoegd
+            if (parseInt(tr.dag) === parseInt(dagNummer)) {
                 aankomendeTrainingen.push({
                     datumObj: checkDatum, isoDatum: isoDatum,
                     mooieDatum: `${dagenMap[dagNummer]} ${checkDatum.getDate()}-${checkDatum.getMonth()+1}`,
@@ -164,7 +165,8 @@ window.renderWeekAgenda = function() {
         let trainingenVandaag = [];
         window.teamsDB.forEach(team => {
             if (team.trainingen) {
-                team.trainingen.forEach(tr => { if (tr.dag === (i + 1)) trainingenVandaag.push({ teamNaam: team.naam, start: tr.start, eind: tr.eind, zaal: tr.zaal, duur: tr.duur, teamId: team.id }); });
+                // FIX: parseInt toegevoegd
+                team.trainingen.forEach(tr => { if (parseInt(tr.dag) === (i + 1)) trainingenVandaag.push({ teamNaam: team.naam, start: tr.start, eind: tr.eind, zaal: tr.zaal, duur: tr.duur, teamId: team.id }); });
             }
         });
         trainingenVandaag.sort((a, b) => a.start.localeCompare(b.start));
@@ -275,11 +277,9 @@ window.herstelTraining = function() {
     );
 };
 
-// DE INTELLIGENTE BERICHT-GENERATOR
 window.genereerAnnuleringBericht = function(reden) {
     let team = window.teamsDB.find(t => t.id === actieveTraining.teamId);
 
-    // Zoek ALLE datums in de database die voor DIT team zijn afgelast met DEZELFDE reden!
     let afgelasteDatums = [];
     Object.keys(window.geplandeTrainingenDB).forEach(key => {
         if (key.endsWith('_' + team.id)) {
@@ -291,10 +291,8 @@ window.genereerAnnuleringBericht = function(reden) {
         }
     });
 
-    // Sorteer op datum
     afgelasteDatums.sort((a, b) => a - b);
 
-    // Bouw de mooie string op (bijv. "vrijdag 5-6, vrijdag 12-6 en vrijdag 19-6")
     let datumStrings = afgelasteDatums.map(d => {
         let dagNaam = d.toLocaleDateString('nl-NL', { weekday: 'long' });
         return `${dagNaam} ${d.getDate()}-${d.getMonth() + 1}`;
@@ -310,19 +308,17 @@ window.genereerAnnuleringBericht = function(reden) {
         datumTekst = datumStrings.join(', ') + " en " + laatste;
     }
 
-    // Zoek dynamisch de eerstvolgende training NA de laatste vakantiedatum
     let laatsteAfgelast = afgelasteDatums[afgelasteDatums.length - 1];
     let volgendeDatumObj = null;
     let checkDate = new Date(laatsteAfgelast);
     checkDate.setDate(checkDate.getDate() + 1); 
     
-    // We zoeken nu maximaal 100 dagen vooruit (lang genoeg voor zomervakantie!)
     for (let i = 0; i < 100; i++) {
         let iso = window.getIsoDatumS(checkDate);
         let dNum = checkDate.getDay() || 7;
         
         if (team.trainingen) {
-            let trainVandaag = team.trainingen.some(tr => tr.dag === dNum);
+            let trainVandaag = team.trainingen.some(tr => parseInt(tr.dag) === dNum);
             if (trainVandaag) {
                 let sl = `${iso}_${team.id}`;
                 let gepl = window.geplandeTrainingenDB ? window.geplandeTrainingenDB[sl] : null;
@@ -343,7 +339,6 @@ window.genereerAnnuleringBericht = function(reden) {
         volgendeDatumStr = `${dagNaamVolgende} ${volgendeDatumObj.getDate()}-${volgendeDatumObj.getMonth() + 1}`;
     }
 
-    // Het perfecte bericht samenstellen
     let msg = `Beste ${team.naam},\n\nDe training${meervoud ? 'en' : ''} van ${datumTekst} gaa${meervoud ? 'n' : 't'} niet door vanwege ${reden}.\nDe volgende training is weer op ${volgendeDatumStr}.\n\nMocht je willen weten wanneer er geen trainingen zijn kan je altijd op https://www.blackshots.nl/bs/#/info kijken.\n\nBij vragen hoor ik het graag!`;
     
     const dummy = document.createElement("textarea");
@@ -356,7 +351,6 @@ window.genereerAnnuleringBericht = function(reden) {
     alert(`✅ Succes! Alle afgelaste dagen voor "${reden}" staan in het bericht.\n\nDit bericht is gekopieerd naar je klembord!`);
 };
 
-// --- BULK ANNULEREN (VAKANTIES) ---
 window.voerBulkAnnuleringUit = function() {
     let reden = document.getElementById('bulk-reden').value.trim();
     let start = document.getElementById('bulk-start').value;
@@ -378,7 +372,7 @@ window.voerBulkAnnuleringUit = function() {
         window.teamsDB.forEach(team => {
             if(team.trainingen) {
                 team.trainingen.forEach(tr => {
-                    if(tr.dag === dayNum) {
+                    if(parseInt(tr.dag) === dayNum) {
                         let sleutel = `${iso}_${team.id}`;
                         window.geplandeTrainingenDB[sleutel] = [{ type: 'geannuleerd', reden: reden, duur: tr.duur }];
                         cancelledCount++;
@@ -403,7 +397,6 @@ window.renderTijdlijn = function() {
     const container = document.getElementById('planner-tijdlijn');
     container.innerHTML = ''; 
 
-    // --- CHECK OF DE TRAINING IS AFGELAST ---
     if (actieveTijdlijn.length === 1 && actieveTijdlijn[0].type === 'geannuleerd') {
         container.innerHTML = `
             <div style="background:#fdedec; border:2px solid #e74c3c; padding:20px; border-radius:8px; text-align:center; margin-bottom:15px; box-shadow:0 4px 6px rgba(0,0,0,0.05);">
@@ -417,7 +410,6 @@ window.renderTijdlijn = function() {
         return; 
     }
 
-    // --- NORMALE TRAINING WEERGAVE ---
     let totaalGevuld = 0; let geteldeOefeningen = {};
     
     actieveTijdlijn.forEach((item, index) => {
@@ -595,11 +587,15 @@ window.filterPlannerOefeningen = function() {
 
 document.addEventListener('DOMContentLoaded', () => {
     const orgSwitch = window.switchTab;
-    window.switchTab = function(tabId) {
-        orgSwitch(tabId);
-        if (tabId === 'agenda') {
-            if (document.getElementById('agenda-team-controls').style.display === 'flex') window.renderTeamAgenda();
-            else window.renderWeekAgenda();
-        }
-    };
+    if (orgSwitch) {
+        window.switchTab = function(tabId) {
+            orgSwitch(tabId);
+            if (tabId === 'agenda') {
+                if (document.getElementById('agenda-team-controls') && document.getElementById('agenda-team-controls').style.display === 'flex') window.renderTeamAgenda();
+                else window.renderWeekAgenda();
+            }
+        };
+    } else {
+        if (window.renderWeekAgenda) window.renderWeekAgenda();
+    }
 });

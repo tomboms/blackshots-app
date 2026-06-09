@@ -1,52 +1,65 @@
-// --- BASKETBAL_DATA.JS: DATABASE, MIGRATIE & DASHBOARD ---
+// --- BASKETBAL_DATA.JS: DATABASE, AUTO-REPAIR & DASHBOARD ---
 
 const clubData = { naam: "Black Shots", locatie: "Helmond (Brandevoort)", zalen: ["De Veste", "Westwijzer", "Veka"] };
 
-// 1. DATA RECHTSTREEKS INLADEN UIT DE NIEUWE LADES
 window.teamsDB = JSON.parse(localStorage.getItem('blackshots_teams')) || [];
 window.spelersDB = JSON.parse(localStorage.getItem('blackshots_spelers')) || [];
 window.oefeningenDB = JSON.parse(localStorage.getItem('blackshots_oefeningen')) || [];
 window.categorieenDB = JSON.parse(localStorage.getItem('blackshots_categorieen')) || ["Warming-up", "Shooting", "Dribbling", "Passing", "Defense", "Conditioning", "Partijvorm"];
 window.geplandeTrainingenDB = JSON.parse(localStorage.getItem('blackshots_trainingen')) || {};
 
-// 2. MIGRATIE: OUDE DATA REDDEN EN NAAR DE NIEUWE LADES VERPLAATSEN
-if (localStorage.getItem('clubdata')) {
-    let oudeData = JSON.parse(localStorage.getItem('clubdata'));
-    let isGemigreerd = false;
-
-    if (window.teamsDB.length === 0 && oudeData.blackshots_teams) {
-        window.teamsDB = oudeData.blackshots_teams;
-        localStorage.setItem('blackshots_teams', JSON.stringify(window.teamsDB));
-        isGemigreerd = true;
-    }
-    if (window.spelersDB.length === 0 && oudeData.blackshots_spelers) {
-        window.spelersDB = oudeData.blackshots_spelers;
-        localStorage.setItem('blackshots_spelers', JSON.stringify(window.spelersDB));
-        isGemigreerd = true;
-    }
-    // Red de weekagenda!
-    if (Object.keys(window.geplandeTrainingenDB).length === 0 && oudeData.blackshots_trainingen) {
-        window.geplandeTrainingenDB = oudeData.blackshots_trainingen;
-        localStorage.setItem('blackshots_trainingen', JSON.stringify(window.geplandeTrainingenDB));
-        isGemigreerd = true;
-    }
+// --- DE DEFINITIEVE AUTO-REPAIR MOTOR (NOOIT MEER CONSOLE) ---
+window.autoRepairDatabase = function() {
+    if (!window.spelersDB || !window.teamsDB) return;
     
-    if (isGemigreerd) {
-        localStorage.removeItem('clubdata'); // Gooi de oude grote doos weg
-    }
-}
+    let isAangepast = false;
 
-// 3. ALGEMENE DISPLAY FUNCTIES (Dashboard repareert 0-spelers bug)
+    window.spelersDB.forEach(speler => {
+        if (speler.teamId) {
+            let schoonSpelerTeam = speler.teamId.toLowerCase().replace(/[^a-z0-9]/g, '');
+            
+            // Zoek extreem soepel naar een passend team (bijv. "X10-1" -> "x101")
+            let matchTeam = window.teamsDB.find(t => 
+                t.id === speler.teamId || 
+                (t.id || '').toLowerCase() === schoonSpelerTeam ||
+                (t.naam || '').toLowerCase().replace(/[^a-z0-9]/g, '') === schoonSpelerTeam
+            );
+            
+            if (matchTeam && speler.teamId !== matchTeam.id) {
+                speler.teamId = matchTeam.id; // Herstel het ID
+                isAangepast = true;
+            }
+        }
+    });
+
+    if (isAangepast) {
+        localStorage.setItem('blackshots_spelers', JSON.stringify(window.spelersDB));
+        // Stuur de reparatie ook direct naar de cloud zodat hij niet wordt overschreven!
+        if (typeof window.autoUpload === 'function') {
+            window.autoUpload('blackshots_spelers', window.spelersDB);
+        }
+    }
+};
+
+// --- DASHBOARD RENDERER ---
+// Elke keer als het dashboard tekent, checken we eerst of er iets gerepareerd moet worden.
 window.laadDashboardData = function() {
+    window.autoRepairDatabase(); // Voer repair uit!
+
     const teamLijst = document.getElementById('dash-teams-lijst');
     if (teamLijst) {
         teamLijst.innerHTML = '';
         window.teamsDB.forEach(team => { 
-            // Tellen hoeveel spelers echt gekoppeld zijn via de spelers database
-            let teamSpelers = window.spelersDB.filter(s => s.teamId === team.id || s.teamId === team.naam);
+            // Een extra soepele telling voor de zekerheid
+            let teamSpelers = window.spelersDB.filter(s => {
+                if(!s) return false;
+                let sId = (s.teamId || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                let tId = (team.id || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                let tNaam = (team.naam || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                return sId === tId || sId === tNaam;
+            });
             let count = teamSpelers.length;
             
-            // Controleer of het team een Kader/Vrijwilligers groep is
             let kaderBadge = team.isVrijwilliger ? ' <span style="font-size:0.7rem; background:#9b59b6; padding:2px 5px; border-radius:4px; color:white; margin-left:5px;">KADER</span>' : '';
             
             teamLijst.innerHTML += `<li style="margin-bottom:8px;"><strong>${team.naam}</strong>${kaderBadge} <span style="font-size:0.85rem; background:#bdc3c7; color:white; padding:2px 6px; border-radius:4px; margin-left:5px;">👥 ${count} leden</span></li>`; 
@@ -56,6 +69,7 @@ window.laadDashboardData = function() {
     if (oefCount) oefCount.innerText = window.oefeningenDB.length;
 };
 
+// --- INSTELLINGEN / CATEGORIEËN ---
 window.voegCategorieToe = function() {
     const inputField = document.getElementById('nieuwe-cat-naam');
     if (!inputField) return;
