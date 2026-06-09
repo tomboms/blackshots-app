@@ -1,5 +1,5 @@
 /* ==========================================================================
-   BLACK SHOTS - RESPONSIVE STYLESHEET (MOBILE FIRST & DESKTOP OPTIMIZED)
+   BLACK SHOTS - ULTIEME STYLESHEET (FUNCTIES + RESPONSIVE)
    ========================================================================== */
 
 /* --- 1. GLOBALE VARIABELEN & BASIS --- */
@@ -9,269 +9,173 @@
     --bg-color: #f4f7f6;
     --border-color: #e0e6ed;
     --text-color: #333;
-    --max-content-width: 1200px; /* Dit voorkomt dat de app op PC over het hele scherm uitsmeert */
+    --max-content-width: 1200px; 
 }
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background: var(--bg-color);
     color: var(--text-color);
-    margin: 0;
-    padding: 0;
+    margin: 0; padding: 0;
     box-sizing: border-box;
 }
 
-* {
-    box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 /* --- 2. NAVIGATIE & MENU --- */
 .top-nav {
-    background: var(--secondary-color);
-    color: white;
-    padding: 15px 20px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 10px;
+    background: var(--secondary-color); color: white;
+    padding: 15px 20px; display: flex; justify-content: space-between;
+    align-items: center; flex-wrap: wrap; gap: 10px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
-
-.top-nav h1 {
-    margin: 0;
-    font-size: 1.4rem;
-}
+.top-nav h1 { margin: 0; font-size: 1.4rem; }
 
 .terug-knop {
-    color: white;
-    text-decoration: none;
-    background: rgba(255,255,255,0.2);
-    padding: 8px 15px;
-    border-radius: 4px;
-    font-weight: bold;
-    transition: 0.2s;
-    font-size: 0.9rem;
+    color: white; text-decoration: none; background: rgba(255,255,255,0.2);
+    padding: 8px 15px; border-radius: 4px; font-weight: bold;
+    transition: 0.2s; font-size: 0.9rem;
 }
+.terug-knop:hover { background: rgba(255,255,255,0.3); }
 
-.terug-knop:hover {
-    background: rgba(255,255,255,0.3);
-}
-
-/* Het Tab-menu: Veegbaar op mobiel, strak op PC */
+/* Tab Menu */
 .tab-menu {
-    display: flex;
-    background: white;
-    border-bottom: 2px solid var(--border-color);
-    overflow-x: auto; /* Zorgt dat je kan vegen op mobiel */
-    white-space: nowrap;
-    padding: 0 10px;
-    -webkit-overflow-scrolling: touch; /* Vloeiend scrollen op iOS */
-    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    display: flex; background: white; border-bottom: 2px solid var(--border-color);
+    overflow-x: auto; white-space: nowrap; padding: 0 10px;
+    -webkit-overflow-scrolling: touch; box-shadow: 0 2px 4px rgba(0,0,0,0.02);
 }
-
 .tab-btn {
-    background: none;
-    border: none;
-    padding: 15px 20px;
-    font-size: 1rem;
-    cursor: pointer;
-    color: #7f8c8d;
-    font-weight: bold;
-    border-bottom: 3px solid transparent;
-    transition: 0.2s;
+    background: none; border: none; padding: 15px 20px; font-size: 1rem;
+    cursor: pointer; color: #7f8c8d; font-weight: bold;
+    border-bottom: 3px solid transparent; transition: 0.2s;
 }
-
-.tab-btn:hover {
-    color: var(--primary-color);
-}
-
-.tab-btn.active {
-    color: var(--primary-color);
-    border-bottom: 3px solid var(--primary-color);
-}
+.tab-btn:hover, .tab-btn.active { color: var(--primary-color); }
+.tab-btn.active { border-bottom: 3px solid var(--primary-color); }
 
 /* --- 3. MAIN CONTENT (DE LAPTOP FIX) --- */
 .content-sectie {
-    display: none;
-    padding: 15px;
-    width: 100%;
-    max-width: var(--max-content-width);
-    margin: 0 auto; /* Centreert de app strak op grote PC schermen */
+    display: none; padding: 15px; width: 100%;
+    max-width: var(--max-content-width); margin: 0 auto;
 }
-
 .content-sectie.active {
-    display: block;
-    animation: fadeIn 0.3s ease-in-out;
+    display: block; animation: fadeIn 0.3s ease-in-out;
 }
-
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(5px); }
     to { opacity: 1; transform: translateY(0); }
 }
 
-/* --- 4. CARDS, FORMS & GRIDS --- */
-.dashboard-grid, .week-grid {
-    display: grid;
-    /* Op mobiel 1 kolom, op PC netjes naast elkaar */
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 20px;
-}
-
+/* --- 4. CARDS, FORMS & INPUTS --- */
 .card, .form-sectie {
-    background: white;
-    padding: 20px;
-    border-radius: 8px;
+    background: white; padding: 20px; border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-    border-top: 4px solid var(--border-color);
-    margin-bottom: 20px;
+    border-top: 4px solid var(--primary-color); margin-bottom: 20px;
 }
 
 input, select, textarea {
-    font-family: inherit;
-    box-sizing: border-box;
-    border: 1px solid #bdc3c7;
-    border-radius: 4px;
-    padding: 10px;
-    max-width: 100%;
+    font-family: inherit; box-sizing: border-box;
+    border: 1px solid #bdc3c7; border-radius: 4px; padding: 10px; max-width: 100%;
 }
-
 input:focus, select:focus, textarea:focus {
-    outline: none;
-    border-color: var(--primary-color);
+    outline: none; border-color: var(--primary-color);
     box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
 }
 
 .primary-btn {
-    background: var(--primary-color);
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 4px;
-    font-weight: bold;
-    cursor: pointer;
-    font-size: 1rem;
-    transition: 0.2s;
+    background: var(--primary-color); color: white; border: none;
+    padding: 10px 20px; border-radius: 4px; font-weight: bold;
+    cursor: pointer; font-size: 1rem; transition: 0.2s;
 }
+.primary-btn:hover { filter: brightness(1.1); }
 
-.primary-btn:hover {
-    filter: brightness(1.1);
-}
-
-/* --- 5. SPELERS BADGES (DE NAAM-PAST-NIET FIX) --- */
-/* Zorgt ervoor dat hele lange namen (zoals 'Marah Mohamad Almahmoud') niet buiten het blokje vallen, maar netjes op meerdere regels meebuigen. */
+/* Lange namen in badges fix */
 span[style*="inline-flex"] {
-    height: auto !important;
-    white-space: normal !important;
-    word-break: break-word;
-    line-height: 1.4;
-    text-align: center;
+    height: auto !important; white-space: normal !important;
+    word-break: break-word; line-height: 1.4; text-align: center;
 }
 
-/* --- 6. MODALS / POP-UPS --- */
+/* --- 5. DE AGENDA SPECIFIEKE OPMAAK (HERSTELD) --- */
+.week-grid {
+    display: grid; gap: 15px; grid-template-columns: 1fr; /* Mobiel onder elkaar */
+}
+.dag-kolom {
+    background: #eef2f5; border-radius: 8px; border: 1px solid var(--border-color);
+    min-height: 200px; display: flex; flex-direction: column; overflow: hidden;
+}
+.dag-header {
+    background: var(--secondary-color); color: white; padding: 10px;
+    text-align: center; font-weight: bold; font-size: 1.1rem;
+}
+.training-item {
+    background: white; margin: 8px; padding: 10px; border-radius: 4px;
+    border-left: 4px solid var(--primary-color);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05); font-size: 0.9rem;
+    cursor: pointer; transition: transform 0.2s;
+}
+.training-item:hover { transform: scale(1.02); }
+
+/* --- 6. HET TACTIEKBORD / OEFENINGEN (HERSTELD) --- */
+#tactiek-bord {
+    width: 100%; max-width: 600px; aspect-ratio: 1.5; /* Verhouding half court */
+    background-color: #e67e22; /* Houtkleur/Oranje */
+    background-image: radial-gradient(circle at 50% 0%, rgba(255,255,255,0.2) 20%, transparent 21%);
+    border: 3px solid #333; border-radius: 8px;
+    position: relative; overflow: hidden; margin: 20px auto;
+}
+.token, .speler-token, .bal-token {
+    position: absolute; border-radius: 50%;
+    display: flex; justify-content: center; align-items: center;
+    font-weight: bold; font-size: 0.9rem; cursor: grab;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3); z-index: 100;
+}
+.speler-token { width: 30px; height: 30px; background: #3498db; color: white; border: 2px solid white; }
+.bal-token { width: 20px; height: 20px; background: #f39c12; color: #fff; border: 2px solid #8e44ad; }
+#teken-canvas { position: absolute; top: 0; left: 0; z-index: 10; cursor: crosshair; }
+
+/* --- 7. MODALS / POP-UPS --- */
 .modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(44, 62, 80, 0.8);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 10000;
-    padding: 15px;
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(44, 62, 80, 0.8); z-index: 10000; padding: 15px;
+    overflow-y: auto; display: none; /* Standaard verborgen! */
+    justify-content: center; align-items: flex-start;
 }
-
+.modal-overlay.active {
+    display: flex; /* Alleen tonen als hij geactiveerd is via JS */
+}
 .modal-content {
-    background: white;
-    padding: 25px;
-    border-radius: 12px;
-    width: 100%;
-    max-width: 800px;
-    max-height: 90vh;
-    overflow-y: auto;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    background: white; padding: 25px; border-radius: 12px;
+    width: 100%; max-width: 800px; margin: 40px auto;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3); position: relative;
 }
 
-.sluit-knop {
-    background: #e74c3c;
-    color: white;
-    border: none;
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    font-weight: bold;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1rem;
+/* --- 8. TV/SHOW MODE (VOOR TOERNOOIEN) --- */
+body.show-mode .top-nav, 
+body.show-mode .tab-menu, 
+body.show-mode .hide-in-show-mode {
+    display: none !important;
 }
+body.show-mode .content-sectie { padding: 10px; max-width: 100%; }
+body.show-mode { font-size: 1.2rem; background: #fdfdfd; }
 
-.planner-layout {
-    display: flex;
-    flex-direction: column; /* Mobiel onder elkaar */
-    gap: 20px;
-}
-
-
-/* ==========================================================================
-   PC / LAPTOP / TABLET OPTIMALISATIES (@MEDIA QUERIES)
-   Dit stukje code wordt ALLEEN geactiveerd op bredere schermen (vanaf 768px)
-   ========================================================================== */
-
+/* --- 9. PC / LAPTOP WEERGAVE (@MEDIA QUERIES) --- */
 @media (min-width: 768px) {
-    /* 1. Menu balk mooi centreren i.p.v. links plakken */
-    .tab-menu {
-        justify-content: center;
-        overflow-x: visible;
-        flex-wrap: wrap; /* Voorkomt een scrollbar op grotere schermen */
-    }
-
-    /* 2. Meer ademruimte op PC */
-    .content-sectie {
-        padding: 30px 40px;
-    }
-
-    /* 3. Planner (Agenda): kolommen netjes naast elkaar */
-    .planner-layout {
-        flex-direction: row; 
-    }
-    .planner-kolom {
-        flex: 1; 
-    }
-
-    /* 4. Tabellen ruimer opzetten */
-    th, td {
-        padding: 15px !important;
-    }
+    .tab-menu { justify-content: center; overflow-x: visible; flex-wrap: wrap; }
+    .content-sectie { padding: 30px 40px; }
     
-    .top-nav h1 {
-        font-size: 1.8rem;
-    }
+    /* PC: Agenda keurig op 5 kolommen (Maandag - Vrijdag) */
+    .week-grid { grid-template-columns: repeat(5, 1fr); }
+    
+    .planner-layout { display: flex; flex-direction: row; gap: 20px; }
+    .planner-kolom { flex: 1; }
+    .top-nav h1 { font-size: 1.8rem; }
 }
 
-/* ==========================================================================
-   EXTRA MOBIELE FIXES VOOR KLEINE SCHERMPJES (< 480px)
-   ========================================================================== */
-
+/* --- 10. MOBIELE FIXES (< 480px) --- */
 @media (max-width: 480px) {
-    .top-nav {
-        flex-direction: column;
-        text-align: center;
-    }
-    .terug-knop {
-        width: 100%;
-    }
-    .card, .form-sectie {
-        padding: 15px;
-    }
-    /* Zorg dat tabellen scrollbaar blijven op telefoons, zodat het scherm niet breekt */
-    table {
-        display: block;
-        width: 100%;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-    }
+    .top-nav { flex-direction: column; text-align: center; }
+    .terug-knop { width: 100%; }
+    .card, .form-sectie { padding: 15px; }
+    
+    /* Zorgt dat grote tabellen (toernooistand / spelerslijst) scrollbaar zijn op mobiel */
+    table { display: block; width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 }
