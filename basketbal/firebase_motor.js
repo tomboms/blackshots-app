@@ -1,4 +1,8 @@
-// --- FIREBASE_MOTOR.JS: DE GEDISTRIBUEERDE ENGINE (ZOMBIE-DATA GEFIXT) ---
+// --- FIREBASE_MOTOR.JS: VERBorgen WOLK & VERSIE CONTROLE ---
+
+// 👇 VERANDER DIT NUMMER BIJ ELKE GITHUB PUSH (bijv. v2.1, v2.2) 👇
+const APP_VERSIE = "v2.0";
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
 import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
 
@@ -16,22 +20,65 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 window.isDownloading = false;
 
+// 1. ZET DE VERSIE IN DE NAVIGATIEBALK
+document.addEventListener('DOMContentLoaded', () => {
+    let titel = document.querySelector('.top-nav h1');
+    if (titel) {
+        titel.innerHTML += ` <span style="font-size:0.75rem; background:rgba(255,255,255,0.2); padding:3px 8px; border-radius:12px; margin-left:10px; vertical-align:middle;">${APP_VERSIE}</span>`;
+    }
+});
+
+// 2. DE SLIMME, VERBORGEN STATUS-WOLK
 function updateStatus(status) {
     let wolkje = document.getElementById('cloud-status-indicator');
-    if(!wolkje) return;
-    if (status === 'online') { wolkje.innerText = "☁️ Cloud Actief"; wolkje.style.background = "#27ae60"; }
-    else if (status === 'opslaan') { wolkje.innerText = "⏳ Opslaan..."; wolkje.style.background = "#3498db"; }
-    else if (status === 'bijgewerkt') { wolkje.innerText = "🟣 Bijgewerkt!"; wolkje.style.background = "#9b59b6"; setTimeout(() => updateStatus('online'), 2000); }
+    if (!wolkje) return;
+    
+    // Voeg soepele animaties toe via JavaScript (geen extra CSS nodig)
+    wolkje.style.transition = "all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)";
+    wolkje.style.pointerEvents = "none";
+
+    if (status === 'verborgen' || status === 'online') { 
+        // Verberg de wolk rustig als alles in orde is
+        wolkje.style.opacity = "0";
+        wolkje.style.transform = "translateY(30px)";
+    }
+    else if (status === 'offline') {
+        wolkje.innerText = "❌ Geen Verbinding"; 
+        wolkje.style.background = "#e74c3c";
+        wolkje.style.opacity = "1";
+        wolkje.style.transform = "translateY(0)";
+    }
+    else if (status === 'opslaan') { 
+        wolkje.innerText = "⏳ Opslaan..."; 
+        wolkje.style.background = "#3498db"; 
+        wolkje.style.opacity = "1";
+        wolkje.style.transform = "translateY(0)";
+    }
+    else if (status === 'bijgewerkt') { 
+        wolkje.innerText = "🟣 Nieuwe Data!"; 
+        wolkje.style.background = "#9b59b6"; 
+        wolkje.style.opacity = "1";
+        wolkje.style.transform = "translateY(0)";
+        // Laat hem na 2,5 seconde vanzelf weer verdwijnen
+        setTimeout(() => updateStatus('verborgen'), 2500); 
+    }
 }
+
+// Luister naar de browser om direct te waarschuwen bij WiFi-verlies
+window.addEventListener('offline', () => updateStatus('offline'));
+window.addEventListener('online', () => updateStatus('verborgen'));
+
+// Start de wolk als verborgen
+setTimeout(() => updateStatus('verborgen'), 100);
+
 
 window.autoUpload = async function(key, value) {
     if (!navigator.onLine || window.isDownloading) return;
     try {
         updateStatus('opslaan');
-        // FIX: GEEN 'merge: true' MEER! Hierdoor kwamen oude teams steeds terug als zombies.
-        // We overschrijven het document nu 100% met jouw lokale actuele waarheid.
         await setDoc(doc(db, "blackshots", key), { data: value });
-        updateStatus('online');
+        // Verberg de wolk na een halve seconde weer succesvol opslaan
+        setTimeout(() => updateStatus('verborgen'), 500);
     } catch(e) { console.error("Upload fout:", e); }
 };
 
@@ -39,6 +86,8 @@ window.forceerCloudCheck = async function() {
     if (!navigator.onLine || window.isDownloading) return;
     const onderdelen = ['blackshots_teams', 'blackshots_spelers', 'blackshots_oefeningen', 'blackshots_toernooi', 'blackshots_trainingen'];
     window.isDownloading = true;
+
+    let heeftNieuweData = false;
 
     for (let key of onderdelen) {
         try {
@@ -52,17 +101,23 @@ window.forceerCloudCheck = async function() {
                     if (key === 'blackshots_trainingen') window.geplandeTrainingenDB = JSON.parse(cloudData);
                     if (key === 'blackshots_oefeningen') window.oefeningenDB = JSON.parse(cloudData);
                     if (key === 'blackshots_toernooi') window.toernooiDB = JSON.parse(cloudData);
-                    updateStatus('bijgewerkt');
+                    
+                    heeftNieuweData = true; // Er was ergens een update
                 }
             }
         } catch(e) { console.error("Sync fout:", e); }
     }
+    
     window.isDownloading = false;
     
-    if(typeof window.laadDashboardData === 'function') window.laadDashboardData();
-    if(typeof window.renderTeamBeheer === 'function') window.renderTeamBeheer();
-    if(typeof window.renderSpelers === 'function') window.renderSpelers();
-    if(typeof window.renderWeekAgenda === 'function') window.renderWeekAgenda();
+    // Toon de paarse wolk alléén als er écht data van een ander apparaat is binnengehaald
+    if (heeftNieuweData) {
+        updateStatus('bijgewerkt');
+        if(typeof window.laadDashboardData === 'function') window.laadDashboardData();
+        if(typeof window.renderTeamBeheer === 'function') window.renderTeamBeheer();
+        if(typeof window.renderSpelers === 'function') window.renderSpelers();
+        if(typeof window.renderWeekAgenda === 'function') window.renderWeekAgenda();
+    }
 };
 
 const origineleSetItem = localStorage.setItem;
@@ -72,4 +127,5 @@ localStorage.setItem = function(key, value) {
     window.autoUpload(key, JSON.parse(value));
 };
 
+// Check één keer rustig na opstarten
 setTimeout(window.forceerCloudCheck, 1000);
