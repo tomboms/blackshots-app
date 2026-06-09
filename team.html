@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Black Shots - Team Beheer</title>
+    <link rel="stylesheet" href="basketbal.css">
+</head>
+<body style="overflow-y: auto;">
+
+    <div id="cloud-status-indicator" style="position: fixed; bottom: 20px; right: 20px; background: #27ae60; color: white; padding: 10px 20px; border-radius: 30px; font-weight: bold; font-size: 0.9rem; box-shadow: 0 4px 10px rgba(0,0,0,0.2); z-index: 99999; transition: 0.3s;">
+        ☁️ Cloud Actief
+    </div>
+
+    <nav class="top-nav">
+        <h1>🏀 Black Shots Clubbeheer</h1>
+        <a href="../index.html" class="terug-knop">🏠 Terug naar Portaal</a>
+    </nav>
+
+    <div class="tab-menu">
+        <button class="tab-btn" onclick="window.location.href='dashboard.html'">📊 Dashboard</button>
+        <button class="tab-btn" onclick="window.location.href='agenda.html'">📅 Weekagenda</button>
+        <button class="tab-btn active" onclick="window.location.href='team.html'">👥 Teams</button>
+        <button class="tab-btn" onclick="window.location.href='oefeningen.html'">📋 Oefeningen</button>
+        <button class="tab-btn" onclick="window.location.href='toernooien.html'">🏆 Interne Toernooien</button>
+        <button class="tab-btn" onclick="window.location.href='instellingen.html'">⚙️ Instellingen</button>
+    </div>
+
+    <main class="content-sectie active">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; margin-bottom:15px; border-bottom:2px solid var(--border-color); padding-bottom:10px;">
+            <div>
+                <h2 style="margin:0;">👥 Verenigingsteams</h2>
+                <p style="color: #7f8c8d; margin-top:5px;">Beheer hier de officiële teams, coaches, trainers en de spelerspool.</p>
+            </div>
+        </div>
+
+        <div style="background:white; padding:20px; border-radius:8px; border:1px solid var(--border-color); border-top:4px solid var(--primary-color); margin-bottom:20px; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+            <h3 style="margin-top:0; color:var(--secondary-color);">+ Nieuw Team Oprichten</h3>
+            <div style="display:flex; gap:15px; flex-wrap:wrap; align-items:flex-end;">
+                <div style="flex:2; min-width:150px;">
+                    <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">Teamnaam:</label>
+                    <input type="text" id="nieuw-team-naam" placeholder="Bijv. X10-1" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;">
+                </div>
+                <div style="flex:1.5; min-width:130px;">
+                    <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">👨‍💼 Coach (Optioneel):</label>
+                    <input type="text" id="nieuw-team-coach" placeholder="Naam coach..." style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;">
+                </div>
+                <div style="flex:1.5; min-width:130px;">
+                    <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">🏃‍♂️ Trainer (Optioneel):</label>
+                    <input type="text" id="nieuw-team-trainer" placeholder="Naam trainer..." style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;">
+                </div>
+                <button onclick="window.voegTeamToe()" style="background:#27ae60; color:white; border:none; padding:10px 20px; border-radius:4px; font-weight:bold; cursor:pointer; height:41px;">Toevoegen</button>
+            </div>
+        </div>
+
+        <ul id="team-beheer-lijst" style="list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:15px;">
+            </ul>
+    </main>
+
+    <script src="basketbal_data.js"></script>
+    <script src="basketbal_team.js"></script>
+    <script type="module" src="firebase_motor.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            if(window.renderTeamBeheer) window.renderTeamBeheer();
+        });
+    </script>
+</body>
+</html>
