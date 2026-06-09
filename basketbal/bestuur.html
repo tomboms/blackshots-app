@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Black Shots - Bestuur</title>
+    <link rel="stylesheet" href="basketbal.css">
+    <style>
+        .agenda-punt { background: white; border: 1px solid var(--border-color); border-radius: 6px; padding: 15px; margin-bottom: 10px; border-left: 5px solid #3498db; }
+        .agenda-titel { font-weight: bold; font-size: 1.1rem; color: var(--secondary-color); margin-bottom: 5px; }
+        .notitie-veld { width: 100%; height: 60px; padding: 10px; border: 1px solid #bdc3c7; border-radius: 4px; font-family: inherit; font-size: 0.9rem; resize: vertical; background: #fafafa; }
+        body.dark-mode .agenda-punt { background: #1e293b; border-color: #334155; }
+        body.dark-mode .notitie-veld { background: #334155; color: white; border-color: #475569; }
+    </style>
+</head>
+<body>
+    <div id="cloud-status-indicator" style="position: fixed; bottom: 20px; right: 20px; background: #27ae60; color: white; padding: 10px 20px; border-radius: 30px; font-weight: bold; font-size: 0.9rem; z-index: 99999; opacity: 0; pointer-events: none;">☁️ Cloud Actief</div>
+
+    <nav class="top-nav">
+        <h1>🏀 Black Shots Clubbeheer</h1>
+    </nav>
+
+    <main class="content-sectie active" style="max-width:950px; margin:20px auto; padding:15px;">
+        
+        <div id="overzicht-scherm">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <h2 style="margin:0; color:var(--secondary-color);">📁 Bestuursvergaderingen</h2>
+                <button onclick="nieuweVergadering()" class="primary-btn" style="background:#27ae60;">+ Nieuwe Agenda</button>
+            </div>
+            <div id="vergaderingen-lijst"></div>
+        </div>
+
+        <div id="editor-scherm" style="display:none;">
+            <button onclick="sluitEditor()" style="background:#7f8c8d; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; margin-bottom:20px;">⬅ Terug naar overzicht</button>
+            
+            <div class="card" style="border-top-color:#e67e22; margin-bottom:20px;">
+                <h3 style="margin-top:0; color:var(--secondary-color);">Vergadering Details</h3>
+                <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                    <div style="flex:1; min-width:200px;">
+                        <label style="font-weight:bold; font-size:0.9rem; color:#7f8c8d;">Datum</label>
+                        <input type="text" id="v_datum" placeholder="bijv. Dinsdag 17 Februari" onchange="slaOp()">
+                    </div>
+                    <div style="flex:1; min-width:150px;">
+                        <label style="font-weight:bold; font-size:0.9rem; color:#7f8c8d;">Tijd</label>
+                        <input type="text" id="v_tijd" placeholder="bijv. 20:00 uur" onchange="slaOp()">
+                    </div>
+                    <div style="flex:1; min-width:200px;">
+                        <label style="font-weight:bold; font-size:0.9rem; color:#7f8c8d;">Locatie / Adres</label>
+                        <input type="text" id="v_adres" placeholder="bijv. Abendonk 9 / Online" onchange="slaOp()">
+                    </div>
+                </div>
+                <div style="margin-top:10px;">
+                    <label style="font-weight:bold; font-size:0.9rem; color:#7f8c8d;">Aanwezigen</label>
+                    <input type="text" id="v_aanwezig" placeholder="Martin, Izaac, Jolanda, Tom..." onchange="slaOp()">
+                </div>
+            </div>
+
+            <div style="display:flex; gap:10px; margin-bottom:20px;">
+                <button onclick="kopieerAgenda(false)" style="flex:1; background:#3498db; color:white; border:none; padding:15px; border-radius:6px; font-weight:bold; font-size:1.1rem; cursor:pointer; box-shadow:0 4px 6px rgba(0,0,0,0.1);">📋 Kopieer Officiële Agenda</button>
+                <button onclick="kopieerAgenda(true)" style="flex:1; background:#e67e22; color:white; border:none; padding:15px; border-radius:6px; font-weight:bold; font-size:1.1rem; cursor:pointer; box-shadow:0 4px 6px rgba(0,0,0,0.1);">🤫 Kopieer Tom's Spiekbrief</button>
+            </div>
+
+            <h3 style="color:var(--secondary-color); border-bottom:2px solid var(--border-color); padding-bottom:10px;">Agenda Punten</h3>
+            <div id="agenda-punten-container"></div>
+
+            <button onclick="voegExtraPuntToe()" style="background:#9b59b6; color:white; border:none; padding:10px 20px; border-radius:4px; font-weight:bold; cursor:pointer; margin-top:10px;">+ Extra Onderwerp Toevoegen</button>
+            <button onclick="verwijderVergadering()" style="background:#e74c3c; color:white; border:none; padding:10px 20px; border-radius:4px; font-weight:bold; cursor:pointer; margin-top:10px; float:right;">🗑️ Verwijder Vergadering</button>
+        </div>
+
+    </main>
+
+    <script src="basketbal_auth.js"></script>
+    <script src="basketbal_data.js"></script>
+    <script type="module" src="firebase_motor.js"></script>
+    
+    <script>
+        let bestuurDB = JSON.parse(localStorage.getItem('blackshots_bestuur')) || [];
+        let actieveVergaderingId = null;
+
+        const standaardPunten = [
+            "Opening en vaststellen agendapunten",
+            "Mededelingen en ledenmutaties",
+            "Actielijst",
+            "Ingekomen stukken",
+            "Financiën",
+            "Jaarplanning"
+        ];
+        const eindPunten = [
+            "Rondvraag",
+            "Vaststellen volgende vergaderdatum en sluiting"
+        ];
+
+        function tekenOverzicht() {
+            let container = document.getElementById('vergaderingen-lijst');
+            container.innerHTML = '';
+            
+            if (bestuurDB.length === 0) {
+                container.innerHTML = '<p style="color:#7f8c8d; font-style:italic;">Nog geen vergaderingen gepland. Klik op de groene knop!</p>';
+                return;
+            }
+
+            // Sorteer nieuwste bovenaan
+            let gesorteerd = [...bestuurDB].reverse();
+
+            gesorteerd.forEach(v => {
+                container.innerHTML += `
+                    <div onclick="openVergadering('${v.id}')" class="card" style="cursor:pointer; transition:0.2s; border-left:6px solid #3498db; margin-bottom:10px;" onmouseover="this.style.transform='translateX(5px)'" onmouseout="this.style.transform='translateX(0)'">
+                        <strong style="font-size:1.2rem; color:var(--secondary-color);">📅 ${v.datum || 'Datum onbekend'}</strong>
+                        <div style="color:#7f8c8d; font-size:0.9rem; margin-top:5px;">🕒 ${v.tijd || '?'} | 📍 ${v.adres || '?'}</div>
+                        <div style="font-size:0.85rem; margin-top:8px; color:#9b59b6; font-weight:bold;">${v.extraPunten.length} Extra onderwerpen ingeschoten</div>
+                    </div>
+                `;
+            });
+        }
+
+        window.nieuweVergadering = function() {
+            let nw = {
+                id: 'verg_' + Date.now(),
+                datum: '', tijd: '20:00 uur', adres: '', aanwezig: 'Martin, Izaac, Jolanda, Tom',
+                notitiesStandaard: {}, // Slaat notities op voor punt 1 t/m 6
+                notitiesEind: {},      // Slaat notities op voor de laatste 2 punten
+                extraPunten: []        // Array met { titel: '', notitie: '' }
+            };
+            bestuurDB.push(nw);
+            slaOpEnHerlaad();
+            openVergadering(nw.id);
+        };
+
+        window.openVergadering = function(id) {
+            actieveVergaderingId = id;
+            let v = bestuurDB.find(x => x.id === id);
+            if (!v) return;
+
+            document.getElementById('overzicht-scherm').style.display = 'none';
+            document.getElementById('editor-scherm').style.display = 'block';
+
+            document.getElementById('v_datum').value = v.datum || '';
+            document.getElementById('v_tijd').value = v.tijd || '';
+            document.getElementById('v_adres').value = v.adres || '';
+            document.getElementById('v_aanwezig').value = v.aanwezig || '';
+
+            tekenAgendaPunten();
+        };
+
+        window.sluitEditor = function() {
+            actieveVergaderingId = null;
+            document.getElementById('editor-scherm').style.display = 'none';
+            document.getElementById('overzicht-scherm').style.display = 'block';
+            tekenOverzicht();
+        };
+
+        function tekenAgendaPunten() {
+            let v = bestuurDB.find(x => x.id === actieveVergaderingId);
+            let container = document.getElementById('agenda-punten-container');
+            container.innerHTML = '';
+
+            let puntNummer = 1;
+
+            // 1. STANDAARD PUNTEN (1 T/M 6)
+            standaardPunten.forEach((titel, idx) => {
+                let notitie = v.notitiesStandaard[idx] || '';
+                container.innerHTML += `
+                    <div class="agenda-punt" style="border-left-color:#3498db;">
+                        <div class="agenda-titel">${puntNummer}. ${titel}</div>
+                        <textarea class="notitie-veld" placeholder="Tom's Spiekbrief: Zet hier je notities, vragen of dingen die je niet moet vergeten..." onchange="slaNotitieOp('std', ${idx}, this.value)">${notitie}</textarea>
+                    </div>`;
+                puntNummer++;
+            });
+
+            // 2. EXTRA PUNTEN (7...)
+            let extraStartNummer = puntNummer;
+            if (v.extraPunten.length === 0) {
+                container.innerHTML += `
+                    <div class="agenda-punt" style="border-left-color:#9b59b6; background:rgba(155,89,182,0.05);">
+                        <div class="agenda-titel">${puntNummer}. Extra agenda punt(en) bespreken</div>
+                        <p style="font-size:0.9rem; color:#7f8c8d; font-style:italic;">Klik op '+ Extra Onderwerp Toevoegen' om hier punten te verzamelen.</p>
+                    </div>`;
+                puntNummer++;
+            } else {
+                container.innerHTML += `<div class="agenda-titel" style="margin:20px 0 10px 0; color:#9b59b6; font-size:1.2rem;">${puntNummer}. Extra agenda punt(en) bespreken</div>`;
+                v.extraPunten.forEach((extra, idx) => {
+                    container.innerHTML += `
+                        <div class="agenda-punt" style="border-left-color:#9b59b6; margin-left:20px;">
+                            <div style="display:flex; justify-content:space-between;">
+                                <input type="text" value="${extra.titel}" placeholder="Titel van dit onderwerp..." onchange="slaExtraTitelOp(${idx}, this.value)" style="flex:1; font-weight:bold; font-size:1rem; border:none; border-bottom:2px solid #bdc3c7; background:transparent; margin-bottom:10px; color:inherit;">
+                                <button onclick="verwijderExtraPunt(${idx})" style="background:none; border:none; color:#e74c3c; font-weight:bold; cursor:pointer;">X</button>
+                            </div>
+                            <textarea class="notitie-veld" placeholder="Jouw notities voor dit onderwerp..." onchange="slaExtraNotitieOp(${idx}, this.value)">${extra.notitie}</textarea>
+                        </div>`;
+                });
+                puntNummer++;
+            }
+
+            // 3. EIND PUNTEN
+            eindPunten.forEach((titel, idx) => {
+                let notitie = v.notitiesEind[idx] || '';
+                container.innerHTML += `
+                    <div class="agenda-punt" style="border-left-color:#e67e22;">
+                        <div class="agenda-titel">${puntNummer}. ${titel}</div>
+                        <textarea class="notitie-veld" placeholder="Tom's Spiekbrief: Zet hier je notities voor de rondvraag/sluiting..." onchange="slaNotitieOp('eind', ${idx}, this.value)">${notitie}</textarea>
+                    </div>`;
+                puntNummer++;
+            });
+        }
+
+        // --- OPSLAAN FUNCTIES ---
+        window.slaOp = function() {
+            let v = bestuurDB.find(x => x.id === actieveVergaderingId);
+            v.datum = document.getElementById('v_datum').value;
+            v.tijd = document.getElementById('v_tijd').value;
+            v.adres = document.getElementById('v_adres').value;
+            v.aanwezig = document.getElementById('v_aanwezig').value;
+            slaOpEnHerlaad();
+        };
+
+        window.slaNotitieOp = function(type, idx, val) {
+            let v = bestuurDB.find(x => x.id === actieveVergaderingId);
+            if(type === 'std') v.notitiesStandaard[idx] = val;
+            if(type === 'eind') v.notitiesEind[idx] = val;
+            slaOpEnHerlaad();
+        };
+
+        window.voegExtraPuntToe = function() {
+            let v = bestuurDB.find(x => x.id === actieveVergaderingId);
+            v.extraPunten.push({ titel: '', notitie: '' });
+            slaOpEnHerlaad();
+            tekenAgendaPunten();
+        };
+
+        window.slaExtraTitelOp = function(idx, val) {
+            let v = bestuurDB.find(x => x.id === actieveVergaderingId);
+            v.extraPunten[idx].titel = val;
+            slaOpEnHerlaad();
+        };
+
+        window.slaExtraNotitieOp = function(idx, val) {
+            let v = bestuurDB.find(x => x.id === actieveVergaderingId);
+            v.extraPunten[idx].notitie = val;
+            slaOpEnHerlaad();
+        };
+
+        window.verwijderExtraPunt = function(idx) {
+            let v = bestuurDB.find(x => x.id === actieveVergaderingId);
+            v.extraPunten.splice(idx, 1);
+            slaOpEnHerlaad();
+            tekenAgendaPunten();
+        };
+
+        window.verwijderVergadering = function() {
+            if(confirm("Weet je zeker dat je deze hele vergadering wilt wissen?")) {
+                bestuurDB = bestuurDB.filter(x => x.id !== actieveVergaderingId);
+                slaOpEnHerlaad();
+                sluitEditor();
+            }
+        }
+
+        function slaOpEnHerlaad() {
+            localStorage.setItem('blackshots_bestuur', JSON.stringify(bestuurDB));
+        }
+
+        // --- EXPORT NAAR KLEMBOARD (ALS TEKST) ---
+        window.kopieerAgenda = function(isTomVersie) {
+            let v = bestuurDB.find(x => x.id === actieveVergaderingId);
+            
+            let tekst = `Bestuursvergadering Black Shots\n`;
+            tekst += `Datum: ${v.datum || '...'}\n`;
+            tekst += `Tijd: ${v.tijd || '...'}        Adres: ${v.adres || '...'}\n`;
+            tekst += `Aanwezig: ${v.aanwezig || '...'}\n`;
+            if(isTomVersie) tekst += `\n[ TOM'S SPIEKBRIEF VERSIE ]\n`;
+            tekst += `\nAgenda\n`;
+
+            let pNummer = 1;
+
+            // 1. Standaard
+            standaardPunten.forEach((titel, idx) => {
+                tekst += `${pNummer}. ${titel}\n`;
+                if(isTomVersie && v.notitiesStandaard[idx]) {
+                    let regels = v.notitiesStandaard[idx].split('\n');
+                    regels.forEach(r => { if(r.trim()) tekst += `   - ${r}\n`; });
+                }
+                pNummer++;
+            });
+
+            // 2. Extra
+            tekst += `${pNummer}. Extra agenda punt(en) bespreken\n`;
+            if (v.extraPunten.length > 0) {
+                v.extraPunten.forEach(ex => {
+                    tekst += `   * ${ex.titel || 'Nieuw punt'}\n`;
+                    if(isTomVersie && ex.notitie) {
+                        let regels = ex.notitie.split('\n');
+                        regels.forEach(r => { if(r.trim()) tekst += `     > ${r}\n`; });
+                    }
+                });
+            }
+            pNummer++;
+
+            // 3. Eind
+            eindPunten.forEach((titel, idx) => {
+                tekst += `${pNummer}. ${titel}\n`;
+                if(isTomVersie && v.notitiesEind[idx]) {
+                    let regels = v.notitiesEind[idx].split('\n');
+                    regels.forEach(r => { if(r.trim()) tekst += `   - ${r}\n`; });
+                }
+                pNummer++;
+            });
+
+            const dummy = document.createElement("textarea");
+            document.body.appendChild(dummy);
+            dummy.value = tekst;
+            dummy.select();
+            document.execCommand("copy");
+            document.body.removeChild(dummy);
+
+            let soort = isTomVersie ? "Tom's Spiekbrief" : "Officiële Agenda";
+            alert(`✅ Succes! De ${soort} is gekopieerd naar je klembord.\nPlak hem direct in Word of WhatsApp.`);
+        };
+
+        setTimeout(tekenOverzicht, 200);
+    </script>
+</body>
+</html>

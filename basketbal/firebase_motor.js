@@ -77,7 +77,7 @@ window.autoUpload = async function(key, value) {
 window.forceerCloudCheck = async function() {
     if (!navigator.onLine || window.isDownloading) return;
     // Inclusief de nieuwe gebruikers map!
-    const onderdelen = ['blackshots_teams', 'blackshots_spelers', 'blackshots_oefeningen', 'blackshots_toernooi', 'blackshots_trainingen', 'blackshots_gebruikers'];
+    const onderdelen = ['blackshots_teams', 'blackshots_spelers', 'blackshots_oefeningen', 'blackshots_toernooi', 'blackshots_trainingen', 'blackshots_gebruikers', 'blackshots_bestuur'];
     window.isDownloading = true;
 
     let heeftNieuweData = false;

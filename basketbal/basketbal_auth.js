@@ -92,6 +92,7 @@ window.checkBeveiligingEnBouwMenu = function() {
             { id: 'spelers', url: 'spelers.html', icon: '👤', tekst: 'Spelers' },
             { id: 'oefeningen', url: 'oefeningen.html', icon: '📋', tekst: 'Oefeningen' },
             { id: 'toernooien', url: 'toernooien.html', icon: '🏆', tekst: 'Interne Toernooien' },
+            { id: 'bestuur', url: 'bestuur.html', icon: '📁', tekst: 'Bestuur & Agenda' }, // <-- Deze is nieuw!
             { id: 'gebruikers', url: 'gebruikers.html', icon: '🔐', tekst: 'Trainer Beheer' },
             { id: 'instellingen', url: 'instellingen.html', icon: '⚙️', tekst: 'Instellingen' }
         ];
