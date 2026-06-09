@@ -1,4 +1,4 @@
-// --- FIREBASE_MOTOR.JS: DE GEDEELDE CLOUD ENGINE VOOR ALLE PAGINA'S ---
+// --- FIREBASE_MOTOR.JS: DE GEDEELDE CLOUD ENGINE (V5 - LOOP PROOF) ---
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
 import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
 
@@ -16,7 +16,9 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 window.firebaseDB = db;
 
-// SLIMME STATUS FUNCTIE
+// De magische schakelaar om de oneindige loop te blokkeren
+window.isDownloading = false;
+
 function updateStatus(status) {
     let wolkje = document.getElementById('cloud-status-indicator');
     if(!wolkje) return;
@@ -37,18 +39,9 @@ window.addEventListener('offline', () => updateStatus('offline'));
 window.addEventListener('online', () => updateStatus('online'));
 if (!navigator.onLine) updateStatus('offline');
 
-document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && navigator.onLine) {
-        let wolkje = document.getElementById('cloud-status-indicator');
-        if(wolkje) { wolkje.innerText = "⏳ Syncen..."; wolkje.style.background = "#f39c12"; }
-        setTimeout(() => { if(typeof window.forceerCloudCheck === 'function') window.forceerCloudCheck(); }, 500);
-    }
-});
-
-// FORCEER UPDATE FUNCTIE (Nu met simpele reload voor losse pagina's)
-// FORCEER UPDATE FUNCTIE (ZONDER INFINITE LOOP!)
+// FORCEER UPDATE FUNCTIE
 window.forceerCloudCheck = async function() {
-    if (!navigator.onLine) return;
+    if (!navigator.onLine || window.isDownloading) return;
     try {
         let collectie = window.location.pathname.includes('koken') ? "koken" : "blackshots";
         let docNaam = window.location.pathname.includes('koken') ? "maaltijddata" : "clubdata";
@@ -57,6 +50,10 @@ window.forceerCloudCheck = async function() {
         if (docSnap.exists()) {
             let data = docSnap.data();
             let isGewijzigd = false;
+            
+            // Zet de blokkade aan tijdens het wegschrijven
+            window.isDownloading = true;
+
             Object.keys(data).forEach(key => {
                 if (localStorage.getItem(key) !== data[key]) {
                     origineleSetItem.call(localStorage, key, data[key]);
@@ -64,17 +61,22 @@ window.forceerCloudCheck = async function() {
                 }
             });
             
+            // Schakel de blokkade weer uit
+            window.isDownloading = false;
+            
             if (isGewijzigd) {
                 updateStatus('bijgewerkt'); 
-                
-                // GEEN location.reload() meer! We updaten gewoon de actieve tab onzichtbaar.
                 if(typeof window.laadDashboardData === 'function') window.laadDashboardData();
                 if(typeof window.renderTeamBeheer === 'function') window.renderTeamBeheer();
                 if(typeof window.renderSpelers === 'function') window.renderSpelers();
                 if(typeof window.renderToernooi === 'function') window.renderToernooi();
             }
         }
-    } catch(e) { console.error("Force sync failed:", e); updateStatus('offline'); }
+    } catch(e) { 
+        window.isDownloading = false;
+        console.error("Force sync failed:", e); 
+        updateStatus('offline'); 
+    }
 };
 
 // 1. REAL-TIME LUISTERAAR
@@ -82,41 +84,39 @@ let luisterCollectie = window.location.pathname.includes('koken') ? "koken" : "b
 let luisterDoc = window.location.pathname.includes('koken') ? "maaltijddata" : "clubdata";
 
 onSnapshot(doc(db, luisterCollectie, luisterDoc), (docSnap) => {
-    if (docSnap.exists() && navigator.onLine) { window.forceerCloudCheck(); }
-}, (error) => { updateStatus('offline'); });
+    if (docSnap.exists() && navigator.onLine && !window.isDownloading) { 
+        window.forceerCloudCheck(); 
+    }
+});
 
-// 2. STILLE OPSLAG OP DE ACHTERGROND
+// 2. STILLE UPLOAD
 window.autoUpload = function(col) {
-    if (!navigator.onLine) { updateStatus('offline'); return; }
+    if (!navigator.onLine || window.isDownloading) return;
 
     let data = {};
     for (let i = 0; i < localStorage.length; i++) {
         let key = localStorage.key(i);
         if (col === "blackshots" && key.startsWith('blackshots_')) data[key] = localStorage.getItem(key);
-        if (col === "koken" && !key.startsWith('blackshots_') && key !== 'avondeet_ingelogd_als') data[key] = localStorage.getItem(key);
+        if (col === "koken" && !key.startsWith('blackshots_') && key !== 'avondeet_ingelogd_als' && key !== 'koken_laatste_tab') data[key] = localStorage.getItem(key);
     }
     
     let docNaam = col === "koken" ? "maaltijddata" : "clubdata";
-    let firebaseUpload = setDoc(doc(db, col, docNaam), data, { merge: true });
-    let timer = new Promise((resolve) => setTimeout(() => resolve('te_traag'), 5000));
-    
-    Promise.race([firebaseUpload, timer])
-        .then((uitslag) => {
-            if (uitslag === 'te_traag') updateStatus('offline');
-            else updateStatus('online');
-        })
+    setDoc(doc(db, col, docNaam), data, { merge: true })
+        .then(() => updateStatus('online'))
         .catch(() => updateStatus('offline'));
 };
 
-// 3. SLIMME COUPLING
+// 3. STORAGE INTERCEPTOR
 const origineleSetItem = localStorage.setItem;
 let typTimer;
 
 localStorage.setItem = function(key, value) {
     origineleSetItem.apply(this, arguments);
     
-    // Voorkom loops en tijdelijke keys
-    if(key && typeof key === 'string' && key !== 'avondeet_ingelogd_als' && key !== 'koken_laatste_tab') {
+    // Als de wijziging vanuit de cloud-download komt, stappen we hier direct uit!
+    if (window.isDownloading) return;
+    
+    if(key && typeof key === 'string' && key !== 'avondeet_ingelogd_als' && key !== 'koken_laatste_tab' && key !== 'laatste_tab') {
         if (!navigator.onLine) {
             updateStatus('offline');
         } else {
