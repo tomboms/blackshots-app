@@ -7,17 +7,15 @@ window.renderTeamBeheer = function() {
     let lijstHTML = '';
     const dagenMap = {1: "Maandag", 2: "Dinsdag", 3: "Woensdag", 4: "Donderdag", 5: "Vrijdag"};
 
-    // 1. Crash-beveiliging: is teamsDB wel correct ingeladen?
     if (!Array.isArray(window.teamsDB)) {
         window.teamsDB = [];
     }
 
     window.teamsDB.forEach((team, index) => {
-        
-        // 2. MAGIE: Haal de spelers live uit je nieuwe SPELERS DATABASE (spelers.html)
+        // Haal de gekoppelde spelers live uit de spelers database
         let teamSpelers = [];
         if (window.spelersDB && Array.isArray(window.spelersDB)) {
-            teamSpelers = window.spelersDB.filter(s => s.teamId === team.id);
+            teamSpelers = window.spelersDB.filter(s => s.teamId === team.id || s.teamId === team.naam);
         }
 
         let spelersHtml = '';
@@ -30,10 +28,9 @@ window.renderTeamBeheer = function() {
                 `;
             });
         } else {
-            spelersHtml = '<span style="color:#bdc3c7; font-style:italic; font-size:0.9rem;">Geen spelers in dit team. Voeg ze toe via de Spelers-pagina.</span>';
+            spelersHtml = '<span style="color:#bdc3c7; font-style:italic; font-size:0.9rem;">Geen spelers in dit team. Voeg ze toe via de Spelers-pagina of importeer de bonds-CSV.</span>';
         }
 
-        // 3. Trainingstijden veilig inladen
         let trainingenHtml = '';
         if (Array.isArray(team.trainingen) && team.trainingen.length > 0) {
             team.trainingen.forEach((tr, trIndex) => {
@@ -48,7 +45,6 @@ window.renderTeamBeheer = function() {
             trainingenHtml = '<span style="color:#bdc3c7; font-style:italic; font-size:0.85rem;">Geen vaste tijden.</span>';
         }
 
-        // 4. De Team Kaart bouwen
         lijstHTML += `
             <li style="background:white; border-radius:8px; border:1px solid var(--border-color); overflow:hidden; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
                 <div style="background:#fafafa; padding:15px 20px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
@@ -58,14 +54,17 @@ window.renderTeamBeheer = function() {
                             👨‍💼 Coach: <strong>${team.coach || 'N.n.b.'}</strong> &nbsp;|&nbsp; 🏃‍♂️ Trainer: <strong>${team.trainer || 'N.n.b.'}</strong>
                         </div>
                     </div>
-                    <button onclick="window.verwijderTeam(${index})" style="background:transparent; color:#e74c3c; border:1px solid #e74c3c; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:0.85rem;">Team Opheffen</button>
+                    <div>
+                        <button onclick="window.bewerkTeam(${index})" style="background:transparent; color:#e67e22; border:1px solid #e67e22; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:0.85rem; margin-right:5px;">✏️ Team Bewerken</button>
+                        <button onclick="window.verwijderTeam(${index})" style="background:transparent; color:#e74c3c; border:1px solid #e74c3c; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:0.85rem;">Team Opheffen</button>
+                    </div>
                 </div>
 
                 <div style="padding:20px; display:flex; gap:20px; flex-wrap:wrap;">
                     <div style="flex:2; min-width:250px;">
                         <h4 style="margin-top:0; color:var(--secondary-color); border-bottom:2px solid #eee; padding-bottom:5px;">👥 Spelerspool (${teamSpelers.length})</h4>
                         <div style="margin-bottom:15px; display:flex; flex-wrap:wrap;">${spelersHtml}</div>
-                        <button onclick="window.location.href='spelers.html'" style="background:#3498db; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.85rem;">+ Beheer spelers via Spelers-pagina</button>
+                        <button onclick="window.location.href='spelers.html'" style="background:#3498db; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.85rem;">+ Beheer via Spelers-pagina</button>
                     </div>
 
                     <div style="flex:1; min-width:250px; border-left:1px dashed #eee; padding-left:20px;">
@@ -92,25 +91,43 @@ window.renderTeamBeheer = function() {
     lijst.innerHTML = lijstHTML;
 };
 
-// --- ACTIE FUNCTIES ---
+// --- TEAM BEWERKEN LOGICA ---
+window.bewerkTeam = function(index) {
+    let team = window.teamsDB[index];
+    
+    let nieuweNaam = prompt("Pas de teamnaam aan:", team.naam);
+    if (nieuweNaam === null) return; // Geannuleerd
+    nieuweNaam = nieuweNaam.trim();
+    if (!nieuweNaam) return alert("Teamnaam mag niet leeg zijn.");
+
+    let nieuweCoach = prompt("Pas de coach aan:", team.coach || "");
+    if (nieuweCoach === null) return;
+
+    let nieuweTrainer = prompt("Pas de trainer aan:", team.trainer || "");
+    if (nieuweTrainer === null) return;
+
+    // Sla de updates op
+    team.naam = nieuweNaam;
+    team.coach = nieuweCoach.trim();
+    team.trainer = nieuweTrainer.trim();
+
+    localStorage.setItem('blackshots_teams', JSON.stringify(window.teamsDB));
+    window.renderTeamBeheer();
+};
 
 window.voegTeamToe = function() {
     const naamEl = document.getElementById('nieuw-team-naam');
     const coachEl = document.getElementById('nieuw-team-coach');
     const trainerEl = document.getElementById('nieuw-team-trainer');
 
-    // Extra veiligheidscheck voor het geval de HTML nog niet geladen is
-    if (!naamEl || !coachEl || !trainerEl) {
-        alert("Oeps, de velden konden niet worden gevonden. Druk even op Ctrl+F5!");
-        return;
-    }
+    if (!naamEl || !coachEl || !trainerEl) return;
 
     const naam = naamEl.value.trim();
     const coach = coachEl.value.trim();
     const trainer = trainerEl.value.trim();
 
     if (naam) {
-        let nieuwId = naam.toLowerCase().replace(/[^a-z0-9]/g, ''); // Maakt bijv. "X10-1" -> "x101"
+        let nieuwId = naam.toLowerCase().replace(/[^a-z0-9]/g, '');
         if (!Array.isArray(window.teamsDB)) window.teamsDB = [];
         
         window.teamsDB.push({ id: nieuwId, naam: naam, coach: coach, trainer: trainer, trainingen: [] });
@@ -126,19 +143,9 @@ window.voegTeamToe = function() {
 };
 
 window.verwijderTeam = function(index) {
-    if (confirm("Weet je zeker dat je dit team wilt wissen? De spelers in dit team worden 'Clubloos', maar worden NIET verwijderd.")) {
-        let teamId = window.teamsDB[index].id;
-        
-        // Koppel spelers los in de spelersDB
-        window.spelersDB.forEach(speler => {
-            if (speler.teamId === teamId) speler.teamId = ""; 
-        });
-        localStorage.setItem('blackshots_spelers', JSON.stringify(window.spelersDB));
-
-        // Wis het team uit de teamsDB
+    if (confirm("Weet je zeker dat je dit team wilt wissen?")) {
         window.teamsDB.splice(index, 1);
         localStorage.setItem('blackshots_teams', JSON.stringify(window.teamsDB));
-        
         window.renderTeamBeheer();
     }
 };
@@ -150,7 +157,6 @@ window.snelleTrainingToevoegen = function(teamIndex) {
 
     if (!start || !zaal) return alert("Vul een starttijd en zaal in.");
 
-    // Bereken eindtijd (Starttijd + 1,5 uur)
     let startParts = start.split(':');
     let startMin = parseInt(startParts[0]) * 60 + parseInt(startParts[1]);
     let eindMin = startMin + 90;

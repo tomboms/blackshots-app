@@ -22,18 +22,23 @@
         <button class="tab-btn" onclick="window.location.href='agenda.html'">📅 Weekagenda</button>
         <button class="tab-btn" onclick="window.location.href='oefeningen.html'">📋 Oefeningen</button>
         <button class="tab-btn" onclick="window.location.href='toernooien.html'">🏆 Interne Toernooien</button>
+        <button class="tab-btn" onclick="window.location.href='instellingen.html'">⚙️ Instellingen</button>
     </div>
 
     <main class="content-sectie active">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; margin-bottom:15px; border-bottom:2px solid var(--border-color); padding-bottom:10px;">
             <div>
                 <h2 style="margin:0;">👤 Spelers Database</h2>
-                <p style="color: #7f8c8d; margin-top:5px;">Beheer hier alle leden van de club, en koppel ze aan een team.</p>
+                <p style="color: #7f8c8d; margin-top:5px;">Beheer handmatig spelers of importeer de officiële CSV-export uit het bondssysteem.</p>
+            </div>
+            <div>
+                <button onclick="document.getElementById('import-bond-file').click()" style="background:#8e44ad; color:white; border:none; padding:10px 20px; border-radius:4px; font-weight:bold; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.1);">📥 Importeer Bondsexport (CSV)</button>
+                <input type="file" id="import-bond-file" accept=".csv" style="display:none;" onchange="window.importeerBondCSV(event)">
             </div>
         </div>
 
         <div style="background:white; padding:20px; border-radius:8px; border:1px solid var(--border-color); border-top:4px solid #3498db; margin-bottom:20px; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
-            <h3 style="margin-top:0; color:var(--secondary-color);">+ Nieuwe Speler Inschrijven</h3>
+            <h3 style="margin-top:0; color:var(--secondary-color);">+ Handmatig een Speler Toevoegen</h3>
             <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
                 <div style="flex:2; min-width:150px;">
                     <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">Volledige Naam:</label>
@@ -55,21 +60,25 @@
             </div>
         </div>
 
-        <input type="text" id="zoek-speler" placeholder="🔎 Zoek op naam of team..." onkeyup="window.renderSpelers()" style="width:100%; padding:12px; margin-bottom:15px; border:1px solid var(--primary-color); border-radius:6px;">
+        <input type="text" id="zoek-speler" placeholder="🔎 Zoek op naam, team, bondsnummer of lidmaatschap..." onkeyup="window.renderSpelers()" style="width:100%; padding:12px; margin-bottom:15px; border:1px solid var(--primary-color); border-radius:6px;">
         
-        <table style="width:100%; border-collapse:collapse; background:white; border-radius:8px; overflow:hidden; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
-            <thead style="background:var(--secondary-color); color:white; text-align:left;">
-                <tr>
-                    <th style="padding:12px;">Naam</th>
-                    <th style="padding:12px;">Leeftijd</th>
-                    <th style="padding:12px;">Rugnummer</th>
-                    <th style="padding:12px;">Team</th>
-                    <th style="padding:12px;">Actie</th>
-                </tr>
-            </thead>
-            <tbody id="spelers-tabel-body">
-                </tbody>
-        </table>
+        <div style="overflow-x:auto;">
+            <table style="width:100%; border-collapse:collapse; background:white; border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,0.05); text-align:left;">
+                <thead style="background:var(--secondary-color); color:white;">
+                    <tr>
+                        <th style="padding:12px;">Bondsnummer</th>
+                        <th style="padding:12px;">Naam</th>
+                        <th style="padding:12px;">Leeftijd</th>
+                        <th style="padding:12px;">Rugnr</th>
+                        <th style="padding:12px;">Gekoppeld Team</th>
+                        <th style="padding:12px;">Lid Sinds</th>
+                        <th style="padding:12px;">Lidmaatschap (Club / Bond)</th>
+                        <th style="padding:12px;">Actie</th>
+                    </tr>
+                </thead>
+                <tbody id="spelers-tabel-body"></tbody>
+            </table>
+        </div>
     </main>
 
     <script src="basketbal_data.js"></script>
