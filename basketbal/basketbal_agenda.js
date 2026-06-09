@@ -1,16 +1,43 @@
-// --- BASKETBAL_AGENDA.JS: LOGICA VOOR WEEKROOSTER & PLANNER MET MOOIE MODALS ---
+// --- BASKETBAL_AGENDA.JS: REPARATIE, ROOSTER & MODERNE POP-UPS ---
 
-// 1. INJECTEER PRACHTIGE POP-UPS IN DE HTML
+let actieveTraining = null;
+let actieveTijdlijn = [];
+let actieveWeekStart = new Date();
+
+// DATA REPARATEUR: Converteert een eventuele lijst-structuur geruisloos terug naar object-formaat
+if (Array.isArray(window.geplandeTrainingenDB)) {
+    let oudeArray = window.geplandeTrainingenDB;
+    window.geplandeTrainingenDB = {};
+    oudeArray.forEach(item => {
+        if (!item) return;
+        if (item.opslagSleutel && item.tijdlijn) {
+            window.geplandeTrainingenDB[item.opslagSleutel] = item.tijdlijn;
+        } else if (item.datum) {
+            let matchTeam = (window.teamsDB || []).find(t => t.naam === item.titel || t.id === item.titel);
+            let tId = matchTeam ? matchTeam.id : 'unknown';
+            let isoDate = item.datum;
+            if (item.datum.includes('-')) {
+                let parts = item.datum.split('-');
+                if (parts[0].length === 2) isoDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
+            }
+            let sleutel = `${isoDate}_${tId}`;
+            window.geplandeTrainingenDB[sleutel] = [{ naam: item.titel || 'Training', duur: 90, kleur: '#3498db' }];
+        }
+    });
+    localStorage.setItem('blackshots_trainingen', JSON.stringify(window.geplandeTrainingenDB));
+}
+
+// INJECTEER MODERNE POP-UPS
 function injecteerMooieModals() {
     if (document.getElementById('custom-prompt-modal')) return;
     const style = document.createElement('style');
     style.innerHTML = `
-        .mooie-modal { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); display:none; justify-content:center; align-items:center; z-index:999999; backdrop-filter:blur(3px); }
-        .mooie-modal-content { background:white; padding:25px; border-radius:12px; width:90%; max-width:400px; box-shadow:0 10px 30px rgba(0,0,0,0.3); text-align:center; animation:popIn 0.3s ease-out; }
+        .mooie-modal { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(26, 37, 48, 0.6); display:none; justify-content:center; align-items:center; z-index:999999; backdrop-filter:blur(4px); }
+        .mooie-modal-content { background:white; padding:30px; border-radius:12px; width:90%; max-width:420px; box-shadow:0 15px 35px rgba(0,0,0,0.2); text-align:center; animation:popIn 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275); border-top:6px solid #3498db; }
         @keyframes popIn { from { transform:scale(0.8); opacity:0; } to { transform:scale(1); opacity:1; } }
         .mooie-input { width:100%; padding:12px; margin:15px 0; border:2px solid #bdc3c7; border-radius:6px; font-size:1rem; box-sizing:border-box; }
         .mooie-input:focus { border-color:#3498db; outline:none; }
-        .mooie-btn-groep { display:flex; gap:10px; justify-content:center; }
+        .mooie-btn-groep { display:flex; gap:10px; justify-content:center; margin-top:10px; }
         .mooie-btn { flex:1; padding:12px; border:none; border-radius:6px; font-weight:bold; cursor:pointer; font-size:1rem; transition:0.2s; }
         .btn-cancel { background:#ecf0f1; color:#7f8c8d; } .btn-cancel:hover { background:#bdc3c7; }
         .btn-confirm { background:#3498db; color:white; } .btn-confirm:hover { background:#2980b9; }
@@ -20,18 +47,18 @@ function injecteerMooieModals() {
     const modalsHtml = `
         <div id="custom-prompt-modal" class="mooie-modal">
             <div class="mooie-modal-content">
-                <h2 id="prompt-titel" style="margin-top:0; color:#2c3e50;">Titel</h2>
-                <p id="prompt-tekst" style="color:#7f8c8d; font-size:0.95rem;">Tekst</p>
+                <h2 id="prompt-titel" style="margin-top:0; color:#2c3e50; font-size:1.4rem;">Titel</h2>
+                <p id="prompt-tekst" style="color:#7f8c8d; font-size:0.95rem; margin-bottom:5px;">Tekst</p>
                 <input type="text" id="prompt-input" class="mooie-input">
                 <div class="mooie-btn-groep">
                     <button class="mooie-btn btn-cancel" onclick="document.getElementById('custom-prompt-modal').style.display='none'">Annuleren</button>
-                    <button id="prompt-confirm-btn" class="mooie-btn btn-confirm">OK</button>
+                    <button id="prompt-confirm-btn" class="mooie-btn btn-confirm">Bevestigen</button>
                 </div>
             </div>
         </div>
         <div id="custom-confirm-modal" class="mooie-modal">
             <div class="mooie-modal-content">
-                <h2 id="confirm-titel" style="margin-top:0; color:#2c3e50;">Titel</h2>
+                <h2 id="confirm-titel" style="margin-top:0; color:#2c3e50; font-size:1.4rem;">Titel</h2>
                 <p id="confirm-tekst" style="color:#7f8c8d; font-size:0.95rem; margin-bottom:20px;">Tekst</p>
                 <div class="mooie-btn-groep">
                     <button class="mooie-btn btn-cancel" onclick="document.getElementById('custom-confirm-modal').style.display='none'">Annuleren</button>
@@ -43,11 +70,6 @@ function injecteerMooieModals() {
     document.body.insertAdjacentHTML('beforeend', modalsHtml);
 }
 document.addEventListener('DOMContentLoaded', injecteerMooieModals);
-
-// 2. BASIS VARIABELEN
-let actieveTraining = null;
-let actieveTijdlijn = [];
-let actieveWeekStart = new Date();
 
 function safeImage(imgStr) {
     if (!imgStr || imgStr === "null" || imgStr === "undefined" || imgStr.trim() === "") return null;
@@ -65,7 +87,6 @@ window.getIsoDatumS = function(dateObj) {
     return (new Date(dateObj - tzOffset)).toISOString().slice(0, 10);
 };
 
-// 3. ROEP DE NIEUWE MOOIE MODALS AAN
 window.toonCustomPrompt = function(titel, tekst, placeholder, callback) {
     document.getElementById('prompt-titel').innerText = titel;
     document.getElementById('prompt-tekst').innerText = tekst;
@@ -97,7 +118,6 @@ window.toonCustomConfirm = function(titel, tekst, knopTekst, callback) {
     document.getElementById('custom-confirm-modal').style.display = 'flex';
 };
 
-// 4. AGENDA WEERGAVE LOGICA
 window.wisselAgendaView = function(view) {
     const btnWeek = document.getElementById('btn-view-week'); const btnTeam = document.getElementById('btn-view-team');
     if (view === 'week') {
@@ -149,13 +169,13 @@ window.renderTeamAgenda = function() {
                 aankomendeTrainingen.push({
                     datumObj: checkDatum, isoDatum: isoDatum,
                     mooieDatum: `${dagenMap[dagNummer]} ${checkDatum.getDate()}-${checkDatum.getMonth()+1}`,
-                    start: tr.start, eind: tr.eind, zaal: tr.zaal, duur: tr.duur, teamId: team.id, teamNaam: team.naam
+                    start: tr.start, eind: tr.eind, zaal: tr.zaal, veld: tr.veld || '', duur: tr.duur || 90, teamId: team.id, teamNaam: team.naam
                 });
             }
         });
     }
 
-    aankomendeTrainingen.sort((a,b) => a.datumObj - b.datumObj || a.start.localeCompare(b.start));
+    aankomendeTrainingen.sort((a,b) => a.datumObj - b.datumObj || (a.start || '').localeCompare(b.start || ''));
 
     aankomendeTrainingen.forEach(tr => {
         let opslagSleutel = `${tr.isoDatum}_${tr.teamId}`;
@@ -174,11 +194,13 @@ window.renderTeamAgenda = function() {
             }
         }
 
+        let veldDisplay = tr.veld ? ` - Veld ${tr.veld}` : '';
+
         container.innerHTML += `
             <div style="${randStyle} padding:15px; border-radius:8px; border:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.02); margin-bottom:10px; transition:0.2s;" onmouseover="this.style.transform='translateX(5px)'" onmouseout="this.style.transform='translateX(0)'" onclick="window.openTrainingsPlanner('${tr.teamId}', '${tr.start}', ${tr.duur}, '${tr.isoDatum}')">
                 <div>
                     <strong style="display:block; font-size:1.2rem; color:var(--secondary-color); margin-bottom:5px;">📅 ${tr.mooieDatum} ${isVandaag ? '<span style="color:#e74c3c; font-size:0.9rem;">(Vandaag)</span>' : ''}</strong>
-                    <div style="color:#7f8c8d; font-size:0.95rem;">🕒 ${tr.start} - ${tr.eind} (${tr.duur} min) &nbsp;|&nbsp; 📍 ${tr.zaal}</div>
+                    <div style="color:#7f8c8d; font-size:0.95rem;">🕒 ${tr.start} - ${tr.eind} (${tr.duur} min) &nbsp;|&nbsp; 📍 ${tr.zaal}${veldDisplay}</div>
                 </div>
                 <div>${isGepland}</div>
             </div>
@@ -207,12 +229,20 @@ window.renderWeekAgenda = function() {
         kolom.innerHTML = `<div class="dag-titel" style="background:var(--secondary-color); color:white; padding:10px; text-align:center; font-weight:bold;">${dagenNamen[i]} <br><span style="font-size:0.8rem; font-weight:normal;">${datumVoorKolom.getDate()}-${datumVoorKolom.getMonth()+1}</span></div>`;
         
         let trainingenVandaag = [];
-        window.teamsDB.forEach(team => {
-            if (team.trainingen) {
-                team.trainingen.forEach(tr => { if (parseInt(tr.dag) === (i + 1)) trainingenVandaag.push({ teamNaam: team.naam, start: tr.start, eind: tr.eind, zaal: tr.zaal, duur: tr.duur, teamId: team.id }); });
-            }
-        });
-        trainingenVandaag.sort((a, b) => a.start.localeCompare(b.start));
+        if (Array.isArray(window.teamsDB)) {
+            window.teamsDB.forEach(team => {
+                if (team.trainingen) {
+                    team.trainingen.forEach(tr => { 
+                        if (parseInt(tr.dag) === (i + 1)) {
+                            trainingenVandaag.push({ teamNaam: team.naam, start: tr.start, eind: tr.eind, zaal: tr.zaal, veld: tr.veld || '', duur: tr.duur || 90, teamId: team.id }); 
+                        }
+                    });
+                }
+            });
+        }
+        
+        // Foutloze sortering (voorkomt crashes bij lege tijden)
+        trainingenVandaag.sort((a, b) => (a.start || '').localeCompare(b.start || ''));
 
         let inhoud = `<div style="padding:10px;">`;
         if (trainingenVandaag.length === 0) inhoud += `<p style="text-align:center; color:#bdc3c7; font-size:0.9rem; margin-top:20px;">Geen trainingen</p>`;
@@ -230,11 +260,13 @@ window.renderWeekAgenda = function() {
                     }
                 }
 
+                let veldDisplay = tr.veld ? ` - Veld ${tr.veld}` : '';
+
                 inhoud += `
                     <div style="background:white; margin-bottom:10px; padding:10px; border-radius:4px; border-left:4px solid var(--primary-color); box-shadow:0 2px 4px rgba(0,0,0,0.05); cursor:pointer; transition:0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onclick="window.openTrainingsPlanner('${tr.teamId}', '${tr.start}', ${tr.duur}, '${isoDatum}')">
                         <strong style="display:block; font-size:1.1rem; color:var(--secondary-color);">${tr.teamNaam} ${isGepland}</strong>
                         <div style="color:#e67e22; font-weight:bold; font-size:0.9rem; margin:3px 0;">🕒 ${tr.start} - ${tr.eind}</div>
-                        <div style="font-size:0.8rem; color:#7f8c8d;">📍 ${tr.zaal} (${tr.duur} min)</div>
+                        <div style="font-size:0.8rem; color:#7f8c8d;">📍 ${tr.zaal}${veldDisplay} (${tr.duur} min)</div>
                     </div>
                 `;
             });
@@ -275,14 +307,15 @@ window.slaTrainingOp = function() {
     const btn = document.getElementById('save-training-btn'); const orig = btn.innerHTML;
     btn.innerHTML = "✅ Opgeslagen!"; btn.style.background = "#2ecc71";
     
-    if (document.getElementById('agenda-team-controls').style.display === 'flex') window.renderTeamAgenda();
+    if (document.getElementById('agenda-team-controls') && document.getElementById('agenda-team-controls').style.display === 'flex') window.renderTeamAgenda();
     else window.renderWeekAgenda();
 
-    setTimeout(() => { btn.innerHTML = orig; btn.style.background = "#27ae60"; window.sluitPlanner(); }, 1000);
+    setTimeout(() => { if(btn) { btn.innerHTML = orig; btn.style.background = "#27ae60"; } window.sluitPlanner(); }, 1000);
 };
 
 window.berekenHistorie = function(oefNaam) {
     let aantal = 0;
+    if(!window.geplandeTrainingenDB) return 0;
     Object.keys(window.geplandeTrainingenDB).forEach(key => {
         if (key.endsWith('_' + actieveTraining.teamId) && key !== actieveTraining.opslagSleutel) {
             aantal += window.geplandeTrainingenDB[key].filter(i => i.naam === oefNaam).length;
@@ -295,7 +328,7 @@ window.annuleerTrainingPrompt = function() {
     window.toonCustomPrompt(
         "Training Aflassen", 
         "Wat is de reden dat de training niet doorgaat?", 
-        "Bijv. Zomervakantie of Feestdag...", 
+        "Bijv. Feestdag, zaal gesloten...", 
         function(reden) {
             if (!reden) return; 
             actieveTijdlijn = [{ type: 'geannuleerd', reden: reden, duur: actieveTraining.duur }];
@@ -304,7 +337,7 @@ window.annuleerTrainingPrompt = function() {
             window.geplandeTrainingenDB[actieveTraining.opslagSleutel] = actieveTijdlijn;
             localStorage.setItem('blackshots_trainingen', JSON.stringify(window.geplandeTrainingenDB));
             
-            if (document.getElementById('agenda-team-controls').style.display === 'flex') window.renderTeamAgenda();
+            if (document.getElementById('agenda-team-controls') && document.getElementById('agenda-team-controls').style.display === 'flex') window.renderTeamAgenda();
             else window.renderWeekAgenda();
         }
     );
@@ -393,7 +426,7 @@ window.genereerAnnuleringBericht = function(reden) {
     document.execCommand("copy");
     document.body.removeChild(dummy);
     
-    alert(`✅ Succes! Alle afgelaste dagen voor "${reden}" staan in het bericht.\n\nDit bericht is gekopieerd naar je klembord!`);
+    alert(`✅ Succes! Bericht gekopieerd naar klembord!`);
 };
 
 window.voerBulkAnnuleringUit = function() {
@@ -430,12 +463,10 @@ window.voerBulkAnnuleringUit = function() {
     localStorage.setItem('blackshots_trainingen', JSON.stringify(window.geplandeTrainingenDB));
     document.getElementById('bulk-cancel-modal').style.display = 'none';
     
-    if (document.getElementById('agenda-team-controls').style.display === 'flex') window.renderTeamAgenda();
+    if (document.getElementById('agenda-team-controls') && document.getElementById('agenda-team-controls').style.display === 'flex') window.renderTeamAgenda();
     else window.renderWeekAgenda();
 
-    setTimeout(() => {
-        alert(`✅ Succes! Er zijn in totaal ${cancelledCount} trainingen geannuleerd.\n\nTip: Ga nu naar één van de afgelaste trainingen in de kalender en klik op "Stuur WhatsApp Bericht" om direct een perfect kloppend bericht te kopiëren!`);
-    }, 100);
+    setTimeout(() => { alert(`✅ Succes! ${cancelledCount} trainingen geannuleerd.`); }, 100);
 };
 
 window.renderTijdlijn = function() {
@@ -555,11 +586,12 @@ window.filterPlannerOefeningen = function() {
     const progLijst = document.getElementById('planner-progressie-lijst');
     const progSectie = document.getElementById('planner-progressie-sectie');
     
-    lijst.innerHTML = ''; progLijst.innerHTML = ''; let hasProgressie = false;
+    if(!lijst) return;
+    lijst.innerHTML = ''; if(progLijst) progLijst.innerHTML = ''; let hasProgressie = false;
 
-    let gefilterd = window.oefeningenDB.filter(o => {
+    let gefilterd = (window.oefeningenDB || []).filter(o => {
         let catText = o.categorieen ? o.categorieen.join(' ').toLowerCase() : '';
-        let matchTerm = o.naam.toLowerCase().includes(term) || catText.includes(term);
+        let matchTerm = (o.naam || '').toLowerCase().includes(term) || catText.includes(term);
         let matchCat = !cat || catText.includes(cat);
         let matchTeam = (!o.doelgroepen || o.doelgroepen.length === 0) || o.doelgroepen.includes(actieveTraining.teamId);
         let matchSpelers = true;
@@ -572,7 +604,7 @@ window.filterPlannerOefeningen = function() {
 
     if (gefilterd.length === 0) {
         lijst.innerHTML = '<p style="color:#7f8c8d; font-style:italic;">Geen geschikte oefeningen...</p>';
-        progSectie.style.display = 'none'; return;
+        if(progSectie) progSectie.style.display = 'none'; return;
     }
 
     gefilterd.forEach((oef, idx) => {
@@ -623,24 +655,13 @@ window.filterPlannerOefeningen = function() {
             </div>
         `;
 
-        if (isProgressie) { progLijst.innerHTML += htmlKaartje; hasProgressie = true; } 
+        if (isProgressie && progLijst) { progLijst.innerHTML += htmlKaartje; hasProgressie = true; } 
         else { lijst.innerHTML += htmlKaartje; }
     });
 
-    progSectie.style.display = hasProgressie ? 'block' : 'none';
+    if(progSectie) progSectie.style.display = hasProgressie ? 'block' : 'none';
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-    const orgSwitch = window.switchTab;
-    if (orgSwitch) {
-        window.switchTab = function(tabId) {
-            orgSwitch(tabId);
-            if (tabId === 'agenda') {
-                if (document.getElementById('agenda-team-controls') && document.getElementById('agenda-team-controls').style.display === 'flex') window.renderTeamAgenda();
-                else window.renderWeekAgenda();
-            }
-        };
-    } else {
-        if (window.renderWeekAgenda) window.renderWeekAgenda();
-    }
+    if (window.renderWeekAgenda) window.renderWeekAgenda();
 });

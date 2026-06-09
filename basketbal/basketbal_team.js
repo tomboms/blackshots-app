@@ -1,4 +1,4 @@
-// --- BASKETBAL_TEAM.JS: KOGELVRIJE LOGICA VOOR TEAM BEHEER MET REC & KADER ONDERAAN ---
+// --- BASKETBAL_TEAM.JS: KOGELVRIJE LOGICA VOOR TEAM BEHEER MET DUUR & VELD ---
 
 window.renderTeamBeheer = function() {
     try {
@@ -24,7 +24,7 @@ window.renderTeamBeheer = function() {
                 let bRec = b.isRecreant === true || (b.clubLidmaatschap && b.clubLidmaatschap.toLowerCase().includes('rec'));
                 if (aRec && !bRec) return 1;  
                 if (!aRec && bRec) return -1;  
-                return a.naam.localeCompare(b.naam);
+                return (a.naam || '').localeCompare(b.naam || '');
             });
 
             let spelersHtml = '';
@@ -47,9 +47,11 @@ window.renderTeamBeheer = function() {
             let trainingenHtml = '';
             if (Array.isArray(team.trainingen) && team.trainingen.length > 0) {
                 team.trainingen.forEach((tr, trIndex) => {
+                    let veldTekst = tr.veld ? ` - Veld ${tr.veld}` : '';
+                    let duurTekst = tr.duur ? ` (${tr.duur} min)` : ' (90 min)';
                     trainingenHtml += `
                         <div style="display:inline-flex; align-items:center; background:#fff8e1; border:1px solid #f1c40f; padding:4px 10px; border-radius:4px; font-size:0.85rem; margin-right:5px; margin-bottom:5px;">
-                            <strong>${dagenMap[tr.dag] || 'Dag'}</strong>&nbsp; ${tr.start || '?'}-${tr.eind || '?'} (${tr.zaal || 'Geen zaal'})
+                            <strong>${dagenMap[tr.dag] || 'Dag'}</strong>&nbsp; ${tr.start || '?'}-${tr.eind || '?'} (${tr.zaal || 'Geen zaal'}${veldTekst})${duurTekst}
                             <button onclick="window.verwijderVasteTraining(${index}, ${trIndex})" style="background:none; border:none; color:#e74c3c; font-weight:bold; cursor:pointer; margin-left:5px;">X</button>
                         </div>
                     `;
@@ -58,7 +60,6 @@ window.renderTeamBeheer = function() {
                 trainingenHtml = '<span style="color:#bdc3c7; font-style:italic; font-size:0.85rem;">Geen vaste tijden ingepland.</span>';
             }
 
-            // Kader Badge logic
             let kaderBadge = team.isVrijwilliger ? '<span style="background:#9b59b6; color:white; padding:4px 8px; border-radius:4px; font-size:0.8rem; margin-left:10px; vertical-align:middle;">KADER / VRIJWILLIGERS</span>' : '';
             let ringColor = team.isVrijwilliger ? '#9b59b6' : 'var(--primary-color)';
 
@@ -93,9 +94,11 @@ window.renderTeamBeheer = function() {
                                 <div style="display:flex; gap:5px;">
                                     <select id="tr-dag-${index}" style="padding:6px; flex:1; font-size:0.8rem;"><option value="1">Ma</option><option value="2">Di</option><option value="3">Wo</option><option value="4">Do</option><option value="5">Vr</option></select>
                                     <input type="time" id="tr-start-${index}" style="padding:6px; flex:1; font-size:0.8rem;">
+                                    <input type="number" id="tr-duur-${index}" placeholder="Duur (min)" value="90" style="padding:6px; width:80px; font-size:0.8rem;">
                                 </div>
                                 <div style="display:flex; gap:5px;">
-                                    <input type="text" id="tr-zaal-${index}" placeholder="Locatie..." style="padding:6px; flex:2; font-size:0.8rem;">
+                                    <input type="text" id="tr-zaal-${index}" placeholder="Locatie/Zaal..." style="padding:6px; flex:2; font-size:0.8rem;">
+                                    <input type="text" id="tr-veld-${index}" placeholder="Veld..." style="padding:6px; width:70px; font-size:0.8rem;">
                                     <button onclick="window.snelleTrainingToevoegen(${index})" style="background:#27ae60; color:white; border:none; padding:6px; flex:1; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.8rem;">Vastzetten</button>
                                 </div>
                             </div>
@@ -110,6 +113,38 @@ window.renderTeamBeheer = function() {
     } catch(error) {
         console.error("Fout tijdens renderen teams:", error);
     }
+};
+
+window.snelleTrainingToevoegen = function(teamIndex) {
+    const dagEl = document.getElementById(`tr-dag-${teamIndex}`);
+    const startEl = document.getElementById(`tr-start-${teamIndex}`);
+    const duurEl = document.getElementById(`tr-duur-${teamIndex}`);
+    const zaalEl = document.getElementById(`tr-zaal-${teamIndex}`);
+    const veldEl = document.getElementById(`tr-veld-${teamIndex}`);
+
+    if (!dagEl || !startEl || !zaalEl) return;
+
+    const dag = parseInt(dagEl.value);
+    const start = startEl.value;
+    const duur = parseInt(duurEl.value) || 90;
+    const zaal = zaalEl.value.trim();
+    const veld = veldEl ? veldEl.value.trim() : "";
+
+    if (!start || !zaal) return alert("Vul een starttijd en zaal in.");
+
+    let startParts = start.split(':');
+    let startMin = parseInt(startParts[0]) * 60 + parseInt(startParts[1]);
+    let eindMin = startMin + duur;
+
+    let eindUur = Math.floor(eindMin / 60) % 24;
+    let eindRestMin = eindMin % 60;
+    let eind = `${eindUur.toString().padStart(2, '0')}:${eindRestMin.toString().padStart(2, '0')}`;
+
+    if (!Array.isArray(window.teamsDB[teamIndex].trainingen)) window.teamsDB[teamIndex].trainingen = [];
+    window.teamsDB[teamIndex].trainingen.push({ dag, start, eind, zaal, veld, duur });
+
+    localStorage.setItem('blackshots_teams', JSON.stringify(window.teamsDB));
+    window.renderTeamBeheer();
 };
 
 window.bewerkTeam = function(index) {
@@ -127,7 +162,6 @@ window.bewerkTeam = function(index) {
     let nieuweTrainer = prompt("Pas de trainer aan:", team.trainer || "");
     if (nieuweTrainer === null) return;
 
-    // Is het een kader groep toggle?
     let isVrijwilligerToggle = confirm("Is deze groep een Kader/Vrijwilligersgroep? (OK = Ja, Annuleren = Nee)");
 
     team.naam = nieuweNaam;
@@ -190,7 +224,6 @@ window.verwijderTeam = function(index) {
 
         window.teamsDB.splice(index, 1);
         localStorage.setItem('blackshots_teams', JSON.stringify(window.teamsDB));
-        
         window.renderTeamBeheer();
     }
 };
@@ -204,34 +237,6 @@ window.haalSpelerUitTeam = function(spelerId) {
             window.renderTeamBeheer();
         }
     }
-};
-
-window.snelleTrainingToevoegen = function(teamIndex) {
-    const dagEl = document.getElementById(`tr-dag-${teamIndex}`);
-    const startEl = document.getElementById(`tr-start-${teamIndex}`);
-    const zaalEl = document.getElementById(`tr-zaal-${teamIndex}`);
-
-    if (!dagEl || !startEl || !zaalEl) return;
-
-    const dag = parseInt(dagEl.value);
-    const start = startEl.value;
-    const zaal = zaalEl.value.trim();
-
-    if (!start || !zaal) return alert("Vul een starttijd en zaal in.");
-
-    let startParts = start.split(':');
-    let startMin = parseInt(startParts[0]) * 60 + parseInt(startParts[1]);
-    let eindMin = startMin + 90;
-
-    let eindUur = Math.floor(eindMin / 60);
-    let eindRestMin = eindMin % 60;
-    let eind = `${eindUur.toString().padStart(2, '0')}:${eindRestMin.toString().padStart(2, '0')}`;
-
-    if (!Array.isArray(window.teamsDB[teamIndex].trainingen)) window.teamsDB[teamIndex].trainingen = [];
-    window.teamsDB[teamIndex].trainingen.push({ dag, start, eind, zaal, duur: 90 });
-
-    localStorage.setItem('blackshots_teams', JSON.stringify(window.teamsDB));
-    window.renderTeamBeheer();
 };
 
 window.verwijderVasteTraining = function(teamIndex, trIndex) {
