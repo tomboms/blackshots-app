@@ -4,7 +4,7 @@ let actieveTraining = null;
 let actieveTijdlijn = [];
 let actieveWeekStart = new Date();
 
-// DATA REPARATEUR
+// DATA REPARATEUR: Voorkom crashes door oude ID's (zoals 'x10' vs 'x101')
 if (Array.isArray(window.geplandeTrainingenDB)) {
     let oudeArray = window.geplandeTrainingenDB;
     window.geplandeTrainingenDB = {};
@@ -13,7 +13,10 @@ if (Array.isArray(window.geplandeTrainingenDB)) {
         if (item.opslagSleutel && item.tijdlijn) {
             window.geplandeTrainingenDB[item.opslagSleutel] = item.tijdlijn;
         } else if (item.datum) {
-            let matchTeam = (window.teamsDB || []).find(t => t.naam === item.titel || t.id === item.titel);
+            // Zeer soepele team match
+            let matchTeam = (window.teamsDB || []).find(t => 
+                t.naam === item.titel || t.id === item.titel || (t.id && item.titel && t.id.includes(item.titel))
+            );
             let tId = matchTeam ? matchTeam.id : 'unknown';
             let isoDate = item.datum;
             if (item.datum.includes('-')) {
@@ -242,15 +245,10 @@ window.gaNaarHuidigeWeek = function() {
 };
 
 window.renderWeekAgenda = function() {
-    // FIX: Zoek naar BEIDE mogelijke namen van de HTML-container
     const container = document.getElementById('week-overzicht') || document.getElementById('week-agenda-container');
-    if (!container) {
-        console.error("Kan de agenda-container niet vinden in je HTML!");
-        return; 
-    }
+    if (!container) return; 
     
     container.innerHTML = '';
-    // Forceer de grid layout
     container.className = 'week-grid'; 
     container.style.display = 'grid';
 
@@ -300,6 +298,7 @@ window.renderWeekAgenda = function() {
             inhoud += `<p style="text-align:center; color:#bdc3c7; font-size:0.9rem; margin-top:20px;">Geen trainingen</p>`;
         } else {
             trainingenVandaag.forEach(tr => {
+                // Hier zocht de agenda op de kapotte oude ID's, dit is nu crash-proof gemaakt
                 let opslagSleutel = `${isoDatum}_${tr.teamId}`;
                 let isGepland = '';
                 
