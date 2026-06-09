@@ -25,12 +25,11 @@ window.renderSpelers = function() {
                 teamNaam = tObj.naam;
                 teamBadge = "background:var(--primary-color);";
             } else {
-                teamNaam = speler.teamId; // Houd geïmporteerde tekstnaam vast
+                teamNaam = speler.teamId; 
                 teamBadge = "background:#e67e22;";
             }
         }
 
-        // Filters matching
         let matchText = `${speler.naam} ${speler.bondsnummer || ''} ${teamNaam} ${speler.clubLidmaatschap || ''} ${speler.bondLidmaatschap || ''}`.toLowerCase();
 
         if (matchText.includes(zoekterm)) {
@@ -49,7 +48,8 @@ window.renderSpelers = function() {
                         <div style="color:#7f8c8d; font-style:italic;">${speler.bondLidmaatschap || '-'}</div>
                     </td>
                     <td style="padding:12px;">
-                        <button onclick="window.verwijderSpeler(${index})" style="background:#e74c3c; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:0.8rem;">Verwijderen</button>
+                        <button onclick="window.bewerkSpeler(${index})" style="background:#f39c12; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:0.8rem; margin-right:5px;">✏️</button>
+                        <button onclick="window.verwijderSpeler(${index})" style="background:#e74c3c; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:0.8rem;">X</button>
                     </td>
                 </tr>
             `;
@@ -58,6 +58,36 @@ window.renderSpelers = function() {
 
     if(html === '') html = '<tr><td colspan="8" style="padding:20px; text-align:center; color:#7f8c8d;">Geen spelers gevonden.</td></tr>';
     tbody.innerHTML = html;
+};
+
+// --- NIEUW: BEWERK SPELER ---
+window.bewerkSpeler = function(index) {
+    let speler = window.spelersDB[index];
+    
+    let nwNaam = prompt("Pas de naam aan:", speler.naam);
+    if (nwNaam === null) return;
+    
+    let nwLeeftijd = prompt("Pas de leeftijd aan:", speler.leeftijd || "");
+    if (nwLeeftijd === null) return;
+    
+    let nwRugnr = prompt("Pas het rugnummer aan:", speler.rugnummer || "");
+    if (nwRugnr === null) return;
+
+    let teamOpties = window.teamsDB.map(t => t.naam).join(", ");
+    let nwTeam = prompt(`Koppel aan een teamnaam (Kies uit: ${teamOpties})\nOf laat leeg om als Vrije Speler in te stellen:`, speler.teamId);
+    if (nwTeam === null) return;
+
+    // Converteer de ingevoerde teamnaam (bijv "X12-1") naar het juiste ID ("x121")
+    let matchedTeam = window.teamsDB.find(t => t.naam.toLowerCase() === nwTeam.trim().toLowerCase());
+    let finalTeamId = matchedTeam ? matchedTeam.id : nwTeam.trim();
+
+    speler.naam = nwNaam.trim() || speler.naam;
+    speler.leeftijd = nwLeeftijd.trim();
+    speler.rugnummer = nwRugnr.trim();
+    speler.teamId = finalTeamId;
+
+    localStorage.setItem('blackshots_spelers', JSON.stringify(window.spelersDB));
+    window.renderSpelers();
 };
 
 // --- HANDMATIG TOEVOEGEN ---
@@ -90,7 +120,15 @@ window.voegSpelerToe = function() {
     }
 };
 
-// --- DE SLIMME BOND CSV PARSER (MET UPDATES & RAPPORT) ---
+window.verwijderSpeler = function(index) {
+    if(confirm("Weet je zeker dat je deze speler permanent wilt verwijderen?")) {
+        window.spelersDB.splice(index, 1);
+        localStorage.setItem('blackshots_spelers', JSON.stringify(window.spelersDB));
+        window.renderSpelers();
+    }
+};
+
+// --- DE SLIMME BOND CSV PARSER ---
 window.importeerBondCSV = function(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -134,7 +172,6 @@ window.importeerBondCSV = function(event) {
 
             let bondsnummer = row[idxBondsnummer] ? row[idxBondsnummer].trim() : "";
             
-            // Leeftijd berekenen
             let berekendeLeeftijd = "-";
             let gebDatumStr = row[idxGeboorte] ? row[idxGeboorte].trim() : "";
             if (gebDatumStr) {
@@ -148,20 +185,17 @@ window.importeerBondCSV = function(event) {
                 }
             }
 
-            // Nieuwe data verzamelen
             let nwRugnummer = idxRugnr !== -1 && row[idxRugnr] ? row[idxRugnr].trim() : "";
             let nwTeam = idxTeam !== -1 && row[idxTeam] ? row[idxTeam].trim() : "";
             let nwClubLid = idxClubLid !== -1 && row[idxClubLid] ? row[idxClubLid].trim() : "";
             let nwBondLid = idxBondLid !== -1 && row[idxBondLid] ? row[idxBondLid].trim() : "";
 
-            // CHECK: Bestaat de speler al? (Via bondsnummer, of anders naam)
             let bestaandeSpeler = window.spelersDB.find(s => 
                 (bondsnummer !== "" && s.bondsnummer === bondsnummer) || 
                 (bondsnummer === "" && s.naam === volledigeNaam)
             );
 
             if (bestaandeSpeler) {
-                // UPDATE LOGICA: Kijk of er iets veranderd is
                 let wijzigingen = [];
 
                 if (berekendeLeeftijd !== "-" && bestaandeSpeler.leeftijd !== berekendeLeeftijd) {
@@ -171,7 +205,7 @@ window.importeerBondCSV = function(event) {
                     bestaandeSpeler.teamId = nwTeam; wijzigingen.push("team");
                 }
                 if (nwClubLid !== "" && bestaandeSpeler.clubLidmaatschap !== nwClubLid) {
-                    bestaandeSpeler.clubLidmaatschap = nwClubLid; wijzigingen.push("club-lidmaatschap");
+                    bestaandeSpeler.clubLidmaatschap = nwClubLid; wijzigingen.push("club-lid");
                 }
                 if (nwBondLid !== "" && bestaandeSpeler.bondLidmaatschap !== nwBondLid) {
                     bestaandeSpeler.bondLidmaatschap = nwBondLid; wijzigingen.push("bond-status");
@@ -180,13 +214,11 @@ window.importeerBondCSV = function(event) {
                     bestaandeSpeler.rugnummer = nwRugnummer; wijzigingen.push("rugnummer");
                 }
 
-                // Als er iets is aangepast, zet het in het rapport
                 if (wijzigingen.length > 0) {
-                    rapportAangepast.push(`- ${volledigeNaam} (Aangepast: ${wijzigingen.join(', ')})`);
+                    rapportAangepast.push(`- ${volledigeNaam} (${wijzigingen.join(', ')})`);
                 }
 
             } else {
-                // TOEVOEGEN LOGICA: Nieuwe speler
                 window.spelersDB.push({
                     id: 'p_bond_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
                     bondsnummer: bondsnummer,
@@ -202,32 +234,19 @@ window.importeerBondCSV = function(event) {
             }
         }
 
-        // Het rapport opmaken en tonen
         if (rapportToegevoegd.length > 0 || rapportAangepast.length > 0) {
             localStorage.setItem('blackshots_spelers', JSON.stringify(window.spelersDB));
             window.renderSpelers();
 
-            let eindBericht = "✅ Import Succesvol afgerond!\n\n";
-            if (rapportToegevoegd.length > 0) {
-                eindBericht += `Nieuw Toegevoegd (${rapportToegevoegd.length}):\n${rapportToegevoegd.join('\n')}\n\n`;
-            }
-            if (rapportAangepast.length > 0) {
-                eindBericht += `Geüpdatet (${rapportAangepast.length}):\n${rapportAangepast.join('\n')}`;
-            }
+            let eindBericht = "✅ Import Succesvol!\n\n";
+            if (rapportToegevoegd.length > 0) eindBericht += `Nieuw (${rapportToegevoegd.length}):\n${rapportToegevoegd.join('\n')}\n\n`;
+            if (rapportAangepast.length > 0) eindBericht += `Geüpdatet (${rapportAangepast.length}):\n${rapportAangepast.join('\n')}`;
             alert(eindBericht);
         } else {
-            alert("✅ Import voltooid. Er waren geen nieuwe spelers of wijzigingen gevonden!");
+            alert("✅ Import voltooid. Er waren geen wijzigingen.");
         }
         
-        event.target.value = ''; // Reset input element
+        event.target.value = ''; 
     };
     reader.readAsText(file);
-};
-
-window.verwijderSpeler = function(index) {
-    if(confirm("Weet je zeker dat je deze speler permanent wilt verwijderen?")) {
-        window.spelersDB.splice(index, 1);
-        localStorage.setItem('blackshots_spelers', JSON.stringify(window.spelersDB));
-        window.renderSpelers();
-    }
 };

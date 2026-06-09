@@ -9,10 +9,17 @@ window.renderTeamBeheer = function() {
 
     if (!Array.isArray(window.teamsDB)) {
         window.teamsDB = [];
-    }
+    }window.renderTeamBeheer = function() {
+    const lijst = document.getElementById('team-beheer-lijst');
+    if (!lijst) return;
+
+    let lijstHTML = '';
+    const dagenMap = {1: "Maandag", 2: "Dinsdag", 3: "Woensdag", 4: "Donderdag", 5: "Vrijdag"};
+
+    if (!Array.isArray(window.teamsDB)) window.teamsDB = [];
 
     window.teamsDB.forEach((team, index) => {
-        // Haal de gekoppelde spelers live uit de spelers database
+        
         let teamSpelers = [];
         if (window.spelersDB && Array.isArray(window.spelersDB)) {
             teamSpelers = window.spelersDB.filter(s => s.teamId === team.id || s.teamId === team.naam);
@@ -21,9 +28,11 @@ window.renderTeamBeheer = function() {
         let spelersHtml = '';
         if (teamSpelers.length > 0) {
             teamSpelers.forEach(speler => {
+                // NIEUW: Het kleine rode kruisje is toegevoegd in deze HTML string
                 spelersHtml += `
                     <span style="display:inline-flex; align-items:center; background:#eef2f5; padding:6px 12px; border-radius:20px; font-size:0.9rem; margin-right:8px; margin-bottom:8px; font-weight:bold; color:var(--secondary-color); border:1px solid #bdc3c7;">
                         ${speler.naam} ${speler.rugnummer ? `&nbsp; <span style="color:#e67e22;">(#${speler.rugnummer})</span>` : ''}
+                        <button onclick="window.haalSpelerUitTeam('${speler.id}')" style="background:none; border:none; color:#e74c3c; font-weight:bold; cursor:pointer; margin-left:8px; font-size:1.1rem; padding:0;">&times;</button>
                     </span>
                 `;
             });
@@ -89,6 +98,18 @@ window.renderTeamBeheer = function() {
     });
 
     lijst.innerHTML = lijstHTML;
+};
+
+// --- NIEUWE FUNCTIE: Speler uit team halen ---
+window.haalSpelerUitTeam = function(spelerId) {
+    if(confirm("Wil je deze speler uit dit team halen? (Hij/zij wordt dan een 'Vrije Speler')")) {
+        let speler = window.spelersDB.find(s => s.id === spelerId);
+        if(speler) {
+            speler.teamId = ""; // Leegmaken betekent Vrije Speler
+            localStorage.setItem('blackshots_spelers', JSON.stringify(window.spelersDB));
+            window.renderTeamBeheer();
+        }
+    }
 };
 
 // --- TEAM BEWERKEN LOGICA ---
