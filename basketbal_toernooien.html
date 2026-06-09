@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Black Shots - Toernooien</title>
+    <link rel="stylesheet" href="basketbal.css">
+</head>
+<body style="overflow-y: auto;">
+
+    <div id="cloud-status-indicator" style="position: fixed; bottom: 20px; right: 20px; background: #27ae60; color: white; padding: 10px 20px; border-radius: 30px; font-weight: bold; font-size: 0.9rem; box-shadow: 0 4px 10px rgba(0,0,0,0.2); z-index: 99999; transition: 0.3s;">
+        ☁️ Cloud Actief
+    </div>
+
+    <nav class="top-nav">
+        <h1>🏀 Black Shots Clubbeheer</h1>
+        <a href="index.html" class="terug-knop">🏠 Terug naar Portaal</a>
+    </nav>
+
+    <div class="tab-menu">
+        <button class="tab-btn" onclick="window.location.href='basketbal_dashboard.html'">📊 Dashboard</button>
+        <button class="tab-btn" onclick="window.location.href='basketbal_agenda.html'">📅 Weekagenda</button>
+        <button class="tab-btn" onclick="window.location.href='basketbal_oefeningen.html'">📋 Oefeningen</button>
+        <button class="tab-btn active" onclick="window.location.href='basketbal_toernooien.html'">🏆 Interne Toernooien</button>
+        <button class="tab-btn" onclick="window.location.href='basketbal_instellingen.html'">⚙️ Instellingen</button>
+    </div>
+
+    <main class="content-sectie active">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; margin-bottom:15px; border-bottom:2px solid var(--border-color); padding-bottom:10px;">
+            <div>
+                <h2 style="margin:0;">🏆 Interne competitie</h2>
+                <p style="color: #7f8c8d; margin-top:5px;" id="toernooi-ondertitel">Beheer de teams, de stand en het wedstrijdschema.</p>
+            </div>
+            <div style="display:flex; gap:10px; align-items:center; margin-top:10px;">
+                <select id="toernooi-select" onchange="window.wisselToernooi()" style="padding:10px; border-radius:4px; font-weight:bold; font-size:1rem; border:2px solid var(--primary-color); background:white; min-width:200px;"></select>
+                <button onclick="window.genereerBericht()" style="background:#8e44ad; color:white; border:none; padding:10px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">✉️ Stuur Bericht</button>
+                <button onclick="window.maakNieuweCompetitie()" style="background:#27ae60; color:white; border:none; padding:10px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">+ Nieuw</button>
+                <button onclick="window.verwijderCompetitie()" style="background:#e74c3c; color:white; border:none; padding:10px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">🗑️</button>
+            </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 2fr 1fr; gap:20px;">
+            <div style="display:flex; flex-direction:column; gap:20px;">
+                <div style="background:white; border:1px solid var(--border-color); border-top:4px solid #f1c40f; border-radius:8px; padding:15px;">
+                    <h3 style="margin-top:0; color:var(--secondary-color);">📊 Actuele Stand</h3>
+                    <div id="toernooi-stand"></div>
+                </div>
+
+                <div style="background:white; border:1px solid var(--border-color); border-top:4px solid #3498db; border-radius:8px; padding:15px;">
+                    <h3 style="margin-top:0; color:var(--secondary-color);">📅 Wedstrijdschema & Uitslagen</h3>
+                    <div id="toernooi-schema" style="display:flex; flex-direction:column; gap:15px;"></div>
+                    
+                    <div style="margin-top:15px; border-top:2px solid #eee; padding-top:15px;">
+                        <h4 style="margin-top:0; color:var(--primary-color);">+ Nieuwe Wedstrijd Inplannen</h4>
+                        <div style="display:flex; gap:5px; flex-wrap:wrap;">
+                            <input type="text" id="nw_datum" placeholder="Bijv. 6-jul" style="width:80px; padding:6px; border:1px solid #bdc3c7; border-radius:4px;">
+                            <input type="time" id="nw_tijd" value="18:00" style="width:80px; padding:6px; border:1px solid #bdc3c7; border-radius:4px;">
+                            <input type="text" id="nw_veld" placeholder="Veld" style="width:80px; padding:6px; border:1px solid #bdc3c7; border-radius:4px;">
+                            <select id="nw_thuis" style="flex:1; padding:6px; border:1px solid #bdc3c7; border-radius:4px;"></select>
+                            <span style="display:flex; align-items:center; font-weight:bold; color:#7f8c8d;">VS</span>
+                            <select id="nw_uit" style="flex:1; padding:6px; border:1px solid #bdc3c7; border-radius:4px;"></select>
+                            <button onclick="window.toernooiWedstrijdToevoegen()" style="background:#3498db; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold;">Plan In</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <div style="background:white; border:1px solid var(--border-color); border-top:4px solid #2ecc71; border-radius:8px; padding:15px;">
+                    <h3 style="margin-top:0; color:var(--secondary-color);">👥 Teamindeling</h3>
+                    <p style="font-size:0.85rem; color:#7f8c8d;">Voeg spelers toe of wissel ze van team.</p>
+                    <div id="toernooi-teams" style="display:flex; flex-direction:column; gap:15px;"></div>
+                    
+                    <div style="margin-top:15px; border-top:2px solid #eee; padding-top:15px;">
+                        <h4 style="margin-top:0; color:var(--primary-color);">+ Nieuw Team Aanmaken</h4>
+                        <div style="display:flex; gap:5px;">
+                            <input type="text" id="nt_naam" placeholder="Teamnaam..." style="flex:2; padding:8px; border:1px solid #bdc3c7; border-radius:4px;">
+                            <input type="color" id="nt_kleur" value="#3498db" style="flex:1; padding:2px; height:35px; border:1px solid #bdc3c7; border-radius:4px; cursor:pointer;">
+                            <button onclick="window.toernooiTeamToevoegen()" style="background:#27ae60; color:white; border:none; padding:8px 12px; border-radius:4px; cursor:pointer; font-weight:bold;">Maken</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="basketbal_data.js"></script>
+    <script src="basketbal_toernooi.js"></script>
+    <script type="module" src="firebase_motor.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            if (window.vulToernooiSelect) {
+                window.vulToernooiSelect();
+                window.renderToernooi();
+            }
+        });
+    </script>
+
+</body>
+</html>
