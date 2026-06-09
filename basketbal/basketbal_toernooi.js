@@ -78,6 +78,19 @@ window.berekenStand = function(comp) {
     return Object.values(stand).sort((a,b) => b.punten - a.punten || (b.voor - b.tegen) - (a.voor - a.tegen));
 };
 
+// --- SNELLE HANDMATIGE SCORE INVOER ---
+window.manualScoreChange = function(matchId) {
+    const comp = window.toernooiDB[actieveCompId];
+    const match = comp.wedstrijden.find(w => w.id === matchId);
+    let tVal = document.getElementById(`sc_thuis_${matchId}`).value;
+    let uVal = document.getElementById(`sc_uit_${matchId}`).value;
+    
+    match.scoreThuis = tVal !== "" ? parseInt(tVal) : null;
+    match.scoreUit = uVal !== "" ? parseInt(uVal) : null;
+    localStorage.setItem('blackshots_toernooi', JSON.stringify(window.toernooiDB));
+    window.renderToernooi();
+};
+
 // --- RENDEREN ---
 window.renderToernooi = function() {
     if (!actieveCompId || !window.toernooiDB[actieveCompId]) {
@@ -90,7 +103,6 @@ window.renderToernooi = function() {
     const comp = window.toernooiDB[actieveCompId];
     const berekendeStand = window.berekenStand(comp);
 
-    // Schema Selects vullen
     let thuisSelect = document.getElementById('nw_thuis');
     let uitSelect = document.getElementById('nw_uit');
     if(thuisSelect && uitSelect) {
@@ -117,27 +129,31 @@ window.renderToernooi = function() {
     });
     document.getElementById('toernooi-stand').innerHTML = standHtml + `</table>`;
 
-    // 2. SCHEMA RENDERN
+    // 2. SCHEMA RENDERN (HERSTELD NAAR COMPACT MET INPUTS)
     let schemaHtml = '';
     comp.wedstrijden.forEach(w => {
         let tThuis = comp.teams.find(t => t.id === w.thuis) || {naam:"N.n.b.", kleur:"#333"};
         let tUit = comp.teams.find(t => t.id === w.uit) || {naam:"N.n.b.", kleur:"#333"};
-        let scoreT = w.scoreThuis !== null ? w.scoreThuis : '-';
-        let scoreU = w.scoreUit !== null ? w.scoreUit : '-';
+        let scT = w.scoreThuis !== null ? w.scoreThuis : '';
+        let scU = w.scoreUit !== null ? w.scoreUit : '';
 
         schemaHtml += `
-            <div style="background:#fafafa; border:1px solid #ddd; border-left:4px solid ${tThuis.kleur}; border-radius:6px; padding:10px; margin-bottom:10px; display:flex; flex-direction:column; gap:5px;">
-                <div style="display:flex; justify-content:space-between; font-size:0.8rem; color:#7f8c8d;">
-                    <span>🗓️ ${w.datum} | 🕒 ${w.tijd}</span> <span>📍 ${w.veld}</span>
+            <div style="display:flex; justify-content:space-between; align-items:center; background:#fafafa; padding:10px; border:1px solid #ddd; border-radius:4px; margin-bottom:5px; flex-wrap:wrap; gap:10px; border-left:4px solid ${tThuis.kleur}">
+                <div style="font-size:0.85rem; color:#7f8c8d; min-width:120px;">
+                    🗓️ ${w.datum}<br>🕒 ${w.tijd} | 📍 ${w.veld}
                 </div>
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <strong style="flex:1; color:${tThuis.kleur}; font-size:1.1rem;">${tThuis.naam}</strong>
-                    <div style="background:#2c3e50; color:white; padding:5px 15px; border-radius:20px; font-weight:bold; font-size:1.2rem;">${scoreT} - ${scoreU}</div>
-                    <strong style="flex:1; text-align:right; color:${tUit.kleur}; font-size:1.1rem;">${tUit.naam}</strong>
+                <div style="flex:1; display:flex; justify-content:center; align-items:center; gap:10px; min-width:200px;">
+                    <strong style="color:${tThuis.kleur}; text-align:right; flex:1; font-size:1.1rem;">${tThuis.naam}</strong>
+                    <div style="display:flex; align-items:center; gap:5px;">
+                        <input type="number" id="sc_thuis_${w.id}" value="${scT}" style="width:45px; padding:6px; text-align:center; margin:0; border:1px solid #bdc3c7; border-radius:4px; font-weight:bold;" onchange="window.manualScoreChange('${w.id}')">
+                        <span style="font-weight:bold; color:#7f8c8d;">-</span>
+                        <input type="number" id="sc_uit_${w.id}" value="${scU}" style="width:45px; padding:6px; text-align:center; margin:0; border:1px solid #bdc3c7; border-radius:4px; font-weight:bold;" onchange="window.manualScoreChange('${w.id}')">
+                    </div>
+                    <strong style="color:${tUit.kleur}; text-align:left; flex:1; font-size:1.1rem;">${tUit.naam}</strong>
                 </div>
-                <div class="hide-in-show-mode" style="display:flex; justify-content:flex-end; gap:5px; margin-top:5px;">
-                    <button onclick="window.openLiveScore('${w.id}')" style="background:#e67e22; color:white; border:none; padding:6px 12px; border-radius:4px; font-weight:bold; cursor:pointer;">⏱️ Live Score</button>
-                    <button onclick="window.verwijderWedstrijd('${w.id}')" style="background:#e74c3c; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer;">X</button>
+                <div class="hide-in-show-mode" style="display:flex; gap:5px;">
+                    <button onclick="window.openLiveScore('${w.id}')" style="background:#e67e22; color:white; border:none; padding:8px 12px; border-radius:4px; cursor:pointer; font-weight:bold;">⏱️ Live</button>
+                    <button onclick="window.verwijderWedstrijd('${w.id}')" style="background:#e74c3c; color:white; border:none; padding:8px 12px; border-radius:4px; cursor:pointer; font-weight:bold;">X</button>
                 </div>
             </div>`;
     });
@@ -146,7 +162,6 @@ window.renderToernooi = function() {
     // 3. TEAMS & DATABASE SPELERS RENDERN
     let spelersLijstHtml = '<option value="">-- Voeg clublid toe --</option>';
     if (window.spelersDB && window.spelersDB.length > 0) {
-        // Sorteer alfabetisch
         let gesorteerd = [...window.spelersDB].sort((a,b) => a.naam.localeCompare(b.naam));
         gesorteerd.forEach(s => { spelersLijstHtml += `<option value="${s.id}">${s.naam}</option>`; });
     } else {
@@ -165,8 +180,10 @@ window.renderToernooi = function() {
                     <ul style="list-style:none; padding:0; margin:0 0 10px 0;">`;
         
         t.spelers.forEach((sId, pIdx) => {
-            let sObj = (window.spelersDB || []).find(s => s.id === sId);
-            let weergaveNaam = sObj ? sObj.naam : "Onbekend Lid";
+            // FIX VOOR OUDE TOERNOOIEN: Zoek op ID, maar óók op naam als fallback!
+            let sObj = (window.spelersDB || []).find(s => s.id === sId || s.naam === sId);
+            let weergaveNaam = sObj ? sObj.naam : sId; // Als hij echt niks vindt, toont hij in ieder geval de oude opgeslagen string
+
             teamsHtml += `<li style="display:flex; justify-content:space-between; border-bottom:1px dashed #ccc; padding:4px 0; font-size:0.9rem;">
                 ${weergaveNaam} <button onclick="window.verwijderSpelerUitTeam('${t.id}', ${pIdx})" style="color:red; background:none; border:none; cursor:pointer; font-weight:bold;">x</button>
             </li>`;
@@ -260,13 +277,13 @@ window.openLiveScore = function(matchId) {
 
     let thuisOpties = '<option value="">-- Doelpuntmaker --</option>';
     tThuis.spelers.forEach(sId => { 
-        let s = (window.spelersDB||[]).find(x=>x.id===sId); 
+        let s = (window.spelersDB||[]).find(x => x.id === sId || x.naam === sId); 
         if(s) thuisOpties += `<option value="${s.id}">${s.naam}</option>`; 
     });
     
     let uitOpties = '<option value="">-- Doelpuntmaker --</option>';
     tUit.spelers.forEach(sId => { 
-        let s = (window.spelersDB||[]).find(x=>x.id===sId); 
+        let s = (window.spelersDB||[]).find(x => x.id === sId || x.naam === sId); 
         if(s) uitOpties += `<option value="${s.id}">${s.naam}</option>`; 
     });
 
@@ -340,12 +357,12 @@ window.addScore = function(zijde, punten) {
     }
 
     if (spelerId) {
-        let s = window.spelersDB.find(x => x.id === spelerId);
+        let s = window.spelersDB.find(x => x.id === spelerId || x.naam === spelerId);
         if (s) {
             actieTekst = `+${punten} door ${s.naam}`;
             match.playerStats[spelerId] = (match.playerStats[spelerId] || 0) + punten;
         }
-        document.getElementById(selectId).value = ""; // Reset dropdown
+        document.getElementById(selectId).value = ""; 
     }
 
     let tijdNu = new Date().toLocaleTimeString('nl-NL', {hour: '2-digit', minute:'2-digit', second:'2-digit'});
@@ -370,11 +387,11 @@ window.refreshLiveDisplay = function() {
 
     let statsHtml = '';
     let statsArray = Object.keys(match.playerStats).map(id => ({ id: id, pnt: match.playerStats[id] }));
-    statsArray.sort((a,b) => b.pnt - a.pnt); // Hoogste eerst
+    statsArray.sort((a,b) => b.pnt - a.pnt); 
 
     statsArray.forEach(stat => {
-        let s = (window.spelersDB||[]).find(x => x.id === stat.id);
-        let naam = s ? s.naam : "Onbekende speler";
+        let s = (window.spelersDB||[]).find(x => x.id === stat.id || x.naam === stat.id);
+        let naam = s ? s.naam : stat.id;
         statsHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:5px; border-bottom:1px dashed #7f8c8d;">
             <span>${naam}</span> <strong>${stat.pnt} pnt</strong>
         </div>`;
