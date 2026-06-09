@@ -7,10 +7,23 @@
     <link rel="stylesheet" href="basketbal.css">
 </head>
 <body>
+    <div id="cloud-status-indicator" style="position: fixed; bottom: 20px; right: 20px; background: #27ae60; color: white; padding: 10px 20px; border-radius: 30px; font-weight: bold; font-size: 0.9rem; box-shadow: 0 4px 10px rgba(0,0,0,0.2); z-index: 99999; transition: 0.3s; opacity: 0; pointer-events: none;">☁️ Cloud Actief</div>
+
     <nav class="top-nav">
-        <h1>🔐 Trainer & Bestuursbeheer</h1>
-        <a href="dashboard.html" class="terug-knop">📊 Naar Dashboard</a>
+        <h1>🏀 Black Shots Clubbeheer</h1>
+        <a href="../index.html" class="terug-knop">🏠 Terug</a>
     </nav>
+
+    <div class="tab-menu">
+        <button class="tab-btn" onclick="window.location.href='dashboard.html'">📊 Dashboard</button>
+        <button class="tab-btn" onclick="window.location.href='agenda.html'">📅 Weekagenda</button>
+        <button class="tab-btn" onclick="window.location.href='team.html'">👥 Teams</button>
+        <button class="tab-btn" onclick="window.location.href='spelers.html'">👤 Spelers</button>
+        <button class="tab-btn" onclick="window.location.href='oefeningen.html'">📋 Oefeningen</button>
+        <button class="tab-btn" onclick="window.location.href='toernooien.html'">🏆 Interne Toernooien</button>
+        <button class="tab-btn active" onclick="window.location.href='gebruikers.html'">🔐 Trainer Beheer</button>
+        <button class="tab-btn" onclick="window.location.href='instellingen.html'">⚙️ Instellingen</button>
+    </div>
 
     <main class="content-sectie active" style="max-width:900px; margin:20px auto; padding:15px;">
         
@@ -37,6 +50,7 @@
     <script src="basketbal_auth.js"></script>
     <script src="basketbal_data.js"></script>
     <script type="module" src="firebase_motor.js"></script>
+    
     <script>
         let ingelogdeGebruiker = JSON.parse(localStorage.getItem('bs_actieve_gebruiker'));
         if(!ingelogdeGebruiker || ingelogdeGebruiker.rol !== 'admin') {
@@ -117,7 +131,6 @@
 
             let gebruikers = JSON.parse(localStorage.getItem('blackshots_gebruikers')) || [];
             
-            // Controleer of de naam al bestaat
             if (gebruikers.find(g => g.id === naam.toLowerCase().replace(/[^a-z0-9]/g, ''))) {
                 return alert("Deze gebruikersnaam bestaat al!");
             }
@@ -173,7 +186,6 @@
             localStorage.setItem('blackshots_gebruikers', JSON.stringify(gebruikers));
         };
 
-        // Start met tekenen
         setTimeout(() => window.renderGebruikers(), 200);
     </script>
 </body>
