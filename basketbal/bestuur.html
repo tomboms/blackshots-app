@@ -6,30 +6,37 @@
     <title>Black Shots - Bestuur</title>
     <link rel="stylesheet" href="basketbal.css">
     <style>
-        .agenda-punt { background: white; border: 1px solid var(--border-color); border-radius: 6px; padding: 15px; margin-bottom: 15px; border-left: 5px solid #3498db; box-shadow: 0 2px 5px rgba(0,0,0,0.02); }
-        .agenda-titel { font-weight: bold; font-size: 1.2rem; color: var(--secondary-color); margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        .agenda-punt { background: white; border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; margin-bottom: 15px; border-left: 5px solid #3498db; box-shadow: 0 2px 5px rgba(0,0,0,0.02); transition: 0.2s; }
+        .agenda-titel-input { font-weight: bold; font-size: 1.2rem; color: var(--secondary-color); width: 100%; border: none; border-bottom: 2px solid transparent; background: transparent; padding: 5px 0; margin-bottom: 10px; transition: 0.2s; }
+        .agenda-titel-input:focus { border-bottom-color: #3498db; outline: none; }
         
-        .notitie-veld { width: 100%; min-height: 100px; padding: 10px; border-radius: 4px; font-family: inherit; font-size: 0.95rem; resize: vertical; line-height: 1.5; }
-        .prep-veld { background: rgba(230, 126, 34, 0.05); border: 1px solid #f39c12; }
-        .live-veld { background: rgba(155, 89, 182, 0.05); border: 1px solid #9b59b6; }
+        .notitie-veld { width: 100%; min-height: 90px; padding: 12px; border-radius: 6px; font-family: inherit; font-size: 0.95rem; resize: vertical; line-height: 1.5; border: 1px solid #bdc3c7; }
+        .prep-veld { background: rgba(230, 126, 34, 0.05); border-color: #f39c12; }
+        .live-veld { background: rgba(155, 89, 182, 0.05); border-color: #9b59b6; }
         
-        .veld-label { display: block; font-weight: bold; font-size: 0.85rem; margin-bottom: 5px; }
+        .veld-label { display: block; font-weight: bold; font-size: 0.85rem; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px; }
         .label-prep { color: #d35400; }
         .label-live { color: #8e44ad; }
 
         .spiekbrief-lees-blok { background: rgba(230, 126, 34, 0.08); border-left: 4px solid #e67e22; padding: 12px 15px; margin-bottom: 15px; border-radius: 4px; font-size: 1.05rem; line-height: 1.5; color: #333; }
 
+        /* Modal voor Sjabloon */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 9999; }
+        .modal-content { background: white; padding: 30px; border-radius: 8px; width: 90%; max-width: 500px; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+
         /* Dark Mode fixes */
         body.dark-mode .agenda-punt { background: #1e293b; border-color: #334155; }
-        body.dark-mode .agenda-titel { border-color: #334155; color: #f8fafc; }
+        body.dark-mode .agenda-titel-input { color: #f8fafc; }
         body.dark-mode .prep-veld { background: rgba(230, 126, 34, 0.1); border-color: #d35400; color: #f8fafc; }
         body.dark-mode .live-veld { background: rgba(155, 89, 182, 0.1); border-color: #8e44ad; color: #f8fafc; }
         body.dark-mode .spiekbrief-lees-blok { background: rgba(230, 126, 34, 0.15); color: #f8fafc; }
+        body.dark-mode .modal-content { background: #1e293b; color: white; border: 1px solid #334155; }
 
-        /* De Live Modus acties */
+        /* Live Modus acties */
         body.live-modus-actief .top-nav,
         body.live-modus-actief .hide-in-live { display: none !important; }
         body.live-modus-actief .content-sectie { max-width: 100% !important; padding: 20px 5% !important; }
+        body.live-modus-actief .agenda-titel-input { border-bottom: none; pointer-events: none; }
     </style>
 </head>
 <body>
@@ -39,12 +46,15 @@
         <h1>🏀 Black Shots Clubbeheer</h1>
     </nav>
 
-    <main class="content-sectie active" style="max-width:1100px; margin:20px auto; padding:15px;">
+    <main class="content-sectie active" style="max-width:1000px; margin:20px auto; padding:15px;">
         
         <div id="overzicht-scherm">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px;">
                 <h2 style="margin:0; color:var(--secondary-color);">📁 Bestuursvergaderingen</h2>
-                <button onclick="nieuweVergadering()" class="primary-btn" style="background:#27ae60;">+ Nieuwe Vergadering</button>
+                <div style="display:flex; gap:10px;">
+                    <button onclick="openSjabloonInstellingen()" style="background:#7f8c8d; color:white; border:none; padding:10px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">⚙️ Agenda Sjabloon</button>
+                    <button onclick="nieuweVergadering()" class="primary-btn" style="background:#27ae60; border:none; padding:10px 20px; border-radius:4px; font-weight:bold; cursor:pointer;">+ Nieuwe Vergadering</button>
+                </div>
             </div>
             <div id="vergaderingen-lijst"></div>
         </div>
@@ -59,51 +69,51 @@
                     <div style="display:flex; gap:15px; flex-wrap:wrap;">
                         <div style="flex:1; min-width:200px;">
                             <label style="font-weight:bold; font-size:0.9rem; color:#7f8c8d;">Datum</label>
-                            <input type="text" id="v_datum" placeholder="bijv. Maandag 11 Mei" onchange="slaOp()" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;">
+                            <input type="text" id="v_datum" placeholder="bijv. Maandag 11 Mei" onchange="slaOp()" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px; background:transparent; color:inherit;">
                         </div>
                         <div style="flex:1; min-width:150px;">
                             <label style="font-weight:bold; font-size:0.9rem; color:#7f8c8d;">Tijd</label>
-                            <input type="text" id="v_tijd" placeholder="bijv. 20:00 uur" onchange="slaOp()" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;">
+                            <input type="text" id="v_tijd" placeholder="bijv. 20:00 uur" onchange="slaOp()" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px; background:transparent; color:inherit;">
                         </div>
                         <div style="flex:1; min-width:200px;">
                             <label style="font-weight:bold; font-size:0.9rem; color:#7f8c8d;">Locatie / Adres</label>
-                            <input type="text" id="v_adres" placeholder="bijv. Statenlaan 78 / Online" onchange="slaOp()" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;">
+                            <input type="text" id="v_adres" placeholder="bijv. Statenlaan 78 / Online" onchange="slaOp()" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px; background:transparent; color:inherit;">
                         </div>
                     </div>
                     <div style="margin-top:15px;">
                         <label style="font-weight:bold; font-size:0.9rem; color:#7f8c8d;">Aanwezigen</label>
-                        <input type="text" id="v_aanwezig" placeholder="Martin, Izaac, Jolanda, Tom..." onchange="slaOp()" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;">
+                        <input type="text" id="v_aanwezig" placeholder="Martin, Izaac, Jolanda, Tom..." onchange="slaOp()" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px; background:transparent; color:inherit;">
                     </div>
                 </div>
 
-                <button onclick="toggleLiveModus()" style="width:100%; background:#27ae60; color:white; border:none; padding:15px; border-radius:6px; font-weight:bold; font-size:1.2rem; cursor:pointer; box-shadow:0 4px 10px rgba(39, 174, 96, 0.3); margin-bottom:20px; transition:0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">🎤 Start Live Vergadering (Full Screen)</button>
+                <button onclick="toggleLiveModus()" style="width:100%; background:#e74c3c; color:white; border:none; padding:15px; border-radius:6px; font-weight:bold; font-size:1.2rem; cursor:pointer; box-shadow:0 4px 10px rgba(231, 76, 60, 0.3); margin-bottom:20px; transition:0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">🔴 Start Live Vergadering (Notuleren)</button>
 
                 <div style="display:flex; gap:10px; margin-bottom:30px; flex-wrap:wrap;">
-                    <button onclick="genereerDocument('agenda')" style="flex:1; min-width:200px; background:#3498db; color:white; border:none; padding:15px; border-radius:6px; font-weight:bold; font-size:1rem; cursor:pointer; box-shadow:0 4px 6px rgba(0,0,0,0.1);"><span style="font-size:1.4rem; display:block; margin-bottom:5px;">📄</span> Officiële Agenda <br><span style="font-size:0.8rem; font-weight:normal;">Alleen de agendapunten</span></button>
+                    <button onclick="genereerDocument('agenda')" style="flex:1; min-width:200px; background:#3498db; color:white; border:none; padding:15px; border-radius:6px; font-weight:bold; font-size:1rem; cursor:pointer; box-shadow:0 4px 6px rgba(0,0,0,0.1); transition:0.2s;"><span style="font-size:1.4rem; display:block; margin-bottom:5px;">📄</span> Officiële Agenda <br><span style="font-size:0.8rem; font-weight:normal;">Print een lege agenda</span></button>
                     
-                    <button onclick="genereerDocument('spiekbrief')" style="flex:1; min-width:200px; background:#e67e22; color:white; border:none; padding:15px; border-radius:6px; font-weight:bold; font-size:1rem; cursor:pointer; box-shadow:0 4px 6px rgba(0,0,0,0.1);"><span style="font-size:1.4rem; display:block; margin-bottom:5px;">🤫</span> Jouw Spiekbrief <br><span style="font-size:0.8rem; font-weight:normal;">Met jouw voorbereidingen</span></button>
+                    <button onclick="genereerDocument('spiekbrief')" style="flex:1; min-width:200px; background:#e67e22; color:white; border:none; padding:15px; border-radius:6px; font-weight:bold; font-size:1rem; cursor:pointer; box-shadow:0 4px 6px rgba(0,0,0,0.1); transition:0.2s;"><span style="font-size:1.4rem; display:block; margin-bottom:5px;">🤫</span> Tom's Spiekbrief <br><span style="font-size:0.8rem; font-weight:normal;">Print agenda + voorbereiding</span></button>
                     
-                    <button onclick="genereerDocument('notulen')" style="flex:1; min-width:200px; background:#9b59b6; color:white; border:none; padding:15px; border-radius:6px; font-weight:bold; font-size:1rem; cursor:pointer; box-shadow:0 4px 6px rgba(0,0,0,0.1);"><span style="font-size:1.4rem; display:block; margin-bottom:5px;">✍️</span> Notulen Verslag <br><span style="font-size:0.8rem; font-weight:normal;">Het definitieve verslag</span></button>
+                    <button onclick="genereerDocument('notulen')" style="flex:1; min-width:200px; background:#9b59b6; color:white; border:none; padding:15px; border-radius:6px; font-weight:bold; font-size:1rem; cursor:pointer; box-shadow:0 4px 6px rgba(0,0,0,0.1); transition:0.2s;"><span style="font-size:1.4rem; display:block; margin-bottom:5px;">✍️</span> Definitieve Notulen <br><span style="font-size:0.8rem; font-weight:normal;">Print het uitgewerkte verslag</span></button>
                 </div>
             </div>
 
             <div id="live-header" style="display:none; justify-content:space-between; align-items:center; background:#e74c3c; color:white; padding:15px 20px; border-radius:8px; margin-bottom:20px; box-shadow:0 4px 10px rgba(0,0,0,0.2);">
                 <div style="display:flex; align-items:center; gap:10px;">
                     <span style="font-size:1.5rem; animation: pulse 1.5s infinite;">🔴</span>
-                    <h2 style="margin:0; font-size:1.3rem; color:white;">Live Vergadering Actief</h2>
+                    <h2 style="margin:0; font-size:1.3rem; color:white;">Live Vergadering - Maak hier je kladnotities!</h2>
                 </div>
-                <button onclick="toggleLiveModus()" style="background:white; color:#e74c3c; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.1);">🛑 Afronden & Opslaan</button>
+                <button onclick="toggleLiveModus()" style="background:white; color:#e74c3c; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.1);">🛑 Afronden & Uitwerken</button>
             </div>
             <style>@keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }</style>
 
             <div class="hide-in-live" style="display:flex; justify-content:space-between; align-items:flex-end; border-bottom:2px solid var(--border-color); padding-bottom:10px; margin-bottom:15px;">
-                <h3 style="color:var(--secondary-color); margin:0;">Agendapunten voorbereiden</h3>
+                <h3 style="color:var(--secondary-color); margin:0;">Agendapunten van deze vergadering</h3>
             </div>
             
             <div id="agenda-punten-container"></div>
 
             <div class="hide-in-live">
-                <button onclick="voegExtraPuntToe()" style="background:#27ae60; color:white; border:none; padding:12px 20px; border-radius:4px; font-weight:bold; cursor:pointer; margin-top:10px; font-size:1rem;">+ Extra Onderwerp Toevoegen</button>
+                <button onclick="voegPuntToe()" style="background:#27ae60; color:white; border:none; padding:12px 20px; border-radius:4px; font-weight:bold; cursor:pointer; margin-top:10px; font-size:1rem; box-shadow:0 2px 4px rgba(0,0,0,0.1);">+ Nieuw Agendapunt Toevoegen</button>
                 
                 <div style="border-top:1px solid var(--border-color); margin-top:50px; padding-top:20px;">
                     <button onclick="verwijderVergadering()" style="background:#e74c3c; color:white; border:none; padding:10px 20px; border-radius:4px; font-weight:bold; cursor:pointer; float:right;">🗑️ Vergadering Wissen</button>
@@ -113,32 +123,46 @@
 
     </main>
 
+    <div id="sjabloon-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h2 style="margin-top:0; color:var(--secondary-color); border-bottom:1px solid var(--border-color); padding-bottom:10px;">⚙️ Standaard Agenda Sjabloon</h2>
+            <p style="font-size:0.9rem; color:#7f8c8d;">Als je een <strong>nieuwe vergadering</strong> aanmaakt, worden deze punten automatisch klaargezet. Je kunt ze tijdens de vergadering nog altijd aanpassen.</p>
+            
+            <div id="sjabloon-lijst" style="margin:20px 0;"></div>
+            
+            <button onclick="voegSjabloonPuntToe()" style="background:#3498db; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; margin-bottom:20px;">+ Regel Toevoegen</button>
+            
+            <div style="display:flex; justify-content:flex-end; gap:10px; border-top:1px solid var(--border-color); padding-top:15px;">
+                <button onclick="sluitSjabloonInstellingen()" style="background:#bdc3c7; color:#333; border:none; padding:10px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">Annuleren</button>
+                <button onclick="slaSjabloonOp()" style="background:#27ae60; color:white; border:none; padding:10px 20px; border-radius:4px; font-weight:bold; cursor:pointer;">✅ Sjabloon Opslaan</button>
+            </div>
+        </div>
+    </div>
+
     <script src="basketbal_auth.js"></script>
     <script src="basketbal_data.js"></script>
     <script type="module" src="firebase_motor.js"></script>
     
     <script>
+        // --- 1. DATA INITIALISATIE ---
         let bestuurDB = JSON.parse(localStorage.getItem('blackshots_bestuur')) || [];
+        
+        // Het standaard sjabloon als de club nog niets heeft ingesteld
+        let standaardSjabloon = JSON.parse(localStorage.getItem('blackshots_bestuur_sjabloon')) || [
+            "Opening en vaststellen agendapunten",
+            "Mededelingen en ledenmutaties",
+            "Actielijst",
+            "Ingekomen stukken",
+            "Financiën",
+            "Jaarplanning",
+            "Rondvraag",
+            "Vaststellen volgende vergaderdatum en sluiting"
+        ];
+
         let actieveVergaderingId = null;
         window.isLiveModus = false;
 
-        const standaardPunten = ["Opening en vaststellen agendapunten", "Mededelingen en ledenmutaties", "Actielijst", "Ingekomen stukken", "Financiën", "Jaarplanning"];
-        const eindPunten = ["Rondvraag", "Vaststellen volgende vergaderdatum en sluiting"];
-
-        window.toggleLiveModus = function() {
-            window.isLiveModus = !window.isLiveModus;
-            document.getElementById('live-header').style.display = window.isLiveModus ? 'flex' : 'none';
-            
-            if (window.isLiveModus) {
-                document.body.classList.add('live-modus-actief');
-                if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(e=>e);
-            } else {
-                document.body.classList.remove('live-modus-actief');
-                if (document.exitFullscreen) document.exitFullscreen().catch(e=>e);
-            }
-            tekenAgendaPunten(); // Herteken de velden op basis van de modus
-        };
-
+        // --- 2. HET OVERZICHT SCHERM ---
         function tekenOverzicht() {
             let container = document.getElementById('vergaderingen-lijst');
             container.innerHTML = '';
@@ -159,21 +183,47 @@
             });
         }
 
+        // --- 3. VERGADERING AANMAKEN (MET SJABLOON!) ---
         window.nieuweVergadering = function() {
-            let nw = { id: 'verg_' + Date.now(), datum: '', tijd: '20:00 uur', adres: '', aanwezig: 'Martin, Izaac, Jolanda, Tom', notitiesStandaard: {}, notitiesEind: {}, extraPunten: [], verslagStandaard: {}, verslagEind: {} };
+            // We bouwen dynamische punten op basis van het huidige sjabloon
+            let startPunten = standaardSjabloon.map(titel => {
+                return { id: 'p_' + Math.random().toString(36).substr(2, 9), titel: titel, prep: '', verslag: '' };
+            });
+
+            let nw = { 
+                id: 'verg_' + Date.now(), 
+                datum: '', tijd: '20:00 uur', adres: '', aanwezig: 'Martin, Izaac, Jolanda, Tom', 
+                punten: startPunten // Geen hardcoded lijstjes meer!
+            };
+
             bestuurDB.push(nw);
             slaOpEnHerlaad();
             openVergadering(nw.id);
         };
 
+        // --- 4. VERGADERING OPENEN ---
         window.openVergadering = function(id) {
             actieveVergaderingId = id;
             let v = bestuurDB.find(x => x.id === id);
             if (!v) return;
 
-            if (!v.verslagStandaard) v.verslagStandaard = {};
-            if (!v.verslagEind) v.verslagEind = {};
-            v.extraPunten.forEach(ex => { if(typeof ex.verslag === 'undefined') ex.verslag = ''; });
+            // Reparatie voor zeeeeer oude vergaderingen (uit eerdere tests)
+            if(!v.punten) {
+                v.punten = [];
+                if(v.notitiesStandaard) {
+                    ["Opening", "Mededelingen", "Actielijst", "Ingekomen stukken", "Financiën", "Jaarplanning"].forEach((t, i) => {
+                        v.punten.push({id: 'old_'+i, titel: t, prep: v.notitiesStandaard[i]||'', verslag: (v.verslagStandaard && v.verslagStandaard[i])||''});
+                    });
+                }
+                if(v.extraPunten) {
+                    v.extraPunten.forEach((ex, i) => v.punten.push({id: 'old_ex_'+i, titel: ex.titel||'Extra', prep: ex.notitie||'', verslag: ex.verslag||''}));
+                }
+                if(v.notitiesEind) {
+                    ["Rondvraag", "Sluiting"].forEach((t, i) => {
+                        v.punten.push({id: 'old_end_'+i, titel: t, prep: v.notitiesEind[i]||'', verslag: (v.verslagEind && v.verslagEind[i])||''});
+                    });
+                }
+            }
 
             document.getElementById('overzicht-scherm').style.display = 'none';
             document.getElementById('editor-scherm').style.display = 'block';
@@ -194,91 +244,74 @@
             tekenOverzicht();
         };
 
+        // --- 5. LIVE MODUS TOGGLE ---
+        window.toggleLiveModus = function() {
+            window.isLiveModus = !window.isLiveModus;
+            document.getElementById('live-header').style.display = window.isLiveModus ? 'flex' : 'none';
+            
+            if (window.isLiveModus) {
+                document.body.classList.add('live-modus-actief');
+                if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(e=>e);
+            } else {
+                document.body.classList.remove('live-modus-actief');
+                if (document.exitFullscreen) document.exitFullscreen().catch(e=>e);
+            }
+            tekenAgendaPunten(); 
+        };
+
+        // --- 6. AGENDAPUNTEN TEKENEN OP BASIS VAN WORKFLOW ---
         function tekenAgendaPunten() {
             let v = bestuurDB.find(x => x.id === actieveVergaderingId);
             let container = document.getElementById('agenda-punten-container');
             container.innerHTML = '';
 
-            let puntNummer = 1;
+            v.punten.forEach((punt, index) => {
+                let htmlVakken = '';
 
-            // --- MAGIE: BEPAAL DE LAYOUT OP BASIS VAN MODUS ---
-            const genereerVakken = (type, idx, prepTekst, liveTekst) => {
                 if (window.isLiveModus) {
-                    // LIVE MODUS: Voorbereiding is een leesblok, Notulen is een enorm typveld
-                    let prepDisplay = prepTekst ? prepTekst.replace(/\n/g, '<br>') : '<i style="color:#bdc3c7;">Geen voorbereiding genoteerd...</i>';
-                    return `
+                    // LIVE MODUS: Voorbereiding is een strak leesblok, Klad is een groot veld.
+                    let prepDisplay = punt.prep ? punt.prep.replace(/\n/g, '<br>') : '<i style="color:#bdc3c7;">Geen voorbereiding genoteerd...</i>';
+                    htmlVakken = `
                     <div style="margin-top:15px;">
                         <div class="spiekbrief-lees-blok">
                             <strong style="color:#d35400; font-size:0.85rem; display:block; margin-bottom:8px; text-transform:uppercase;">🤫 Jouw Spiekbrief / Punten:</strong>
                             ${prepDisplay}
                         </div>
                         <div>
-                            <textarea class="notitie-veld live-veld" style="min-height:150px; font-size:1.05rem;" placeholder="✍️ Typ hier direct wat er besproken of besloten is..." onchange="slaVerslagOp('${type}', ${idx}, this.value)">${liveTekst}</textarea>
+                            <textarea class="notitie-veld live-veld" style="min-height:150px; font-size:1.05rem;" placeholder="✍️ KLADBLOK: Typ hier snel wat er besproken of besloten is tijdens de vergadering..." onchange="slaVerslagOp('${punt.id}', this.value)">${punt.verslag}</textarea>
                         </div>
                     </div>`;
                 } else {
-                    // VOORBEREIDING MODUS: Twee gelijke vakken naast elkaar
-                    return `
+                    // VOORBEREIDING / UITWERKEN MODUS: Twee gelijke vakken
+                    htmlVakken = `
                     <div style="display:flex; gap:15px; flex-wrap:wrap; margin-top:10px;">
                         <div style="flex:1; min-width:250px;">
-                            <label class="veld-label label-prep">🤫 Jouw Voorbereiding / Punten</label>
-                            <textarea class="notitie-veld prep-veld" placeholder="Wat wil je hier bespreken?" onchange="slaNotitieOp('${type}', ${idx}, this.value)">${prepTekst}</textarea>
+                            <label class="veld-label label-prep">🤫 Voorbereiding / Wat wil ik zeggen?</label>
+                            <textarea class="notitie-veld prep-veld" placeholder="Zet hier jouw spiekbriefje neer..." onchange="slaPrepOp('${punt.id}', this.value)">${punt.prep}</textarea>
                         </div>
                         <div style="flex:1; min-width:250px;">
-                            <label class="veld-label label-live">✍️ Live Notulen / Besluiten</label>
-                            <textarea class="notitie-veld live-veld" placeholder="Deze kun je leeg laten tot de vergadering..." onchange="slaVerslagOp('${type}', ${idx}, this.value)">${liveTekst}</textarea>
+                            <label class="veld-label label-live">✍️ Uitgewerkte Notulen (Definitief)</label>
+                            <textarea class="notitie-veld live-veld" placeholder="Werk hier je kladjes na de vergadering netjes uit..." onchange="slaVerslagOp('${punt.id}', this.value)">${punt.verslag}</textarea>
                         </div>
                     </div>`;
                 }
-            };
 
-            standaardPunten.forEach((titel, idx) => {
+                // Delete knop alleen buiten live modus
+                let deleteBtn = window.isLiveModus ? '' : `<button onclick="verwijderPunt('${punt.id}')" style="background:none; border:none; color:#e74c3c; font-weight:bold; cursor:pointer; font-size:1.2rem; margin-left:10px;" title="Verwijder dit blok">&times;</button>`;
+
                 container.innerHTML += `
-                    <div class="agenda-punt" style="border-left-color:#3498db;">
-                        <div class="agenda-titel">${puntNummer}. ${titel}</div>
-                        ${genereerVakken('std', idx, v.notitiesStandaard[idx] || '', v.verslagStandaard[idx] || '')}
+                    <div class="agenda-punt" style="border-left-color:${index%2===0 ? '#3498db' : '#9b59b6'};">
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                            <span style="font-size:1.2rem; font-weight:bold; color:#bdc3c7; margin-right:10px; margin-top:5px;">${index+1}.</span>
+                            <input type="text" class="agenda-titel-input" value="${punt.titel}" placeholder="Naam van dit agendapunt..." onchange="slaTitelOp('${punt.id}', this.value)">
+                            ${deleteBtn}
+                        </div>
+                        ${htmlVakken}
                     </div>`;
-                puntNummer++;
-            });
-
-            if (v.extraPunten.length > 0 || !window.isLiveModus) {
-                if (v.extraPunten.length === 0 && !window.isLiveModus) {
-                    container.innerHTML += `
-                        <div class="agenda-punt hide-in-live" style="border-left-color:#27ae60; background:rgba(39, 174, 96, 0.05);">
-                            <div class="agenda-titel">${puntNummer}. Extra agenda punt(en) bespreken</div>
-                            <p style="font-size:0.9rem; color:#7f8c8d; font-style:italic;">Klik op de knop hieronder om onderwerpen te verzamelen.</p>
-                        </div>`;
-                    puntNummer++;
-                } else {
-                    container.innerHTML += `<div class="agenda-titel" style="margin:30px 0 10px 0; color:#27ae60; font-size:1.3rem; border:none;">${puntNummer}. Extra agenda punt(en) bespreken</div>`;
-                    v.extraPunten.forEach((extra, idx) => {
-                        let headerExtra = window.isLiveModus 
-                            ? `<div style="font-weight:bold; font-size:1.1rem; margin-bottom:10px;">${extra.titel || 'Nieuw punt'}</div>`
-                            : `<div style="display:flex; justify-content:space-between; align-items:center;">
-                                <input type="text" value="${extra.titel}" placeholder="Titel van dit onderwerp..." onchange="slaExtraTitelOp(${idx}, this.value)" style="flex:1; font-weight:bold; font-size:1.05rem; border:none; border-bottom:2px solid #bdc3c7; background:transparent; margin-bottom:10px; color:inherit; padding-bottom:5px;">
-                                <button onclick="verwijderExtraPunt(${idx})" style="background:none; border:none; color:#e74c3c; font-weight:bold; cursor:pointer; font-size:1.2rem; margin-left:10px;">&times;</button>
-                               </div>`;
-
-                        container.innerHTML += `
-                            <div class="agenda-punt" style="border-left-color:#27ae60; margin-left:15px;">
-                                ${headerExtra}
-                                ${genereerVakken('extra', idx, extra.notitie || '', extra.verslag || '')}
-                            </div>`;
-                    });
-                    puntNummer++;
-                }
-            }
-
-            eindPunten.forEach((titel, idx) => {
-                container.innerHTML += `
-                    <div class="agenda-punt" style="border-left-color:#e67e22;">
-                        <div class="agenda-titel">${puntNummer}. ${titel}</div>
-                        ${genereerVakken('eind', idx, v.notitiesEind[idx] || '', v.verslagEind[idx] || '')}
-                    </div>`;
-                puntNummer++;
             });
         }
 
+        // --- 7. EDIT FUNCTIES PER PUNT ---
         window.slaOp = function() {
             let v = bestuurDB.find(x => x.id === actieveVergaderingId);
             v.datum = document.getElementById('v_datum').value; v.tijd = document.getElementById('v_tijd').value;
@@ -286,34 +319,37 @@
             slaOpEnHerlaad();
         };
 
-        window.slaNotitieOp = function(type, idx, val) {
+        window.slaTitelOp = function(puntId, val) {
             let v = bestuurDB.find(x => x.id === actieveVergaderingId);
-            if(type === 'std') v.notitiesStandaard[idx] = val; if(type === 'eind') v.notitiesEind[idx] = val; if(type === 'extra') v.extraPunten[idx].notitie = val;
-            slaOpEnHerlaad();
+            v.punten.find(p => p.id === puntId).titel = val; slaOpEnHerlaad();
         };
 
-        window.slaVerslagOp = function(type, idx, val) {
+        window.slaPrepOp = function(puntId, val) {
             let v = bestuurDB.find(x => x.id === actieveVergaderingId);
-            if(type === 'std') v.verslagStandaard[idx] = val; if(type === 'eind') v.verslagEind[idx] = val; if(type === 'extra') v.extraPunten[idx].verslag = val;
-            slaOpEnHerlaad();
+            v.punten.find(p => p.id === puntId).prep = val; slaOpEnHerlaad();
         };
 
-        window.voegExtraPuntToe = function() {
+        window.slaVerslagOp = function(puntId, val) {
             let v = bestuurDB.find(x => x.id === actieveVergaderingId);
-            v.extraPunten.push({ titel: '', notitie: '', verslag: '' });
+            v.punten.find(p => p.id === puntId).verslag = val; slaOpEnHerlaad();
+        };
+
+        window.voegPuntToe = function() {
+            let v = bestuurDB.find(x => x.id === actieveVergaderingId);
+            v.punten.push({ id: 'p_' + Math.random().toString(36).substr(2, 9), titel: 'Nieuw Agendapunt', prep: '', verslag: '' });
             slaOpEnHerlaad(); tekenAgendaPunten();
         };
 
-        window.slaExtraTitelOp = function(idx, val) {
-            bestuurDB.find(x => x.id === actieveVergaderingId).extraPunten[idx].titel = val; slaOpEnHerlaad();
-        };
-
-        window.verwijderExtraPunt = function(idx) {
-            bestuurDB.find(x => x.id === actieveVergaderingId).extraPunten.splice(idx, 1); slaOpEnHerlaad(); tekenAgendaPunten();
+        window.verwijderPunt = function(puntId) {
+            if(confirm("Weet je zeker dat je dit hele agendapunt wilt wissen?")) {
+                let v = bestuurDB.find(x => x.id === actieveVergaderingId);
+                v.punten = v.punten.filter(p => p.id !== puntId);
+                slaOpEnHerlaad(); tekenAgendaPunten();
+            }
         };
 
         window.verwijderVergadering = function() {
-            if(confirm("Weet je zeker dat je deze hele vergadering wilt wissen?")) {
+            if(confirm("Weet je zeker dat je deze vergadering en alle notulen definitief wilt wissen?")) {
                 bestuurDB = bestuurDB.filter(x => x.id !== actieveVergaderingId);
                 slaOpEnHerlaad(); sluitEditor();
             }
@@ -321,12 +357,44 @@
 
         function slaOpEnHerlaad() { localStorage.setItem('blackshots_bestuur', JSON.stringify(bestuurDB)); }
 
-        // --- DE PDF / WORD EXPORT FUNCTIE ---
+        // --- 8. SJABLOON BEHEERDER ---
+        let tempSjabloon = [];
+        window.openSjabloonInstellingen = function() {
+            tempSjabloon = [...standaardSjabloon];
+            tekenSjabloonLijst();
+            document.getElementById('sjabloon-modal').style.display = 'flex';
+        };
+        
+        window.sluitSjabloonInstellingen = function() { document.getElementById('sjabloon-modal').style.display = 'none'; };
+
+        function tekenSjabloonLijst() {
+            let c = document.getElementById('sjabloon-lijst');
+            c.innerHTML = '';
+            tempSjabloon.forEach((punt, idx) => {
+                c.innerHTML += `
+                    <div style="display:flex; gap:10px; margin-bottom:10px;">
+                        <span style="font-weight:bold; color:#7f8c8d; padding-top:8px;">${idx+1}.</span>
+                        <input type="text" value="${punt}" onchange="tempSjabloon[${idx}] = this.value" style="flex:1; padding:8px; border:1px solid #bdc3c7; border-radius:4px; font-family:inherit; background:transparent; color:inherit;">
+                        <button onclick="tempSjabloon.splice(${idx}, 1); tekenSjabloonLijst()" style="background:#e74c3c; color:white; border:none; border-radius:4px; padding:0 12px; font-weight:bold; cursor:pointer;">X</button>
+                    </div>`;
+            });
+        }
+
+        window.voegSjabloonPuntToe = function() { tempSjabloon.push('Nieuw punt...'); tekenSjabloonLijst(); };
+
+        window.slaSjabloonOp = function() {
+            standaardSjabloon = tempSjabloon.filter(x => x.trim() !== ''); // Verwijder lege regels
+            localStorage.setItem('blackshots_bestuur_sjabloon', JSON.stringify(standaardSjabloon));
+            sluitSjabloonInstellingen();
+            alert("✅ Sjabloon succesvol bijgewerkt! Nieuwe vergaderingen krijgen vanaf nu deze indeling.");
+        };
+
+        // --- 9. DE PDF EXPORT (STRIKT GESCHEIDEN!) ---
         window.genereerDocument = function(soort) {
             let v = bestuurDB.find(x => x.id === actieveVergaderingId);
             
             let hoofdtitel = soort === 'notulen' ? "Notulen Bestuursvergadering" : "Bestuursvergadering";
-            let subtitelDoc = soort === 'notulen' ? "Besproken Punten & Besluiten" : (soort === 'spiekbrief' ? "Agenda & Voorbereiding (Spiekbrief)" : "Agenda");
+            let subtitelDoc = soort === 'notulen' ? "Definitieve Besluiten & Notulen" : (soort === 'spiekbrief' ? "Agenda & Voorbereiding (Tom's Versie)" : "Officiële Agenda");
 
             let htmlDoc = `
             <!DOCTYPE html>
@@ -342,12 +410,14 @@
                     .meta-tabel { width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 14px; }
                     .meta-tabel td { padding: 3px 0; vertical-align: top; }
                     .meta-tabel td:first-child { width: 100px; font-weight: bold; }
-                    h2 { font-size: 16px; margin-top: 30px; margin-bottom: 10px; font-weight: bold; }
+                    h2 { font-size: 16px; margin-top: 30px; margin-bottom: 15px; font-weight: bold; color: #333; }
+                    
                     .agenda-lijst { list-style-type: decimal; padding-left: 20px; font-size: 14px; font-weight: bold; margin-top: 0; }
-                    .agenda-lijst > li { margin-bottom: 15px; }
-                    .notitie-blok { font-weight: normal; font-size: 13px; margin-top: 5px; padding-left: 15px; display: block; color: #333; white-space: pre-wrap; }
-                    .extra-lijst { list-style-type: disc; font-weight: normal; margin-top: 5px; padding-left: 20px; }
-                    .extra-lijst li { margin-bottom: 8px; }
+                    .agenda-lijst > li { margin-bottom: 20px; }
+                    .tekst-blok { font-weight: normal; font-size: 13px; margin-top: 5px; padding-left: 15px; display: block; color: #333; white-space: pre-wrap; }
+                    
+                    .prep-label { font-size: 11px; color: #d35400; text-transform: uppercase; font-weight: bold; margin-bottom: 3px; }
+                    
                     @media print { .print-btn { display: none !important; } }
                 </style>
             </head>
@@ -368,28 +438,21 @@
                 <ol class="agenda-lijst">
             `;
 
-            standaardPunten.forEach((titel, idx) => {
-                htmlDoc += `<li>${titel}`;
-                if (soort === 'spiekbrief' && v.notitiesStandaard[idx]) htmlDoc += `<div class="notitie-blok"><strong>Voorbereiding:</strong><br>${v.notitiesStandaard[idx]}</div>`;
-                if (soort === 'notulen' && v.verslagStandaard && v.verslagStandaard[idx]) htmlDoc += `<div class="notitie-blok">${v.verslagStandaard[idx]}</div>`;
-                htmlDoc += `</li>`;
-            });
+            // Enkele loop die precies kiest wat er getoond wordt
+            v.punten.forEach((punt) => {
+                htmlDoc += `<li>${punt.titel || 'Onbenoemd punt'}`;
+                
+                // Bij de Spiekbrief: Toon ALTIJD en ALLEEN de voorbereiding (prep)
+                if (soort === 'spiekbrief' && punt.prep) {
+                    htmlDoc += `<div class="tekst-blok"><div class="prep-label">Jouw Voorbereiding:</div>${punt.prep}</div>`;
+                }
+                
+                // Bij Notulen: Toon ALTIJD en ALLEEN het uitgewerkte verslag
+                if (soort === 'notulen' && punt.verslag) {
+                    htmlDoc += `<div class="tekst-blok">${punt.verslag}</div>`;
+                }
 
-            if (v.extraPunten.length > 0) {
-                htmlDoc += `<li>Extra agenda punt(en) bespreken<ul class="extra-lijst">`;
-                v.extraPunten.forEach(ex => {
-                    htmlDoc += `<li><strong>${ex.titel || 'Nieuw punt'}</strong>`;
-                    if (soort === 'spiekbrief' && ex.notitie) htmlDoc += `<div class="notitie-blok" style="padding-left:0;"><strong>Voorbereiding:</strong><br>${ex.notitie}</div>`;
-                    if (soort === 'notulen' && ex.verslag) htmlDoc += `<div class="notitie-blok" style="padding-left:0;">${ex.verslag}</div>`;
-                    htmlDoc += `</li>`;
-                });
-                htmlDoc += `</ul></li>`;
-            } else if (soort === 'agenda') { htmlDoc += `<li>Extra agenda punt(en) bespreken</li>`; }
-
-            eindPunten.forEach((titel, idx) => {
-                htmlDoc += `<li>${titel}`;
-                if (soort === 'spiekbrief' && v.notitiesEind[idx]) htmlDoc += `<div class="notitie-blok"><strong>Voorbereiding:</strong><br>${v.notitiesEind[idx]}</div>`;
-                if (soort === 'notulen' && v.verslagEind && v.verslagEind[idx]) htmlDoc += `<div class="notitie-blok">${v.verslagEind[idx]}</div>`;
+                // (Bij soort === 'agenda' wordt er helemaal geen sub-tekst getoond)
                 htmlDoc += `</li>`;
             });
 
