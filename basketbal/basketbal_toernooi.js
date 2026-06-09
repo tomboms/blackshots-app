@@ -1,56 +1,10 @@
-// --- BASKETBAL_TOERNOOI.JS: LOGICA VOOR INTERNE COMPETITIES ---
+// --- BASKETBAL_TOERNOOI.JS: INTERNE COMPETITIE & LIVE SCORE ---
 
-const standaardToernooiDB = {
-    "jong": {
-        naam: "Jeugd Competitie 2026",
-        teams: [
-            { id: "t_gsw", naam: "Golden State Warriors", kleur: "#f39c12", spelers: ["Sem", "Lody", "Roan", "Djayden", "Lucas", "Liwanu", "Nicholas", "Thijmen"] },
-            { id: "t_bos", naam: "Boston Celtics", kleur: "#27ae60", spelers: ["Bledi", "Filp", "Artun", "Tim", "Lonaéya", "Wout", "Alex V", "Jairo"] },
-            { id: "t_lal", naam: "Los Angeles Lakers", kleur: "#8e44ad", spelers: ["Evin", "Alex G", "Vic", "Tommie", "Boris", "Ralph", "Thijs", "Slva"] },
-            { id: "t_chi", naam: "Chicago Bulls", kleur: "#e74c3c", spelers: ["Mehdie", "Devlan", "Milan", "Zinedine", "Bink", "Lotfi", "Jack", "Djamina"] }
-        ],
-        wedstrijden: [
-            { id: "m1", datum: "8-jun", tijd: "17:00", veld: "Veld A", thuis: "t_gsw", uit: "t_lal", scoreThuis: null, scoreUit: null },
-            { id: "m2", datum: "8-jun", tijd: "17:00", veld: "Veld B", thuis: "t_chi", uit: "t_bos", scoreThuis: null, scoreUit: null },
-            { id: "m3", datum: "15-jun", tijd: "17:00", veld: "Veld A", thuis: "t_bos", uit: "t_lal", scoreThuis: null, scoreUit: null },
-            { id: "m4", datum: "15-jun", tijd: "17:00", veld: "Veld B", thuis: "t_chi", uit: "t_gsw", scoreThuis: null, scoreUit: null },
-            { id: "m5", datum: "22-jun", tijd: "17:00", veld: "Veld A", thuis: "t_lal", uit: "t_chi", scoreThuis: null, scoreUit: null },
-            { id: "m6", datum: "22-jun", tijd: "17:00", veld: "Veld B", thuis: "t_gsw", uit: "t_bos", scoreThuis: null, scoreUit: null },
-            { id: "m7", datum: "29-jun", tijd: "17:00", veld: "Veld A", thuis: "rank_3", uit: "rank_4", scoreThuis: null, scoreUit: null },
-            { id: "m8", datum: "29-jun", tijd: "17:00", veld: "Veld B", thuis: "rank_1", uit: "rank_2", scoreThuis: null, scoreUit: null }
-        ]
-    },
-    "oud": {
-        naam: "Oudere Jeugd Competitie 2026",
-        teams: [
-            { id: "t_cha", naam: "Charlotte Hornets", kleur: "#00b894", spelers: ["Dean", "Younes", "Thquill", "Maciej", "Alexander W", "Billy", "Nithilan"] },
-            { id: "t_min", naam: "Minnesota Timberwolves", kleur: "#2c3e50", spelers: ["Krijn", "Thijmen", "Armin", "Jevell", "Lars", "Stan", "Gilbert"] },
-            { id: "t_den", naam: "Denver Nuggets", kleur: "#2980b9", spelers: ["Dylano", "Kane", "Jamian", "Daveny", "Gustavo", "Alexander P", "Yurliáno"] },
-            { id: "t_san", naam: "San Antonio Spurs", kleur: "#7f8c8d", spelers: ["Mike", "Sjoerd", "Nanih", "Jelle", "Martin", "Atharva"] }
-        ],
-        wedstrijden: [
-            { id: "m9", datum: "8-jun", tijd: "18:00", veld: "Veld A", thuis: "t_cha", uit: "t_min", scoreThuis: null, scoreUit: null },
-            { id: "m10", datum: "8-jun", tijd: "18:00", veld: "Veld B", thuis: "t_den", uit: "t_san", scoreThuis: null, scoreUit: null },
-            { id: "m11", datum: "15-jun", tijd: "18:00", veld: "Veld A", thuis: "t_san", uit: "t_min", scoreThuis: null, scoreUit: null },
-            { id: "m12", datum: "15-jun", tijd: "18:00", veld: "Veld B", thuis: "t_den", uit: "t_cha", scoreThuis: null, scoreUit: null },
-            { id: "m13", datum: "22-jun", tijd: "18:00", veld: "Veld A", thuis: "t_min", uit: "t_den", scoreThuis: null, scoreUit: null },
-            { id: "m14", datum: "22-jun", tijd: "18:00", veld: "Veld B", thuis: "t_cha", uit: "t_san", scoreThuis: null, scoreUit: null },
-            { id: "m15", datum: "29-jun", tijd: "18:00", veld: "Veld A", thuis: "rank_3", uit: "rank_4", scoreThuis: null, scoreUit: null },
-            { id: "m16", datum: "29-jun", tijd: "18:00", veld: "Veld B", thuis: "rank_1", uit: "rank_2", scoreThuis: null, scoreUit: null }
-        ]
-    }
-};
+window.toernooiDB = JSON.parse(localStorage.getItem('blackshots_toernooi')) || {};
+let actieveCompId = null;
+let actieveLiveMatchId = null;
 
-let opgeslagenToernooien = localStorage.getItem('blackshots_toernooi');
-if (opgeslagenToernooien) {
-    window.toernooiDB = JSON.parse(opgeslagenToernooien);
-} else {
-    window.toernooiDB = standaardToernooiDB;
-    localStorage.setItem('blackshots_toernooi', JSON.stringify(window.toernooiDB));
-}
-
-let actieveCompId = Object.keys(window.toernooiDB)[0] || null;
-
+// INIT
 window.vulToernooiSelect = function() {
     let select = document.getElementById('toernooi-select');
     if(!select) return;
@@ -58,15 +12,14 @@ window.vulToernooiSelect = function() {
     
     let keys = Object.keys(window.toernooiDB);
     if(keys.length === 0) {
-        select.innerHTML = `<option value="">-- Geen competities --</option>`;
+        select.innerHTML = `<option value="">-- Geen toernooien --</option>`;
         actieveCompId = null;
     } else {
-        keys.forEach(key => {
-            select.innerHTML += `<option value="${key}">${window.toernooiDB[key].naam}</option>`;
-        });
-        if(!window.toernooiDB[actieveCompId]) actieveCompId = keys[0];
+        keys.forEach(key => { select.innerHTML += `<option value="${key}">${window.toernooiDB[key].naam}</option>`; });
+        if(!actieveCompId || !window.toernooiDB[actieveCompId]) actieveCompId = keys[0];
         select.value = actieveCompId;
     }
+    window.renderToernooi();
 };
 
 window.wisselToernooi = function() {
@@ -75,36 +28,43 @@ window.wisselToernooi = function() {
 };
 
 window.maakNieuweCompetitie = function() {
-    let naam = prompt("Wat is de naam van de nieuwe competitie?");
+    let naam = prompt("Naam van het nieuwe toernooi?");
     if(!naam) return;
-    
     let id = 'comp_' + Date.now();
     window.toernooiDB[id] = { naam: naam, teams: [], wedstrijden: [] };
-    
     actieveCompId = id;
     localStorage.setItem('blackshots_toernooi', JSON.stringify(window.toernooiDB));
     window.vulToernooiSelect();
-    window.renderToernooi();
 };
 
 window.verwijderCompetitie = function() {
     if(!actieveCompId) return;
-    if(confirm(`Weet je zeker dat je "${window.toernooiDB[actieveCompId].naam}" volledig wilt wissen?`)) {
+    if(confirm(`Weet je zeker dat je toernooi "${window.toernooiDB[actieveCompId].naam}" wilt wissen?`)) {
         delete window.toernooiDB[actieveCompId];
+        actieveCompId = null;
         localStorage.setItem('blackshots_toernooi', JSON.stringify(window.toernooiDB));
         window.vulToernooiSelect();
-        window.renderToernooi();
     }
 };
 
+window.toggleShowMode = function() {
+    document.body.classList.toggle('show-mode');
+    if (document.body.classList.contains('show-mode')) {
+        if (document.documentElement.requestFullscreen) {
+            document.documentElement.requestFullscreen().catch(err => console.log("Fullscreen geblokkeerd"));
+        }
+    } else {
+        if (document.exitFullscreen) document.exitFullscreen();
+    }
+};
+
+// --- DATA BEREKENEN ---
 window.berekenStand = function(comp) {
     let stand = {};
     comp.teams.forEach(t => stand[t.id] = { id: t.id, naam: t.naam, kleur: t.kleur, p: 0, w: 0, g: 0, v: 0, voor: 0, tegen: 0, punten: 0 });
 
     comp.wedstrijden.forEach(w => {
-        let isDynamisch = w.type || (w.thuis && w.thuis.startsWith('rank_')) || (w.uit && w.uit.startsWith('rank_'));
-
-        if (!isDynamisch && w.scoreThuis !== null && w.scoreUit !== null && stand[w.thuis] && stand[w.uit]) {
+        if (w.scoreThuis !== null && w.scoreUit !== null && stand[w.thuis] && stand[w.uit]) {
             let st = parseInt(w.scoreThuis); let su = parseInt(w.scoreUit);
             stand[w.thuis].p++; stand[w.uit].p++;
             stand[w.thuis].voor += st; stand[w.thuis].tegen += su;
@@ -115,13 +75,13 @@ window.berekenStand = function(comp) {
             else { stand[w.thuis].g++; stand[w.uit].g++; stand[w.thuis].punten += 1; stand[w.uit].punten += 1; }
         }
     });
-
     return Object.values(stand).sort((a,b) => b.punten - a.punten || (b.voor - b.tegen) - (a.voor - a.tegen));
 };
 
+// --- RENDEREN ---
 window.renderToernooi = function() {
     if (!actieveCompId || !window.toernooiDB[actieveCompId]) {
-        document.getElementById('toernooi-stand').innerHTML = "<p style='color:#7f8c8d; font-style:italic;'>Maak eerst een competitie aan.</p>";
+        document.getElementById('toernooi-stand').innerHTML = "<p>Maak een toernooi aan.</p>";
         document.getElementById('toernooi-schema').innerHTML = "";
         document.getElementById('toernooi-teams').innerHTML = "";
         return;
@@ -129,362 +89,301 @@ window.renderToernooi = function() {
 
     const comp = window.toernooiDB[actieveCompId];
     const berekendeStand = window.berekenStand(comp);
-    
-    let ondertitel = document.getElementById('toernooi-ondertitel');
-    if (ondertitel) {
-        let n = comp.naam.toLowerCase();
-        if (n.includes("jeugd") && !n.includes("ouder")) {
-            ondertitel.innerText = "Lage basket (2,60m) - Balmaat 5 - 4x10 min speeltijd (doorlopend).";
-        } else if (n.includes("ouder") || n.includes("m18") || n.includes("m22")) {
-            ondertitel.innerText = "Normale basket (3,05m) - Balmaat 7 - 4x10 min speeltijd (doorlopend).";
-        } else {
-            ondertitel.innerText = `${comp.teams.length} Teams geregistreerd | ${comp.wedstrijden.length} Wedstrijden gepland.`;
-        }
-    }
-    
+
+    // Schema Selects vullen
     let thuisSelect = document.getElementById('nw_thuis');
     let uitSelect = document.getElementById('nw_uit');
     if(thuisSelect && uitSelect) {
-        let opties = '<option value="">-- Kies Team --</option>';
-        opties += '<optgroup label="Stand (Automatisch)">';
-        opties += '<option value="rank_1">🏆 Nummer 1 (Finale)</option>';
-        opties += '<option value="rank_2">🥈 Nummer 2 (Finale)</option>';
-        opties += '<option value="rank_3">🥉 Nummer 3 (Troost)</option>';
-        opties += '<option value="rank_4">🏅 Nummer 4 (Troost)</option>';
-        opties += '</optgroup><optgroup label="Specifieke Teams">';
+        let opties = '<option value="">-- Team --</option>';
         comp.teams.forEach(t => { opties += `<option value="${t.id}">${t.naam}</option>`; });
-        opties += '</optgroup>';
-        
         thuisSelect.innerHTML = opties; uitSelect.innerHTML = opties;
     }
-    
-    if(comp.teams.length === 0) {
-        document.getElementById('toernooi-stand').innerHTML = "<p style='color:#e74c3c;'>Voeg eerst teams toe in de rechterkolom!</p>";
-    } else {
-        let standHtml = `<table style="width:100%; border-collapse:collapse; text-align:left;">
-            <tr style="border-bottom:2px solid #bdc3c7; color:#7f8c8d;">
-                <th style="padding:8px;">#</th><th style="padding:8px;">Team</th><th style="padding:8px;">Gesp</th>
-                <th style="padding:8px;">W</th><th style="padding:8px;">V</th><th style="padding:8px;">Saldo</th><th style="padding:8px;">Pnt</th>
-            </tr>`;
-        berekendeStand.forEach((team, idx) => {
-            let saldo = team.voor - team.tegen;
-            let saldoKleur = saldo > 0 ? 'green' : (saldo < 0 ? 'red' : 'black');
-            standHtml += `<tr style="border-bottom:1px solid #eee;">
-                <td style="padding:8px; font-weight:bold;">${idx + 1}</td>
-                <td style="padding:8px; font-weight:bold; color:${team.kleur};">${team.naam}</td>
-                <td style="padding:8px;">${team.p}</td><td style="padding:8px;">${team.w}</td><td style="padding:8px;">${team.v}</td>
-                <td style="padding:8px; color:${saldoKleur}; font-weight:bold;">${saldo > 0 ? '+' : ''}${saldo}</td>
-                <td style="padding:8px; font-weight:bold; font-size:1.1rem;">${team.punten}</td>
-            </tr>`;
-        });
-        standHtml += `</table>`;
-        document.getElementById('toernooi-stand').innerHTML = standHtml;
-    }
 
-    let schemaPerDatum = {};
-    comp.wedstrijden.forEach(w => {
-        if(!schemaPerDatum[w.datum]) schemaPerDatum[w.datum] = [];
-        schemaPerDatum[w.datum].push(w);
+    // 1. STAND RENDERN
+    let standHtml = `<table style="width:100%; border-collapse:collapse; text-align:left;">
+        <tr style="border-bottom:2px solid #bdc3c7; color:#7f8c8d; font-size:0.9rem;">
+            <th style="padding:8px;">#</th><th style="padding:8px;">Team</th><th style="padding:8px;">G</th>
+            <th style="padding:8px;">W-V</th><th style="padding:8px;">Saldo</th><th style="padding:8px; font-size:1.1rem; color:black;">Pnt</th>
+        </tr>`;
+    berekendeStand.forEach((team, idx) => {
+        let saldo = team.voor - team.tegen;
+        standHtml += `<tr style="border-bottom:1px solid #eee;">
+            <td style="padding:8px; font-weight:bold;">${idx + 1}</td>
+            <td style="padding:8px; font-weight:bold; color:${team.kleur};">${team.naam}</td>
+            <td style="padding:8px;">${team.p}</td><td style="padding:8px;">${team.w}-${team.v}</td>
+            <td style="padding:8px; color:${saldo >= 0 ? 'green' : 'red'};">${saldo > 0 ? '+' : ''}${saldo}</td>
+            <td style="padding:8px; font-weight:bold; font-size:1.2rem;">${team.punten}</td>
+        </tr>`;
     });
+    document.getElementById('toernooi-stand').innerHTML = standHtml + `</table>`;
 
+    // 2. SCHEMA RENDERN
     let schemaHtml = '';
-    Object.keys(schemaPerDatum).forEach(datum => {
-        schemaHtml += `<div style="margin-bottom:15px;"><strong style="background:#eef2f5; padding:5px 10px; border-radius:4px; display:inline-block; margin-bottom:10px;">🗓️ Speeldag: ${datum}</strong>`;
-        
-        schemaPerDatum[datum].forEach(w => {
-            let teamThuis = "N.n.b.", teamUit = "N.n.b.";
-            let kleurThuis = "#333", kleurUit = "#333";
-            let thuisId = w.thuis; let uitId = w.uit;
+    comp.wedstrijden.forEach(w => {
+        let tThuis = comp.teams.find(t => t.id === w.thuis) || {naam:"N.n.b.", kleur:"#333"};
+        let tUit = comp.teams.find(t => t.id === w.uit) || {naam:"N.n.b.", kleur:"#333"};
+        let scoreT = w.scoreThuis !== null ? w.scoreThuis : '-';
+        let scoreU = w.scoreUit !== null ? w.scoreUit : '-';
 
-            if (w.type === 'finale') { thuisId = 'rank_1'; uitId = 'rank_2'; }
-            else if (w.type === 'troostfinale') { thuisId = 'rank_3'; uitId = 'rank_4'; }
-
-            if (thuisId && thuisId.startsWith('rank_')) {
-                let rank = parseInt(thuisId.split('_')[1]) - 1;
-                if (berekendeStand[rank]) { teamThuis = `[Nr ${rank+1}] ${berekendeStand[rank].naam}`; kleurThuis = berekendeStand[rank].kleur; } 
-                else { teamThuis = `Nr ${rank+1} v.d. Stand`; }
-            } else {
-                let thObj = comp.teams.find(t => t.id === thuisId);
-                if (thObj) { teamThuis = thObj.naam; kleurThuis = thObj.kleur; }
-            }
-
-            if (uitId && uitId.startsWith('rank_')) {
-                let rank = parseInt(uitId.split('_')[1]) - 1;
-                if (berekendeStand[rank]) { teamUit = `[Nr ${rank+1}] ${berekendeStand[rank].naam}`; kleurUit = berekendeStand[rank].kleur; } 
-                else { teamUit = `Nr ${rank+1} v.d. Stand`; }
-            } else {
-                let uiObj = comp.teams.find(t => t.id === uitId);
-                if (uiObj) { teamUit = uiObj.naam; kleurUit = uiObj.kleur; }
-            }
-
-            let scT = w.scoreThuis !== null ? w.scoreThuis : ''; let scU = w.scoreUit !== null ? w.scoreUit : '';
-
-            schemaHtml += `
-                <div style="display:flex; justify-content:space-between; align-items:center; background:#fafafa; padding:10px; border:1px solid #ddd; border-radius:4px; margin-bottom:5px;">
-                    <div style="flex:1; font-size:0.9rem; color:#7f8c8d;">🕒 ${w.tijd}<br>📍 ${w.veld}</div>
-                    <div style="flex:3; display:flex; justify-content:center; align-items:center; gap:10px;">
-                        <strong style="color:${kleurThuis}; text-align:right; flex:1;">${teamThuis}</strong>
-                        <div style="display:flex; align-items:center; gap:5px;">
-                            <input type="number" id="sc_thuis_${w.id}" value="${scT}" style="width:40px; padding:5px; text-align:center; border:1px solid #bdc3c7; border-radius:4px;">
-                            <span>-</span>
-                            <input type="number" id="sc_uit_${w.id}" value="${scU}" style="width:40px; padding:5px; text-align:center; border:1px solid #bdc3c7; border-radius:4px;">
-                        </div>
-                        <strong style="color:${kleurUit}; text-align:left; flex:1;">${teamUit}</strong>
-                    </div>
-                    <div style="flex:1; text-align:right; display:flex; justify-content:flex-end; gap:5px;">
-                        <button onclick="window.slaUitslagOp('${w.id}')" style="background:#27ae60; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; font-weight:bold;">Opslaan</button>
-                        <button onclick="window.verwijderWedstrijd('${w.id}')" style="background:#e74c3c; color:white; border:none; padding:6px; border-radius:4px; cursor:pointer;" title="Wis wedstrijd">X</button>
-                    </div>
-                </div>`;
-        });
-        schemaHtml += `</div>`;
+        schemaHtml += `
+            <div style="background:#fafafa; border:1px solid #ddd; border-left:4px solid ${tThuis.kleur}; border-radius:6px; padding:10px; margin-bottom:10px; display:flex; flex-direction:column; gap:5px;">
+                <div style="display:flex; justify-content:space-between; font-size:0.8rem; color:#7f8c8d;">
+                    <span>🗓️ ${w.datum} | 🕒 ${w.tijd}</span> <span>📍 ${w.veld}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <strong style="flex:1; color:${tThuis.kleur}; font-size:1.1rem;">${tThuis.naam}</strong>
+                    <div style="background:#2c3e50; color:white; padding:5px 15px; border-radius:20px; font-weight:bold; font-size:1.2rem;">${scoreT} - ${scoreU}</div>
+                    <strong style="flex:1; text-align:right; color:${tUit.kleur}; font-size:1.1rem;">${tUit.naam}</strong>
+                </div>
+                <div class="hide-in-show-mode" style="display:flex; justify-content:flex-end; gap:5px; margin-top:5px;">
+                    <button onclick="window.openLiveScore('${w.id}')" style="background:#e67e22; color:white; border:none; padding:6px 12px; border-radius:4px; font-weight:bold; cursor:pointer;">⏱️ Live Score</button>
+                    <button onclick="window.verwijderWedstrijd('${w.id}')" style="background:#e74c3c; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer;">X</button>
+                </div>
+            </div>`;
     });
-    document.getElementById('toernooi-schema').innerHTML = schemaHtml;
+    document.getElementById('toernooi-schema').innerHTML = schemaHtml || "<p style='color:#7f8c8d;'>Nog geen wedstrijden ingepland.</p>";
+
+    // 3. TEAMS & DATABASE SPELERS RENDERN
+    let spelersLijstHtml = '<option value="">-- Voeg clublid toe --</option>';
+    if (window.spelersDB && window.spelersDB.length > 0) {
+        // Sorteer alfabetisch
+        let gesorteerd = [...window.spelersDB].sort((a,b) => a.naam.localeCompare(b.naam));
+        gesorteerd.forEach(s => { spelersLijstHtml += `<option value="${s.id}">${s.naam}</option>`; });
+    } else {
+        spelersLijstHtml = '<option value="">Geen leden in database</option>';
+    }
 
     let teamsHtml = '';
     comp.teams.forEach(t => {
         teamsHtml += `
-            <div style="border:1px solid ${t.kleur}; border-radius:6px; overflow:hidden; background:white; box-shadow:0 2px 4px rgba(0,0,0,0.05); margin-bottom:10px;">
-                <div style="background:${t.kleur}; color:white; padding:10px 15px; display:flex; justify-content:space-between; align-items:center; font-weight:bold; transition:0.2s;">
-                    <span onclick="let c = this.parentElement.nextElementSibling; c.style.display = c.style.display === 'none' ? 'block' : 'none';" style="cursor:pointer; flex:1; font-size:1.1rem;">
-                        ${t.naam} <span style="font-size:0.9rem; font-weight:normal; opacity:0.9;">(${t.spelers.length} spelers) ▼</span>
-                    </span>
-                    <button onclick="window.verwijderToernooiTeam('${t.id}')" style="background:transparent; border:none; color:white; cursor:pointer; font-weight:bold;" title="Verwijder Team">X</button>
+            <div style="border:1px solid ${t.kleur}; border-radius:6px; overflow:hidden;">
+                <div style="background:${t.kleur}; color:white; padding:8px 12px; display:flex; justify-content:space-between; align-items:center; font-weight:bold;">
+                    <span>${t.naam} <span style="font-size:0.8rem; font-weight:normal;">(${t.spelers.length} spelers)</span></span>
+                    <button onclick="window.verwijderToernooiTeam('${t.id}')" style="background:transparent; border:none; color:white; cursor:pointer; font-weight:bold;">X</button>
                 </div>
-                <div style="padding:15px; display:none; background:#fafafa;">
+                <div style="background:#fafafa; padding:10px;">
                     <ul style="list-style:none; padding:0; margin:0 0 10px 0;">`;
-        t.spelers.forEach((speler, pIdx) => {
-            teamsHtml += `<li style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px dashed #bdc3c7; padding:8px 0;">
-                <span style="font-weight:bold; color:#2c3e50;">${speler}</span>
-                <div style="display:flex; gap:8px;">
-                    <select onchange="window.verplaatsSpeler('${t.id}', ${pIdx}, this.value)" style="padding:4px 8px; font-size:0.85rem; border-radius:4px; border:1px solid #95a5a6; cursor:pointer;">
-                        <option value="">-- Wissel --</option>
-                        ${comp.teams.filter(anderTeam => anderTeam.id !== t.id).map(anderTeam => `<option value="${anderTeam.id}">Naar ${anderTeam.naam}</option>`).join('')}
-                    </select>
-                    <button onclick="window.verwijderSpeler('${t.id}', ${pIdx})" style="background:#e74c3c; color:white; border:none; border-radius:4px; cursor:pointer; padding:4px 10px; font-weight:bold;">X</button>
-                </div>
+        
+        t.spelers.forEach((sId, pIdx) => {
+            let sObj = (window.spelersDB || []).find(s => s.id === sId);
+            let weergaveNaam = sObj ? sObj.naam : "Onbekend Lid";
+            teamsHtml += `<li style="display:flex; justify-content:space-between; border-bottom:1px dashed #ccc; padding:4px 0; font-size:0.9rem;">
+                ${weergaveNaam} <button onclick="window.verwijderSpelerUitTeam('${t.id}', ${pIdx})" style="color:red; background:none; border:none; cursor:pointer; font-weight:bold;">x</button>
             </li>`;
         });
+
         teamsHtml += `</ul>
-                    <div style="display:flex; gap:10px; margin-top:15px; border-top:2px solid #eee; padding-top:15px;">
-                        <input type="text" id="nieuw_speler_${t.id}" placeholder="Nieuwe speler toevoegen..." style="flex:1; padding:8px; border:1px solid #bdc3c7; border-radius:4px;">
-                        <button onclick="window.voegToernooiSpelerToe('${t.id}')" style="background:#27ae60; color:white; border:none; padding:8px 15px; border-radius:4px; cursor:pointer; font-weight:bold;">+ Toevoegen</button>
+                    <div style="display:flex; gap:5px;">
+                        <select id="add_speler_${t.id}" style="flex:1; padding:6px; font-size:0.85rem;">${spelersLijstHtml}</select>
+                        <button onclick="window.voegToernooiSpelerToe('${t.id}')" style="background:#27ae60; color:white; border:none; padding:6px 12px; border-radius:4px; font-weight:bold; cursor:pointer;">+</button>
                     </div>
                 </div>
             </div>`;
     });
-    document.getElementById('toernooi-teams').innerHTML = teamsHtml;
+    document.getElementById('toernooi-teams').innerHTML = teamsHtml || "<p style='color:#7f8c8d;'>Maak eerst een toernooiteam aan.</p>";
 };
 
-// --- BERICHT GENEREREN FUNCTIE (JOUW SJABLOON!) ---
-window.genereerBericht = function() {
-    if (!actieveCompId || !window.toernooiDB[actieveCompId]) return;
-    const comp = window.toernooiDB[actieveCompId];
-    
-    let n = comp.naam.toLowerCase();
-    let isOud = n.includes("ouder") || n.includes("m18") || n.includes("m22");
-    
-    // Pas template dynamisch aan op het gekozen toernooi
-    let geboorteJaar = isOud ? "2013 of ouder" : "2014 of eerder";
-    let tijd = comp.wedstrijden.length > 0 ? comp.wedstrijden[0].tijd : "17:00";
-    let basket = isOud ? "normale basket (3,05m)" : "lage basket (2,60m)";
-    let bal = isOud ? "7" : "5";
-    
-    let datums = [...new Set(comp.wedstrijden.map(w => w.datum))];
-    let datumZin = datums.join(', ');
-    let startDatum = datums.length > 0 ? datums[0] : "...";
-
-    // Genereer de HTML tabel voor de Teams en Spelers
-    let teamsHtml = '<table style="width:100%; border-collapse:collapse; margin-bottom:15px; border:1px solid #bdc3c7;"><tr>';
-    comp.teams.forEach(t => teamsHtml += `<th style="padding:8px; background:#f2f2f2; text-align:left; border:1px solid #bdc3c7;">${t.naam}</th>`);
-    teamsHtml += '</tr>';
-    
-    let maxSpelers = Math.max(...comp.teams.map(t => t.spelers.length));
-    for(let i = 0; i < maxSpelers; i++) {
-        teamsHtml += '<tr>';
-        comp.teams.forEach(t => {
-            teamsHtml += `<td style="padding:6px; border:1px solid #bdc3c7;">${t.spelers[i] ? (i+1)+'. '+t.spelers[i] : ''}</td>`;
-        });
-        teamsHtml += '</tr>';
-    }
-    teamsHtml += '</table>';
-
-    // Genereer de HTML tabel voor het Schema
-    let berekendeStand = window.berekenStand(comp);
-    let schemaHtml = '<table style="width:100%; border-collapse:collapse; border:1px solid #bdc3c7;"><tr><th style="padding:8px; border:1px solid #bdc3c7; background:#f2f2f2; text-align:left;">Datum</th><th style="padding:8px; border:1px solid #bdc3c7; background:#f2f2f2; text-align:left;">Thuis</th><th style="padding:8px; border:1px solid #bdc3c7; background:#f2f2f2; text-align:left;">Uit</th><th style="padding:8px; border:1px solid #bdc3c7; background:#f2f2f2; text-align:left;">Tijd</th><th style="padding:8px; border:1px solid #bdc3c7; background:#f2f2f2; text-align:left;">Veld</th></tr>';
-    
-    comp.wedstrijden.forEach(w => {
-        let teamThuis = "N.n.b.", teamUit = "N.n.b.";
-        let thuisId = w.thuis; let uitId = w.uit;
-
-        if (w.type === 'finale') { thuisId = 'rank_1'; uitId = 'rank_2'; }
-        else if (w.type === 'troostfinale') { thuisId = 'rank_3'; uitId = 'rank_4'; }
-
-        if (thuisId && thuisId.startsWith('rank_')) {
-            let rank = parseInt(thuisId.split('_')[1]) - 1;
-            teamThuis = berekendeStand[rank] ? `Nr ${rank+1} (${berekendeStand[rank].naam})` : `Nr ${rank+1}`;
-        } else {
-            let thObj = comp.teams.find(t => t.id === thuisId);
-            if(thObj) teamThuis = thObj.naam;
-        }
-
-        if (uitId && uitId.startsWith('rank_')) {
-            let rank = parseInt(uitId.split('_')[1]) - 1;
-            teamUit = berekendeStand[rank] ? `Nr ${rank+1} (${berekendeStand[rank].naam})` : `Nr ${rank+1}`;
-        } else {
-            let uiObj = comp.teams.find(t => t.id === uitId);
-            if(uiObj) teamUit = uiObj.naam;
-        }
-
-        schemaHtml += `<tr>
-            <td style="padding:6px; border:1px solid #bdc3c7;">${w.datum}</td>
-            <td style="padding:6px; border:1px solid #bdc3c7; font-weight:bold;">${teamThuis}</td>
-            <td style="padding:6px; border:1px solid #bdc3c7;">${teamUit}</td>
-            <td style="padding:6px; border:1px solid #bdc3c7;">${w.tijd}</td>
-            <td style="padding:6px; border:1px solid #bdc3c7;">${w.veld}</td>
-        </tr>`;
-    });
-    schemaHtml += '</table>';
-
-    let emailContent = `
-        <div style="font-family: Arial, sans-serif; font-size: 14px; color: #333; line-height:1.5;">
-            <p>Beste ouders,</p>
-            <p>Op maandag ${startDatum} gaat de interne competitie weer van start!<br>
-            De trainingen van ${datumZin} zien er daarom anders uit. Op deze dagen houden we geen traditionele training, maar spelen we wedstrijden onderling. De teams zijn gemaakt van spelers die geboren zijn in <strong>${geboorteJaar}</strong>.</p>
-            
-            ${teamsHtml}
-            
-            <p>De wedstrijden beginnen om <strong>${tijd}</strong> met 10 minuten warming-up, met vervolgens 4 keer 10 minuten doorlopende speeltijd. Tussen de 1e & 2e en de 3e & 4e periode zit telkens 2 minuten pauze, en tussen de 2e & 3e periode zit 5 minuten pauze.</p>
-            <p>Het eerstgenoemde team is het thuisteam en speelt in het zwart, het tweede team speelt in een andere kleur. De wedstrijden worden gespeeld op de ${basket} en met balmaat ${bal}.</p>
-            
-            ${schemaHtml}
-            
-            <p>Bij vragen hoor ik het graag!</p>
-        </div>
-    `;
-
-    let modal = document.createElement('div');
-    modal.className = 'modal-overlay';
-    modal.style.display = 'flex';
-    modal.innerHTML = `
-        <div class="modal-content" style="max-width:900px; width:95%; max-height:90vh; overflow-y:auto; padding:20px; background:white; border-radius:8px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-                <h2 style="margin:0; color:var(--primary-color);">✉️ Bericht Kopiëren</h2>
-                <button onclick="this.parentElement.parentElement.parentElement.remove()" class="sluit-knop" style="background:transparent; border:none; font-size:1.5rem; cursor:pointer;">X</button>
-            </div>
-            <p style="color:#7f8c8d; margin-bottom:15px;">Klik op de groene knop om alles in één keer te kopiëren. Plak het daarna in Gmail of Outlook (Ctrl+V) en de tabellen komen perfect mee!</p>
-            
-            <button onclick="window.kopieerBericht(this)" style="background:#27ae60; color:white; border:none; padding:12px 20px; border-radius:4px; font-weight:bold; cursor:pointer; margin-bottom:20px; font-size:1.1rem;">📋 Kopieer Bericht naar Klembord</button>
-            
-            <div id="bericht-te-kopieren" style="border: 2px dashed #bdc3c7; padding: 15px; user-select: all; background:#f9f9f9;">
-                ${emailContent}
-            </div>
-        </div>
-    `;
-    document.body.appendChild(modal);
-};
-
-window.kopieerBericht = function(btn) {
-    const div = document.getElementById('bericht-te-kopieren');
-    if (document.body.createTextRange) {
-        const range = document.body.createTextRange();
-        range.moveToElementText(div);
-        range.select();
-    } else if (window.getSelection) {
-        const selection = window.getSelection();
-        const range = document.createRange();
-        range.selectNodeContents(div);
-        selection.removeAllRanges();
-        selection.addRange(range);
-    }
-    try {
-        document.execCommand('copy');
-        let oldText = btn.innerText;
-        btn.innerText = "✅ Succesvol Gekopieerd!";
-        btn.style.background = "#2ecc71";
-        setTimeout(() => { btn.innerText = oldText; btn.style.background = "#27ae60"; }, 2500);
-        window.getSelection().removeAllRanges();
-    } catch (err) {
-        alert("Kopiëren mislukt. Selecteer de tekst handmatig en druk op Ctrl+C.");
-    }
-};
-
+// --- DATA MUTATIES ---
 window.toernooiTeamToevoegen = function() {
-    if(!actieveCompId) return alert("Selecteer of maak eerst een competitie.");
     let naam = document.getElementById('nt_naam').value.trim();
     let kleur = document.getElementById('nt_kleur').value;
     if(!naam) return;
-    window.toernooiDB[actieveCompId].teams.push({ id: 't_' + Date.now(), naam: naam, kleur: kleur, spelers: [] });
+    window.toernooiDB[actieveCompId].teams.push({ id: 'tt_' + Date.now(), naam: naam, kleur: kleur, spelers: [] });
     localStorage.setItem('blackshots_toernooi', JSON.stringify(window.toernooiDB));
     window.renderToernooi();
 };
 
-window.verwijderToernooiTeam = function(teamId) {
-    if(confirm("Weet je zeker dat je dit team wilt verwijderen?")) {
-        window.toernooiDB[actieveCompId].teams = window.toernooiDB[actieveCompId].teams.filter(t => t.id !== teamId);
-        localStorage.setItem('blackshots_toernooi', JSON.stringify(window.toernooiDB));
-        window.renderToernooi();
-    }
-};
-
-window.toernooiWedstrijdToevoegen = function() {
-    if(!actieveCompId) return;
-    let datum = document.getElementById('nw_datum').value.trim();
-    let tijd = document.getElementById('nw_tijd').value;
-    let veld = document.getElementById('nw_veld').value.trim();
-    let thuis = document.getElementById('nw_thuis').value;
-    let uit = document.getElementById('nw_uit').value;
-    if(!datum || !thuis || !uit || thuis === uit) return alert("Vul een datum in en kies twee verschillende teams (of posities uit de stand).");
-    window.toernooiDB[actieveCompId].wedstrijden.push({ id: 'm_' + Date.now(), datum: datum, tijd: tijd, veld: veld, thuis: thuis, uit: uit, scoreThuis: null, scoreUit: null });
+window.verwijderToernooiTeam = function(id) {
+    window.toernooiDB[actieveCompId].teams = window.toernooiDB[actieveCompId].teams.filter(t => t.id !== id);
     localStorage.setItem('blackshots_toernooi', JSON.stringify(window.toernooiDB));
     window.renderToernooi();
-};
-
-window.verwijderWedstrijd = function(matchId) {
-    if(confirm("Wil je deze wedstrijd verwijderen?")) {
-        window.toernooiDB[actieveCompId].wedstrijden = window.toernooiDB[actieveCompId].wedstrijden.filter(w => w.id !== matchId);
-        localStorage.setItem('blackshots_toernooi', JSON.stringify(window.toernooiDB));
-        window.renderToernooi();
-    }
-};
-
-window.slaUitslagOp = function(matchId) {
-    let tThuis = document.getElementById(`sc_thuis_${matchId}`).value;
-    let tUit = document.getElementById(`sc_uit_${matchId}`).value;
-    let match = window.toernooiDB[actieveCompId].wedstrijden.find(w => w.id === matchId);
-    if(match) {
-        match.scoreThuis = tThuis !== "" ? parseInt(tThuis) : null;
-        match.scoreUit = tUit !== "" ? parseInt(tUit) : null;
-        localStorage.setItem('blackshots_toernooi', JSON.stringify(window.toernooiDB));
-        window.renderToernooi();
-    }
 };
 
 window.voegToernooiSpelerToe = function(teamId) {
-    let input = document.getElementById(`nieuw_speler_${teamId}`);
-    if(input.value.trim() !== "") {
-        let team = window.toernooiDB[actieveCompId].teams.find(t => t.id === teamId);
-        team.spelers.push(input.value.trim());
+    let spelerId = document.getElementById(`add_speler_${teamId}`).value;
+    if(!spelerId) return alert("Selecteer een speler uit de lijst.");
+    
+    let team = window.toernooiDB[actieveCompId].teams.find(t => t.id === teamId);
+    if(!team.spelers.includes(spelerId)) {
+        team.spelers.push(spelerId);
         localStorage.setItem('blackshots_toernooi', JSON.stringify(window.toernooiDB));
         window.renderToernooi();
+    } else {
+        alert("Deze speler zit al in dit toernooiteam!");
     }
 };
 
-window.verwijderSpeler = function(teamId, pIdx) {
-    if(confirm("Weet je zeker dat je deze speler wilt verwijderen?")) {
-        let team = window.toernooiDB[actieveCompId].teams.find(t => t.id === teamId);
-        team.spelers.splice(pIdx, 1);
-        localStorage.setItem('blackshots_toernooi', JSON.stringify(window.toernooiDB));
-        window.renderToernooi();
-    }
-};
-
-window.verplaatsSpeler = function(oudTeamId, pIdx, nieuwTeamId) {
-    if(!nieuwTeamId) return;
-    let oudTeam = window.toernooiDB[actieveCompId].teams.find(t => t.id === oudTeamId);
-    let nieuwTeam = window.toernooiDB[actieveCompId].teams.find(t => t.id === nieuwTeamId);
-    let speler = oudTeam.spelers.splice(pIdx, 1)[0];
-    nieuwTeam.spelers.push(speler);
+window.verwijderSpelerUitTeam = function(teamId, index) {
+    let team = window.toernooiDB[actieveCompId].teams.find(t => t.id === teamId);
+    team.spelers.splice(index, 1);
     localStorage.setItem('blackshots_toernooi', JSON.stringify(window.toernooiDB));
+    window.renderToernooi();
+};
+
+window.toernooiWedstrijdToevoegen = function() {
+    let datum = document.getElementById('nw_datum').value || new Date().toLocaleDateString('nl-NL');
+    let tijd = document.getElementById('nw_tijd').value || "18:00";
+    let veld = document.getElementById('nw_veld').value.trim() || "Hoofdveld";
+    let thuis = document.getElementById('nw_thuis').value;
+    let uit = document.getElementById('nw_uit').value;
+    if(!thuis || !uit || thuis === uit) return alert("Kies twee verschillende teams.");
+    
+    window.toernooiDB[actieveCompId].wedstrijden.push({ 
+        id: 'tm_' + Date.now(), datum: datum, tijd: tijd, veld: veld, 
+        thuis: thuis, uit: uit, scoreThuis: null, scoreUit: null, logs: [], playerStats: {}
+    });
+    localStorage.setItem('blackshots_toernooi', JSON.stringify(window.toernooiDB));
+    window.renderToernooi();
+};
+
+window.verwijderWedstrijd = function(id) {
+    if(confirm("Wedstrijd definitief verwijderen?")) {
+        window.toernooiDB[actieveCompId].wedstrijden = window.toernooiDB[actieveCompId].wedstrijden.filter(w => w.id !== id);
+        localStorage.setItem('blackshots_toernooi', JSON.stringify(window.toernooiDB));
+        window.renderToernooi();
+    }
+};
+
+// --- MOBILE-FIRST LIVE SCORE MODULE ---
+window.openLiveScore = function(matchId) {
+    actieveLiveMatchId = matchId;
+    const comp = window.toernooiDB[actieveCompId];
+    const match = comp.wedstrijden.find(w => w.id === matchId);
+    
+    if(match.scoreThuis === null) match.scoreThuis = 0;
+    if(match.scoreUit === null) match.scoreUit = 0;
+    if(!match.logs) match.logs = [];
+    if(!match.playerStats) match.playerStats = {};
+
+    const tThuis = comp.teams.find(t => t.id === match.thuis);
+    const tUit = comp.teams.find(t => t.id === match.uit);
+
+    let thuisOpties = '<option value="">-- Doelpuntmaker --</option>';
+    tThuis.spelers.forEach(sId => { 
+        let s = (window.spelersDB||[]).find(x=>x.id===sId); 
+        if(s) thuisOpties += `<option value="${s.id}">${s.naam}</option>`; 
+    });
+    
+    let uitOpties = '<option value="">-- Doelpuntmaker --</option>';
+    tUit.spelers.forEach(sId => { 
+        let s = (window.spelersDB||[]).find(x=>x.id===sId); 
+        if(s) uitOpties += `<option value="${s.id}">${s.naam}</option>`; 
+    });
+
+    let overlay = `
+        <div id="live-score-overlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:#1a252f; z-index:999999; display:flex; flex-direction:column; overflow-y:auto;">
+            <div style="background:#2c3e50; padding:15px; display:flex; justify-content:space-between; align-items:center; color:white; box-shadow:0 2px 10px rgba(0,0,0,0.5);">
+                <h2 style="margin:0; font-size:1.2rem;">⏱️ Live Match</h2>
+                <button onclick="window.sluitLiveScore()" style="background:#e74c3c; color:white; border:none; padding:10px 20px; border-radius:6px; font-weight:bold; cursor:pointer;">💾 Opslaan & Sluiten</button>
+            </div>
+
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap:10px; padding:15px;">
+                
+                <div style="background:white; border-radius:12px; padding:20px; text-align:center; border-top:8px solid ${tThuis.kleur}; box-shadow:0 4px 10px rgba(0,0,0,0.2);">
+                    <h2 style="margin:0 0 10px 0; color:#333;">${tThuis.naam}</h2>
+                    <div id="ls_score_thuis" style="font-size:6rem; font-weight:bold; color:${tThuis.kleur}; line-height:1;">${match.scoreThuis}</div>
+                    
+                    <div style="display:flex; justify-content:center; gap:10px; margin:20px 0;">
+                        <button onclick="window.addScore('thuis', 1)" style="flex:1; padding:15px; font-size:1.5rem; font-weight:bold; background:#eef2f5; border:none; border-radius:8px; cursor:pointer;">+1</button>
+                        <button onclick="window.addScore('thuis', 2)" style="flex:1; padding:15px; font-size:1.5rem; font-weight:bold; background:#eef2f5; border:none; border-radius:8px; cursor:pointer;">+2</button>
+                        <button onclick="window.addScore('thuis', 3)" style="flex:1; padding:15px; font-size:1.5rem; font-weight:bold; background:#eef2f5; border:none; border-radius:8px; cursor:pointer;">+3</button>
+                    </div>
+                    
+                    <select id="ls_speler_thuis" style="width:100%; padding:12px; font-size:1rem; border-radius:6px; border:2px solid #ddd;">${thuisOpties}</select>
+                </div>
+
+                <div style="background:white; border-radius:12px; padding:20px; text-align:center; border-top:8px solid ${tUit.kleur}; box-shadow:0 4px 10px rgba(0,0,0,0.2);">
+                    <h2 style="margin:0 0 10px 0; color:#333;">${tUit.naam}</h2>
+                    <div id="ls_score_uit" style="font-size:6rem; font-weight:bold; color:${tUit.kleur}; line-height:1;">${match.scoreUit}</div>
+                    
+                    <div style="display:flex; justify-content:center; gap:10px; margin:20px 0;">
+                        <button onclick="window.addScore('uit', 1)" style="flex:1; padding:15px; font-size:1.5rem; font-weight:bold; background:#eef2f5; border:none; border-radius:8px; cursor:pointer;">+1</button>
+                        <button onclick="window.addScore('uit', 2)" style="flex:1; padding:15px; font-size:1.5rem; font-weight:bold; background:#eef2f5; border:none; border-radius:8px; cursor:pointer;">+2</button>
+                        <button onclick="window.addScore('uit', 3)" style="flex:1; padding:15px; font-size:1.5rem; font-weight:bold; background:#eef2f5; border:none; border-radius:8px; cursor:pointer;">+3</button>
+                    </div>
+                    
+                    <select id="ls_speler_uit" style="width:100%; padding:12px; font-size:1rem; border-radius:6px; border:2px solid #ddd;">${uitOpties}</select>
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap:10px; padding:0 15px 15px 15px; color:white;">
+                <div style="background:#34495e; padding:15px; border-radius:8px;">
+                    <h3 style="margin-top:0; border-bottom:1px solid #7f8c8d; padding-bottom:5px;">📝 Wedstrijd Logboek</h3>
+                    <div id="ls_logs" style="height:150px; overflow-y:auto; font-size:0.9rem;"></div>
+                </div>
+                <div style="background:#34495e; padding:15px; border-radius:8px;">
+                    <h3 style="margin-top:0; border-bottom:1px solid #7f8c8d; padding-bottom:5px;">🌟 Topscorers (Deze wedstrijd)</h3>
+                    <div id="ls_stats" style="height:150px; overflow-y:auto; font-size:0.9rem;"></div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('live-score-container').innerHTML = overlay;
+    window.refreshLiveDisplay();
+};
+
+window.addScore = function(zijde, punten) {
+    const comp = window.toernooiDB[actieveCompId];
+    const match = comp.wedstrijden.find(w => w.id === actieveLiveMatchId);
+    
+    let selectId = zijde === 'thuis' ? 'ls_speler_thuis' : 'ls_speler_uit';
+    let spelerId = document.getElementById(selectId).value;
+    let actieTekst = "";
+
+    if (zijde === 'thuis') {
+        match.scoreThuis += punten;
+        actieTekst = `+${punten} Thuis`;
+    } else {
+        match.scoreUit += punten;
+        actieTekst = `+${punten} Uit`;
+    }
+
+    if (spelerId) {
+        let s = window.spelersDB.find(x => x.id === spelerId);
+        if (s) {
+            actieTekst = `+${punten} door ${s.naam}`;
+            match.playerStats[spelerId] = (match.playerStats[spelerId] || 0) + punten;
+        }
+        document.getElementById(selectId).value = ""; // Reset dropdown
+    }
+
+    let tijdNu = new Date().toLocaleTimeString('nl-NL', {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+    match.logs.unshift({ tijd: tijdNu, tekst: actieTekst, stand: `${match.scoreThuis} - ${match.scoreUit}` });
+
+    localStorage.setItem('blackshots_toernooi', JSON.stringify(window.toernooiDB));
+    window.refreshLiveDisplay();
+};
+
+window.refreshLiveDisplay = function() {
+    const match = window.toernooiDB[actieveCompId].wedstrijden.find(w => w.id === actieveLiveMatchId);
+    if(!match) return;
+
+    document.getElementById('ls_score_thuis').innerText = match.scoreThuis;
+    document.getElementById('ls_score_uit').innerText = match.scoreUit;
+
+    let logsHtml = '';
+    match.logs.forEach(l => {
+        logsHtml += `<div style="margin-bottom:5px;"><span style="color:#bdc3c7;">[${l.tijd}]</span> <strong>${l.stand}</strong> : ${l.tekst}</div>`;
+    });
+    document.getElementById('ls_logs').innerHTML = logsHtml || "Nog geen scores.";
+
+    let statsHtml = '';
+    let statsArray = Object.keys(match.playerStats).map(id => ({ id: id, pnt: match.playerStats[id] }));
+    statsArray.sort((a,b) => b.pnt - a.pnt); // Hoogste eerst
+
+    statsArray.forEach(stat => {
+        let s = (window.spelersDB||[]).find(x => x.id === stat.id);
+        let naam = s ? s.naam : "Onbekende speler";
+        statsHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:5px; border-bottom:1px dashed #7f8c8d;">
+            <span>${naam}</span> <strong>${stat.pnt} pnt</strong>
+        </div>`;
+    });
+    document.getElementById('ls_stats').innerHTML = statsHtml || "Geen individuele scores bijgehouden.";
+};
+
+window.sluitLiveScore = function() {
+    document.getElementById('live-score-container').innerHTML = '';
+    actieveLiveMatchId = null;
     window.renderToernooi();
 };
