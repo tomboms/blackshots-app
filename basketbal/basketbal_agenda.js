@@ -1,10 +1,10 @@
-// --- BASKETBAL_AGENDA.JS: KOGELVRIJE AGENDA & PLANNER ---
+// --- BASKETBAL_AGENDA.JS: KOGELVRIJE AGENDA MET GEBRUIKERS RECHTEN ---
 
 let actieveTraining = null;
 let actieveTijdlijn = [];
 let actieveWeekStart = new Date();
 
-// DATA REPARATEUR: Voorkom crashes door oude ID's (zoals 'x10' vs 'x101')
+// DATA REPARATEUR
 if (Array.isArray(window.geplandeTrainingenDB)) {
     let oudeArray = window.geplandeTrainingenDB;
     window.geplandeTrainingenDB = {};
@@ -13,7 +13,6 @@ if (Array.isArray(window.geplandeTrainingenDB)) {
         if (item.opslagSleutel && item.tijdlijn) {
             window.geplandeTrainingenDB[item.opslagSleutel] = item.tijdlijn;
         } else if (item.datum) {
-            // Zeer soepele team match
             let matchTeam = (window.teamsDB || []).find(t => 
                 t.naam === item.titel || t.id === item.titel || (t.id && item.titel && t.id.includes(item.titel))
             );
@@ -73,18 +72,8 @@ function injecteerMooieModals() {
 }
 document.addEventListener('DOMContentLoaded', injecteerMooieModals);
 
-function safeImage(imgStr) {
-    if (!imgStr || imgStr === "null" || imgStr === "undefined" || imgStr.trim() === "") return null;
-    return imgStr;
-}
-
-function zetOpMaandag(dateObj) {
-    let d = new Date(dateObj); 
-    let dag = d.getDay() || 7; 
-    d.setDate(d.getDate() - dag + 1); 
-    d.setHours(0,0,0,0); 
-    return d;
-}
+function safeImage(imgStr) { return (!imgStr || imgStr === "null" || imgStr.trim() === "") ? null : imgStr; }
+function zetOpMaandag(dateObj) { let d = new Date(dateObj); let dag = d.getDay() || 7; d.setDate(d.getDate() - dag + 1); d.setHours(0,0,0,0); return d; }
 actieveWeekStart = zetOpMaandag(actieveWeekStart);
 
 window.getIsoDatumS = function(dateObj) {
@@ -93,58 +82,36 @@ window.getIsoDatumS = function(dateObj) {
 };
 
 window.toonCustomPrompt = function(titel, tekst, placeholder, callback) {
-    document.getElementById('prompt-titel').innerText = titel;
-    document.getElementById('prompt-tekst').innerText = tekst;
-    let input = document.getElementById('prompt-input');
-    input.placeholder = placeholder;
-    input.value = '';
-    
+    document.getElementById('prompt-titel').innerText = titel; document.getElementById('prompt-tekst').innerText = tekst;
+    let input = document.getElementById('prompt-input'); input.placeholder = placeholder; input.value = '';
     let confirmBtn = document.getElementById('prompt-confirm-btn');
-    confirmBtn.onclick = function() {
-        document.getElementById('custom-prompt-modal').style.display = 'none';
-        callback(input.value.trim());
-    };
-    
-    document.getElementById('custom-prompt-modal').style.display = 'flex';
-    input.focus();
+    confirmBtn.onclick = function() { document.getElementById('custom-prompt-modal').style.display = 'none'; callback(input.value.trim()); };
+    document.getElementById('custom-prompt-modal').style.display = 'flex'; input.focus();
 };
 
 window.toonCustomConfirm = function(titel, tekst, knopTekst, callback) {
-    document.getElementById('confirm-titel').innerText = titel;
-    document.getElementById('confirm-tekst').innerText = tekst;
-    
-    let confirmBtn = document.getElementById('confirm-yes-btn');
-    confirmBtn.innerText = knopTekst;
-    confirmBtn.onclick = function() {
-        document.getElementById('custom-confirm-modal').style.display = 'none';
-        callback();
-    };
-    
+    document.getElementById('confirm-titel').innerText = titel; document.getElementById('confirm-tekst').innerText = tekst;
+    let confirmBtn = document.getElementById('confirm-yes-btn'); confirmBtn.innerText = knopTekst;
+    confirmBtn.onclick = function() { document.getElementById('custom-confirm-modal').style.display = 'none'; callback(); };
     document.getElementById('custom-confirm-modal').style.display = 'flex';
 };
 
 window.wisselAgendaView = function(view) {
-    const btnWeek = document.getElementById('btn-view-week'); 
-    const btnTeam = document.getElementById('btn-view-team');
+    const btnWeek = document.getElementById('btn-view-week'); const btnTeam = document.getElementById('btn-view-team');
     if (view === 'week') {
-        btnWeek.style.background = 'var(--primary-color)'; 
-        btnWeek.style.color = 'white';
-        btnTeam.style.background = 'transparent'; 
-        btnTeam.style.color = 'var(--secondary-color)';
+        btnWeek.style.background = 'var(--primary-color)'; btnWeek.style.color = 'white';
+        btnTeam.style.background = 'transparent'; btnTeam.style.color = 'var(--secondary-color)';
         document.getElementById('agenda-week-controls').style.display = 'flex';
         document.getElementById('week-agenda-container').style.display = 'grid';
         document.getElementById('agenda-team-controls').style.display = 'none';
         window.renderWeekAgenda();
     } else {
-        btnTeam.style.background = 'var(--primary-color)'; 
-        btnTeam.style.color = 'white';
-        btnWeek.style.background = 'transparent'; 
-        btnWeek.style.color = 'var(--secondary-color)';
+        btnTeam.style.background = 'var(--primary-color)'; btnTeam.style.color = 'white';
+        btnWeek.style.background = 'transparent'; btnWeek.style.color = 'var(--secondary-color)';
         document.getElementById('agenda-week-controls').style.display = 'none';
         document.getElementById('week-agenda-container').style.display = 'none';
         document.getElementById('agenda-team-controls').style.display = 'flex';
-        window.vulAgendaTeamSelect(); 
-        window.renderTeamAgenda();
+        window.vulAgendaTeamSelect(); window.renderTeamAgenda();
     }
 };
 
@@ -152,7 +119,13 @@ window.vulAgendaTeamSelect = function() {
     const select = document.getElementById('agenda-team-select');
     if (select && select.options.length <= 1) {
         select.innerHTML = '<option value="">-- Kies een team --</option>';
-        window.teamsDB.forEach(t => { select.innerHTML += `<option value="${t.id}">${t.naam}</option>`; });
+        
+        let actieveGebruiker = JSON.parse(localStorage.getItem('bs_actieve_gebruiker')) || {teams:['all']};
+        window.teamsDB.forEach(t => { 
+            // CHECK RECHTEN: Laat alleen toegestane teams zien in de dropdown
+            if(!actieveGebruiker.teams.includes('all') && !actieveGebruiker.teams.includes(t.id)) return;
+            select.innerHTML += `<option value="${t.id}">${t.naam}</option>`; 
+        });
     }
 };
 
@@ -161,41 +134,27 @@ window.renderTeamAgenda = function() {
     const teamId = document.getElementById('agenda-team-select').value;
     container.innerHTML = '';
     
-    if (!teamId) { 
-        container.innerHTML = '<p style="color:#7f8c8d; font-style:italic; padding:20px; text-align:center;">Kies hierboven een team om het trainingsschema te zien.</p>'; 
-        return; 
-    }
+    if (!teamId) { container.innerHTML = '<p style="color:#7f8c8d; font-style:italic; padding:20px; text-align:center;">Kies hierboven een team om het trainingsschema te zien.</p>'; return; }
 
     const team = window.teamsDB.find(t => t.id === teamId);
     if (!team || !team.trainingen || team.trainingen.length === 0) {
-        container.innerHTML = '<div style="background:#fdf2e9; border:1px solid #e67e22; padding:15px; border-radius:6px; color:#d35400;"><strong>Geen trainingstijden!</strong> Ga naar "Teams" om een vaste trainingstijd aan dit team te koppelen.</div>'; 
-        return;
+        container.innerHTML = '<div style="background:#fdf2e9; border:1px solid #e67e22; padding:15px; border-radius:6px; color:#d35400;"><strong>Geen trainingstijden!</strong> Ga naar "Teams" om een vaste trainingstijd aan dit team te koppelen.</div>'; return;
     }
 
-    let startDatum = new Date(); 
-    startDatum.setHours(0,0,0,0);
+    let startDatum = new Date(); startDatum.setHours(0,0,0,0);
     let aankomendeTrainingen = [];
     const dagenMap = {1: "Maandag", 2: "Dinsdag", 3: "Woensdag", 4: "Donderdag", 5: "Vrijdag", 6: "Zaterdag", 7: "Zondag"};
 
     for (let i = 0; i < 60; i++) {
-        let checkDatum = new Date(startDatum); 
-        checkDatum.setDate(checkDatum.getDate() + i);
-        let isoDatum = window.getIsoDatumS(checkDatum); 
-        let dagNummer = checkDatum.getDay() || 7; 
+        let checkDatum = new Date(startDatum); checkDatum.setDate(checkDatum.getDate() + i);
+        let isoDatum = window.getIsoDatumS(checkDatum); let dagNummer = checkDatum.getDay() || 7; 
         
         team.trainingen.forEach(tr => {
             if (parseInt(tr.dag) === parseInt(dagNummer)) {
                 aankomendeTrainingen.push({
-                    datumObj: checkDatum, 
-                    isoDatum: isoDatum,
+                    datumObj: checkDatum, isoDatum: isoDatum,
                     mooieDatum: `${dagenMap[dagNummer]} ${checkDatum.getDate()}-${checkDatum.getMonth()+1}`,
-                    start: tr.start, 
-                    eind: tr.eind, 
-                    zaal: tr.zaal, 
-                    veld: tr.veld || '', 
-                    duur: tr.duur || 90, 
-                    teamId: team.id, 
-                    teamNaam: team.naam
+                    start: tr.start, eind: tr.eind, zaal: tr.zaal, veld: tr.veld || '', duur: tr.duur || 90, teamId: team.id, teamNaam: team.naam
                 });
             }
         });
@@ -234,15 +193,8 @@ window.renderTeamAgenda = function() {
     });
 };
 
-window.veranderWeek = function(dagen) { 
-    actieveWeekStart.setDate(actieveWeekStart.getDate() + dagen); 
-    window.renderWeekAgenda(); 
-};
-
-window.gaNaarHuidigeWeek = function() { 
-    actieveWeekStart = zetOpMaandag(new Date()); 
-    window.renderWeekAgenda(); 
-};
+window.veranderWeek = function(dagen) { actieveWeekStart.setDate(actieveWeekStart.getDate() + dagen); window.renderWeekAgenda(); };
+window.gaNaarHuidigeWeek = function() { actieveWeekStart = zetOpMaandag(new Date()); window.renderWeekAgenda(); };
 
 window.renderWeekAgenda = function() {
     const container = document.getElementById('week-overzicht') || document.getElementById('week-agenda-container');
@@ -252,19 +204,15 @@ window.renderWeekAgenda = function() {
     container.className = 'week-grid'; 
     container.style.display = 'grid';
 
+    let actieveGebruiker = JSON.parse(localStorage.getItem('bs_actieve_gebruiker')) || {teams:['all']};
     const dagenNamen = ["Maandag", "Dinsdag", "Woensdag", "Donderdag", "Vrijdag"];
     
-    let eindVanWeek = new Date(actieveWeekStart); 
-    eindVanWeek.setDate(eindVanWeek.getDate() + 4); 
-    
+    let eindVanWeek = new Date(actieveWeekStart); eindVanWeek.setDate(eindVanWeek.getDate() + 4); 
     let titelEl = document.getElementById('week-titel');
-    if (titelEl) {
-        titelEl.innerText = `Week van ${actieveWeekStart.getDate()}-${actieveWeekStart.getMonth()+1} t/m ${eindVanWeek.getDate()}-${eindVanWeek.getMonth()+1}`;
-    }
+    if (titelEl) titelEl.innerText = `Week van ${actieveWeekStart.getDate()}-${actieveWeekStart.getMonth()+1} t/m ${eindVanWeek.getDate()}-${eindVanWeek.getMonth()+1}`;
 
     for (let i = 0; i < 5; i++) {
-        let datumVoorKolom = new Date(actieveWeekStart); 
-        datumVoorKolom.setDate(datumVoorKolom.getDate() + i);
+        let datumVoorKolom = new Date(actieveWeekStart); datumVoorKolom.setDate(datumVoorKolom.getDate() + i);
         let isoDatum = window.getIsoDatumS(datumVoorKolom);
         let isVandaag = isoDatum === window.getIsoDatumS(new Date());
         let borderStijl = isVandaag ? 'border: 2px solid var(--primary-color);' : 'border: 1px solid var(--border-color);';
@@ -272,19 +220,18 @@ window.renderWeekAgenda = function() {
         const kolom = document.createElement('div'); 
         kolom.className = 'dag-kolom'; 
         kolom.style.cssText += borderStijl;
-        
         kolom.innerHTML = `<div class="dag-titel" style="background:var(--secondary-color); color:white; padding:10px; text-align:center; font-weight:bold;">${dagenNamen[i]} <br><span style="font-size:0.8rem; font-weight:normal;">${datumVoorKolom.getDate()}-${datumVoorKolom.getMonth()+1}</span></div>`;
         
         let trainingenVandaag = [];
         if (Array.isArray(window.teamsDB)) {
             window.teamsDB.forEach(team => {
+                // CHECK RECHTEN: Mag deze ingelogde persoon dit team zien?
+                if(!actieveGebruiker.teams.includes('all') && !actieveGebruiker.teams.includes(team.id)) return;
+
                 if (team.trainingen) {
                     team.trainingen.forEach(tr => { 
                         if (parseInt(tr.dag) === (i + 1)) {
-                            trainingenVandaag.push({ 
-                                teamNaam: team.naam, start: tr.start, eind: tr.eind, 
-                                zaal: tr.zaal, veld: tr.veld || '', duur: tr.duur || 90, teamId: team.id 
-                            }); 
+                            trainingenVandaag.push({ teamNaam: team.naam, start: tr.start, eind: tr.eind, zaal: tr.zaal, veld: tr.veld || '', duur: tr.duur || 90, teamId: team.id }); 
                         }
                     });
                 }
@@ -298,7 +245,6 @@ window.renderWeekAgenda = function() {
             inhoud += `<p style="text-align:center; color:#bdc3c7; font-size:0.9rem; margin-top:20px;">Geen trainingen</p>`;
         } else {
             trainingenVandaag.forEach(tr => {
-                // Hier zocht de agenda op de kapotte oude ID's, dit is nu crash-proof gemaakt
                 let opslagSleutel = `${isoDatum}_${tr.teamId}`;
                 let isGepland = '';
                 
@@ -696,6 +642,8 @@ window.filterPlannerOefeningen = function() {
     lijst.innerHTML = ''; 
     if(progLijst) progLijst.innerHTML = ''; 
     let hasProgressie = false;
+
+    let actieveGebruiker = JSON.parse(localStorage.getItem('bs_actieve_gebruiker')) || {teams:['all']};
 
     let gefilterd = (window.oefeningenDB || []).filter(o => {
         let catText = o.categorieen ? o.categorieen.join(' ').toLowerCase() : '';
