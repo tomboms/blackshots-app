@@ -1,10 +1,10 @@
-// --- BASKETBAL_TOERNOOI.JS: INTERNE COMPETITIE & LIVE SCORE ---
+// --- BASKETBAL_TOERNOOI.JS: INTERNE COMPETITIE (FINALE FIX & MAIL KNOP) ---
 
 window.toernooiDB = JSON.parse(localStorage.getItem('blackshots_toernooi')) || {};
 let actieveCompId = null;
 let actieveLiveMatchId = null;
 
-// INIT & BASIS FUNCTIES
+// --- INIT & MENU ---
 window.vulToernooiSelect = function() {
     let select = document.getElementById('toernooi-select');
     if (!select) return;
@@ -53,45 +53,30 @@ window.verwijderCompetitie = function() {
 window.toggleShowMode = function() {
     document.body.classList.toggle('show-mode');
     if (document.body.classList.contains('show-mode')) {
-        if (document.documentElement.requestFullscreen) {
-            document.documentElement.requestFullscreen().catch(e => console.log(e));
-        }
+        if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(e => console.log(e));
     } else {
-        if (document.exitFullscreen) {
-            document.exitFullscreen().catch(e => console.log(e));
-        }
+        if (document.exitFullscreen) document.exitFullscreen().catch(e => console.log(e));
     }
 };
 
+// --- DATA BEREKENEN ---
 window.berekenStand = function(comp) {
     let stand = {};
     comp.teams.forEach(t => stand[t.id] = { id: t.id, naam: t.naam || 'Onbekend', kleur: t.kleur, p: 0, w: 0, g: 0, v: 0, voor: 0, tegen: 0, punten: 0 });
 
     comp.wedstrijden.forEach(w => {
+        // Zorg dat we alleen echte teams berekenen, geen "Nummer 1" placeholders
         if (w.scoreThuis !== null && w.scoreUit !== null && stand[w.thuis] && stand[w.uit]) {
-            let st = parseInt(w.scoreThuis); 
-            let su = parseInt(w.scoreUit);
-            stand[w.thuis].p++; 
-            stand[w.uit].p++;
-            stand[w.thuis].voor += st; 
-            stand[w.thuis].tegen += su;
-            stand[w.uit].voor += su; 
-            stand[w.uit].tegen += st;
+            let st = parseInt(w.scoreThuis) || 0; 
+            let su = parseInt(w.scoreUit) || 0;
+            
+            stand[w.thuis].p++; stand[w.uit].p++;
+            stand[w.thuis].voor += st; stand[w.thuis].tegen += su;
+            stand[w.uit].voor += su; stand[w.uit].tegen += st;
 
-            if (st > su) { 
-                stand[w.thuis].w++; 
-                stand[w.uit].v++; 
-                stand[w.thuis].punten += 2; 
-            } else if (su > st) { 
-                stand[w.uit].w++; 
-                stand[w.thuis].v++; 
-                stand[w.uit].punten += 2; 
-            } else { 
-                stand[w.thuis].g++; 
-                stand[w.uit].g++; 
-                stand[w.thuis].punten += 1; 
-                stand[w.uit].punten += 1; 
-            }
+            if (st > su) { stand[w.thuis].w++; stand[w.uit].v++; stand[w.thuis].punten += 2; } 
+            else if (su > st) { stand[w.uit].w++; stand[w.thuis].v++; stand[w.uit].punten += 2; } 
+            else { stand[w.thuis].g++; stand[w.uit].g++; stand[w.thuis].punten += 1; stand[w.uit].punten += 1; }
         }
     });
     return Object.values(stand).sort((a,b) => b.punten - a.punten || (b.voor - b.tegen) - (a.voor - a.tegen));
@@ -105,32 +90,93 @@ window.manualScoreChange = function(matchId) {
     
     match.scoreThuis = tVal !== "" ? parseInt(tVal) : null;
     match.scoreUit = uVal !== "" ? parseInt(uVal) : null;
+    
     localStorage.setItem('blackshots_toernooi', JSON.stringify(window.toernooiDB));
     window.renderToernooi();
 };
 
-// --- RENDEREN VAN DE INTERNE COMPETITIE ---
+// --- E-MAIL / WHATSAPP BERICHT GENERATOR ---
+window.genereerToernooiBericht = function() {
+    if (!actieveCompId || !window.toernooiDB[actieveCompId]) return alert("Er is geen toernooi geselecteerd.");
+    
+    const comp = window.toernooiDB[actieveCompId];
+    const berekendeStand = window.berekenStand(comp);
+    
+    let bericht = `🏆 *Update: ${comp.naam}* 🏆\n\n*Actuele Stand:*\n`;
+    berekendeStand.forEach((team, idx) => {
+        bericht += `${idx + 1}. ${team.naam} (${team.punten} pnt | Saldo: ${team.voor - team.tegen})\n`;
+    });
+
+    bericht += `\n*Aankomende Wedstrijden:*\n`;
+    let komendeWedstrijden = comp.wedstrijden.filter(w => w.scoreThuis === null && w.scoreUit === null);
+    
+    if (komendeWedstrijden.length === 0) {
+        bericht += `Er staan momenteel geen wedstrijden op de planning.\n`;
+    } else {
+        // Sorteer op datum en tijd
+        komendeWedstrijden.sort((a, b) => {
+            let parseA = (a.datum||'').split('-').reverse().join('-') + (a.tijd||'');
+            let parseB = (b.datum||'').split('-').reverse().join('-') + (b.tijd||'');
+            return parseA.localeCompare(parseB);
+        });
+
+        // Laat maximaal de komende 5 zien om het bericht leesbaar te houden
+        komendeWedstrijden.slice(0, 5).forEach(w => {
+            let tThuis = comp.teams.find(t => t.id === w.thuis);
+            let naamThuis = tThuis ? tThuis.naam : (w.thuis.startsWith('nr') ? w.thuis.replace('nr', 'Nummer ') : "N.n.b.");
+            
+            let tUit = comp.teams.find(t => t.id === w.uit);
+            let naamUit = tUit ? tUit.naam : (w.uit.startsWith('nr') ? w.uit.replace('nr', 'Nummer ') : "N.n.b.");
+
+            bericht += `📅 ${w.datum} 🕒 ${w.tijd}\n🏀 ${naamThuis} vs ${naamUit} (${w.veld})\n\n`;
+        });
+    }
+    
+    bericht += `Kijk voor meer details op de clubsite!\nGroeten, Black Shots`;
+
+    const dummy = document.createElement("textarea");
+    document.body.appendChild(dummy);
+    dummy.value = bericht;
+    dummy.select();
+    document.execCommand("copy");
+    document.body.removeChild(dummy);
+    
+    alert(`✅ Succes! De stand en komende wedstrijden zijn gekopieerd naar je klembord.\nJe kunt ze nu plakken in WhatsApp of een e-mail.`);
+};
+
+// --- HOOFD RENDERER ---
 window.renderToernooi = function() {
     if (!actieveCompId || !window.toernooiDB[actieveCompId]) {
-        document.getElementById('toernooi-stand').innerHTML = "<p>Maak een toernooi aan.</p>";
-        document.getElementById('toernooi-schema').innerHTML = "";
-        document.getElementById('toernooi-teams').innerHTML = "";
+        if(document.getElementById('toernooi-stand')) document.getElementById('toernooi-stand').innerHTML = "<p>Maak een toernooi aan.</p>";
+        if(document.getElementById('toernooi-schema')) document.getElementById('toernooi-schema').innerHTML = "";
+        if(document.getElementById('toernooi-teams')) document.getElementById('toernooi-teams').innerHTML = "";
         return;
     }
 
     const comp = window.toernooiDB[actieveCompId];
     const berekendeStand = window.berekenStand(comp);
 
+    // FIX: Toevoegen van de FINALES (Nr 1 vs Nr 2) aan de dropdown
     let thuisSelect = document.getElementById('nw_thuis');
     let uitSelect = document.getElementById('nw_uit');
     if (thuisSelect && uitSelect) {
         let opties = '<option value="">-- Team --</option>';
         comp.teams.forEach(t => { opties += `<option value="${t.id}">${t.naam || 'Onbekend'}</option>`; });
+        
+        opties += `
+            <optgroup label="Finales & Plaatsing">
+                <option value="nr1">🏆 Nummer 1 (Stand)</option>
+                <option value="nr2">🥈 Nummer 2 (Stand)</option>
+                <option value="nr3">🥉 Nummer 3 (Stand)</option>
+                <option value="nr4">🏅 Nummer 4 (Stand)</option>
+            </optgroup>
+        `;
+        
         thuisSelect.innerHTML = opties; 
         uitSelect.innerHTML = opties;
     }
 
-    // 1. STAND RENDERN (LINKS)
+    // 1. STAND RENDERN
     let standHtml = `<table style="width:100%; border-collapse:collapse; text-align:left;">
         <tr style="border-bottom:2px solid #bdc3c7; color:#7f8c8d; font-size:0.9rem;">
             <th style="padding:8px;">#</th><th style="padding:8px;">Team</th><th style="padding:8px;">G</th>
@@ -149,7 +195,7 @@ window.renderToernooi = function() {
     standHtml += `</table>`;
     if(document.getElementById('toernooi-stand')) document.getElementById('toernooi-stand').innerHTML = standHtml;
 
-    // 2. SCHEMA RENDERN (GEGROEPEERD ONDERAAN)
+    // 2. SCHEMA RENDERN (GEGROEPEERD OP DATUM)
     let schemaHtml = '';
     let matchenPerDatum = {};
 
@@ -172,8 +218,26 @@ window.renderToernooi = function() {
             schemaHtml += `<h4 style="background:var(--secondary-color); color:white; padding:8px 15px; border-radius:4px; margin-top:20px; margin-bottom:10px;">🗓️ Speeldag: ${datum}</h4>`;
             
             matchenPerDatum[datum].sort((a,b) => (a.tijd||'').localeCompare(b.tijd||'')).forEach(w => {
-                let tThuis = comp.teams.find(t => t.id === w.thuis) || {naam:"N.n.b.", kleur:"#333"};
-                let tUit = comp.teams.find(t => t.id === w.uit) || {naam:"N.n.b.", kleur:"#333"};
+                
+                // FIX: Koppel de juiste namen en kleuren, ook voor de Finales!
+                let tThuis = comp.teams.find(t => t.id === w.thuis);
+                if(!tThuis) {
+                    if (w.thuis === 'nr1') tThuis = { naam: "🏆 Nummer 1", kleur: "#f1c40f" };
+                    else if (w.thuis === 'nr2') tThuis = { naam: "🥈 Nummer 2", kleur: "#95a5a6" };
+                    else if (w.thuis === 'nr3') tThuis = { naam: "🥉 Nummer 3", kleur: "#d35400" };
+                    else if (w.thuis === 'nr4') tThuis = { naam: "🏅 Nummer 4", kleur: "#3498db" };
+                    else tThuis = { naam: "N.n.b.", kleur: "#333" };
+                }
+
+                let tUit = comp.teams.find(t => t.id === w.uit);
+                if(!tUit) {
+                    if (w.uit === 'nr1') tUit = { naam: "🏆 Nummer 1", kleur: "#f1c40f" };
+                    else if (w.uit === 'nr2') tUit = { naam: "🥈 Nummer 2", kleur: "#95a5a6" };
+                    else if (w.uit === 'nr3') tUit = { naam: "🥉 Nummer 3", kleur: "#d35400" };
+                    else if (w.uit === 'nr4') tUit = { naam: "🏅 Nummer 4", kleur: "#3498db" };
+                    else tUit = { naam: "N.n.b.", kleur: "#333" };
+                }
+
                 let scT = w.scoreThuis !== null ? w.scoreThuis : '';
                 let scU = w.scoreUit !== null ? w.scoreUit : '';
 
@@ -201,7 +265,7 @@ window.renderToernooi = function() {
     }
     if(document.getElementById('toernooi-schema')) document.getElementById('toernooi-schema').innerHTML = schemaHtml;
 
-    // 3. TEAMS RENDERN (RECHTS)
+    // 3. TEAMS RENDERN
     let spelersLijstHtml = '<option value="">-- Voeg clublid toe --</option>';
     if (window.spelersDB && window.spelersDB.length > 0) {
         let gesorteerd = [...window.spelersDB].sort((a,b) => (a.naam || '').localeCompare(b.naam || ''));
@@ -238,7 +302,6 @@ window.renderToernooi = function() {
     if(document.getElementById('toernooi-teams')) document.getElementById('toernooi-teams').innerHTML = teamsHtml || "<p style='color:#7f8c8d;'>Maak eerst een toernooiteam aan.</p>";
 };
 
-// --- DATA MUTATIES ---
 window.toernooiTeamToevoegen = function() {
     let naam = document.getElementById('nt_naam').value.trim();
     let kleur = document.getElementById('nt_kleur').value;
@@ -299,7 +362,7 @@ window.verwijderWedstrijd = function(id) {
     }
 };
 
-// --- HIER IS DE LIVE SCORE MODULE WEER TERUG! ---
+// --- LIVE SCORE MODULE ---
 window.openLiveScore = function(matchId) {
     actieveLiveMatchId = matchId;
     const comp = window.toernooiDB[actieveCompId];
