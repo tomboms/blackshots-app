@@ -111,7 +111,7 @@ window.autoUpload = async function(key, value) {
 
 window.forceerCloudCheck = async function() {
     if (!navigator.onLine || window.isDownloading) return;
-    const onderdelen = ['blackshots_teams', 'blackshots_spelers', 'blackshots_oefeningen', 'blackshots_toernooi', 'blackshots_trainingen'];
+    const onderdelen = ['blackshots_teams', 'blackshots_spelers', 'blackshots_oefeningen', 'blackshots_toernooi', 'blackshots_trainingen', 'blackshots_gebruikers'];
     window.isDownloading = true;
 
     let heeftNieuweData = false;

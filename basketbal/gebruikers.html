@@ -17,32 +17,32 @@
         <div class="card" style="border-top-color:#9b59b6;">
             <h3 style="margin-top:0; color:var(--secondary-color);">➕ Nieuwe Medewerker / Trainer Toevoegen</h3>
             <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:15px;">
-                <input type="text" id="g_naam" placeholder="Naam (bijv. Marc)" style="flex:1; min-width:150px;">
-                <input type="text" id="g_ww" placeholder="Wachtwoord..." style="flex:1; min-width:150px;">
-                <select id="g_rol" style="flex:1; min-width:150px;">
+                <input type="text" id="g_naam" placeholder="Gebruikersnaam (bijv. Lotfi)" style="flex:1; min-width:150px; padding:10px; border:1px solid #ccc; border-radius:4px;">
+                <input type="text" id="g_ww" placeholder="Wachtwoord..." style="flex:1; min-width:150px; padding:10px; border:1px solid #ccc; border-radius:4px;">
+                <select id="g_rol" style="flex:1; min-width:150px; padding:10px; border:1px solid #ccc; border-radius:4px;">
                     <option value="trainer">🏀 Trainer / Coach</option>
                     <option value="bestuur">💼 Bestuurslid / Secretaris</option>
                     <option value="admin">👑 Hoofdbeheerder (Admin)</option>
                 </select>
-                <button onclick="voegGebruikerToe()" class="primary-btn" style="background:#9b59b6;">Toevoegen</button>
+                <button onclick="window.voegGebruikerToe()" class="primary-btn" style="background:#9b59b6; padding:10px 20px;">Aanmaken</button>
             </div>
         </div>
 
         <div class="card">
-            <h3 style="margin-top:0; color:var(--secondary-color);">👥 Actieve Accounts & Rechten</h3>
+            <h3 style="margin-top:0; color:var(--secondary-color); margin-bottom:20px;">👥 Actieve Accounts & Rechten</h3>
             <div id="gebruikers-lijst-container"></div>
         </div>
     </main>
 
+    <script src="basketbal_auth.js"></script>
     <script src="basketbal_data.js"></script>
     <script>
-        // Check of de ingelogde persoon wel admin is, anders direct wegtrappen
-        let checkUser = JSON.parse(localStorage.getItem('bs_actieve_gebruiker'));
-        if(!checkUser || checkUser.rol !== 'admin') {
+        let ingelogdeGebruiker = JSON.parse(localStorage.getItem('bs_actieve_gebruiker'));
+        if(!ingelogdeGebruiker || ingelogdeGebruiker.rol !== 'admin') {
             window.location.href = '../index.html';
         }
 
-        function renderGebruikers() {
+        window.renderGebruikers = function() {
             let gebruikers = JSON.parse(localStorage.getItem('blackshots_gebruikers')) || [];
             let container = document.getElementById('gebruikers-lijst-container');
             if(!container) return;
@@ -50,57 +50,62 @@
             container.innerHTML = '';
 
             gebruikers.forEach((g, index) => {
-                if(g.id === 'tom') return; // Verberg jezelf voor veiligheid
+                let isMijzelf = (g.id === ingelogdeGebruiker.id);
+                let deleteBtn = isMijzelf ? `<span style="color:#7f8c8d; font-size:0.85rem; font-weight:bold;">🔒 Huidig Account</span>` : `<button onclick="window.verwijderGebruiker(${index})" style="background:#e74c3c; color:white; border:none; padding:6px 12px; border-radius:4px; font-weight:bold; cursor:pointer;">⚠️ Wissen</button>`;
 
-                let teamVinkjes = '';
+                let randKleur = g.rol === 'admin' ? '#f1c40f' : (g.rol === 'bestuur' ? '#9b59b6' : '#3498db');
+
+                let teamVinkjes = '<div style="display:flex; flex-wrap:wrap; gap:8px;">';
                 window.teamsDB.forEach(t => {
-                    let isChecked = g.teams.includes('all') || g.teams.includes(t.id) ? 'checked' : '';
+                    let isChecked = (g.teams.includes('all') || g.teams.includes(t.id)) ? 'checked' : '';
                     let disabled = g.teams.includes('all') ? 'disabled' : '';
                     teamVinkjes += `
-                        <label style="display:inline-flex; align-items:center; margin-right:12px; font-size:0.85rem; background:#eef2f5; padding:4px 8px; border-radius:4px; margin-bottom:5px;">
-                            <input type="checkbox" ${isChecked} ${disabled} onchange="toggleTeamRecht(${index}, '${t.id}', this.checked)" style="margin-right:4px;"> ${t.naam}
+                        <label style="display:inline-flex; align-items:center; font-size:0.85rem; background:#eef2f5; padding:6px 10px; border-radius:6px; border:1px solid #bdc3c7;">
+                            <input type="checkbox" ${isChecked} ${disabled} onchange="window.toggleTeamRecht(${index}, '${t.id}', this.checked)" style="margin-right:6px;"> ${t.naam}
                         </label>`;
                 });
+                teamVinkjes += '</div>';
 
                 let paginaOpties = [
                     {id:'dashboard', n:'📊 Dashboard'}, {id:'agenda', n:'📅 Agenda'}, 
-                    {id:'team', n:'👥 Teams'}, {id:'spelers', n:'👤 Spelers database'}, 
-                    {id:'oefeningen', n:'📋 Oefeningen'}, {id:'toernooien', n:'🏆 Interne Competitie'}
+                    {id:'team', n:'👥 Teams'}, {id:'spelers', n:'👤 Spelers'}, 
+                    {id:'oefeningen', n:'📋 Oefeningen'}, {id:'toernooien', n:'🏆 Interne Competitie'}, {id:'gebruikers', n:'🔐 Trainer Beheer'}
                 ];
 
-                let paginaVinkjes = '';
+                let paginaVinkjes = '<div style="display:flex; flex-wrap:wrap; gap:8px;">';
                 paginaOpties.forEach(p => {
-                    let isChecked = g.paginas.includes('all') || g.paginas.includes(p.id) ? 'checked' : '';
+                    let isChecked = (g.paginas.includes('all') || g.paginas.includes(p.id)) ? 'checked' : '';
                     let disabled = g.paginas.includes('all') ? 'disabled' : '';
                     paginaVinkjes += `
-                        <label style="display:inline-flex; align-items:center; margin-right:12px; font-size:0.85rem; background:#eaf2f8; padding:4px 8px; border-radius:4px; margin-bottom:5px;">
-                            <input type="checkbox" ${isChecked} ${disabled} onchange="togglePaginaRecht(${index}, '${p.id}', this.checked)" style="margin-right:4px;"> ${p.n}
+                        <label style="display:inline-flex; align-items:center; font-size:0.85rem; background:#eaf2f8; padding:6px 10px; border-radius:6px; border:1px solid #aed6f1;">
+                            <input type="checkbox" ${isChecked} ${disabled} onchange="window.togglePaginaRecht(${index}, '${p.id}', this.checked)" style="margin-right:6px;"> ${p.n}
                         </label>`;
                 });
+                paginaVinkjes += '</div>';
 
                 container.innerHTML += `
-                    <div style="border:1px solid #ddd; border-radius:8px; padding:15px; margin-bottom:15px; background:#fafafa; border-left:5px solid #34495e;">
-                        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eee; padding-bottom:8px; margin-bottom:10px;">
-                            <div>
-                                <strong style="font-size:1.1rem; color:var(--secondary-color);">${g.naam}</strong> 
-                                <span style="background:#bdc3c7; padding:2px 6px; border-radius:4px; font-size:0.75rem; font-weight:bold; text-transform:uppercase; margin-left:5px;">Rol: ${g.rol}</span>
+                    <div style="border:1px solid #ddd; border-radius:8px; padding:20px; margin-bottom:20px; background:#fafafa; border-left:6px solid ${randKleur}; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
+                        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eee; padding-bottom:12px; margin-bottom:15px;">
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                <strong style="font-size:1.3rem; color:var(--secondary-color);">${g.naam}</strong> 
+                                <span style="background:${randKleur}; color:white; padding:3px 8px; border-radius:12px; font-size:0.75rem; font-weight:bold; text-transform:uppercase;">${g.rol}</span>
                             </div>
-                            <button onclick="verwijderGebruiker(${index})" style="background:none; border:none; color:#e74c3c; font-weight:bold; cursor:pointer;">⚠️ Account Wissen</button>
+                            ${deleteBtn}
                         </div>
                         
-                        <div style="margin-bottom:10px;">
-                            <strong style="display:block; font-size:0.85rem; color:#7f8c8d; margin-bottom:5px;">Toegestane Onderdelen (Pagina's):</strong>
-                            ${g.rol === 'admin' ? '<span style="color:#27ae60; font-weight:bold; font-size:0.9rem;">👑 Heeft overal toegang toe</span>' : paginaVinkjes}
+                        <div style="margin-bottom:15px;">
+                            <strong style="display:block; font-size:0.95rem; color:#34495e; margin-bottom:8px;">Toegestane Pagina's:</strong>
+                            ${paginaVinkjes}
                         </div>
 
                         <div>
-                            <strong style="display:block; font-size:0.85rem; color:#7f8c8d; margin-bottom:5px;">Ziet data van welke teams:</strong>
-                            ${g.rol === 'admin' || g.rol === 'bestuur' ? '<span style="color:#2980b9; font-weight:bold; font-size:0.9rem;">💼 Ziet alle clubteams</span>' : teamVinkjes}
+                            <strong style="display:block; font-size:0.95rem; color:#34495e; margin-bottom:8px;">Ziet data van deze teams:</strong>
+                            ${teamVinkjes}
                         </div>
                     </div>
                 `;
             });
-        }
+        };
 
         window.voegGebruikerToe = function() {
             let naam = document.getElementById('g_naam').value.trim();
@@ -110,6 +115,11 @@
             if(!naam || !ww) return alert("Vul een naam and wachtwoord in.");
 
             let gebruikers = JSON.parse(localStorage.getItem('blackshots_gebruikers')) || [];
+            
+            // Controleer of de naam al bestaat
+            if (gebruikers.find(g => g.id === naam.toLowerCase().replace(/[^a-z0-9]/g, ''))) {
+                return alert("Deze gebruikersnaam bestaat al!");
+            }
             
             let nw = {
                 id: naam.toLowerCase().replace(/[^a-z0-9]/g, ''),
@@ -126,15 +136,15 @@
             document.getElementById('g_naam').value = '';
             document.getElementById('g_ww').value = '';
             
-            renderGebruikers();
+            window.renderGebruikers();
         };
 
         window.verwijderGebruiker = function(index) {
-            if(confirm("Account definitief intrekken?")) {
+            if(confirm("Weet je zeker dat je dit account definitief wilt intrekken?")) {
                 let gebruikers = JSON.parse(localStorage.getItem('blackshots_gebruikers')) || [];
                 gebruikers.splice(index, 1);
                 localStorage.setItem('blackshots_gebruikers', JSON.stringify(gebruikers));
-                renderGebruikers();
+                window.renderGebruikers();
             }
         };
 
@@ -162,7 +172,8 @@
             localStorage.setItem('blackshots_gebruikers', JSON.stringify(gebruikers));
         };
 
-        renderGebruikers();
+        // Start met tekenen
+        setTimeout(() => window.renderGebruikers(), 200);
     </script>
 </body>
 </html>
