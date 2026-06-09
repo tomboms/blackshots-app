@@ -1,4 +1,4 @@
-// --- BASKETBAL_TEAM.JS: KOGELVRIJE LOGICA VOOR TEAM BEHEER ---
+// --- BASKETBAL_TEAM.JS: KOGELVRIJE LOGICA VOOR TEAM BEHEER MET REC ONDERAAN ---
 
 window.renderTeamBeheer = function() {
     try {
@@ -8,25 +8,32 @@ window.renderTeamBeheer = function() {
         let lijstHTML = '';
         const dagenMap = {1: "Maandag", 2: "Dinsdag", 3: "Woensdag", 4: "Donderdag", 5: "Vrijdag"};
 
-        // Veiligheidscheck: Zorg dat de databases in ieder geval bestaan
         if (!Array.isArray(window.teamsDB)) window.teamsDB = [];
         if (!Array.isArray(window.spelersDB)) window.spelersDB = [];
 
         window.teamsDB.forEach((team, index) => {
-            if (!team) return; // Sla corrupte lege teams over
+            if (!team) return;
 
-            // Veilig spelers ophalen
+            // Veilig spelers ophalen voor dit specifieke team
             let teamSpelers = window.spelersDB.filter(s => {
                 if (!s) return false;
                 return s.teamId === team.id || (team.naam && s.teamId === team.naam);
             });
 
+            // AUTOMATISCHE TEAM-SORTERING: Recreanten (REC) rollen altijd naar beneden!
+            teamSpelers.sort((a, b) => {
+                let aRec = a.isRecreant === true || (a.clubLidmaatschap && a.clubLidmaatschap.toLowerCase().includes('rec'));
+                let bRec = b.isRecreant === true || (b.clubLidmaatschap && b.clubLidmaatschap.toLowerCase().includes('rec'));
+                if (aRec && !bRec) return 1;   // a is recreant, dus onder b zetten
+                if (!aRec && bRec) return -1;  // b is recreant, dus a boven b zetten
+                return a.naam.localeCompare(b.naam);
+            });
+
             let spelersHtml = '';
             if (teamSpelers.length > 0) {
                 teamSpelers.forEach(speler => {
-                    // Check of het een recreant is
-                    let recBadge = speler.isRecreant || (speler.clubLidmaatschap && speler.clubLidmaatschap.toLowerCase().includes('rec')) 
-                        ? `<span style="background:#f1c40f; color:#2c3e50; padding:2px 4px; border-radius:3px; font-size:0.7rem; margin-left:4px;">REC</span>` : '';
+                    let isRec = speler.isRecreant === true || (speler.clubLidmaatschap && speler.clubLidmaatschap.toLowerCase().includes('rec'));
+                    let recBadge = isRec ? `<span style="background:#f1c40f; color:#2c3e50; padding:2px 4px; border-radius:3px; font-size:0.7rem; margin-left:4px; font-weight:bold; border:1px solid #e67e22;">REC</span>` : '';
                     
                     spelersHtml += `
                         <span style="display:inline-flex; align-items:center; background:#eef2f5; padding:6px 12px; border-radius:20px; font-size:0.9rem; margin-right:8px; margin-bottom:8px; font-weight:bold; color:var(--secondary-color); border:1px solid #bdc3c7;">
@@ -35,9 +42,10 @@ window.renderTeamBeheer = function() {
                         </span>
                     `;
                 });
+            } else {
+                spelersHtml = '<span style="color:#bdc3c7; font-style:italic; font-size:0.9rem;">Geen spelers in dit team. Voeg ze toe via de Spelers-pagina of importeer de bonds-CSV.</span>';
             }
 
-            // Veilig trainingen ophalen
             let trainingenHtml = '';
             if (Array.isArray(team.trainingen) && team.trainingen.length > 0) {
                 team.trainingen.forEach((tr, trIndex) => {
@@ -52,7 +60,6 @@ window.renderTeamBeheer = function() {
                 trainingenHtml = '<span style="color:#bdc3c7; font-style:italic; font-size:0.85rem;">Geen vaste tijden.</span>';
             }
 
-            // HTML Kaart opbouwen
             lijstHTML += `
                 <li style="background:white; border-radius:8px; border:1px solid var(--border-color); overflow:hidden; box-shadow:0 2px 4px rgba(0,0,0,0.05); margin-bottom: 20px;">
                     <div style="background:#fafafa; padding:15px 20px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
@@ -99,14 +106,11 @@ window.renderTeamBeheer = function() {
         lijst.innerHTML = lijstHTML;
 
     } catch(error) {
-        // Mocht er toch iets fout gaan, dan print hij dit op het scherm in plaats van te crashen
         console.error("Fout tijdens renderen teams:", error);
         let lijst = document.getElementById('team-beheer-lijst');
-        if (lijst) lijst.innerHTML = `<li style="padding:20px; color:red; font-weight:bold;">Er is een fout opgetreden bij het laden van de teams. Bekijk de console voor details.</li>`;
+        if (lijst) lijst.innerHTML = `<li style="padding:20px; color:red; font-weight:bold;">Er is een fout opgetreden bij het laden van de teams.</li>`;
     }
 };
-
-// --- ACTIE FUNCTIES ---
 
 window.bewerkTeam = function(index) {
     let team = window.teamsDB[index];
@@ -202,7 +206,7 @@ window.snelleTrainingToevoegen = function(teamIndex) {
 
     let startParts = start.split(':');
     let startMin = parseInt(startParts[0]) * 60 + parseInt(startParts[1]);
-    let eindMin = startMin + 90; // 90 minuten duur
+    let eindMin = startMin + 90;
 
     let eindUur = Math.floor(eindMin / 60);
     let eindRestMin = eindMin % 60;

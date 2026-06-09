@@ -1,4 +1,4 @@
-// --- BASKETBAL_SPELERS.JS: LOGICA VOOR LEDENBESTAND, FILTERS & SLIMME CSV IMPORT ---
+// --- BASKETBAL_SPELERS.JS: LEDENBESTAND MET AUTOMATISCHE REC-SORTERING ONDERAAN ---
 
 window.renderSpelers = function() {
     const tbody = document.getElementById('spelers-tabel-body');
@@ -26,8 +26,19 @@ window.renderSpelers = function() {
 
     let html = '';
 
-    window.spelersDB.forEach((speler, index) => {
-        // Bepaal of het een recreant is (via nieuwe isRecreant tag OF via de text van sportlink)
+    // Maak een tijdelijke kopie inclusief de originele index voor acties (bewerken/verwijderen)
+    let gesorteerdeSpelers = window.spelersDB.map((speler, index) => ({ ...speler, origineleIndex: index }));
+
+    // AUTOMATISCHE SORTERING: Wedstrijdspelers eerst, Recreanten ALTIJD onderaan!
+    gesorteerdeSpelers.sort((a, b) => {
+        let aRec = a.isRecreant === true || (a.clubLidmaatschap && a.clubLidmaatschap.toLowerCase().includes('rec'));
+        let bRec = b.isRecreant === true || (b.clubLidmaatschap && b.clubLidmaatschap.toLowerCase().includes('rec'));
+        if (aRec && !bRec) return 1;   // a is recreant, dus moet onder b
+        if (!aRec && bRec) return -1;  // b is recreant, dus a moet boven b
+        return a.naam.localeCompare(b.naam); // Als type gelijk is, sorteer alfabetisch op naam
+    });
+
+    gesorteerdeSpelers.forEach((speler) => {
         let isRec = speler.isRecreant === true || (speler.clubLidmaatschap && speler.clubLidmaatschap.toLowerCase().includes('rec'));
 
         let teamNaam = "Vrije Speler";
@@ -47,14 +58,13 @@ window.renderSpelers = function() {
             }
         }
 
-        // --- FILTER LOGICA ---
+        // --- FILTER MATCHING ---
         let passTeam = (selTeam === 'all') || (selTeam === matchTeamId);
         let passType = (selType === 'all') || (selType === 'recreant' && isRec) || (selType === 'wedstrijd' && !isRec);
         let matchText = `${speler.naam} ${speler.bondsnummer || ''} ${teamNaam} ${speler.clubLidmaatschap || ''} ${speler.bondLidmaatschap || ''}`.toLowerCase();
         let passSearch = matchText.includes(zoekterm);
 
         if (passTeam && passType && passSearch) {
-            // Recreant Badge
             let recBadge = isRec ? `<span style="background:#f1c40f; color:#2c3e50; padding:2px 6px; border-radius:4px; font-size:0.7rem; font-weight:bold; margin-left:5px; border:1px solid #e67e22;">REC</span>` : '';
 
             html += `
@@ -72,8 +82,8 @@ window.renderSpelers = function() {
                         <div style="color:#7f8c8d; font-style:italic;">${speler.bondLidmaatschap || '-'}</div>
                     </td>
                     <td style="padding:12px;">
-                        <button onclick="window.bewerkSpeler(${index})" style="background:#f39c12; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:0.8rem; margin-right:5px;">✏️</button>
-                        <button onclick="window.verwijderSpeler(${index})" style="background:#e74c3c; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:0.8rem;">X</button>
+                        <button onclick="window.bewerkSpeler(${speler.origineleIndex})" style="background:#f39c12; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:0.8rem; margin-right:5px;">✏️</button>
+                        <button onclick="window.verwijderSpeler(${speler.origineleIndex})" style="background:#e74c3c; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:0.8rem;">X</button>
                     </td>
                 </tr>
             `;
@@ -87,6 +97,7 @@ window.renderSpelers = function() {
 // --- BEWERK SPELER ---
 window.bewerkSpeler = function(index) {
     let speler = window.spelersDB[index];
+    if(!speler) return;
     
     let nwNaam = prompt("Pas de naam aan:", speler.naam);
     if (nwNaam === null) return;
@@ -157,7 +168,7 @@ window.verwijderSpeler = function(index) {
     }
 };
 
-// --- DE SLIMME BOND CSV PARSER (MET RECREANTEN LOGICA) ---
+// --- DE SLIMME BOND CSV PARSER ---
 window.importeerBondCSV = function(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -199,7 +210,6 @@ window.importeerBondCSV = function(event) {
 
             let bondsnummer = row[idxBondsnummer] ? row[idxBondsnummer].trim() : "";
             
-            // Leeftijd berekenen
             let berekendeLeeftijd = "-";
             let gebDatumStr = row[idxGeboorte] ? row[idxGeboorte].trim() : "";
             if (gebDatumStr) {
@@ -218,18 +228,14 @@ window.importeerBondCSV = function(event) {
             let nwBondLid = idxBondLid !== -1 && row[idxBondLid] ? row[idxBondLid].trim() : "";
             let nwRugnummer = idxRugnr !== -1 && row[idxRugnr] ? row[idxRugnr].trim() : "";
 
-            // DE RECREANTEN CHECK: Zit het woord 'rec' of 'recreant' in de strings?
             let isRec = nwClubLid.toLowerCase().includes('rec') || ruwTeam.toLowerCase().includes('rec');
-            
-            // SCHOON TEAM OP: Haal 'Rec-' of 'Recreanten ' uit de tekst zodat 'Rec-X10' matcht met 'X10'
             let opgeschoondTeam = ruwTeam.replace(/rec\s*-?\s*/i, '').replace(/recreanten\s*-?\s*/i, '').trim();
 
-            // Zoek een match in de database (Bijv. CSV zegt "X10", App zegt "X10-1")
             let matchTeamObj = window.teamsDB.find(t => 
                 t.id.toLowerCase() === opgeschoondTeam.toLowerCase() || 
                 t.naam.toLowerCase().includes(opgeschoondTeam.toLowerCase())
             );
-            let finalTeamId = matchTeamObj ? matchTeamObj.id : opgeschoondTeam; // Anders gewoon de platte tekst opslaan
+            let finalTeamId = matchTeamObj ? matchTeamObj.id : opgeschoondTeam;
 
             let bestaandeSpeler = window.spelersDB.find(s => 
                 (bondsnummer !== "" && s.bondsnummer === bondsnummer) || 
