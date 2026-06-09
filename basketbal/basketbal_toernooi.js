@@ -1,4 +1,4 @@
-// --- BASKETBAL_TOERNOOI.JS: INTERNE COMPETITIE (FINALE FIX & MAIL KNOP) ---
+// --- BASKETBAL_TOERNOOI.JS: INTERNE COMPETITIE (FINALE FIX, MAIL PREVIEW & SORTERING) ---
 
 window.toernooiDB = JSON.parse(localStorage.getItem('blackshots_toernooi')) || {};
 let actieveCompId = null;
@@ -65,18 +65,20 @@ window.berekenStand = function(comp) {
     comp.teams.forEach(t => stand[t.id] = { id: t.id, naam: t.naam || 'Onbekend', kleur: t.kleur, p: 0, w: 0, g: 0, v: 0, voor: 0, tegen: 0, punten: 0 });
 
     comp.wedstrijden.forEach(w => {
-        // Zorg dat we alleen echte teams berekenen, geen "Nummer 1" placeholders
-        if (w.scoreThuis !== null && w.scoreUit !== null && stand[w.thuis] && stand[w.uit]) {
+        // Bereken alleen als het échte teams zijn (geen "nr1" placeholders tenzij ze omgezet zijn)
+        let thuisId = w.thuis; let uitId = w.uit;
+
+        if (w.scoreThuis !== null && w.scoreUit !== null && stand[thuisId] && stand[uitId]) {
             let st = parseInt(w.scoreThuis) || 0; 
             let su = parseInt(w.scoreUit) || 0;
             
-            stand[w.thuis].p++; stand[w.uit].p++;
-            stand[w.thuis].voor += st; stand[w.thuis].tegen += su;
-            stand[w.uit].voor += su; stand[w.uit].tegen += st;
+            stand[thuisId].p++; stand[uitId].p++;
+            stand[thuisId].voor += st; stand[thuisId].tegen += su;
+            stand[uitId].voor += su; stand[uitId].tegen += st;
 
-            if (st > su) { stand[w.thuis].w++; stand[w.uit].v++; stand[w.thuis].punten += 2; } 
-            else if (su > st) { stand[w.uit].w++; stand[w.thuis].v++; stand[w.uit].punten += 2; } 
-            else { stand[w.thuis].g++; stand[w.uit].g++; stand[w.thuis].punten += 1; stand[w.uit].punten += 1; }
+            if (st > su) { stand[thuisId].w++; stand[uitId].v++; stand[thuisId].punten += 2; } 
+            else if (su > st) { stand[uitId].w++; stand[thuisId].v++; stand[uitId].punten += 2; } 
+            else { stand[thuisId].g++; stand[uitId].g++; stand[thuisId].punten += 1; stand[uitId].punten += 1; }
         }
     });
     return Object.values(stand).sort((a,b) => b.punten - a.punten || (b.voor - b.tegen) - (a.voor - a.tegen));
@@ -95,53 +97,95 @@ window.manualScoreChange = function(matchId) {
     window.renderToernooi();
 };
 
-// --- E-MAIL / WHATSAPP BERICHT GENERATOR ---
+// --- SLIMME TEAM RESOLVER VOOR DE FINALES ---
+function getTeamWeergave(teamId, actueleStand, alleTeams) {
+    if (teamId === 'nr1') return actueleStand[0] ? { naam: `(Nr 1) ${actueleStand[0].naam}`, kleur: '#f1c40f' } : { naam: "(Nr 1) N.n.b.", kleur: '#f1c40f' };
+    if (teamId === 'nr2') return actueleStand[1] ? { naam: `(Nr 2) ${actueleStand[1].naam}`, kleur: '#95a5a6' } : { naam: "(Nr 2) N.n.b.", kleur: '#95a5a6' };
+    if (teamId === 'nr3') return actueleStand[2] ? { naam: `(Nr 3) ${actueleStand[2].naam}`, kleur: '#d35400' } : { naam: "(Nr 3) N.n.b.", kleur: '#d35400' };
+    if (teamId === 'nr4') return actueleStand[3] ? { naam: `(Nr 4) ${actueleStand[3].naam}`, kleur: '#3498db' } : { naam: "(Nr 4) N.n.b.", kleur: '#3498db' };
+    
+    let t = alleTeams.find(x => x.id === teamId);
+    return t ? { naam: t.naam, kleur: t.kleur } : { naam: "N.n.b.", kleur: "#333" };
+}
+
+// --- SLIMME DATUM PARSER (Fix voor '8-jun' vs '2026-06-08') ---
+function slimmeDatumSorteerder(dStr) {
+    if (!dStr) return 0;
+    // Formaat: 2026-06-08
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dStr)) return new Date(dStr).getTime();
+    
+    // Formaat: 8-jun
+    let maanden = { 'jan':1, 'feb':2, 'mrt':3, 'apr':4, 'mei':5, 'jun':6, 'jul':7, 'aug':8, 'sep':9, 'okt':10, 'nov':11, 'dec':12 };
+    let delen = dStr.toLowerCase().split('-');
+    if (delen.length === 2 && maanden[delen[1]]) {
+        return new Date(new Date().getFullYear(), maanden[delen[1]] - 1, parseInt(delen[0])).getTime();
+    }
+    
+    // Fallback
+    return new Date(dStr).getTime() || 0;
+}
+
+// --- E-MAIL / WHATSAPP BERICHT GENERATOR (MET PREVIEW MODAL) ---
 window.genereerToernooiBericht = function() {
     if (!actieveCompId || !window.toernooiDB[actieveCompId]) return alert("Er is geen toernooi geselecteerd.");
     
     const comp = window.toernooiDB[actieveCompId];
     const berekendeStand = window.berekenStand(comp);
     
-    let bericht = `🏆 *Update: ${comp.naam}* 🏆\n\n*Actuele Stand:*\n`;
+    let bericht = `Beste ouders en spelers,\n\nHier is de actuele update voor de interne competitie: *${comp.naam}*! 🏆\n\n*📊 De Huidige Stand:*\n`;
     berekendeStand.forEach((team, idx) => {
-        bericht += `${idx + 1}. ${team.naam} (${team.punten} pnt | Saldo: ${team.voor - team.tegen})\n`;
+        bericht += `${idx + 1}. ${team.naam} - ${team.punten} pnt (Saldo: ${team.voor - team.tegen})\n`;
     });
 
-    bericht += `\n*Aankomende Wedstrijden:*\n`;
+    bericht += `\n*📅 Komende Wedstrijden:*\n`;
     let komendeWedstrijden = comp.wedstrijden.filter(w => w.scoreThuis === null && w.scoreUit === null);
     
     if (komendeWedstrijden.length === 0) {
         bericht += `Er staan momenteel geen wedstrijden op de planning.\n`;
     } else {
-        // Sorteer op datum en tijd
-        komendeWedstrijden.sort((a, b) => {
-            let parseA = (a.datum||'').split('-').reverse().join('-') + (a.tijd||'');
-            let parseB = (b.datum||'').split('-').reverse().join('-') + (b.tijd||'');
-            return parseA.localeCompare(parseB);
-        });
+        // Sorteer wedstrijden voor het bericht
+        komendeWedstrijden.sort((a, b) => slimmeDatumSorteerder(a.datum) - slimmeDatumSorteerder(b.datum));
 
-        // Laat maximaal de komende 5 zien om het bericht leesbaar te houden
-        komendeWedstrijden.slice(0, 5).forEach(w => {
-            let tThuis = comp.teams.find(t => t.id === w.thuis);
-            let naamThuis = tThuis ? tThuis.naam : (w.thuis.startsWith('nr') ? w.thuis.replace('nr', 'Nummer ') : "N.n.b.");
-            
-            let tUit = comp.teams.find(t => t.id === w.uit);
-            let naamUit = tUit ? tUit.naam : (w.uit.startsWith('nr') ? w.uit.replace('nr', 'Nummer ') : "N.n.b.");
-
-            bericht += `📅 ${w.datum} 🕒 ${w.tijd}\n🏀 ${naamThuis} vs ${naamUit} (${w.veld})\n\n`;
+        komendeWedstrijden.slice(0, 8).forEach(w => {
+            let tThuis = getTeamWeergave(w.thuis, berekendeStand, comp.teams);
+            let tUit = getTeamWeergave(w.uit, berekendeStand, comp.teams);
+            bericht += `🗓️ ${w.datum} om 🕒 ${w.tijd}\n🏀 ${tThuis.naam} vs ${tUit.naam} (${w.veld})\n\n`;
         });
     }
     
-    bericht += `Kijk voor meer details op de clubsite!\nGroeten, Black Shots`;
+    bericht += `We zien jullie graag op het veld!\nGroeten, Coach Tom & Black Shots`;
 
-    const dummy = document.createElement("textarea");
-    document.body.appendChild(dummy);
-    dummy.value = bericht;
-    dummy.select();
+    // Bouw de Preview Modal als deze nog niet bestaat
+    let modal = document.getElementById('mail-preview-modal');
+    if (!modal) {
+        let mDiv = document.createElement('div');
+        mDiv.id = 'mail-preview-modal';
+        mDiv.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); display:none; justify-content:center; align-items:center; z-index:999999; backdrop-filter:blur(3px);';
+        mDiv.innerHTML = `
+            <div style="background:white; padding:25px; border-radius:12px; width:90%; max-width:600px; box-shadow:0 10px 30px rgba(0,0,0,0.3); border-top:6px solid #3498db;">
+                <h2 style="margin-top:0; color:var(--secondary-color);">✉️ Bericht Voorbeeld</h2>
+                <p style="color:#7f8c8d; font-size:0.9rem;">Pas de tekst hieronder aan indien nodig, en klik daarna op kopiëren.</p>
+                <textarea id="mail-preview-tekst" style="width:100%; height:300px; padding:10px; border-radius:6px; border:1px solid #bdc3c7; font-family:inherit; resize:vertical;"></textarea>
+                <div style="display:flex; gap:10px; margin-top:15px;">
+                    <button onclick="document.getElementById('mail-preview-modal').style.display='none'" style="flex:1; padding:12px; border:none; border-radius:6px; font-weight:bold; cursor:pointer; background:#ecf0f1; color:#7f8c8d;">Annuleren</button>
+                    <button onclick="window.kopieerMailTekst()" style="flex:1; padding:12px; border:none; border-radius:6px; font-weight:bold; cursor:pointer; background:#27ae60; color:white;">📋 Kopieer & Sluit</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(mDiv);
+        modal = mDiv;
+    }
+
+    document.getElementById('mail-preview-tekst').value = bericht;
+    modal.style.display = 'flex';
+};
+
+window.kopieerMailTekst = function() {
+    let tekstArea = document.getElementById('mail-preview-tekst');
+    tekstArea.select();
     document.execCommand("copy");
-    document.body.removeChild(dummy);
-    
-    alert(`✅ Succes! De stand en komende wedstrijden zijn gekopieerd naar je klembord.\nJe kunt ze nu plakken in WhatsApp of een e-mail.`);
+    document.getElementById('mail-preview-modal').style.display = 'none';
+    alert("✅ Succes! Het bericht is gekopieerd naar je klembord.");
 };
 
 // --- HOOFD RENDERER ---
@@ -156,7 +200,6 @@ window.renderToernooi = function() {
     const comp = window.toernooiDB[actieveCompId];
     const berekendeStand = window.berekenStand(comp);
 
-    // FIX: Toevoegen van de FINALES (Nr 1 vs Nr 2) aan de dropdown
     let thuisSelect = document.getElementById('nw_thuis');
     let uitSelect = document.getElementById('nw_uit');
     if (thuisSelect && uitSelect) {
@@ -195,7 +238,7 @@ window.renderToernooi = function() {
     standHtml += `</table>`;
     if(document.getElementById('toernooi-stand')) document.getElementById('toernooi-stand').innerHTML = standHtml;
 
-    // 2. SCHEMA RENDERN (GEGROEPEERD OP DATUM)
+    // 2. SCHEMA RENDERN (GEGROEPEERD OP DATUM & GESORTEERD)
     let schemaHtml = '';
     let matchenPerDatum = {};
 
@@ -205,38 +248,20 @@ window.renderToernooi = function() {
         matchenPerDatum[d].push(w);
     });
 
-    let gesorteerdeDatums = Object.keys(matchenPerDatum).sort((a,b) => {
-        let parseA = a.split('-').reverse().join('-');
-        let parseB = b.split('-').reverse().join('-');
-        return parseA.localeCompare(parseB);
-    });
+    let gesorteerdeDatums = Object.keys(matchenPerDatum).sort((a,b) => slimmeDatumSorteerder(a) - slimmeDatumSorteerder(b));
 
     if (gesorteerdeDatums.length === 0) {
         schemaHtml = "<p style='color:#7f8c8d;'>Nog geen wedstrijden ingepland.</p>";
     } else {
         gesorteerdeDatums.forEach(datum => {
+            // Mooie datum aanduiding
             schemaHtml += `<h4 style="background:var(--secondary-color); color:white; padding:8px 15px; border-radius:4px; margin-top:20px; margin-bottom:10px;">🗓️ Speeldag: ${datum}</h4>`;
             
             matchenPerDatum[datum].sort((a,b) => (a.tijd||'').localeCompare(b.tijd||'')).forEach(w => {
                 
-                // FIX: Koppel de juiste namen en kleuren, ook voor de Finales!
-                let tThuis = comp.teams.find(t => t.id === w.thuis);
-                if(!tThuis) {
-                    if (w.thuis === 'nr1') tThuis = { naam: "🏆 Nummer 1", kleur: "#f1c40f" };
-                    else if (w.thuis === 'nr2') tThuis = { naam: "🥈 Nummer 2", kleur: "#95a5a6" };
-                    else if (w.thuis === 'nr3') tThuis = { naam: "🥉 Nummer 3", kleur: "#d35400" };
-                    else if (w.thuis === 'nr4') tThuis = { naam: "🏅 Nummer 4", kleur: "#3498db" };
-                    else tThuis = { naam: "N.n.b.", kleur: "#333" };
-                }
-
-                let tUit = comp.teams.find(t => t.id === w.uit);
-                if(!tUit) {
-                    if (w.uit === 'nr1') tUit = { naam: "🏆 Nummer 1", kleur: "#f1c40f" };
-                    else if (w.uit === 'nr2') tUit = { naam: "🥈 Nummer 2", kleur: "#95a5a6" };
-                    else if (w.uit === 'nr3') tUit = { naam: "🥉 Nummer 3", kleur: "#d35400" };
-                    else if (w.uit === 'nr4') tUit = { naam: "🏅 Nummer 4", kleur: "#3498db" };
-                    else tUit = { naam: "N.n.b.", kleur: "#333" };
-                }
+                // Haal de echte teamnamen/kleuren op (Inclusief Finale oplossers!)
+                let tThuis = getTeamWeergave(w.thuis, berekendeStand, comp.teams);
+                let tUit = getTeamWeergave(w.uit, berekendeStand, comp.teams);
 
                 let scT = w.scoreThuis !== null ? w.scoreThuis : '';
                 let scU = w.scoreUit !== null ? w.scoreUit : '';
@@ -367,17 +392,30 @@ window.openLiveScore = function(matchId) {
     actieveLiveMatchId = matchId;
     const comp = window.toernooiDB[actieveCompId];
     const match = comp.wedstrijden.find(w => w.id === matchId);
+    const berekendeStand = window.berekenStand(comp);
     
     if (match.scoreThuis === null) match.scoreThuis = 0;
     if (match.scoreUit === null) match.scoreUit = 0;
     if (!match.logs) match.logs = [];
     if (!match.playerStats) match.playerStats = {};
 
-    const tThuis = comp.teams.find(t => t.id === match.thuis) || { naam: "Thuis", kleur: "#333", spelers: [] };
-    const tUit = comp.teams.find(t => t.id === match.uit) || { naam: "Uit", kleur: "#333", spelers: [] };
+    const tThuis = getTeamWeergave(match.thuis, berekendeStand, comp.teams);
+    const tUit = getTeamWeergave(match.uit, berekendeStand, comp.teams);
+
+    // Zoek de originele teams op in de array om de spelers voor het dropdown menu te krijgen
+    let origineelThuis = comp.teams.find(t => t.id === match.thuis) || { spelers: [] };
+    let origineelUit = comp.teams.find(t => t.id === match.uit) || { spelers: [] };
+
+    // Als het een "Nummer 1" placeholder was, moeten we de spelers pakken van het team dat daadwerkelijk op plek 1 staat
+    if (match.thuis.startsWith('nr') && berekendeStand[parseInt(match.thuis.replace('nr','')) - 1]) {
+        origineelThuis = comp.teams.find(t => t.id === berekendeStand[parseInt(match.thuis.replace('nr','')) - 1].id) || { spelers: [] };
+    }
+    if (match.uit.startsWith('nr') && berekendeStand[parseInt(match.uit.replace('nr','')) - 1]) {
+        origineelUit = comp.teams.find(t => t.id === berekendeStand[parseInt(match.uit.replace('nr','')) - 1].id) || { spelers: [] };
+    }
 
     let thuisOpties = '<option value="">-- Doelpuntmaker --</option>';
-    tThuis.spelers.forEach(sId => { 
+    origineelThuis.spelers.forEach(sId => { 
         let s = (window.spelersDB||[]).find(x => x.id === sId || x.naam === sId); 
         let weergaveNaam = s ? s.naam : sId;
         let valId = s ? s.id : sId;
@@ -385,7 +423,7 @@ window.openLiveScore = function(matchId) {
     });
     
     let uitOpties = '<option value="">-- Doelpuntmaker --</option>';
-    tUit.spelers.forEach(sId => { 
+    origineelUit.spelers.forEach(sId => { 
         let s = (window.spelersDB||[]).find(x => x.id === sId || x.naam === sId); 
         let weergaveNaam = s ? s.naam : sId;
         let valId = s ? s.id : sId;
