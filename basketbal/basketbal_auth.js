@@ -22,19 +22,27 @@ window.checkBeveiliging = function() {
         return;
     }
 
-    // Wel ingelogd? Pas de pagina aan!
-    document.addEventListener('DOMContentLoaded', () => {
-        
-        // --- A. Welkomstbericht & Uitloggen ---
+    const pasPaginaAan = () => {
+        // --- A. Welkomstbericht & Knoppen Opschonen ---
         let navH1 = document.querySelector('.top-nav h1');
-        if (navH1) {
-            // Geef een leuk icoontje op basis van de rol
+        let topNav = document.querySelector('.top-nav');
+
+        // Voorkom dubbele welkomstteksten
+        if (navH1 && !document.getElementById('welkom-badge')) {
             let rolBadge = actieveGebruiker.rol === 'admin' ? '👑' : (actieveGebruiker.rol === 'bestuur' ? '💼' : '🏀');
-            
-            navH1.innerHTML += ` <span style="font-size:0.8rem; background:rgba(255,255,255,0.2); padding:5px 12px; border-radius:15px; margin-left:20px; vertical-align:middle; font-weight:normal; letter-spacing:0.5px;">Welkom, ${actieveGebruiker.naam} ${rolBadge}</span>`;
-            
-            // Maak de uitlog knop
+            navH1.innerHTML += ` <span id="welkom-badge" style="font-size:0.8rem; background:rgba(255,255,255,0.2); padding:5px 12px; border-radius:15px; margin-left:20px; vertical-align:middle; font-weight:normal; letter-spacing:0.5px;">Welkom, ${actieveGebruiker.naam} ${rolBadge}</span>`;
+        }
+
+        // Verberg de oude hard-coded 'Terug' knop (omdat we nu Uitloggen hebben)
+        let terugKnop = document.querySelector('.terug-knop');
+        if (terugKnop) {
+            terugKnop.style.display = 'none';
+        }
+
+        // Voorkom dubbele 'Uitloggen' knoppen door hem een vast ID te geven
+        if (topNav && !document.getElementById('dynamische-uitlog-knop')) {
             const uitlogBtn = document.createElement('button');
+            uitlogBtn.id = 'dynamische-uitlog-knop';
             uitlogBtn.innerHTML = '🚪 Uitloggen';
             uitlogBtn.style.cssText = 'background:#e74c3c; color:white; border:none; padding:8px 15px; border-radius:6px; cursor:pointer; font-weight:bold; margin-left:auto; box-shadow:0 2px 4px rgba(0,0,0,0.1); transition:0.2s;';
             uitlogBtn.onmouseover = () => uitlogBtn.style.background = '#c0392b';
@@ -42,9 +50,9 @@ window.checkBeveiliging = function() {
             uitlogBtn.onclick = function() {
                 localStorage.removeItem('bs_actieve_gebruiker');
                 localStorage.removeItem('bs_rol');
-                window.location.href = '../index.html';
+                window.location.href = '../index.html'; // Terug naar login scherm
             };
-            document.querySelector('.top-nav').appendChild(uitlogBtn);
+            topNav.appendChild(uitlogBtn);
         }
 
         // --- B. Menu Filteren op Rechten ---
@@ -57,7 +65,6 @@ window.checkBeveiliging = function() {
                     let onclickTekst = knop.getAttribute('onclick') || '';
                     
                     actieveGebruiker.paginas.forEach(p => {
-                        // Kijkt of de knop verwijst naar een pagina die hij mag zien (bijv. 'agenda.html')
                         if (onclickTekst.includes(p + '.html')) magZien = true;
                     });
 
@@ -73,8 +80,15 @@ window.checkBeveiliging = function() {
         if (actieveGebruiker.rol !== 'admin') {
             document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
         }
-    });
+    };
+
+    // Voer direct uit als de pagina al geladen is, wacht anders een tel
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', pasPaginaAan);
+    } else {
+        pasPaginaAan();
+    }
 };
 
-// Start de beveiligingscheck direct bij het inladen van het script
+// Start de beveiligingscheck
 window.checkBeveiliging();
