@@ -1,5 +1,50 @@
-// --- BASKETBAL_AGENDA.JS: LOGICA VOOR WEEKROOSTER & PLANNER ---
+// --- BASKETBAL_AGENDA.JS: LOGICA VOOR WEEKROOSTER & PLANNER MET MOOIE MODALS ---
 
+// 1. INJECTEER PRACHTIGE POP-UPS IN DE HTML
+function injecteerMooieModals() {
+    if (document.getElementById('custom-prompt-modal')) return;
+    const style = document.createElement('style');
+    style.innerHTML = `
+        .mooie-modal { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); display:none; justify-content:center; align-items:center; z-index:999999; backdrop-filter:blur(3px); }
+        .mooie-modal-content { background:white; padding:25px; border-radius:12px; width:90%; max-width:400px; box-shadow:0 10px 30px rgba(0,0,0,0.3); text-align:center; animation:popIn 0.3s ease-out; }
+        @keyframes popIn { from { transform:scale(0.8); opacity:0; } to { transform:scale(1); opacity:1; } }
+        .mooie-input { width:100%; padding:12px; margin:15px 0; border:2px solid #bdc3c7; border-radius:6px; font-size:1rem; box-sizing:border-box; }
+        .mooie-input:focus { border-color:#3498db; outline:none; }
+        .mooie-btn-groep { display:flex; gap:10px; justify-content:center; }
+        .mooie-btn { flex:1; padding:12px; border:none; border-radius:6px; font-weight:bold; cursor:pointer; font-size:1rem; transition:0.2s; }
+        .btn-cancel { background:#ecf0f1; color:#7f8c8d; } .btn-cancel:hover { background:#bdc3c7; }
+        .btn-confirm { background:#3498db; color:white; } .btn-confirm:hover { background:#2980b9; }
+    `;
+    document.head.appendChild(style);
+
+    const modalsHtml = `
+        <div id="custom-prompt-modal" class="mooie-modal">
+            <div class="mooie-modal-content">
+                <h2 id="prompt-titel" style="margin-top:0; color:#2c3e50;">Titel</h2>
+                <p id="prompt-tekst" style="color:#7f8c8d; font-size:0.95rem;">Tekst</p>
+                <input type="text" id="prompt-input" class="mooie-input">
+                <div class="mooie-btn-groep">
+                    <button class="mooie-btn btn-cancel" onclick="document.getElementById('custom-prompt-modal').style.display='none'">Annuleren</button>
+                    <button id="prompt-confirm-btn" class="mooie-btn btn-confirm">OK</button>
+                </div>
+            </div>
+        </div>
+        <div id="custom-confirm-modal" class="mooie-modal">
+            <div class="mooie-modal-content">
+                <h2 id="confirm-titel" style="margin-top:0; color:#2c3e50;">Titel</h2>
+                <p id="confirm-tekst" style="color:#7f8c8d; font-size:0.95rem; margin-bottom:20px;">Tekst</p>
+                <div class="mooie-btn-groep">
+                    <button class="mooie-btn btn-cancel" onclick="document.getElementById('custom-confirm-modal').style.display='none'">Annuleren</button>
+                    <button id="confirm-yes-btn" class="mooie-btn btn-confirm" style="background:#e74c3c;">Ja</button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalsHtml);
+}
+document.addEventListener('DOMContentLoaded', injecteerMooieModals);
+
+// 2. BASIS VARIABELEN
 let actieveTraining = null;
 let actieveTijdlijn = [];
 let actieveWeekStart = new Date();
@@ -20,7 +65,7 @@ window.getIsoDatumS = function(dateObj) {
     return (new Date(dateObj - tzOffset)).toISOString().slice(0, 10);
 };
 
-// --- CUSTOM MODALS ---
+// 3. ROEP DE NIEUWE MOOIE MODALS AAN
 window.toonCustomPrompt = function(titel, tekst, placeholder, callback) {
     document.getElementById('prompt-titel').innerText = titel;
     document.getElementById('prompt-tekst').innerText = tekst;
@@ -52,7 +97,7 @@ window.toonCustomConfirm = function(titel, tekst, knopTekst, callback) {
     document.getElementById('custom-confirm-modal').style.display = 'flex';
 };
 
-// --- AGENDA WEERGAVE LOGICA ---
+// 4. AGENDA WEERGAVE LOGICA
 window.wisselAgendaView = function(view) {
     const btnWeek = document.getElementById('btn-view-week'); const btnTeam = document.getElementById('btn-view-team');
     if (view === 'week') {
@@ -88,7 +133,7 @@ window.renderTeamAgenda = function() {
 
     const team = window.teamsDB.find(t => t.id === teamId);
     if (!team || !team.trainingen || team.trainingen.length === 0) {
-        container.innerHTML = '<div style="background:#fdf2e9; border:1px solid #e67e22; padding:15px; border-radius:6px; color:#d35400;"><strong>Geen trainingstijden!</strong> Ga naar "⚙️ Instellingen" om een vaste trainingstijd aan dit team te koppelen.</div>'; return;
+        container.innerHTML = '<div style="background:#fdf2e9; border:1px solid #e67e22; padding:15px; border-radius:6px; color:#d35400;"><strong>Geen trainingstijden!</strong> Ga naar "Teams" om een vaste trainingstijd aan dit team te koppelen.</div>'; return;
     }
 
     let startDatum = new Date(); startDatum.setHours(0,0,0,0);
@@ -100,7 +145,6 @@ window.renderTeamAgenda = function() {
         let isoDatum = window.getIsoDatumS(checkDatum); let dagNummer = checkDatum.getDay() || 7; 
         
         team.trainingen.forEach(tr => {
-            // FIX: parseInt toegevoegd
             if (parseInt(tr.dag) === parseInt(dagNummer)) {
                 aankomendeTrainingen.push({
                     datumObj: checkDatum, isoDatum: isoDatum,
@@ -131,7 +175,7 @@ window.renderTeamAgenda = function() {
         }
 
         container.innerHTML += `
-            <div style="${randStyle} padding:15px; border-radius:8px; border:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.02); transition:0.2s;" onmouseover="this.style.transform='translateX(5px)'" onmouseout="this.style.transform='translateX(0)'" onclick="window.openTrainingsPlanner('${tr.teamId}', '${tr.start}', ${tr.duur}, '${tr.isoDatum}')">
+            <div style="${randStyle} padding:15px; border-radius:8px; border:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.02); margin-bottom:10px; transition:0.2s;" onmouseover="this.style.transform='translateX(5px)'" onmouseout="this.style.transform='translateX(0)'" onclick="window.openTrainingsPlanner('${tr.teamId}', '${tr.start}', ${tr.duur}, '${tr.isoDatum}')">
                 <div>
                     <strong style="display:block; font-size:1.2rem; color:var(--secondary-color); margin-bottom:5px;">📅 ${tr.mooieDatum} ${isVandaag ? '<span style="color:#e74c3c; font-size:0.9rem;">(Vandaag)</span>' : ''}</strong>
                     <div style="color:#7f8c8d; font-size:0.95rem;">🕒 ${tr.start} - ${tr.eind} (${tr.duur} min) &nbsp;|&nbsp; 📍 ${tr.zaal}</div>
@@ -160,18 +204,18 @@ window.renderWeekAgenda = function() {
         let borderStijl = isVandaag ? 'border: 2px solid var(--primary-color);' : 'border: 1px solid var(--border-color);';
 
         const kolom = document.createElement('div'); kolom.className = 'dag-kolom'; kolom.style.cssText += borderStijl;
-        kolom.innerHTML = `<div class="dag-titel">${dagenNamen[i]} <br><span style="font-size:0.8rem; font-weight:normal; color:#7f8c8d;">${datumVoorKolom.getDate()}-${datumVoorKolom.getMonth()+1}</span></div>`;
+        kolom.innerHTML = `<div class="dag-titel" style="background:var(--secondary-color); color:white; padding:10px; text-align:center; font-weight:bold;">${dagenNamen[i]} <br><span style="font-size:0.8rem; font-weight:normal;">${datumVoorKolom.getDate()}-${datumVoorKolom.getMonth()+1}</span></div>`;
         
         let trainingenVandaag = [];
         window.teamsDB.forEach(team => {
             if (team.trainingen) {
-                // FIX: parseInt toegevoegd
                 team.trainingen.forEach(tr => { if (parseInt(tr.dag) === (i + 1)) trainingenVandaag.push({ teamNaam: team.naam, start: tr.start, eind: tr.eind, zaal: tr.zaal, duur: tr.duur, teamId: team.id }); });
             }
         });
         trainingenVandaag.sort((a, b) => a.start.localeCompare(b.start));
 
-        if (trainingenVandaag.length === 0) kolom.innerHTML += `<p style="text-align:center; color:#bdc3c7; font-size:0.9rem; margin-top:20px;">Geen trainingen</p>`;
+        let inhoud = `<div style="padding:10px;">`;
+        if (trainingenVandaag.length === 0) inhoud += `<p style="text-align:center; color:#bdc3c7; font-size:0.9rem; margin-top:20px;">Geen trainingen</p>`;
         else {
             trainingenVandaag.forEach(tr => {
                 let opslagSleutel = `${isoDatum}_${tr.teamId}`;
@@ -186,8 +230,8 @@ window.renderWeekAgenda = function() {
                     }
                 }
 
-                kolom.innerHTML += `
-                    <div class="training-blok" onclick="window.openTrainingsPlanner('${tr.teamId}', '${tr.start}', ${tr.duur}, '${isoDatum}')">
+                inhoud += `
+                    <div style="background:white; margin-bottom:10px; padding:10px; border-radius:4px; border-left:4px solid var(--primary-color); box-shadow:0 2px 4px rgba(0,0,0,0.05); cursor:pointer; transition:0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onclick="window.openTrainingsPlanner('${tr.teamId}', '${tr.start}', ${tr.duur}, '${isoDatum}')">
                         <strong style="display:block; font-size:1.1rem; color:var(--secondary-color);">${tr.teamNaam} ${isGepland}</strong>
                         <div style="color:#e67e22; font-weight:bold; font-size:0.9rem; margin:3px 0;">🕒 ${tr.start} - ${tr.eind}</div>
                         <div style="font-size:0.8rem; color:#7f8c8d;">📍 ${tr.zaal} (${tr.duur} min)</div>
@@ -195,6 +239,8 @@ window.renderWeekAgenda = function() {
                 `;
             });
         }
+        inhoud += `</div>`;
+        kolom.innerHTML += inhoud;
         container.appendChild(kolom);
     }
 };
@@ -245,12 +291,11 @@ window.berekenHistorie = function(oefNaam) {
     return aantal;
 };
 
-// --- NIEUWE LOGICA: LOSSE TRAINING AFLASSEN ---
 window.annuleerTrainingPrompt = function() {
     window.toonCustomPrompt(
         "Training Aflassen", 
         "Wat is de reden dat de training niet doorgaat?", 
-        "Bijv. Zomervakantie, 2e Pinksterdag...", 
+        "Bijv. Zomervakantie of Feestdag...", 
         function(reden) {
             if (!reden) return; 
             actieveTijdlijn = [{ type: 'geannuleerd', reden: reden, duur: actieveTraining.duur }];
@@ -318,7 +363,7 @@ window.genereerAnnuleringBericht = function(reden) {
         let dNum = checkDate.getDay() || 7;
         
         if (team.trainingen) {
-            let trainVandaag = team.trainingen.some(tr => parseInt(tr.dag) === dNum);
+            let trainVandaag = team.trainingen.some(tr => parseInt(tr.dag) === parseInt(dNum));
             if (trainVandaag) {
                 let sl = `${iso}_${team.id}`;
                 let gepl = window.geplandeTrainingenDB ? window.geplandeTrainingenDB[sl] : null;
@@ -372,7 +417,7 @@ window.voerBulkAnnuleringUit = function() {
         window.teamsDB.forEach(team => {
             if(team.trainingen) {
                 team.trainingen.forEach(tr => {
-                    if(parseInt(tr.dag) === dayNum) {
+                    if(parseInt(tr.dag) === parseInt(dayNum)) {
                         let sleutel = `${iso}_${team.id}`;
                         window.geplandeTrainingenDB[sleutel] = [{ type: 'geannuleerd', reden: reden, duur: tr.duur }];
                         cancelledCount++;
