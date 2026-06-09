@@ -1,8 +1,9 @@
-// --- BASKETBAL_TOERNOOI.JS: INTERNE COMPETITIE (FINALE FIX, MAIL PREVIEW & SORTERING) ---
+// --- BASKETBAL_TOERNOOI.JS: INTERNE COMPETITIE (INKLAPBAAR & OUDER-MAIL PREVIEW) ---
 
 window.toernooiDB = JSON.parse(localStorage.getItem('blackshots_toernooi')) || {};
 let actieveCompId = null;
 let actieveLiveMatchId = null;
+window.collapsedTeams = window.collapsedTeams || []; // Onthoudt welke teams zijn ingeklapt
 
 // --- INIT & MENU ---
 window.vulToernooiSelect = function() {
@@ -59,26 +60,33 @@ window.toggleShowMode = function() {
     }
 };
 
+// --- TOGGLE INKLAPPEN TEAM ---
+window.toggleTeamCollapse = function(teamId) {
+    if (window.collapsedTeams.includes(teamId)) {
+        window.collapsedTeams = window.collapsedTeams.filter(id => id !== teamId);
+    } else {
+        window.collapsedTeams.push(teamId);
+    }
+    window.renderToernooi();
+};
+
 // --- DATA BEREKENEN ---
 window.berekenStand = function(comp) {
     let stand = {};
     comp.teams.forEach(t => stand[t.id] = { id: t.id, naam: t.naam || 'Onbekend', kleur: t.kleur, p: 0, w: 0, g: 0, v: 0, voor: 0, tegen: 0, punten: 0 });
 
     comp.wedstrijden.forEach(w => {
-        // Bereken alleen als het échte teams zijn (geen "nr1" placeholders tenzij ze omgezet zijn)
-        let thuisId = w.thuis; let uitId = w.uit;
-
-        if (w.scoreThuis !== null && w.scoreUit !== null && stand[thuisId] && stand[uitId]) {
+        if (w.scoreThuis !== null && w.scoreUit !== null && stand[w.thuis] && stand[w.uit]) {
             let st = parseInt(w.scoreThuis) || 0; 
             let su = parseInt(w.scoreUit) || 0;
             
-            stand[thuisId].p++; stand[uitId].p++;
-            stand[thuisId].voor += st; stand[thuisId].tegen += su;
-            stand[uitId].voor += su; stand[uitId].tegen += st;
+            stand[w.thuis].p++; stand[w.uit].p++;
+            stand[w.thuis].voor += st; stand[w.thuis].tegen += su;
+            stand[w.uit].voor += su; stand[w.uit].tegen += st;
 
-            if (st > su) { stand[thuisId].w++; stand[uitId].v++; stand[thuisId].punten += 2; } 
-            else if (su > st) { stand[uitId].w++; stand[thuisId].v++; stand[uitId].punten += 2; } 
-            else { stand[thuisId].g++; stand[uitId].g++; stand[thuisId].punten += 1; stand[uitId].punten += 1; }
+            if (st > su) { stand[w.thuis].w++; stand[w.uit].v++; stand[w.thuis].punten += 2; } 
+            else if (su > st) { stand[w.uit].w++; stand[w.thuis].v++; stand[w.uit].punten += 2; } 
+            else { stand[w.thuis].g++; stand[w.uit].g++; stand[w.thuis].punten += 1; stand[w.uit].punten += 1; }
         }
     });
     return Object.values(stand).sort((a,b) => b.punten - a.punten || (b.voor - b.tegen) - (a.voor - a.tegen));
@@ -97,78 +105,89 @@ window.manualScoreChange = function(matchId) {
     window.renderToernooi();
 };
 
-// --- SLIMME TEAM RESOLVER VOOR DE FINALES ---
 function getTeamWeergave(teamId, actueleStand, alleTeams) {
-    if (teamId === 'nr1') return actueleStand[0] ? { naam: `(Nr 1) ${actueleStand[0].naam}`, kleur: '#f1c40f' } : { naam: "(Nr 1) N.n.b.", kleur: '#f1c40f' };
-    if (teamId === 'nr2') return actueleStand[1] ? { naam: `(Nr 2) ${actueleStand[1].naam}`, kleur: '#95a5a6' } : { naam: "(Nr 2) N.n.b.", kleur: '#95a5a6' };
-    if (teamId === 'nr3') return actueleStand[2] ? { naam: `(Nr 3) ${actueleStand[2].naam}`, kleur: '#d35400' } : { naam: "(Nr 3) N.n.b.", kleur: '#d35400' };
-    if (teamId === 'nr4') return actueleStand[3] ? { naam: `(Nr 4) ${actueleStand[3].naam}`, kleur: '#3498db' } : { naam: "(Nr 4) N.n.b.", kleur: '#3498db' };
+    if (teamId === 'nr1') return actueleStand[0] ? { naam: `(Nr 1) ${actueleStand[0].naam}`, kleur: '#f1c40f' } : { naam: "Troostfinalen nr 3 & 4", kleur: '#f1c40f' };
+    if (teamId === 'nr2') return actueleStand[1] ? { naam: `(Nr 2) ${actueleStand[1].naam}`, kleur: '#95a5a6' } : { naam: "finalen nr 1 & 2", kleur: '#95a5a6' };
+    if (teamId === 'nr3') return actueleStand[2] ? { naam: `(Nr 3) ${actueleStand[2].naam}`, kleur: '#d35400' } : { naam: "Nummer 3", kleur: '#d35400' };
+    if (teamId === 'nr4') return actueleStand[3] ? { naam: `(Nr 4) ${actueleStand[3].naam}`, kleur: '#3498db' } : { naam: "Nummer 4", kleur: '#3498db' };
     
     let t = alleTeams.find(x => x.id === teamId);
     return t ? { naam: t.naam, kleur: t.kleur } : { naam: "N.n.b.", kleur: "#333" };
 }
 
-// --- SLIMME DATUM PARSER (Fix voor '8-jun' vs '2026-06-08') ---
 function slimmeDatumSorteerder(dStr) {
     if (!dStr) return 0;
-    // Formaat: 2026-06-08
     if (/^\d{4}-\d{2}-\d{2}$/.test(dStr)) return new Date(dStr).getTime();
-    
-    // Formaat: 8-jun
     let maanden = { 'jan':1, 'feb':2, 'mrt':3, 'apr':4, 'mei':5, 'jun':6, 'jul':7, 'aug':8, 'sep':9, 'okt':10, 'nov':11, 'dec':12 };
     let delen = dStr.toLowerCase().split('-');
     if (delen.length === 2 && maanden[delen[1]]) {
         return new Date(new Date().getFullYear(), maanden[delen[1]] - 1, parseInt(delen[0])).getTime();
     }
-    
-    // Fallback
     return new Date(dStr).getTime() || 0;
 }
 
-// --- E-MAIL / WHATSAPP BERICHT GENERATOR (MET PREVIEW MODAL) ---
+// --- INTERACTIEVE PREVIEW MODAL VOOR OUDERS ---
 window.genereerToernooiBericht = function() {
     if (!actieveCompId || !window.toernooiDB[actieveCompId]) return alert("Er is geen toernooi geselecteerd.");
     
     const comp = window.toernooiDB[actieveCompId];
     const berekendeStand = window.berekenStand(comp);
     
-    let bericht = `Beste ouders en spelers,\n\nHier is de actuele update voor de interne competitie: *${comp.naam}*! 🏆\n\n*📊 De Huidige Stand:*\n`;
-    berekendeStand.forEach((team, idx) => {
-        bericht += `${idx + 1}. ${team.naam} - ${team.punten} pnt (Saldo: ${team.voor - team.tegen})\n`;
+    // Exacte opbouw zoals gevraagd
+    let bericht = `Beste ouders,\n`;
+    bericht += `Op maandag 8 juni gaat de interne competitie weer van start!\n`;
+    bericht += `De trainingen van maandag 8, 15, 22 en 29 juni zien er daarom anders uit. Op deze dagen houden we geen traditionele training, maar spelen we wedstrijden onderling. De teams zijn gemaakt van spelers die geboren zijn in 2014 of eerder.\n\n`;
+
+    // Live indeling toevoegen
+    comp.teams.forEach(t => {
+        bericht += `*${t.naam.toUpperCase()}*\n`;
+        let spelersNamen = t.spelers.map(sId => {
+            let sObj = (window.spelersDB || []).find(s => s.id === sId || s.naam === sId);
+            return sObj ? sObj.naam : sId;
+        });
+        bericht += spelersNamen.length > 0 ? spelersNamen.join(', ') + '\n\n' : 'Nog geen spelers ingedeeld\n\n';
     });
 
-    bericht += `\n*📅 Komende Wedstrijden:*\n`;
-    let komendeWedstrijden = comp.wedstrijden.filter(w => w.scoreThuis === null && w.scoreUit === null);
-    
-    if (komendeWedstrijden.length === 0) {
-        bericht += `Er staan momenteel geen wedstrijden op de planning.\n`;
-    } else {
-        // Sorteer wedstrijden voor het bericht
-        komendeWedstrijden.sort((a, b) => slimmeDatumSorteerder(a.datum) - slimmeDatumSorteerder(b.datum));
+    bericht += `De wedstrijden beginnen om 17:00 met 10 minuten warming-up, met vervolgens 4 keer 10 minuten doorlopende speeltijd. Tussen de 1e & 2e en de 3e & 4e periode zit telkens 2 minuten pauze, en tussen de 2e & 3e periode zit 5 minuten pauze.\n`;
+    bericht += `Het eerstgenoemde team is het thuisteam en speelt in het zwart, het tweede team speelt in een andere kleur. De wedstrijden worden gespeeld op de lage basket (2,60m) en met balmaat 5.\n\n`;
+    bericht += `*📅 WEDSTRIJDSCHEMA & ACTUELE STANDEN:*\n`;
 
-        komendeWedstrijden.slice(0, 8).forEach(w => {
+    let matchenPerDatum = {};
+    comp.wedstrijden.forEach(w => {
+        let d = w.datum || 'Onbekend';
+        if (!matchenPerDatum[d]) matchenPerDatum[d] = [];
+        matchenPerDatum[d].push(w);
+    });
+
+    let gesorteerdeDatums = Object.keys(matchenPerDatum).sort((a,b) => slimmeDatumSorteerder(a) - slimmeDatumSorteerder(b));
+
+    gesorteerdeDatums.forEach(datum => {
+        bericht += `\n🗓️ *Speeldag: ${datum}*\n`;
+        matchenPerDatum[datum].forEach(w => {
             let tThuis = getTeamWeergave(w.thuis, berekendeStand, comp.teams);
             let tUit = getTeamWeergave(w.uit, berekendeStand, comp.teams);
-            bericht += `🗓️ ${w.datum} om 🕒 ${w.tijd}\n🏀 ${tThuis.naam} vs ${tUit.naam} (${w.veld})\n\n`;
+            let scT = w.scoreThuis !== null ? w.scoreThuis : '-';
+            let scU = w.scoreUit !== null ? w.scoreUit : '-';
+            
+            bericht += `• 🕒 ${w.tijd} (${w.veld}) : ${tThuis.naam} vs ${tUit.naam} [Uitslag: ${scT} - ${scU}]\n`;
         });
-    }
-    
-    bericht += `We zien jullie graag op het veld!\nGroeten, Coach Tom & Black Shots`;
+    });
 
-    // Bouw de Preview Modal als deze nog niet bestaat
+    bericht += `\nBij vragen hoor ik het graag!`;
+
+    // Bouw Preview Modal op het scherm
     let modal = document.getElementById('mail-preview-modal');
     if (!modal) {
         let mDiv = document.createElement('div');
         mDiv.id = 'mail-preview-modal';
         mDiv.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); display:none; justify-content:center; align-items:center; z-index:999999; backdrop-filter:blur(3px);';
         mDiv.innerHTML = `
-            <div style="background:white; padding:25px; border-radius:12px; width:90%; max-width:600px; box-shadow:0 10px 30px rgba(0,0,0,0.3); border-top:6px solid #3498db;">
-                <h2 style="margin-top:0; color:var(--secondary-color);">✉️ Bericht Voorbeeld</h2>
-                <p style="color:#7f8c8d; font-size:0.9rem;">Pas de tekst hieronder aan indien nodig, en klik daarna op kopiëren.</p>
-                <textarea id="mail-preview-tekst" style="width:100%; height:300px; padding:10px; border-radius:6px; border:1px solid #bdc3c7; font-family:inherit; resize:vertical;"></textarea>
+            <div style="background:white; padding:25px; border-radius:12px; width:95%; max-width:650px; box-shadow:0 10px 30px rgba(0,0,0,0.3); border-top:6px solid #3498db;">
+                <h3 style="margin-top:0; color:#2c3e50;">✉️ Voorbeeld bericht voor Ouders</h3>
+                <textarea id="mail-preview-tekst" style="width:100%; height:320px; padding:10px; border-radius:6px; border:1px solid #bdc3c7; font-family:inherit; resize:vertical; font-size:0.95rem; line-height:1.4;"></textarea>
                 <div style="display:flex; gap:10px; margin-top:15px;">
-                    <button onclick="document.getElementById('mail-preview-modal').style.display='none'" style="flex:1; padding:12px; border:none; border-radius:6px; font-weight:bold; cursor:pointer; background:#ecf0f1; color:#7f8c8d;">Annuleren</button>
-                    <button onclick="window.kopieerMailTekst()" style="flex:1; padding:12px; border:none; border-radius:6px; font-weight:bold; cursor:pointer; background:#27ae60; color:white;">📋 Kopieer & Sluit</button>
+                    <button onclick="document.getElementById('mail-preview-modal').style.display='none'" style="flex:1; padding:12px; border:none; border-radius:6px; font-weight:bold; cursor:pointer; background:#ecf0f1; color:#7f8c8d;">Sluiten</button>
+                    <button onclick="window.kopieerMailTekst()" style="flex:1; padding:12px; border:none; border-radius:6px; font-weight:bold; cursor:pointer; background:#27ae60; color:white;">📋 Kopieer Bericht</button>
                 </div>
             </div>
         `;
@@ -185,7 +204,7 @@ window.kopieerMailTekst = function() {
     tekstArea.select();
     document.execCommand("copy");
     document.getElementById('mail-preview-modal').style.display = 'none';
-    alert("✅ Succes! Het bericht is gekopieerd naar je klembord.");
+    alert("✅ Gekopieerd! Je kunt de tekst nu direct in WhatsApp of de mail plakken.");
 };
 
 // --- HOOFD RENDERER ---
@@ -214,9 +233,7 @@ window.renderToernooi = function() {
                 <option value="nr4">🏅 Nummer 4 (Stand)</option>
             </optgroup>
         `;
-        
-        thuisSelect.innerHTML = opties; 
-        uitSelect.innerHTML = opties;
+        thuisSelect.innerHTML = opties; uitSelect.innerHTML = opties;
     }
 
     // 1. STAND RENDERN
@@ -238,7 +255,7 @@ window.renderToernooi = function() {
     standHtml += `</table>`;
     if(document.getElementById('toernooi-stand')) document.getElementById('toernooi-stand').innerHTML = standHtml;
 
-    // 2. SCHEMA RENDERN (GEGROEPEERD OP DATUM & GESORTEERD)
+    // 2. SCHEMA RENDERN (GESORTEERD PER DATUM ONDERAAN)
     let schemaHtml = '';
     let matchenPerDatum = {};
 
@@ -254,15 +271,11 @@ window.renderToernooi = function() {
         schemaHtml = "<p style='color:#7f8c8d;'>Nog geen wedstrijden ingepland.</p>";
     } else {
         gesorteerdeDatums.forEach(datum => {
-            // Mooie datum aanduiding
             schemaHtml += `<h4 style="background:var(--secondary-color); color:white; padding:8px 15px; border-radius:4px; margin-top:20px; margin-bottom:10px;">🗓️ Speeldag: ${datum}</h4>`;
             
             matchenPerDatum[datum].sort((a,b) => (a.tijd||'').localeCompare(b.tijd||'')).forEach(w => {
-                
-                // Haal de echte teamnamen/kleuren op (Inclusief Finale oplossers!)
                 let tThuis = getTeamWeergave(w.thuis, berekendeStand, comp.teams);
                 let tUit = getTeamWeergave(w.uit, berekendeStand, comp.teams);
-
                 let scT = w.scoreThuis !== null ? w.scoreThuis : '';
                 let scU = w.scoreUit !== null ? w.scoreUit : '';
 
@@ -290,7 +303,7 @@ window.renderToernooi = function() {
     }
     if(document.getElementById('toernooi-schema')) document.getElementById('toernooi-schema').innerHTML = schemaHtml;
 
-    // 3. TEAMS RENDERN
+    // 3. TEAMS RENDERN (MET DE INKLAP FUNCTIE!)
     let spelersLijstHtml = '<option value="">-- Voeg clublid toe --</option>';
     if (window.spelersDB && window.spelersDB.length > 0) {
         let gesorteerd = [...window.spelersDB].sort((a,b) => (a.naam || '').localeCompare(b.naam || ''));
@@ -299,13 +312,17 @@ window.renderToernooi = function() {
 
     let teamsHtml = '';
     comp.teams.forEach(t => {
+        let isCollapsed = window.collapsedTeams.includes(t.id);
+        let pijl = isCollapsed ? '▶' : '▼';
+        let bodyDisplay = isCollapsed ? 'none' : 'block';
+
         teamsHtml += `
-            <div style="border:1px solid ${t.kleur}; border-radius:6px; overflow:hidden;">
-                <div style="background:${t.kleur}; color:white; padding:8px 12px; display:flex; justify-content:space-between; align-items:center; font-weight:bold;">
-                    <span>${t.naam || 'Team'} <span style="font-size:0.8rem; font-weight:normal;">(${t.spelers.length} spelers)</span></span>
-                    <button onclick="window.verwijderToernooiTeam('${t.id}')" style="background:transparent; border:none; color:white; cursor:pointer; font-weight:bold;">X</button>
+            <div style="border:1px solid ${t.kleur}; border-radius:6px; overflow:hidden; margin-bottom:5px;">
+                <div style="background:${t.kleur}; color:white; padding:8px 12px; display:flex; justify-content:space-between; align-items:center; font-weight:bold; cursor:pointer;" onclick="window.toggleTeamCollapse('${t.id}')">
+                    <span>${pijl} ${t.naam || 'Team'} <span style="font-size:0.8rem; font-weight:normal;">(${t.spelers.length} spelers)</span></span>
+                    <button onclick="event.stopPropagation(); window.verwijderToernooiTeam('${t.id}')" style="background:transparent; border:none; color:white; cursor:pointer; font-weight:bold; font-size:1.1rem;">&times;</button>
                 </div>
-                <div style="background:#fafafa; padding:10px;">
+                <div style="background:#fafafa; padding:10px; display:${bodyDisplay};">
                     <ul style="list-style:none; padding:0; margin:0 0 10px 0;">`;
         
         t.spelers.forEach((sId, pIdx) => {
@@ -362,13 +379,13 @@ window.verwijderSpelerUitTeam = function(teamId, index) {
 
 window.toernooiWedstrijdToevoegen = function() {
     let datum = document.getElementById('nw_datum').value || new Date().toLocaleDateString('nl-NL');
-    let tijd = document.getElementById('nw_tijd').value || "18:00";
-    let veld = document.getElementById('nw_veld').value.trim() || "Veld 1";
+    let tijd = document.getElementById('nw_tijd').value || "17:00";
+    let veld = document.getElementById('nw_veld').value.trim() || "Veld A";
     let thuis = document.getElementById('nw_thuis').value;
     let uit = document.getElementById('nw_uit').value;
     
     if (!thuis || !uit || thuis === uit) {
-        return alert("Kies twee verschillende teams.");
+        return alert("Kies twee verschillende teams of plaatsingen.");
     }
     
     window.toernooiDB[actieveCompId].wedstrijden.push({ 
@@ -387,7 +404,6 @@ window.verwijderWedstrijd = function(id) {
     }
 };
 
-// --- LIVE SCORE MODULE ---
 window.openLiveScore = function(matchId) {
     actieveLiveMatchId = matchId;
     const comp = window.toernooiDB[actieveCompId];
@@ -402,11 +418,9 @@ window.openLiveScore = function(matchId) {
     const tThuis = getTeamWeergave(match.thuis, berekendeStand, comp.teams);
     const tUit = getTeamWeergave(match.uit, berekendeStand, comp.teams);
 
-    // Zoek de originele teams op in de array om de spelers voor het dropdown menu te krijgen
     let origineelThuis = comp.teams.find(t => t.id === match.thuis) || { spelers: [] };
     let origineelUit = comp.teams.find(t => t.id === match.uit) || { spelers: [] };
 
-    // Als het een "Nummer 1" placeholder was, moeten we de spelers pakken van het team dat daadwerkelijk op plek 1 staat
     if (match.thuis.startsWith('nr') && berekendeStand[parseInt(match.thuis.replace('nr','')) - 1]) {
         origineelThuis = comp.teams.find(t => t.id === berekendeStand[parseInt(match.thuis.replace('nr','')) - 1].id) || { spelers: [] };
     }
