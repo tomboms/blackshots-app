@@ -15,7 +15,10 @@ window.vulToernooiSelect = function() {
         select.innerHTML = `<option value="">-- Geen toernooien --</option>`;
         actieveCompId = null;
     } else {
-        keys.forEach(key => { select.innerHTML += `<option value="${key}">${window.toernooiDB[key].naam}</option>`; });
+        keys.forEach(key => { 
+            let tNaam = window.toernooiDB[key].naam || 'Naamloos Toernooi';
+            select.innerHTML += `<option value="${key}">${tNaam}</option>`; 
+        });
         if(!actieveCompId || !window.toernooiDB[actieveCompId]) actieveCompId = keys[0];
         select.value = actieveCompId;
     }
@@ -61,7 +64,7 @@ window.toggleShowMode = function() {
 // --- DATA BEREKENEN ---
 window.berekenStand = function(comp) {
     let stand = {};
-    comp.teams.forEach(t => stand[t.id] = { id: t.id, naam: t.naam, kleur: t.kleur, p: 0, w: 0, g: 0, v: 0, voor: 0, tegen: 0, punten: 0 });
+    comp.teams.forEach(t => stand[t.id] = { id: t.id, naam: t.naam || 'Onbekend Team', kleur: t.kleur, p: 0, w: 0, g: 0, v: 0, voor: 0, tegen: 0, punten: 0 });
 
     comp.wedstrijden.forEach(w => {
         if (w.scoreThuis !== null && w.scoreUit !== null && stand[w.thuis] && stand[w.uit]) {
@@ -107,7 +110,7 @@ window.renderToernooi = function() {
     let uitSelect = document.getElementById('nw_uit');
     if(thuisSelect && uitSelect) {
         let opties = '<option value="">-- Team --</option>';
-        comp.teams.forEach(t => { opties += `<option value="${t.id}">${t.naam}</option>`; });
+        comp.teams.forEach(t => { opties += `<option value="${t.id}">${t.naam || 'Onbekend'}</option>`; });
         thuisSelect.innerHTML = opties; uitSelect.innerHTML = opties;
     }
 
@@ -129,7 +132,7 @@ window.renderToernooi = function() {
     });
     document.getElementById('toernooi-stand').innerHTML = standHtml + `</table>`;
 
-    // 2. SCHEMA RENDERN (HERSTELD NAAR COMPACT MET INPUTS)
+    // 2. SCHEMA RENDERN
     let schemaHtml = '';
     comp.wedstrijden.forEach(w => {
         let tThuis = comp.teams.find(t => t.id === w.thuis) || {naam:"N.n.b.", kleur:"#333"};
@@ -162,8 +165,8 @@ window.renderToernooi = function() {
     // 3. TEAMS & DATABASE SPELERS RENDERN
     let spelersLijstHtml = '<option value="">-- Voeg clublid toe --</option>';
     if (window.spelersDB && window.spelersDB.length > 0) {
-        let gesorteerd = [...window.spelersDB].sort((a,b) => a.naam.localeCompare(b.naam));
-        gesorteerd.forEach(s => { spelersLijstHtml += `<option value="${s.id}">${s.naam}</option>`; });
+        let gesorteerd = [...window.spelersDB].sort((a,b) => (a.naam || '').localeCompare(b.naam || ''));
+        gesorteerd.forEach(s => { spelersLijstHtml += `<option value="${s.id}">${s.naam || 'Onbekend'}</option>`; });
     } else {
         spelersLijstHtml = '<option value="">Geen leden in database</option>';
     }
@@ -173,16 +176,16 @@ window.renderToernooi = function() {
         teamsHtml += `
             <div style="border:1px solid ${t.kleur}; border-radius:6px; overflow:hidden;">
                 <div style="background:${t.kleur}; color:white; padding:8px 12px; display:flex; justify-content:space-between; align-items:center; font-weight:bold;">
-                    <span>${t.naam} <span style="font-size:0.8rem; font-weight:normal;">(${t.spelers.length} spelers)</span></span>
+                    <span>${t.naam || 'Naamloos Team'} <span style="font-size:0.8rem; font-weight:normal;">(${t.spelers.length} spelers)</span></span>
                     <button onclick="window.verwijderToernooiTeam('${t.id}')" style="background:transparent; border:none; color:white; cursor:pointer; font-weight:bold;">X</button>
                 </div>
                 <div style="background:#fafafa; padding:10px;">
                     <ul style="list-style:none; padding:0; margin:0 0 10px 0;">`;
         
         t.spelers.forEach((sId, pIdx) => {
-            // FIX VOOR OUDE TOERNOOIEN: Zoek op ID, maar óók op naam als fallback!
+            // Zoek de speler op, als hij niet bestaat tonen we gewoon zijn oude 'sId' (bijv. "Filip")
             let sObj = (window.spelersDB || []).find(s => s.id === sId || s.naam === sId);
-            let weergaveNaam = sObj ? sObj.naam : sId; // Als hij echt niks vindt, toont hij in ieder geval de oude opgeslagen string
+            let weergaveNaam = sObj ? sObj.naam : sId; 
 
             teamsHtml += `<li style="display:flex; justify-content:space-between; border-bottom:1px dashed #ccc; padding:4px 0; font-size:0.9rem;">
                 ${weergaveNaam} <button onclick="window.verwijderSpelerUitTeam('${t.id}', ${pIdx})" style="color:red; background:none; border:none; cursor:pointer; font-weight:bold;">x</button>
@@ -272,19 +275,23 @@ window.openLiveScore = function(matchId) {
     if(!match.logs) match.logs = [];
     if(!match.playerStats) match.playerStats = {};
 
-    const tThuis = comp.teams.find(t => t.id === match.thuis);
-    const tUit = comp.teams.find(t => t.id === match.uit);
+    const tThuis = comp.teams.find(t => t.id === match.thuis) || { naam: "Thuis", kleur: "#333", spelers: [] };
+    const tUit = comp.teams.find(t => t.id === match.uit) || { naam: "Uit", kleur: "#333", spelers: [] };
 
     let thuisOpties = '<option value="">-- Doelpuntmaker --</option>';
     tThuis.spelers.forEach(sId => { 
         let s = (window.spelersDB||[]).find(x => x.id === sId || x.naam === sId); 
-        if(s) thuisOpties += `<option value="${s.id}">${s.naam}</option>`; 
+        let weergaveNaam = s ? s.naam : sId;
+        let valId = s ? s.id : sId;
+        thuisOpties += `<option value="${valId}">${weergaveNaam}</option>`; 
     });
     
     let uitOpties = '<option value="">-- Doelpuntmaker --</option>';
     tUit.spelers.forEach(sId => { 
         let s = (window.spelersDB||[]).find(x => x.id === sId || x.naam === sId); 
-        if(s) uitOpties += `<option value="${s.id}">${s.naam}</option>`; 
+        let weergaveNaam = s ? s.naam : sId;
+        let valId = s ? s.id : sId;
+        uitOpties += `<option value="${valId}">${weergaveNaam}</option>`; 
     });
 
     let overlay = `
@@ -358,10 +365,9 @@ window.addScore = function(zijde, punten) {
 
     if (spelerId) {
         let s = window.spelersDB.find(x => x.id === spelerId || x.naam === spelerId);
-        if (s) {
-            actieTekst = `+${punten} door ${s.naam}`;
-            match.playerStats[spelerId] = (match.playerStats[spelerId] || 0) + punten;
-        }
+        let spelerNaam = s ? s.naam : spelerId;
+        actieTekst = `+${punten} door ${spelerNaam}`;
+        match.playerStats[spelerId] = (match.playerStats[spelerId] || 0) + punten;
         document.getElementById(selectId).value = ""; 
     }
 
