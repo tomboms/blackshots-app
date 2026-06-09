@@ -4,22 +4,22 @@ window.toernooiDB = JSON.parse(localStorage.getItem('blackshots_toernooi')) || {
 let actieveCompId = null;
 let actieveLiveMatchId = null;
 
-// INIT
+// INIT & BASIS FUNCTIES
 window.vulToernooiSelect = function() {
     let select = document.getElementById('toernooi-select');
-    if(!select) return;
+    if (!select) return;
     select.innerHTML = '';
     
     let keys = Object.keys(window.toernooiDB);
-    if(keys.length === 0) {
+    if (keys.length === 0) {
         select.innerHTML = `<option value="">-- Geen toernooien --</option>`;
         actieveCompId = null;
     } else {
         keys.forEach(key => { 
-            let tNaam = window.toernooiDB[key].naam || 'Naamloos Toernooi';
+            let tNaam = window.toernooiDB[key].naam || 'Toernooi';
             select.innerHTML += `<option value="${key}">${tNaam}</option>`; 
         });
-        if(!actieveCompId || !window.toernooiDB[actieveCompId]) actieveCompId = keys[0];
+        if (!actieveCompId || !window.toernooiDB[actieveCompId]) actieveCompId = keys[0];
         select.value = actieveCompId;
     }
     window.renderToernooi();
@@ -32,7 +32,7 @@ window.wisselToernooi = function() {
 
 window.maakNieuweCompetitie = function() {
     let naam = prompt("Naam van het nieuwe toernooi?");
-    if(!naam) return;
+    if (!naam) return;
     let id = 'comp_' + Date.now();
     window.toernooiDB[id] = { naam: naam, teams: [], wedstrijden: [] };
     actieveCompId = id;
@@ -41,8 +41,8 @@ window.maakNieuweCompetitie = function() {
 };
 
 window.verwijderCompetitie = function() {
-    if(!actieveCompId) return;
-    if(confirm(`Weet je zeker dat je toernooi "${window.toernooiDB[actieveCompId].naam}" wilt wissen?`)) {
+    if (!actieveCompId) return;
+    if (confirm(`Weet je zeker dat je toernooi "${window.toernooiDB[actieveCompId].naam}" wilt wissen?`)) {
         delete window.toernooiDB[actieveCompId];
         actieveCompId = null;
         localStorage.setItem('blackshots_toernooi', JSON.stringify(window.toernooiDB));
@@ -54,34 +54,49 @@ window.toggleShowMode = function() {
     document.body.classList.toggle('show-mode');
     if (document.body.classList.contains('show-mode')) {
         if (document.documentElement.requestFullscreen) {
-            document.documentElement.requestFullscreen().catch(err => console.log("Fullscreen geblokkeerd"));
+            document.documentElement.requestFullscreen().catch(e => console.log(e));
         }
     } else {
-        if (document.exitFullscreen) document.exitFullscreen();
+        if (document.exitFullscreen) {
+            document.exitFullscreen().catch(e => console.log(e));
+        }
     }
 };
 
-// --- DATA BEREKENEN ---
 window.berekenStand = function(comp) {
     let stand = {};
-    comp.teams.forEach(t => stand[t.id] = { id: t.id, naam: t.naam || 'Onbekend Team', kleur: t.kleur, p: 0, w: 0, g: 0, v: 0, voor: 0, tegen: 0, punten: 0 });
+    comp.teams.forEach(t => stand[t.id] = { id: t.id, naam: t.naam || 'Onbekend', kleur: t.kleur, p: 0, w: 0, g: 0, v: 0, voor: 0, tegen: 0, punten: 0 });
 
     comp.wedstrijden.forEach(w => {
         if (w.scoreThuis !== null && w.scoreUit !== null && stand[w.thuis] && stand[w.uit]) {
-            let st = parseInt(w.scoreThuis); let su = parseInt(w.scoreUit);
-            stand[w.thuis].p++; stand[w.uit].p++;
-            stand[w.thuis].voor += st; stand[w.thuis].tegen += su;
-            stand[w.uit].voor += su; stand[w.uit].tegen += st;
+            let st = parseInt(w.scoreThuis); 
+            let su = parseInt(w.scoreUit);
+            stand[w.thuis].p++; 
+            stand[w.uit].p++;
+            stand[w.thuis].voor += st; 
+            stand[w.thuis].tegen += su;
+            stand[w.uit].voor += su; 
+            stand[w.uit].tegen += st;
 
-            if (st > su) { stand[w.thuis].w++; stand[w.uit].v++; stand[w.thuis].punten += 2; }
-            else if (su > st) { stand[w.uit].w++; stand[w.thuis].v++; stand[w.uit].punten += 2; }
-            else { stand[w.thuis].g++; stand[w.uit].g++; stand[w.thuis].punten += 1; stand[w.uit].punten += 1; }
+            if (st > su) { 
+                stand[w.thuis].w++; 
+                stand[w.uit].v++; 
+                stand[w.thuis].punten += 2; 
+            } else if (su > st) { 
+                stand[w.uit].w++; 
+                stand[w.thuis].v++; 
+                stand[w.uit].punten += 2; 
+            } else { 
+                stand[w.thuis].g++; 
+                stand[w.uit].g++; 
+                stand[w.thuis].punten += 1; 
+                stand[w.uit].punten += 1; 
+            }
         }
     });
     return Object.values(stand).sort((a,b) => b.punten - a.punten || (b.voor - b.tegen) - (a.voor - a.tegen));
 };
 
-// --- SNELLE HANDMATIGE SCORE INVOER ---
 window.manualScoreChange = function(matchId) {
     const comp = window.toernooiDB[actieveCompId];
     const match = comp.wedstrijden.find(w => w.id === matchId);
@@ -94,7 +109,7 @@ window.manualScoreChange = function(matchId) {
     window.renderToernooi();
 };
 
-// --- RENDEREN ---
+// --- RENDEREN VAN DE INTERNE COMPETITIE ---
 window.renderToernooi = function() {
     if (!actieveCompId || !window.toernooiDB[actieveCompId]) {
         document.getElementById('toernooi-stand').innerHTML = "<p>Maak een toernooi aan.</p>";
@@ -108,13 +123,14 @@ window.renderToernooi = function() {
 
     let thuisSelect = document.getElementById('nw_thuis');
     let uitSelect = document.getElementById('nw_uit');
-    if(thuisSelect && uitSelect) {
+    if (thuisSelect && uitSelect) {
         let opties = '<option value="">-- Team --</option>';
         comp.teams.forEach(t => { opties += `<option value="${t.id}">${t.naam || 'Onbekend'}</option>`; });
-        thuisSelect.innerHTML = opties; uitSelect.innerHTML = opties;
+        thuisSelect.innerHTML = opties; 
+        uitSelect.innerHTML = opties;
     }
 
-    // 1. STAND RENDERN
+    // 1. STAND RENDERN (LINKS)
     let standHtml = `<table style="width:100%; border-collapse:collapse; text-align:left;">
         <tr style="border-bottom:2px solid #bdc3c7; color:#7f8c8d; font-size:0.9rem;">
             <th style="padding:8px;">#</th><th style="padding:8px;">Team</th><th style="padding:8px;">G</th>
@@ -130,45 +146,66 @@ window.renderToernooi = function() {
             <td style="padding:8px; font-weight:bold; font-size:1.2rem;">${team.punten}</td>
         </tr>`;
     });
-    document.getElementById('toernooi-stand').innerHTML = standHtml + `</table>`;
+    standHtml += `</table>`;
+    if(document.getElementById('toernooi-stand')) document.getElementById('toernooi-stand').innerHTML = standHtml;
 
-    // 2. SCHEMA RENDERN
+    // 2. SCHEMA RENDERN (GEGROEPEERD ONDERAAN)
     let schemaHtml = '';
+    let matchenPerDatum = {};
+
     comp.wedstrijden.forEach(w => {
-        let tThuis = comp.teams.find(t => t.id === w.thuis) || {naam:"N.n.b.", kleur:"#333"};
-        let tUit = comp.teams.find(t => t.id === w.uit) || {naam:"N.n.b.", kleur:"#333"};
-        let scT = w.scoreThuis !== null ? w.scoreThuis : '';
-        let scU = w.scoreUit !== null ? w.scoreUit : '';
-
-        schemaHtml += `
-            <div style="display:flex; justify-content:space-between; align-items:center; background:#fafafa; padding:10px; border:1px solid #ddd; border-radius:4px; margin-bottom:5px; flex-wrap:wrap; gap:10px; border-left:4px solid ${tThuis.kleur}">
-                <div style="font-size:0.85rem; color:#7f8c8d; min-width:120px;">
-                    🗓️ ${w.datum}<br>🕒 ${w.tijd} | 📍 ${w.veld}
-                </div>
-                <div style="flex:1; display:flex; justify-content:center; align-items:center; gap:10px; min-width:200px;">
-                    <strong style="color:${tThuis.kleur}; text-align:right; flex:1; font-size:1.1rem;">${tThuis.naam}</strong>
-                    <div style="display:flex; align-items:center; gap:5px;">
-                        <input type="number" id="sc_thuis_${w.id}" value="${scT}" style="width:45px; padding:6px; text-align:center; margin:0; border:1px solid #bdc3c7; border-radius:4px; font-weight:bold;" onchange="window.manualScoreChange('${w.id}')">
-                        <span style="font-weight:bold; color:#7f8c8d;">-</span>
-                        <input type="number" id="sc_uit_${w.id}" value="${scU}" style="width:45px; padding:6px; text-align:center; margin:0; border:1px solid #bdc3c7; border-radius:4px; font-weight:bold;" onchange="window.manualScoreChange('${w.id}')">
-                    </div>
-                    <strong style="color:${tUit.kleur}; text-align:left; flex:1; font-size:1.1rem;">${tUit.naam}</strong>
-                </div>
-                <div class="hide-in-show-mode" style="display:flex; gap:5px;">
-                    <button onclick="window.openLiveScore('${w.id}')" style="background:#e67e22; color:white; border:none; padding:8px 12px; border-radius:4px; cursor:pointer; font-weight:bold;">⏱️ Live</button>
-                    <button onclick="window.verwijderWedstrijd('${w.id}')" style="background:#e74c3c; color:white; border:none; padding:8px 12px; border-radius:4px; cursor:pointer; font-weight:bold;">X</button>
-                </div>
-            </div>`;
+        let d = w.datum || 'Onbekend';
+        if (!matchenPerDatum[d]) matchenPerDatum[d] = [];
+        matchenPerDatum[d].push(w);
     });
-    document.getElementById('toernooi-schema').innerHTML = schemaHtml || "<p style='color:#7f8c8d;'>Nog geen wedstrijden ingepland.</p>";
 
-    // 3. TEAMS & DATABASE SPELERS RENDERN
+    let gesorteerdeDatums = Object.keys(matchenPerDatum).sort((a,b) => {
+        let parseA = a.split('-').reverse().join('-');
+        let parseB = b.split('-').reverse().join('-');
+        return parseA.localeCompare(parseB);
+    });
+
+    if (gesorteerdeDatums.length === 0) {
+        schemaHtml = "<p style='color:#7f8c8d;'>Nog geen wedstrijden ingepland.</p>";
+    } else {
+        gesorteerdeDatums.forEach(datum => {
+            schemaHtml += `<h4 style="background:var(--secondary-color); color:white; padding:8px 15px; border-radius:4px; margin-top:20px; margin-bottom:10px;">🗓️ Speeldag: ${datum}</h4>`;
+            
+            matchenPerDatum[datum].sort((a,b) => (a.tijd||'').localeCompare(b.tijd||'')).forEach(w => {
+                let tThuis = comp.teams.find(t => t.id === w.thuis) || {naam:"N.n.b.", kleur:"#333"};
+                let tUit = comp.teams.find(t => t.id === w.uit) || {naam:"N.n.b.", kleur:"#333"};
+                let scT = w.scoreThuis !== null ? w.scoreThuis : '';
+                let scU = w.scoreUit !== null ? w.scoreUit : '';
+
+                schemaHtml += `
+                    <div style="display:flex; justify-content:space-between; align-items:center; background:#fafafa; padding:10px; border:1px solid #ddd; border-radius:4px; margin-bottom:5px; flex-wrap:wrap; gap:10px; border-left:4px solid ${tThuis.kleur}">
+                        <div style="font-size:0.85rem; color:#7f8c8d; min-width:100px;">
+                            🕒 ${w.tijd} <br> 📍 ${w.veld}
+                        </div>
+                        <div style="flex:1; display:flex; justify-content:center; align-items:center; gap:10px; min-width:200px;">
+                            <strong style="color:${tThuis.kleur}; text-align:right; flex:1; font-size:1.1rem;">${tThuis.naam}</strong>
+                            <div style="display:flex; align-items:center; gap:5px;">
+                                <input type="number" id="sc_thuis_${w.id}" value="${scT}" style="width:45px; padding:6px; text-align:center; margin:0; border:1px solid #bdc3c7; border-radius:4px; font-weight:bold;" onchange="window.manualScoreChange('${w.id}')">
+                                <span style="font-weight:bold; color:#7f8c8d;">-</span>
+                                <input type="number" id="sc_uit_${w.id}" value="${scU}" style="width:45px; padding:6px; text-align:center; margin:0; border:1px solid #bdc3c7; border-radius:4px; font-weight:bold;" onchange="window.manualScoreChange('${w.id}')">
+                            </div>
+                            <strong style="color:${tUit.kleur}; text-align:left; flex:1; font-size:1.1rem;">${tUit.naam}</strong>
+                        </div>
+                        <div class="hide-in-show-mode" style="display:flex; gap:5px;">
+                            <button onclick="window.openLiveScore('${w.id}')" style="background:#e67e22; color:white; border:none; padding:8px 12px; border-radius:4px; cursor:pointer; font-weight:bold;">⏱️ Live</button>
+                            <button onclick="window.verwijderWedstrijd('${w.id}')" style="background:#e74c3c; color:white; border:none; padding:8px 12px; border-radius:4px; cursor:pointer; font-weight:bold;">X</button>
+                        </div>
+                    </div>`;
+            });
+        });
+    }
+    if(document.getElementById('toernooi-schema')) document.getElementById('toernooi-schema').innerHTML = schemaHtml;
+
+    // 3. TEAMS RENDERN (RECHTS)
     let spelersLijstHtml = '<option value="">-- Voeg clublid toe --</option>';
     if (window.spelersDB && window.spelersDB.length > 0) {
         let gesorteerd = [...window.spelersDB].sort((a,b) => (a.naam || '').localeCompare(b.naam || ''));
         gesorteerd.forEach(s => { spelersLijstHtml += `<option value="${s.id}">${s.naam || 'Onbekend'}</option>`; });
-    } else {
-        spelersLijstHtml = '<option value="">Geen leden in database</option>';
     }
 
     let teamsHtml = '';
@@ -176,17 +213,15 @@ window.renderToernooi = function() {
         teamsHtml += `
             <div style="border:1px solid ${t.kleur}; border-radius:6px; overflow:hidden;">
                 <div style="background:${t.kleur}; color:white; padding:8px 12px; display:flex; justify-content:space-between; align-items:center; font-weight:bold;">
-                    <span>${t.naam || 'Naamloos Team'} <span style="font-size:0.8rem; font-weight:normal;">(${t.spelers.length} spelers)</span></span>
+                    <span>${t.naam || 'Team'} <span style="font-size:0.8rem; font-weight:normal;">(${t.spelers.length} spelers)</span></span>
                     <button onclick="window.verwijderToernooiTeam('${t.id}')" style="background:transparent; border:none; color:white; cursor:pointer; font-weight:bold;">X</button>
                 </div>
                 <div style="background:#fafafa; padding:10px;">
                     <ul style="list-style:none; padding:0; margin:0 0 10px 0;">`;
         
         t.spelers.forEach((sId, pIdx) => {
-            // Zoek de speler op, als hij niet bestaat tonen we gewoon zijn oude 'sId' (bijv. "Filip")
             let sObj = (window.spelersDB || []).find(s => s.id === sId || s.naam === sId);
             let weergaveNaam = sObj ? sObj.naam : sId; 
-
             teamsHtml += `<li style="display:flex; justify-content:space-between; border-bottom:1px dashed #ccc; padding:4px 0; font-size:0.9rem;">
                 ${weergaveNaam} <button onclick="window.verwijderSpelerUitTeam('${t.id}', ${pIdx})" style="color:red; background:none; border:none; cursor:pointer; font-weight:bold;">x</button>
             </li>`;
@@ -200,14 +235,14 @@ window.renderToernooi = function() {
                 </div>
             </div>`;
     });
-    document.getElementById('toernooi-teams').innerHTML = teamsHtml || "<p style='color:#7f8c8d;'>Maak eerst een toernooiteam aan.</p>";
+    if(document.getElementById('toernooi-teams')) document.getElementById('toernooi-teams').innerHTML = teamsHtml || "<p style='color:#7f8c8d;'>Maak eerst een toernooiteam aan.</p>";
 };
 
 // --- DATA MUTATIES ---
 window.toernooiTeamToevoegen = function() {
     let naam = document.getElementById('nt_naam').value.trim();
     let kleur = document.getElementById('nt_kleur').value;
-    if(!naam) return;
+    if (!naam) return;
     window.toernooiDB[actieveCompId].teams.push({ id: 'tt_' + Date.now(), naam: naam, kleur: kleur, spelers: [] });
     localStorage.setItem('blackshots_toernooi', JSON.stringify(window.toernooiDB));
     window.renderToernooi();
@@ -221,15 +256,12 @@ window.verwijderToernooiTeam = function(id) {
 
 window.voegToernooiSpelerToe = function(teamId) {
     let spelerId = document.getElementById(`add_speler_${teamId}`).value;
-    if(!spelerId) return alert("Selecteer een speler uit de lijst.");
-    
+    if (!spelerId) return;
     let team = window.toernooiDB[actieveCompId].teams.find(t => t.id === teamId);
-    if(!team.spelers.includes(spelerId)) {
+    if (!team.spelers.includes(spelerId)) {
         team.spelers.push(spelerId);
         localStorage.setItem('blackshots_toernooi', JSON.stringify(window.toernooiDB));
         window.renderToernooi();
-    } else {
-        alert("Deze speler zit al in dit toernooiteam!");
     }
 };
 
@@ -243,10 +275,13 @@ window.verwijderSpelerUitTeam = function(teamId, index) {
 window.toernooiWedstrijdToevoegen = function() {
     let datum = document.getElementById('nw_datum').value || new Date().toLocaleDateString('nl-NL');
     let tijd = document.getElementById('nw_tijd').value || "18:00";
-    let veld = document.getElementById('nw_veld').value.trim() || "Hoofdveld";
+    let veld = document.getElementById('nw_veld').value.trim() || "Veld 1";
     let thuis = document.getElementById('nw_thuis').value;
     let uit = document.getElementById('nw_uit').value;
-    if(!thuis || !uit || thuis === uit) return alert("Kies twee verschillende teams.");
+    
+    if (!thuis || !uit || thuis === uit) {
+        return alert("Kies twee verschillende teams.");
+    }
     
     window.toernooiDB[actieveCompId].wedstrijden.push({ 
         id: 'tm_' + Date.now(), datum: datum, tijd: tijd, veld: veld, 
@@ -257,23 +292,23 @@ window.toernooiWedstrijdToevoegen = function() {
 };
 
 window.verwijderWedstrijd = function(id) {
-    if(confirm("Wedstrijd definitief verwijderen?")) {
+    if (confirm("Wedstrijd definitief verwijderen?")) {
         window.toernooiDB[actieveCompId].wedstrijden = window.toernooiDB[actieveCompId].wedstrijden.filter(w => w.id !== id);
         localStorage.setItem('blackshots_toernooi', JSON.stringify(window.toernooiDB));
         window.renderToernooi();
     }
 };
 
-// --- MOBILE-FIRST LIVE SCORE MODULE ---
+// --- HIER IS DE LIVE SCORE MODULE WEER TERUG! ---
 window.openLiveScore = function(matchId) {
     actieveLiveMatchId = matchId;
     const comp = window.toernooiDB[actieveCompId];
     const match = comp.wedstrijden.find(w => w.id === matchId);
     
-    if(match.scoreThuis === null) match.scoreThuis = 0;
-    if(match.scoreUit === null) match.scoreUit = 0;
-    if(!match.logs) match.logs = [];
-    if(!match.playerStats) match.playerStats = {};
+    if (match.scoreThuis === null) match.scoreThuis = 0;
+    if (match.scoreUit === null) match.scoreUit = 0;
+    if (!match.logs) match.logs = [];
+    if (!match.playerStats) match.playerStats = {};
 
     const tThuis = comp.teams.find(t => t.id === match.thuis) || { naam: "Thuis", kleur: "#333", spelers: [] };
     const tUit = comp.teams.find(t => t.id === match.uit) || { naam: "Uit", kleur: "#333", spelers: [] };
@@ -302,7 +337,6 @@ window.openLiveScore = function(matchId) {
             </div>
 
             <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap:10px; padding:15px;">
-                
                 <div style="background:white; border-radius:12px; padding:20px; text-align:center; border-top:8px solid ${tThuis.kleur}; box-shadow:0 4px 10px rgba(0,0,0,0.2);">
                     <h2 style="margin:0 0 10px 0; color:#333;">${tThuis.naam}</h2>
                     <div id="ls_score_thuis" style="font-size:6rem; font-weight:bold; color:${tThuis.kleur}; line-height:1;">${match.scoreThuis}</div>
@@ -312,7 +346,6 @@ window.openLiveScore = function(matchId) {
                         <button onclick="window.addScore('thuis', 2)" style="flex:1; padding:15px; font-size:1.5rem; font-weight:bold; background:#eef2f5; border:none; border-radius:8px; cursor:pointer;">+2</button>
                         <button onclick="window.addScore('thuis', 3)" style="flex:1; padding:15px; font-size:1.5rem; font-weight:bold; background:#eef2f5; border:none; border-radius:8px; cursor:pointer;">+3</button>
                     </div>
-                    
                     <select id="ls_speler_thuis" style="width:100%; padding:12px; font-size:1rem; border-radius:6px; border:2px solid #ddd;">${thuisOpties}</select>
                 </div>
 
@@ -325,7 +358,6 @@ window.openLiveScore = function(matchId) {
                         <button onclick="window.addScore('uit', 2)" style="flex:1; padding:15px; font-size:1.5rem; font-weight:bold; background:#eef2f5; border:none; border-radius:8px; cursor:pointer;">+2</button>
                         <button onclick="window.addScore('uit', 3)" style="flex:1; padding:15px; font-size:1.5rem; font-weight:bold; background:#eef2f5; border:none; border-radius:8px; cursor:pointer;">+3</button>
                     </div>
-                    
                     <select id="ls_speler_uit" style="width:100%; padding:12px; font-size:1rem; border-radius:6px; border:2px solid #ddd;">${uitOpties}</select>
                 </div>
             </div>
@@ -380,7 +412,7 @@ window.addScore = function(zijde, punten) {
 
 window.refreshLiveDisplay = function() {
     const match = window.toernooiDB[actieveCompId].wedstrijden.find(w => w.id === actieveLiveMatchId);
-    if(!match) return;
+    if (!match) return;
 
     document.getElementById('ls_score_thuis').innerText = match.scoreThuis;
     document.getElementById('ls_score_uit').innerText = match.scoreUit;
