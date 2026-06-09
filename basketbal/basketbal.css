@@ -200,63 +200,82 @@ body.rol-trainer .admin-only {
 }
 
 /* ==========================================================================
-   🌙 DARK MODE (Veilig: raakt de layout NIET aan!)
+   🌙 DARK MODE 2.0 (Modern, Zacht voor de ogen & 100% Leesbaar)
    ========================================================================== */
 
-/* De hoofdachtergrond en tekst */
+/* De hoofdachtergrond (Diep, zacht nachtblauw/grijs i.p.v. hard zwart) */
 body.dark-mode {
-    background-color: #121212 !important;
-    color: #e0e0e0 !important;
+    background-color: #0f172a !important; 
+    color: #f1f5f9 !important; 
 }
 
-/* Alle witte vlakken, kaarten en invulvelden donker maken */
+/* Kaarten en Witte vlakken (Zachte leisteen kleur) */
 body.dark-mode .card, 
 body.dark-mode div[style*="background:white"],
 body.dark-mode div[style*="background:#fafafa"],
 body.dark-mode div[style*="background: white"],
 body.dark-mode div[style*="background: #fafafa"] {
-    background-color: #1e1e1e !important;
-    color: #e0e0e0 !important;
-    border-color: #333333 !important;
+    background-color: #1e293b !important; 
+    color: #f8fafc !important;
+    border-color: #334155 !important;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.4) !important;
 }
 
-/* Grijze achtergronden (zoals datumbalkjes) */
+/* Grijze balkjes en headers (bijv. datums toernooi) */
 body.dark-mode div[style*="background:#eef2f5"] {
-    background-color: #2c3e50 !important;
-    color: #ffffff !important;
+    background-color: #020617 !important; 
+    color: #e2e8f0 !important;
+    border-color: #334155 !important;
 }
 
-/* Knoppen en Menubalk */
-body.dark-mode .tab-menu { 
-    background-color: #1e1e1e !important; 
-    border-bottom: 2px solid #333 !important; 
-}
-body.dark-mode .tab-btn { color: #bdc3c7 !important; }
-body.dark-mode .tab-btn:hover { background-color: #333 !important; color: white !important; }
-body.dark-mode .tab-btn.active { background-color: #e67e22 !important; color: white !important; }
-
-/* Invoervelden (Inputs, Selects, Textareas) */
+/* 🎯 FIX: Invoervelden, Selects en Textareas (Helder, duidelijk en leesbaar) */
 body.dark-mode input, 
 body.dark-mode select, 
 body.dark-mode textarea {
-    background-color: #2c3e50 !important;
-    color: #ffffff !important;
-    border-color: #34495e !important;
+    background-color: #334155 !important; /* Lichter dan de achtergrond zodat ze opvallen */
+    color: #ffffff !important; /* Witte typ-tekst */
+    border: 1px solid #475569 !important; /* Zichtbaar randje */
 }
 
-/* Teksten die normaal zwart of donkerblauw zijn, wit maken */
-body.dark-mode h1, 
-body.dark-mode h2, 
-body.dark-mode h3, 
-body.dark-mode h4, 
-body.dark-mode strong,
-body.dark-mode span[style*="color:black"],
-body.dark-mode span[style*="color:#333"],
+/* Mooie blauwe gloed als je een vakje aanklikt om te typen */
+body.dark-mode input:focus, 
+body.dark-mode select:focus, 
+body.dark-mode textarea:focus {
+    border-color: #3b82f6 !important; 
+    outline: none !important;
+}
+
+/* 🎯 FIX: Labels, hints en grijze teksten (Helder lichtgrijs maken) */
+body.dark-mode label,
+body.dark-mode .hint-tekst,
+body.dark-mode div[style*="color:#7f8c8d"],
+body.dark-mode span[style*="color:#7f8c8d"] {
+    color: #94a3b8 !important; 
+}
+
+/* 🎯 FIX: Placeholder tekst ("Bijv. Five Out") goed leesbaar maken */
+body.dark-mode ::placeholder {
+    color: #94a3b8 !important;
+    opacity: 0.8 !important;
+}
+
+/* Koppen en titels dwingen naar helder wit */
+body.dark-mode h1, body.dark-mode h2, body.dark-mode h3, body.dark-mode h4, body.dark-mode strong,
+body.dark-mode span[style*="color:black"], body.dark-mode span[style*="color:#333"],
 body.dark-mode div[style*="color:var(--secondary-color)"] {
-    color: #ffffff !important;
+    color: #f8fafc !important;
 }
 
-/* Tabellen (zoals bij de toernooi stand) */
-body.dark-mode table th { background-color: #2c3e50 !important; color: white !important; border-color: #444 !important; }
-body.dark-mode table td { border-color: #444 !important; color: #e0e0e0 !important; }
-body.dark-mode table tr { border-bottom: 1px solid #444 !important; }
+/* Menu Balk styling */
+body.dark-mode .tab-menu { 
+    background-color: #1e293b !important; 
+    border-bottom: 2px solid #020617 !important; 
+}
+body.dark-mode .tab-btn { color: #94a3b8 !important; }
+body.dark-mode .tab-btn:hover { background-color: #334155 !important; color: white !important; }
+body.dark-mode .tab-btn.active { background-color: #3b82f6 !important; color: white !important; }
+
+/* Tabellen (zoals Toernooi Stand) */
+body.dark-mode table th { background-color: #020617 !important; color: #f8fafc !important; border-color: #334155 !important; }
+body.dark-mode table td { border-color: #334155 !important; color: #cbd5e1 !important; }
+body.dark-mode table tr { border-bottom: 1px solid #334155 !important; }
