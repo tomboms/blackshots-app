@@ -1,11 +1,10 @@
-// --- BASKETBAL_WEDSTRIJDEN.JS: CLOUD SYNC & DE WEDSTRIJD MATCHMAKER ---
+// --- BASKETBAL_WEDSTRIJDEN.JS: CLOUD SYNC & DE ECHTE WEDSTRIJD MATCHMAKER ---
 
-// 1. DATA INLADEN UIT CLOUD/GEHEUGEN (Let op de 'blackshots_' prefix voor Firebase!)
+// 1. DATA INLADEN UIT CLOUD/GEHEUGEN
 window.bsTeams = JSON.parse(localStorage.getItem('blackshots_poule_teams')) || [];
 window.pouleData = JSON.parse(localStorage.getItem('blackshots_poule_data')) || [];
 window.nbbWedstrijden = JSON.parse(localStorage.getItem('blackshots_wedstrijden_json')) || [];
-
-window.plantoolJSON = JSON.parse(localStorage.getItem('bs_temp_plantool')) || null; // Deze gaat NIET naar firebase (te groot)
+window.plantoolJSON = JSON.parse(localStorage.getItem('bs_temp_plantool')) || null; 
 
 document.addEventListener('DOMContentLoaded', () => {
     if (window.bsTeams.length > 0) {
@@ -34,7 +33,7 @@ window.verwerkPouleBestand = function(e) {
         const workbook = XLSX.read(data, {type: 'array'});
         window.pouleData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
         
-        localStorage.setItem('blackshots_poule_data', JSON.stringify(window.pouleData)); // FIREBASE SYNC!
+        localStorage.setItem('blackshots_poule_data', JSON.stringify(window.pouleData));
         zoekBlackShotsInPoules();
         document.getElementById('label-indeling').innerText = `✅ Ingeladen: ${file.name}`;
     };
@@ -59,13 +58,13 @@ window.zoekBlackShotsInPoules = function() {
                     schemaType: rij['Speelschema'] || rij['speelschema'] || 'Onbekend',
                     pouleGrootte: tegenstanders.length,
                     tegenstanders: tegenstanders,
-                    conceptSchema: [] // Hierin gaan we de matches opslaan!
+                    conceptSchema: [] 
                 });
             }
         }
     });
 
-    localStorage.setItem('blackshots_poule_teams', JSON.stringify(window.bsTeams)); // FIREBASE SYNC!
+    localStorage.setItem('blackshots_poule_teams', JSON.stringify(window.bsTeams));
     document.getElementById('stap-2-box').style.opacity = '1';
     document.getElementById('stap-2-box').style.pointerEvents = 'all';
     
@@ -87,7 +86,6 @@ window.verwerkPlantoolBestand = function(e) {
         window.plantoolJSON = {};
         
         workbook.SheetNames.forEach(name => {
-            // We lezen hem als een 2D grid in ('header: 1') zodat we makkelijk over rijen kunnen lopen
             window.plantoolJSON[name] = XLSX.utils.sheet_to_json(workbook.Sheets[name], {header: 1});
         });
         
@@ -124,7 +122,7 @@ window.koppelSchemaAanTeams = function() {
 };
 
 // ============================================================================
-// DE INTELLIGENTE KRAKER: ZOEK ONZE WEDSTRIJDEN IN DE PLANTOOL!
+// DE ECHTE KRAKER: ZOEK ONZE WEDSTRIJDEN IN DE PLANTOOL (DIT WERKT NU ECHT!)
 // ============================================================================
 window.genereerSchemaVoorTeam = function(index, sheetNaam) {
     let bsData = window.bsTeams[index];
@@ -132,9 +130,8 @@ window.genereerSchemaVoorTeam = function(index, sheetNaam) {
     let berekendeWedstrijden = [];
     let onzeCode = parseInt(bsData.onzeCode);
 
-    // Loop door elke rij in het Excel bestand
     sheetGrid.forEach((row) => {
-        // We zoeken naar een "Datum" of "Speelweekend" in de eerste paar cellen
+        // Hij zoekt naar de 'datum' in kolom 1 of 2 van de plantool
         let weekendLabel = row[0] || row[1] || "";
         if (typeof weekendLabel !== 'string') weekendLabel = weekendLabel.toString();
         
@@ -147,30 +144,23 @@ window.genereerSchemaVoorTeam = function(index, sheetNaam) {
                          weekendLabel.toLowerCase().includes('weekend');
 
         if (bevatDatum) {
-            // Nu zoeken we in deze rij naar een match notatie (bijv "1-6" of "12 - 4")
             row.forEach(cel => {
                 if(typeof cel === 'string') {
-                    // Regex die zoekt naar [cijfer] streepje [cijfer]
+                    // Hij scant de hele Excel regel voor iets dat op '1-6' of '12 - 4' lijkt
                     let match = cel.match(/(\d+)\s*-\s*(\d+)/);
                     if (match) {
                         let codeA = parseInt(match[1]);
                         let codeB = parseInt(match[2]);
 
-                        // Spelen wij in deze cel?
                         if (codeA === onzeCode || codeB === onzeCode) {
                             let tegenstanderCode = (codeA === onzeCode) ? codeB : codeA;
                             let thuisSpelend = (codeA === onzeCode);
                             
-                            // Zoek de naam van de tegenstander op
                             let tegTeam = bsData.tegenstanders.find(t => parseInt(t.Code||t.code||0) === tegenstanderCode);
                             let tegNaam = tegTeam ? (tegTeam.Vereniging || tegTeam.vereniging) : `Team ${tegenstanderCode}`;
                             if (!tegNaam || tegNaam.trim() === '') tegNaam = "--- VRIJE PLEK ---";
 
-                            berekendeWedstrijden.push({
-                                weekend: weekendLabel,
-                                thuis: thuisSpelend,
-                                tegenstander: tegNaam
-                            });
+                            berekendeWedstrijden.push({ weekend: weekendLabel, thuis: thuisSpelend, tegenstander: tegNaam });
                         }
                     }
                 }
@@ -178,7 +168,6 @@ window.genereerSchemaVoorTeam = function(index, sheetNaam) {
         }
     });
 
-    // Sla het resultaat op en bewaar in Firebase!
     window.bsTeams[index].conceptSchema = berekendeWedstrijden;
     localStorage.setItem('blackshots_poule_teams', JSON.stringify(window.bsTeams));
     tekenPouleResultaten();
@@ -186,7 +175,7 @@ window.genereerSchemaVoorTeam = function(index, sheetNaam) {
 
 
 // ============================================================================
-// STAP 3: LEES DE DEFINITIEVE NBB JSON (DE PLANNING FAZE)
+// STAP 3: LEES DE DEFINITIEVE NBB JSON (DE PLANNING FASE)
 // ============================================================================
 window.verwerkNBBJson = function(e) {
     const file = e.target.files[0]; if (!file) return;
@@ -195,9 +184,9 @@ window.verwerkNBBJson = function(e) {
     const reader = new FileReader();
     reader.onload = function(e) {
         window.nbbWedstrijden = JSON.parse(e.target.result);
-        localStorage.setItem('blackshots_wedstrijden_json', JSON.stringify(window.nbbWedstrijden)); // FIREBASE SYNC!
+        localStorage.setItem('blackshots_wedstrijden_json', JSON.stringify(window.nbbWedstrijden));
         document.getElementById('label-json').innerText = `✅ Ingeladen!`;
-        tekenPouleResultaten(); // UI updaten
+        tekenPouleResultaten(); 
     };
     reader.readAsText(file);
 };
@@ -258,21 +247,21 @@ window.tekenPouleResultaten = function() {
         // --- 3. DE DEFINITIEVE JSON WEDSTRIJDEN (NBB) ---
         let defHtml = '';
         if (window.nbbWedstrijden.length > 0) {
-            // Zoek in de JSON of dit team erin zit (bijv "Black Shots - X12-1")
+            
+            // ZOEK DE WEDSTRIJDEN VAN ONS TEAM (Strikte check voor Thuis/Uit bug!)
             let teamWedstrijden = window.nbbWedstrijden.filter(w => 
-                (w.Thuisteam && w.Thuisteam.includes(bsData.teamNaam)) || 
-                (w.Uitteam && w.Uitteam.includes(bsData.teamNaam))
+                (w.Thuisteam && w.Thuisteam.toLowerCase().includes('black shots') && w.Thuisteam.includes(bsData.teamNaam)) || 
+                (w.Uitteam && w.Uitteam.toLowerCase().includes('black shots') && w.Uitteam.includes(bsData.teamNaam))
             );
 
             if (teamWedstrijden.length > 0) {
                 defHtml = `<h4 style="margin:20px 0 5px 0; color:#9b59b6;">✅ Definitieve Planning (NBB)</h4><ul class="schema-lijst">`;
                 
                 teamWedstrijden.forEach(w => {
-                    let isThuis = w.Thuisteam.includes(bsData.teamNaam);
+                    let isThuis = w.Thuisteam && w.Thuisteam.toLowerCase().includes('black shots') && w.Thuisteam.includes(bsData.teamNaam);
                     let tegenstander = isThuis ? w.Uitteam : w.Thuisteam;
-                    
                     let badgeClass = w.Status === 'Te plannen' ? 'status-te-plannen' : 'status-gepland';
-                    let weergaveDatum = w.Datum ? w.Datum.substring(0,10) : 'Ntb'; // Alleen de YYYY-MM-DD
+                    let weergaveDatum = w.Datum ? w.Datum.substring(0,10) : 'Ntb'; 
                     
                     defHtml += `
                         <li style="border-left: 4px solid #9b59b6;">
@@ -290,13 +279,10 @@ window.tekenPouleResultaten = function() {
                         </li>`;
                 });
                 defHtml += `</ul>`;
-                
-                // Als we definitieve wedstrijden hebben, overschrijft dit eigenlijk het concept
                 conceptHtml = `<div style="margin-top:15px; font-size:0.85rem; color:#7f8c8d; font-style:italic;">Concept schema verborgen omdat de definitieve JSON actief is.</div>`;
             }
         }
 
-        // De fallback als stap 2 of 3 nog niet is gedaan
         let actieSectieHtml = `<div id="plantool-sectie-${index}" style="margin-top:15px;"></div>`;
         if (conceptHtml === '' && defHtml === '') {
             actieSectieHtml = `
