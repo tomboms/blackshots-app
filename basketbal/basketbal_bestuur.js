@@ -15,7 +15,7 @@ window.standaardSjabloon = JSON.parse(localStorage.getItem('blackshots_bestuur_s
 window.actieveVergaderingId = null;
 window.isLiveModus = false;
 
-// Het perfecte Sleep (Drag) Icoontje in SVG (werkt op elke computer)
+// Het perfecte Sleep (Drag) Icoontje in SVG
 const dragIcon = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="12" x2="20" y2="12"></line><line x1="4" y1="6" x2="20" y2="6"></line><line x1="4" y1="18" x2="20" y2="18"></line></svg>`;
 
 // --- 1. OVERZICHT ---
@@ -32,9 +32,12 @@ window.tekenOverzicht = function() {
     let gesorteerd = [...window.bestuurDB].reverse();
     gesorteerd.forEach(v => {
         container.innerHTML += `
-            <div onclick="openVergadering('${v.id}')" class="card" style="cursor:pointer; transition:0.2s; border-left:6px solid #3498db; margin-bottom:10px;" onmouseover="this.style.transform='translateX(5px)'" onmouseout="this.style.transform='translateX(0)'">
-                <strong style="font-size:1.2rem; color:var(--secondary-color);">📅 ${v.datum || 'Nieuwe Vergadering'}</strong>
-                <div style="color:#7f8c8d; font-size:0.9rem; margin-top:5px;">🕒 ${v.tijd || '?'} | 📍 ${v.adres || '?'}</div>
+            <div class="card" style="display:flex; justify-content:space-between; align-items:center; transition:0.2s; border-left:6px solid #3498db; margin-bottom:10px;" onmouseover="this.style.transform='translateX(5px)'" onmouseout="this.style.transform='translateX(0)'">
+                <div style="flex:1; cursor:pointer;" onclick="openVergadering('${v.id}')">
+                    <strong style="font-size:1.2rem; color:var(--secondary-color);">📅 ${v.datum || 'Nieuwe Vergadering'}</strong>
+                    <div style="color:#7f8c8d; font-size:0.9rem; margin-top:5px;">🕒 ${v.tijd || '?'} | 📍 ${v.adres || '?'}</div>
+                </div>
+                <button onclick="verwijderVergadering('${v.id}')" style="background:#e74c3c; color:white; border:none; border-radius:6px; padding:10px 15px; font-weight:bold; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.1); transition:0.2s;" onmouseover="this.style.background='#c0392b'" onmouseout="this.style.background='#e74c3c'" title="Verwijder deze vergadering direct">🗑️</button>
             </div>
         `;
     });
@@ -62,7 +65,6 @@ window.openVergadering = function(id) {
     let v = window.bestuurDB.find(x => x.id === id);
     if (!v) return;
 
-    // Database reparatie voor oude punten
     if(v.punten) {
         v.punten.forEach(p => { 
             if(typeof p.klad === 'undefined') p.klad = ''; 
@@ -103,7 +105,7 @@ window.toggleLiveModus = function() {
     tekenAgendaPunten(); 
 };
 
-// --- 3. SLEPEN (DRAG & DROP) LOGICA VOOR DE EDITOR ---
+// --- 3. SLEPEN (DRAG & DROP) LOGICA ---
 let draggedItemIndex = null;
 window.startDrag = function(index) { draggedItemIndex = index; };
 window.overDrag = function(event) { event.preventDefault(); event.currentTarget.classList.add('drag-over'); };
@@ -119,7 +121,7 @@ window.dropPunt = function(event, index) {
     slaOpEnHerlaad(); tekenAgendaPunten(); draggedItemIndex = null;
 };
 
-// --- 4. AGENDAPUNTEN TEKENEN (INCLUSIEF 3 VAKKEN EN A,B,C LOGICA) ---
+// --- 4. AGENDAPUNTEN TEKENEN ---
 window.tekenAgendaPunten = function() {
     let v = window.bestuurDB.find(x => x.id === window.actieveVergaderingId);
     let container = document.getElementById('agenda-punten-container');
@@ -129,23 +131,20 @@ window.tekenAgendaPunten = function() {
     let subCounter = 0;
 
     v.punten.forEach((punt, index) => {
-        
-        // --- De Nummering of A,B,C logica ---
         let prefixStr = '';
         if (punt.isSub) {
-            let letter = String.fromCharCode(65 + subCounter); // A = 65, B = 66, etc.
+            let letter = String.fromCharCode(65 + subCounter);
             prefixStr = letter + ".";
             subCounter++;
         } else {
             mainCounter++;
             prefixStr = mainCounter + ".";
-            subCounter = 0; // reset the A,B,C counter for the next main item
+            subCounter = 0; 
         }
 
         let isSubClass = punt.isSub ? 'sub-punt' : '';
         let subBtnKleur = punt.isSub ? '#8e44ad' : '#bdc3c7';
 
-        // --- De 3 Vakken ---
         let htmlVakken = '';
         if (window.isLiveModus) {
             let prepDisplay = punt.prep ? punt.prep.replace(/\n/g, '<br>') : '<i style="color:#bdc3c7;">Geen voorbereiding genoteerd...</i>';
@@ -177,7 +176,6 @@ window.tekenAgendaPunten = function() {
             </div>`;
         }
 
-        // Knoppen bovenaan het agendapunt
         let actieKnoppen = window.isLiveModus ? '' : `
             <div style="display:flex; align-items:center; gap:8px;">
                 <button onclick="toggleSubPunt('${punt.id}')" class="sub-btn" style="background:transparent; border:1px solid ${subBtnKleur}; color:${subBtnKleur}; border-radius:4px; padding:3px 8px; font-size:0.8rem; font-weight:bold; cursor:pointer;" title="Maak hier een A, B, C sub-punt van">⇥ Inspringen</button>
@@ -209,11 +207,7 @@ window.slaOp = function() {
 };
 
 window.slaTitelOp = function(puntId, val) { window.bestuurDB.find(x => x.id === window.actieveVergaderingId).punten.find(p => p.id === puntId).titel = val; slaOpEnHerlaad(); };
-
-window.slaVeldOp = function(puntId, veldNaam, val) { 
-    window.bestuurDB.find(x => x.id === window.actieveVergaderingId).punten.find(p => p.id === puntId)[veldNaam] = val; 
-    slaOpEnHerlaad(); 
-};
+window.slaVeldOp = function(puntId, veldNaam, val) { window.bestuurDB.find(x => x.id === window.actieveVergaderingId).punten.find(p => p.id === puntId)[veldNaam] = val; slaOpEnHerlaad(); };
 
 window.toggleSubPunt = function(puntId) {
     let p = window.bestuurDB.find(x => x.id === window.actieveVergaderingId).punten.find(p => p.id === puntId);
@@ -236,20 +230,26 @@ window.verwijderPunt = function(puntId) {
     }
 };
 
-window.verwijderVergadering = function() {
-    if(confirm("Weet je zeker dat je deze hele vergadering inclusief notulen wilt wissen? Dit kan niet ongedaan worden gemaakt.")) {
-        let vIndex = window.bestuurDB.findIndex(x => x.id === window.actieveVergaderingId);
-        if (vIndex > -1) {
-            window.bestuurDB.splice(vIndex, 1);
-            localStorage.setItem('blackshots_bestuur', JSON.stringify(window.bestuurDB));
+// NIEUWE UNIVERSELE VERWIJDER FUNCTIE (Voor Binnen & Buiten)
+window.verwijderVergadering = function(idGeforceerd = null) {
+    let doelId = idGeforceerd || window.actieveVergaderingId;
+    if(confirm("Weet je zeker dat je deze hele vergadering inclusief alle notulen definitief wilt wissen? Dit kan niet ongedaan worden gemaakt.")) {
+        // Filter hem uit de database
+        window.bestuurDB = window.bestuurDB.filter(x => x.id !== doelId);
+        localStorage.setItem('blackshots_bestuur', JSON.stringify(window.bestuurDB));
+        
+        // Controleer of we in de editor zaten of in het overzicht
+        if (window.actieveVergaderingId === doelId) {
+            window.sluitEditor(); 
+        } else {
+            window.tekenOverzicht();
         }
-        window.sluitEditor(); 
     }
 }
 
 function slaOpEnHerlaad() { localStorage.setItem('blackshots_bestuur', JSON.stringify(window.bestuurDB)); }
 
-// --- 6. SJABLOON BEHEERDER (MET DRAG & DROP!) ---
+// --- 6. SJABLOON BEHEERDER ---
 window.tempSjabloon = [];
 let dragSjabIndex = null;
 
@@ -282,7 +282,6 @@ window.tekenSjabloonLijst = function() {
             </div>`;
     });
 }
-
 window.voegSjabloonPuntToe = function() { window.tempSjabloon.push('Nieuw agendapunt...'); tekenSjabloonLijst(); };
 window.slaSjabloonOp = function() {
     window.standaardSjabloon = window.tempSjabloon.filter(x => x.trim() !== '');
@@ -291,7 +290,7 @@ window.slaSjabloonOp = function() {
     alert("✅ Sjabloon succesvol bijgewerkt!");
 };
 
-// --- 7. DE PDF EXPORT (MET NESTE LIJSTEN VOOR A,B,C) ---
+// --- 7. DE PDF EXPORT ---
 window.genereerDocument = function(soort) {
     let v = window.bestuurDB.find(x => x.id === window.actieveVergaderingId);
     let hoofdtitel = soort === 'notulen' ? "Notulen Bestuursvergadering" : "Bestuursvergadering";
@@ -340,30 +339,14 @@ window.genereerDocument = function(soort) {
         <ol class="agenda-lijst">
     `;
 
-    // Genereer de lijst waarbij sub-items perfect als A,B,C in de HTML komen
     let inSubLijst = false;
-
-    v.punten.forEach((punt, index) => {
-        // Open of sluit een <ol type="A"> (Sublijst)
-        if (punt.isSub && !inSubLijst) {
-            htmlDoc += `<ol class="sub-lijst">`;
-            inSubLijst = true;
-        } else if (!punt.isSub && inSubLijst) {
-            htmlDoc += `</ol>`;
-            inSubLijst = false;
-        }
+    v.punten.forEach((punt) => {
+        if (punt.isSub && !inSubLijst) { htmlDoc += `<ol class="sub-lijst">`; inSubLijst = true; } 
+        else if (!punt.isSub && inSubLijst) { htmlDoc += `</ol>`; inSubLijst = false; }
 
         htmlDoc += `<li>${punt.titel || 'Onbenoemd punt'}`;
-        
-        // Spiekbrief tonen
-        if (soort === 'spiekbrief' && punt.prep) {
-            htmlDoc += `<div class="tekst-blok"><div class="prep-label">Jouw Voorbereiding:</div>${punt.prep}</div>`;
-        }
-        // Notulen tonen
-        if (soort === 'notulen' && punt.verslag) {
-            htmlDoc += `<div class="tekst-blok">${punt.verslag}</div>`;
-        }
-        
+        if (soort === 'spiekbrief' && punt.prep) htmlDoc += `<div class="tekst-blok"><div class="prep-label">Jouw Voorbereiding:</div>${punt.prep}</div>`;
+        if (soort === 'notulen' && punt.verslag) htmlDoc += `<div class="tekst-blok">${punt.verslag}</div>`;
         htmlDoc += `</li>`;
     });
 
