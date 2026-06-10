@@ -279,3 +279,65 @@ body.dark-mode .tab-btn.active { background-color: #3b82f6 !important; color: wh
 body.dark-mode table th { background-color: #020617 !important; color: #f8fafc !important; border-color: #334155 !important; }
 body.dark-mode table td { border-color: #334155 !important; color: #cbd5e1 !important; }
 body.dark-mode table tr { border-bottom: 1px solid #334155 !important; }
+
+
+/* ==========================================================================
+   📁 BESTUUR & AGENDA PAGINA
+   ========================================================================== */
+.agenda-punt { background: white; border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; margin-bottom: 15px; border-left: 5px solid #3498db; box-shadow: 0 2px 5px rgba(0,0,0,0.02); transition: 0.2s; }
+.agenda-punt.drag-over { border: 2px dashed #3498db; opacity: 0.5; transform: scale(0.98); }
+.agenda-punt.sub-punt { margin-left: 40px; border-left-color: #9b59b6; background: #fafafa; }
+
+.agenda-titel-input { font-weight: bold; font-size: 1.2rem; color: var(--secondary-color); width: 100%; border: none; border-bottom: 2px solid transparent; background: transparent; padding: 5px 0; margin-bottom: 10px; transition: 0.2s; }
+.agenda-titel-input:focus { border-bottom-color: #3498db; outline: none; }
+
+.notitie-veld { width: 100%; min-height: 100px; padding: 12px; border-radius: 6px; font-family: inherit; font-size: 0.95rem; resize: vertical; line-height: 1.5; border: 1px solid #bdc3c7; }
+.prep-veld { background: rgba(230, 126, 34, 0.05); border-color: #f39c12; }
+.klad-veld { background: rgba(52, 152, 219, 0.05); border-color: #3498db; }
+.live-veld { background: rgba(155, 89, 182, 0.05); border-color: #9b59b6; }
+
+.veld-label { display: block; font-weight: bold; font-size: 0.85rem; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px; }
+.label-prep { color: #d35400; }
+.label-klad { color: #2980b9; }
+.label-live { color: #8e44ad; }
+
+.spiekbrief-lees-blok { background: rgba(230, 126, 34, 0.08); border-left: 4px solid #e67e22; padding: 12px 15px; margin-bottom: 15px; border-radius: 4px; font-size: 1.05rem; line-height: 1.5; color: #333; }
+
+/* Drag Handle Icoontje */
+.drag-handle { cursor: grab; color: #7f8c8d; margin-right: 15px; display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; background: #eef2f5; border-radius: 4px; transition: 0.2s; }
+.drag-handle:hover { background: #bdc3c7; color: white; }
+.drag-handle:active { cursor: grabbing; background: #34495e; color: white; }
+
+/* Raster voor de 3 vakken */
+.drie-vakken-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; margin-top: 10px; }
+
+/* Modal voor Sjabloon */
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 9999; }
+.modal-content { background: white; padding: 30px; border-radius: 8px; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+.sjabloon-rij { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; padding: 8px; background: #fafafa; border: 1px solid #eee; border-radius: 6px; transition: 0.2s; }
+.sjabloon-rij.drag-over { border: 2px dashed #3498db; opacity: 0.5; }
+
+/* ==========================================================================
+   🌙 DARK MODE AANVULLING VOOR BESTUUR
+   ========================================================================== */
+body.dark-mode .agenda-punt { background: #1e293b; border-color: #334155; }
+body.dark-mode .agenda-punt.sub-punt { background: #0f172a; border-left-color: #8e44ad; }
+body.dark-mode .agenda-titel-input { color: #f8fafc; }
+body.dark-mode .prep-veld { background: rgba(230, 126, 34, 0.1); border-color: #d35400; color: #f8fafc; }
+body.dark-mode .klad-veld { background: rgba(52, 152, 219, 0.1); border-color: #3498db; color: #f8fafc; }
+body.dark-mode .live-veld { background: rgba(155, 89, 182, 0.1); border-color: #8e44ad; color: #f8fafc; }
+body.dark-mode .spiekbrief-lees-blok { background: rgba(230, 126, 34, 0.15); color: #f8fafc; }
+body.dark-mode .modal-content { background: #1e293b; color: white; border: 1px solid #334155; }
+body.dark-mode .sjabloon-rij { background: #0f172a; border-color: #334155; }
+body.dark-mode .drag-handle { background: #334155; color: #cbd5e1; }
+
+/* ==========================================================================
+   🔴 LIVE MODUS ACTIES (Full Screen)
+   ========================================================================== */
+body.live-modus-actief .top-nav,
+body.live-modus-actief .hide-in-live { display: none !important; }
+body.live-modus-actief .content-sectie { max-width: 100% !important; padding: 20px 5% !important; }
+body.live-modus-actief .agenda-titel-input { border-bottom: none; pointer-events: none; }
+body.live-modus-actief .drag-handle, 
+body.live-modus-actief .delete-btn, 
+body.live-modus-actief .sub-btn { display: none !important; }
