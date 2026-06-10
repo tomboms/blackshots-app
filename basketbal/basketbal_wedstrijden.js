@@ -1,8 +1,23 @@
-// --- BASKETBAL_WEDSTRIJDEN.JS: DE POULE & SCHEMA KRAKER ---
+// --- BASKETBAL_WEDSTRIJDEN.JS: DE SLIMME POULE & SCHEMA KRAKER ---
 
-window.pouleData = []; // De ruwe data uit de Indeling
-window.bsTeams = [];   // Gevonden Black Shots teams en hun poules
-window.plantoolWorkbook = null; // Het ingeladen NBB Macro bestand
+// 1. DATA INLADEN UIT GEHEUGEN (Zodat het overleeft bij een Refresh!)
+window.pouleData = JSON.parse(localStorage.getItem('bs_poule_data')) || [];
+window.bsTeams = JSON.parse(localStorage.getItem('bs_poule_teams')) || [];
+window.plantoolJSON = JSON.parse(localStorage.getItem('bs_plantool_json')) || null;
+
+// Zodra de pagina laadt, teken alles wat we nog in het geheugen hebben
+document.addEventListener('DOMContentLoaded', () => {
+    if (window.bsTeams.length > 0) {
+        tekenPouleResultaten();
+        document.getElementById('stap-2-box').style.opacity = '1';
+        document.getElementById('stap-2-box').style.pointerEvents = 'all';
+    }
+    if (window.plantoolJSON) {
+        document.getElementById('label-plantool').innerText = `✅ Plantool zit in het geheugen!`;
+        document.getElementById('label-plantool').style.color = '#8e44ad';
+        koppelSchemaAanTeams();
+    }
+});
 
 // ============================================================================
 // STAP 1: LEES DE POULE INDELING (CSV / Excel)
@@ -19,14 +34,12 @@ window.verwerkPouleBestand = function(e) {
         const data = new Uint8Array(e.target.result);
         const workbook = XLSX.read(data, {type: 'array'});
         
-        // Pak het eerste tabblad
         const firstSheetNaam = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[firstSheetNaam];
         
-        // Zet om naar een werkbare JSON lijst
         window.pouleData = XLSX.utils.sheet_to_json(worksheet);
+        localStorage.setItem('bs_poule_data', JSON.stringify(window.pouleData)); // Opslaan voor refresh
         
-        // Start de zoektocht!
         zoekBlackShotsInPoules();
     };
     reader.readAsArrayBuffer(file);
@@ -36,37 +49,37 @@ window.zoekBlackShotsInPoules = function() {
     window.bsTeams = [];
     
     window.pouleData.forEach(rij => {
-        let vereniging = rij['Vereniging'] || rij['vereniging'] || '';
+        let vereniging = (rij['Vereniging'] || rij['vereniging'] || '').toString();
         
-        // Zoek naar ons cluppie!
         if (vereniging.toLowerCase().includes('black shots')) {
             let pouleNaam = rij['Poule'] || rij['poule'] || 'Onbekend';
             let teamNaam = rij['Team'] || rij['team'] || 'Onbekend Team';
-            let onzeCode = rij['Code'] || rij['code'] || '?';
-            let schemaType = rij['Speelschema'] || rij['speelschema'] || 'Onbekend';
-
-            // Nu we weten in welke poule dit team zit, zoeken we ALLE tegenstanders in deze poule op
-            let tegenstanders = window.pouleData.filter(r => (r['Poule'] || r['poule']) === pouleNaam);
             
-            // Sorteer ze netjes op Code (1 t/m 12)
-            tegenstanders.sort((a, b) => parseInt(a['Code'] || a['code']) - parseInt(b['Code'] || b['code']));
-
-            window.bsTeams.push({
-                teamNaam: teamNaam,
-                pouleNaam: pouleNaam,
-                onzeCode: onzeCode,
-                schemaType: schemaType,
-                pouleGrootte: tegenstanders.length, // Zo weten we of het een poule van 6, 8 of 12 is!
-                tegenstanders: tegenstanders
-            });
+            // Voorkom dubbele teams als de Excel gekke dingen doet
+            if (!window.bsTeams.find(t => t.pouleNaam === pouleNaam && t.teamNaam === teamNaam)) {
+                let tegenstanders = window.pouleData.filter(r => (r['Poule'] || r['poule']) === pouleNaam);
+                tegenstanders.sort((a, b) => parseInt(a['Code'] || a['code'] || 0) - parseInt(b['Code'] || b['code'] || 0));
+                
+                window.bsTeams.push({
+                    teamNaam: teamNaam,
+                    pouleNaam: pouleNaam,
+                    onzeCode: rij['Code'] || rij['code'] || '?',
+                    schemaType: rij['Speelschema'] || rij['speelschema'] || 'Onbekend',
+                    pouleGrootte: tegenstanders.length,
+                    tegenstanders: tegenstanders
+                });
+            }
         }
     });
 
+    localStorage.setItem('bs_poule_teams', JSON.stringify(window.bsTeams)); // Opslaan voor refresh
     tekenPouleResultaten();
     
-    // Ontgrendel stap 2!
     document.getElementById('stap-2-box').style.opacity = '1';
     document.getElementById('stap-2-box').style.pointerEvents = 'all';
+    
+    // Als de plantool er al in zat, koppel ze direct!
+    if (window.plantoolJSON) koppelSchemaAanTeams();
 };
 
 window.tekenPouleResultaten = function() {
@@ -79,29 +92,31 @@ window.tekenPouleResultaten = function() {
     }
 
     window.bsTeams.forEach((bsData, index) => {
-        let lijstHtml = `<table class="team-lijst">
-            <tr><th>Code</th><th>Vereniging</th><th>Team</th></tr>`;
+        let lijstHtml = `<table class="team-lijst"><tr><th>Code</th><th>Vereniging</th><th>Team</th></tr>`;
         
         bsData.tegenstanders.forEach(tg => {
-            let isOns = (tg['Vereniging'] || '').toLowerCase().includes('black shots');
-            let trClass = isOns ? 'class="is-ons-team"' : '';
+            let vNaam = tg['Vereniging'] || tg['vereniging'];
+            
+            // FIX: Vang lege plekken in de poule perfect op (bijv. als Code 5 mist)
+            let isLeeg = (!vNaam || vNaam.trim() === '');
+            let isOns = (!isLeeg && vNaam.toLowerCase().includes('black shots'));
+            
+            let weergaveVereniging = isLeeg ? '<span style="color:#e74c3c; font-weight:bold; font-style:italic;">--- VRIJE PLEK ---</span>' : vNaam;
+            let weergaveTeam = isLeeg ? '-' : (tg['Team'] || tg['team'] || '?');
+
             lijstHtml += `
-                <tr ${trClass}>
+                <tr class="${isOns ? 'is-ons-team' : ''}">
                     <td><strong>${tg['Code'] || tg['code'] || '?'}</strong></td>
-                    <td>${tg['Vereniging'] || tg['vereniging'] || '?'}</td>
-                    <td>${tg['Team'] || tg['team'] || '?'}</td>
+                    <td>${weergaveVereniging}</td>
+                    <td>${weergaveTeam}</td>
                 </tr>`;
         });
         lijstHtml += `</table>`;
 
-        // Een knop voor Stap 2 (Wordt pas actief als de plantool is geladen)
-        let plantoolKnopHtml = `
-            <div style="margin-top:20px; padding-top:15px; border-top:1px dashed #bdc3c7;">
-                <label style="font-size:0.85rem; font-weight:bold; color:#7f8c8d; display:block; margin-bottom:5px;">Koppel aan NBB Plantool Tabblad:</label>
-                <select id="plantool-select-${index}" style="width:100%; padding:10px; border-radius:4px; border:1px solid #bdc3c7; margin-bottom:10px;" disabled>
-                    <option>Upload eerst de Plantool (.xlsm) hierboven!</option>
-                </select>
-                <button id="plantool-btn-${index}" onclick="genereerSchemaVoorTeam(${index})" style="width:100%; background:#bdc3c7; color:white; border:none; padding:10px; border-radius:4px; font-weight:bold; cursor:not-allowed;" disabled>📅 Bereken Wedstrijden</button>
+        // De lege container waar straks de berekende knoppen in komen
+        let plantoolSectieHtml = `
+            <div style="margin-top:20px; padding-top:15px; border-top:1px dashed #bdc3c7;" id="plantool-sectie-${index}">
+                <p style="font-size:0.85rem; color:#e74c3c; font-style:italic;">Upload de Plantool hierboven om de wedstrijden te genereren...</p>
             </div>
         `;
 
@@ -112,7 +127,7 @@ window.tekenPouleResultaten = function() {
                         <h3 style="margin:0 0 5px 0; color:var(--secondary-color); font-size:1.4rem;">${bsData.teamNaam}</h3>
                         <div style="font-size:0.9rem; color:#7f8c8d; margin-bottom:15px;">
                             <strong>Poule:</strong> ${bsData.pouleNaam} <br>
-                            <strong>Schema Advies NBB:</strong> ${bsData.schemaType} <br>
+                            <strong>NBB Schema:</strong> ${bsData.schemaType} <br>
                             <strong>Poule Grootte:</strong> ${bsData.pouleGrootte} teams
                         </div>
                     </div>
@@ -125,7 +140,7 @@ window.tekenPouleResultaten = function() {
                 <h4 style="margin:0 0 5px 0; color:#34495e;">Tegenstanders</h4>
                 ${lijstHtml}
                 
-                ${plantoolKnopHtml}
+                ${plantoolSectieHtml}
                 
                 <div id="schema-uitslag-${index}" style="margin-top:15px;"></div>
             </div>
@@ -134,7 +149,7 @@ window.tekenPouleResultaten = function() {
 };
 
 // ============================================================================
-// STAP 2: LEES DE PLANTOOL (.xlsm)
+// STAP 2: LEES DE PLANTOOL EN BEWAAR DE TABBLADEN
 // ============================================================================
 window.verwerkPlantoolBestand = function(e) {
     const file = e.target.files[0];
@@ -146,55 +161,89 @@ window.verwerkPlantoolBestand = function(e) {
     const reader = new FileReader();
     reader.onload = function(e) {
         const data = new Uint8Array(e.target.result);
-        // We laden het zware Macro bestand in!
-        window.plantoolWorkbook = XLSX.read(data, {type: 'array'});
+        const workbook = XLSX.read(data, {type: 'array'});
         
-        // Activeer alle dropdowns in de gemaakte kaarten
-        window.bsTeams.forEach((bsData, index) => {
-            let selectBox = document.getElementById(`plantool-select-${index}`);
-            let rekenKnop = document.getElementById(`plantool-btn-${index}`);
-            
-            if (selectBox) {
-                selectBox.innerHTML = '<option value="">-- Kies het juiste schema tabblad --</option>';
-                // Vul de dropdown met alle Tabbladen uit de Plantool (Bijv. "Schema 12", "Schema 8")
-                window.plantoolWorkbook.SheetNames.forEach(sheetName => {
-                    // Probeer slim voor te selecteren
-                    let selected = '';
-                    if (bsData.schemaType.toLowerCase().includes(sheetName.toLowerCase())) selected = 'selected';
-                    
-                    selectBox.innerHTML += `<option value="${sheetName}" ${selected}>${sheetName}</option>`;
-                });
-                selectBox.disabled = false;
-            }
-            if (rekenKnop) {
-                rekenKnop.disabled = false;
-                rekenKnop.style.background = '#9b59b6';
-                rekenKnop.style.cursor = 'pointer';
-            }
+        window.plantoolJSON = {};
+        
+        // We slaan alle tabbladen direct op als platte data (beter voor de browser)
+        workbook.SheetNames.forEach(name => {
+            window.plantoolJSON[name] = XLSX.utils.sheet_to_json(workbook.Sheets[name], {header: 1});
         });
         
-        alert("NBB Plantool succesvol ingeladen! Je kunt nu per team het schema berekenen.");
+        // Probeer het gigantische bestand op te slaan in de cache
+        try {
+            localStorage.setItem('bs_plantool_json', JSON.stringify(window.plantoolJSON));
+        } catch(err) {
+            console.warn("Plantool te groot voor localStorage cache, we gebruiken hem alleen in het tijdelijke geheugen.");
+        }
+
+        koppelSchemaAanTeams();
+        alert("NBB Plantool succesvol ingeladen en gekraakt!");
     };
     reader.readAsArrayBuffer(file);
 };
 
 // ============================================================================
-// STAP 3: BEREKEN HET SCHEMA
+// STAP 3: DE INTELLIGENTE TABBLAD MATCHER
 // ============================================================================
-window.genereerSchemaVoorTeam = function(index) {
+window.koppelSchemaAanTeams = function() {
+    if (!window.plantoolJSON || window.bsTeams.length === 0) return;
+    
+    let tabNamen = Object.keys(window.plantoolJSON);
+
+    window.bsTeams.forEach((bsData, index) => {
+        let sectie = document.getElementById(`plantool-sectie-${index}`);
+        if(!sectie) return;
+
+        let schemaGezocht = bsData.schemaType.toLowerCase().trim();
+        
+        // Zoek naar een exacte match ("Schema 12 1e helft comp" enz.)
+        let besteTab = tabNamen.find(t => t.toLowerCase().trim() === schemaGezocht);
+        
+        // Als het nét iets anders geschreven is, zoek dan naar een tabblad dat de naam bevat
+        if (!besteTab) {
+            besteTab = tabNamen.find(t => schemaGezocht.includes(t.toLowerCase().trim()) || t.toLowerCase().trim().includes(schemaGezocht));
+        }
+
+        // PERFECTE MATCH GEVONDEN: Verberg de dropdown en laat een mooie knop zien
+        if (besteTab) {
+            sectie.innerHTML = `
+                <div style="background:#fdf2e9; padding:12px; border-radius:6px; border:1px solid #e67e22; display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <span style="font-size:0.8rem; color:#d35400; font-weight:bold; display:block;">Tabblad automatisch gevonden:</span>
+                        <span style="color:#2c3e50; font-weight:bold; font-size:1.1rem;">📄 ${besteTab}</span>
+                    </div>
+                    <button onclick="genereerSchemaVoorTeam(${index}, '${besteTab}')" style="background:#8e44ad; color:white; border:none; padding:10px 15px; border-radius:4px; font-weight:bold; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.1); transition:0.2s;" onmouseover="this.style.background='#9b59b6'" onmouseout="this.style.background='#8e44ad'">📅 Bereken Schema</button>
+                </div>
+            `;
+        } else {
+            // Noodoplossing (Fallback): Mocht hij hem écht niet vinden, toon dan toch nog even een lijstje
+            let opties = '<option value="">-- Kies handmatig --</option>';
+            tabNamen.forEach(t => opties += `<option value="${t}">${t}</option>`);
+            sectie.innerHTML = `
+                <div style="background:#fdedec; padding:10px; border-radius:6px; border:1px solid #e74c3c;">
+                    <span style="font-size:0.8rem; color:#c0392b; font-weight:bold; display:block; margin-bottom:5px;">Kon tabblad niet automatisch raden. Kies er één uit de Plantool:</span>
+                    <select id="handmatig-tab-${index}" style="width:100%; padding:8px; margin-bottom:10px; border-radius:4px;">${opties}</select>
+                    <button onclick="genereerSchemaVoorTeam(${index}, document.getElementById('handmatig-tab-${index}').value)" style="width:100%; background:#e74c3c; color:white; border:none; padding:10px; border-radius:4px; font-weight:bold; cursor:pointer;">📅 Bereken Wedstrijden</button>
+                </div>
+            `;
+        }
+    });
+};
+
+// ============================================================================
+// STAP 4: DE BEREKENING (WORDT IN DE VOLGENDE STAP AFGEMAAKT)
+// ============================================================================
+window.genereerSchemaVoorTeam = function(index, sheetNaam) {
+    if(!sheetNaam) return alert("Selecteer of controleer het tabblad!");
     let bsData = window.bsTeams[index];
-    let sheetNaam = document.getElementById(`plantool-select-${index}`).value;
-    
-    if(!sheetNaam) return alert("Selecteer eerst een tabblad!");
-    
-    let sheet = window.plantoolWorkbook.Sheets[sheetNaam];
-    // Lees het tabblad uit als een grote matrix (array van arrays)
-    let rawData = XLSX.utils.sheet_to_json(sheet, {header: 1}); 
     
     let uitslagVak = document.getElementById(`schema-uitslag-${index}`);
-    uitslagVak.innerHTML = `<div style="background:#e8f8f5; border:1px solid #27ae60; padding:15px; border-radius:6px; margin-top:15px;">
-        <strong style="color:#27ae60;">Module 1 Geslaagd!</strong><br>
-        De plantool is gekraakt. We weten dat ons team <strong>Code ${bsData.onzeCode}</strong> is in een poule van <strong>${bsData.pouleGrootte}</strong>.<br><br>
-        <em>Nu de connectie succesvol ligt, kan ik de Matchmaker bouwen om de speeldata in de Agenda te schieten!</em>
-    </div>`;
+    uitslagVak.innerHTML = `
+        <div style="background:#e8f8f5; border:1px solid #27ae60; padding:15px; border-radius:6px; margin-top:15px; animation: popIn 0.3s ease-out;">
+            <strong style="color:#27ae60; font-size:1.1rem;">✅ Matchmaker Klaar Voor Actie!</strong><br>
+            Het automatische tabblad <strong>"${sheetNaam}"</strong> wordt nu uitgelezen voor <strong>Code ${bsData.onzeCode}</strong> (Poule van ${bsData.pouleGrootte}).<br><br>
+            <em>De volgende stap is het bouwen van de Zaalhuur Check & Datum verdeler!</em>
+        </div>
+    `;
 };
