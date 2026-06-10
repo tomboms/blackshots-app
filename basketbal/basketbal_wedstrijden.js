@@ -1,6 +1,5 @@
-// --- BASKETBAL_WEDSTRIJDEN.JS: CLOUD SYNC, POP-UPS & MATCHMAKER ---
+// --- BASKETBAL_WEDSTRIJDEN.JS: CLOUD SYNC, POP-UPS, MATCHMAKER & MOOIE DATUMS ---
 
-// 1. DATA INLADEN UIT CLOUD/GEHEUGEN
 window.bsTeams = JSON.parse(localStorage.getItem('blackshots_poule_teams')) || [];
 window.pouleData = JSON.parse(localStorage.getItem('blackshots_poule_data')) || [];
 window.nbbWedstrijden = JSON.parse(localStorage.getItem('blackshots_wedstrijden_json')) || [];
@@ -19,6 +18,30 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     tekenPouleResultaten();
 });
+
+// ============================================================================
+// HULPFUNCTIE: DATUMS MOOI MAKEN (Menselijke weergave)
+// ============================================================================
+function maakMooieDatum(datumStr, tijdStr, accommodatie) {
+    if (!datumStr) return "Datum onbekend";
+    try {
+        let d = new Date(datumStr);
+        const dagen = ['Zondag', 'Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag'];
+        let dag = dagen[d.getDay()];
+        
+        // Zorg voor voorloopnullen (bijv. 01 ipv 1)
+        let dagNummer = d.getDate().toString().padStart(2, '0');
+        let maandNummer = (d.getMonth() + 1).toString().padStart(2, '0');
+        let jaar = d.getFullYear();
+        
+        let tijd = tijdStr ? tijdStr.substring(0, 5) : ''; // "10:30" ipv "10:30:00"
+        let locatie = accommodatie ? ` in ${accommodatie}` : '';
+        
+        return `${dag} ${dagNummer}-${maandNummer}-${jaar}${tijd ? ' om ' + tijd : ''}${locatie}`;
+    } catch(e) {
+        return datumStr; // Fallback als datum onleesbaar is
+    }
+}
 
 // ============================================================================
 // STAP 1: LEES DE POULE INDELING (CSV / Excel)
@@ -73,7 +96,7 @@ window.zoekBlackShotsInPoules = function() {
 };
 
 // ============================================================================
-// STAP 2: LEES DE PLANTOOL (.xlsm)
+// STAP 2: LEES DE PLANTOOL (.xlsm) (FIX: raw false dwingt tekst ipv excel cijfers!)
 // ============================================================================
 window.verwerkPlantoolBestand = function(e) {
     const file = e.target.files[0]; if (!file) return;
@@ -86,7 +109,8 @@ window.verwerkPlantoolBestand = function(e) {
         window.plantoolJSON = {};
         
         workbook.SheetNames.forEach(name => {
-            window.plantoolJSON[name] = XLSX.utils.sheet_to_json(workbook.Sheets[name], {header: 1});
+            // raw: false is cruciaal! Hierdoor worden datums als "13-sep" gelezen ipv "45182"
+            window.plantoolJSON[name] = XLSX.utils.sheet_to_json(workbook.Sheets[name], {header: 1, raw: false, defval: ""});
         });
         
         try { localStorage.setItem('bs_temp_plantool', JSON.stringify(window.plantoolJSON)); } catch(err) { console.warn("Te groot voor cache"); }
@@ -109,12 +133,14 @@ window.koppelSchemaAanTeams = function() {
                        tabNamen.find(t => schemaGezocht.includes(t.toLowerCase().trim()) || t.toLowerCase().trim().includes(schemaGezocht));
 
         if (besteTab) {
-            // Nu we het tabblad hebben, genereren we op de achtergrond direct het schema!
             genereerSchemaVoorTeam(index, besteTab);
         }
     });
 };
 
+// ============================================================================
+// DE ECHTE KRAKER (FIX: Scant rijen zonder te verdwalen in lege cellen)
+// ============================================================================
 window.genereerSchemaVoorTeam = function(index, sheetNaam) {
     let bsData = window.bsTeams[index];
     let sheetGrid = window.plantoolJSON[sheetNaam];
@@ -122,18 +148,17 @@ window.genereerSchemaVoorTeam = function(index, sheetNaam) {
     let onzeCode = parseInt(bsData.onzeCode);
 
     sheetGrid.forEach((row) => {
-        let weekendLabel = row[0] || row[1] || "";
-        if (typeof weekendLabel !== 'string') weekendLabel = weekendLabel.toString();
+        let heeftMatch = false;
         
-        let bevatDatum = weekendLabel.toLowerCase().includes('jan') || weekendLabel.toLowerCase().includes('feb') || 
-                         weekendLabel.toLowerCase().includes('mrt') || weekendLabel.toLowerCase().includes('apr') || 
-                         weekendLabel.toLowerCase().includes('mei') || weekendLabel.toLowerCase().includes('jun') || 
-                         weekendLabel.toLowerCase().includes('jul') || weekendLabel.toLowerCase().includes('aug') || 
-                         weekendLabel.toLowerCase().includes('sep') || weekendLabel.toLowerCase().includes('okt') || 
-                         weekendLabel.toLowerCase().includes('nov') || weekendLabel.toLowerCase().includes('dec') ||
-                         weekendLabel.toLowerCase().includes('weekend');
+        // Scan of deze rij überhaupt een wedstrijd in zich heeft ("1-6")
+        row.forEach(cel => {
+            if(typeof cel === 'string' && cel.match(/(\d+)\s*-\s*(\d+)/)) heeftMatch = true;
+        });
 
-        if (bevatDatum) {
+        // Zo ja, dan plukken we de datum eruit (meestal de eerste of tweede cel op de rij)
+        if (heeftMatch) {
+            let weekendLabel = (row[0] || row[1] || row[2] || "Weekend onbekend").toString().trim();
+            
             row.forEach(cel => {
                 if(typeof cel === 'string') {
                     let match = cel.match(/(\d+)\s*-\s*(\d+)/);
@@ -159,7 +184,7 @@ window.genereerSchemaVoorTeam = function(index, sheetNaam) {
 
     window.bsTeams[index].conceptSchema = berekendeWedstrijden;
     localStorage.setItem('blackshots_poule_teams', JSON.stringify(window.bsTeams));
-    tekenPouleResultaten(); // UI updaten
+    tekenPouleResultaten();
 };
 
 
@@ -194,7 +219,6 @@ window.tekenPouleResultaten = function() {
     }
 
     window.bsTeams.forEach((bsData, index) => {
-        // Tegenstanders Tabel
         let lijstHtml = `<table class="team-lijst"><tr><th>Code</th><th>Vereniging</th><th>Team</th></tr>`;
         bsData.tegenstanders.forEach(tg => {
             let vNaam = tg['Vereniging'] || tg['vereniging'];
@@ -209,7 +233,7 @@ window.tekenPouleResultaten = function() {
         });
         lijstHtml += `</table>`;
 
-        // Check of we data hebben voor de Modal knop
+        // Checkt of er iéts is om te laten zien in de pop-up
         let heeftConcept = bsData.conceptSchema && bsData.conceptSchema.length > 0;
         let teamWedstrijden = window.nbbWedstrijden.filter(w => 
             (w.Thuisteam && w.Thuisteam.toLowerCase().includes('black shots') && w.Thuisteam.includes(bsData.teamNaam)) || 
@@ -254,7 +278,7 @@ window.tekenPouleResultaten = function() {
 };
 
 // ============================================================================
-// MODAL (POP-UP) LOGICA
+// MODAL (POP-UP) LOGICA MET MOOIE DATUMS
 // ============================================================================
 window.openSchemaModal = function(index) {
     let bsData = window.bsTeams[index];
@@ -265,7 +289,7 @@ window.openSchemaModal = function(index) {
     let modalInhoud = document.getElementById('modal-inhoud');
     modalInhoud.innerHTML = '';
 
-    // Deel 1: Definitieve JSON (Als die er is, zetten we die bovenaan!)
+    // Deel 1: Definitieve JSON (Nu met de mooie datum string!)
     let teamWedstrijden = window.nbbWedstrijden.filter(w => 
         (w.Thuisteam && w.Thuisteam.toLowerCase().includes('black shots') && w.Thuisteam.includes(bsData.teamNaam)) || 
         (w.Uitteam && w.Uitteam.toLowerCase().includes('black shots') && w.Uitteam.includes(bsData.teamNaam))
@@ -278,12 +302,14 @@ window.openSchemaModal = function(index) {
             let isThuis = w.Thuisteam && w.Thuisteam.toLowerCase().includes('black shots') && w.Thuisteam.includes(bsData.teamNaam);
             let tegenstander = isThuis ? w.Uitteam : w.Thuisteam;
             let badgeClass = w.Status === 'Te plannen' ? 'status-te-plannen' : 'status-gepland';
-            let weergaveDatum = w.Datum ? w.Datum.substring(0,10) : 'Ntb'; 
+            
+            // Toepassen van de Vertaler!
+            let weergaveDatum = maakMooieDatum(w.Datum, w.Tijd, w.Accommodatie); 
             
             defHtml += `
                 <li style="border-left: 4px solid #9b59b6;">
                     <div style="flex:1;">
-                        <strong style="color:#34495e; font-size:1.1rem;">${weergaveDatum} om ${w.Tijd || '?'}</strong><br>
+                        <strong style="color:#34495e; font-size:1rem;">${weergaveDatum}</strong><br>
                         <span style="font-size:1rem;">
                             ${isThuis ? '🏠 Thuis tegen:' : '🚌 Uit tegen:'} 
                             <strong>${tegenstander}</strong>
@@ -291,7 +317,6 @@ window.openSchemaModal = function(index) {
                     </div>
                     <div style="text-align:right;">
                         <span class="status-badge ${badgeClass}">${w.Status}</span>
-                        <div style="font-size:0.8rem; color:#7f8c8d; margin-top:5px;">📍 ${w.Accommodatie}</div>
                     </div>
                 </li>`;
         });
@@ -311,7 +336,7 @@ window.openSchemaModal = function(index) {
             conceptHtml += `
                 <li>
                     <div style="flex:1;">
-                        <strong style="color:#34495e; font-size:1.1rem;">${match.weekend}</strong><br>
+                        <strong style="color:#34495e; font-size:1.1rem;">Weekend van ${match.weekend}</strong><br>
                         <span style="font-size:1rem;">
                             ${match.thuis ? '🏠 Thuis tegen:' : '🚌 Uit tegen:'} 
                             <strong>${match.tegenstander}</strong>
