@@ -1,9 +1,9 @@
-// --- BASKETBAL_WEDSTRIJDEN.JS: MANUELE PLANTOOL KOPPELING MET DATUM-GEHEUGEN ---
+// --- BASKETBAL_WEDSTRIJDEN.JS: TOEKOMSTBESTENDIG & SLIMME DATUMS (FIX KOLOM E/F) ---
 
-// 1. DATA INLADEN (We laden alleen de kleine, veilige data in!)
+// 1. DATA INLADEN 
 window.bsTeams = JSON.parse(localStorage.getItem('blackshots_poule_teams')) || [];
 window.nbbWedstrijden = JSON.parse(localStorage.getItem('blackshots_wedstrijden_json')) || [];
-window.plantoolJSON = null; // Dit mega-bestand blijft alleen tijdelijk in het RAM geheugen staan!
+window.plantoolJSON = null; 
 
 document.addEventListener('DOMContentLoaded', () => {
     if (window.bsTeams.length > 0) {
@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
     tekenPouleResultaten();
 });
 
-// Mooie Datums Maken voor de Definitieve JSON
+// Mooie Datums Maken 
 function maakMooieDatum(datumStr, tijdStr, accommodatie) {
     if (!datumStr) return "Datum onbekend";
     try {
@@ -70,7 +70,6 @@ window.verwerkPouleBestand = function(e) {
         });
 
         localStorage.setItem('blackshots_poule_teams', JSON.stringify(window.bsTeams));
-        
         document.getElementById('stap-2-box').style.opacity = '1';
         document.getElementById('stap-2-box').style.pointerEvents = 'all';
         document.getElementById('label-indeling').innerText = `✅ Ingeladen: ${file.name}`;
@@ -96,7 +95,7 @@ window.verwerkPlantoolBestand = function(e) {
             window.plantoolJSON[name] = XLSX.utils.sheet_to_json(workbook.Sheets[name], {header: 1, raw: false, defval: ""});
         });
         
-        document.getElementById('label-plantool').innerText = `✅ Klaar! Selecteer hieronder je tabbladen.`;
+        document.getElementById('label-plantool').innerText = `✅ Klaar! Selecteer tabbladen.`;
         document.getElementById('label-plantool').style.color = '#8e44ad';
         tekenPouleResultaten(); 
     };
@@ -104,47 +103,37 @@ window.verwerkPlantoolBestand = function(e) {
 };
 
 // ============================================================================
-// DE BEREKENING (MET HET NIEUWE DATUM-GEHEUGEN!)
+// DE BEREKENING (MET VERBREDING NAAR KOLOM E/F)
 // ============================================================================
 window.genereerSchemaVoorTeam = function(index) {
     let selectEl = document.getElementById(`plantool-select-${index}`);
     if (!selectEl) return;
     let sheetNaam = selectEl.value;
     
-    if (!sheetNaam) {
-        alert("Kies eerst een tabblad uit het dropdown menu!");
-        return;
-    }
+    if (!sheetNaam) return alert("Kies eerst een tabblad uit het dropdown menu!");
 
     let bsData = window.bsTeams[index];
     let sheetGrid = window.plantoolJSON[sheetNaam];
     let berekendeWedstrijden = [];
     let onzeCode = parseInt(bsData.onzeCode);
     
-    let huidigWeekend = "Onbekend"; // Dit is het geheugen!
+    let huidigWeekend = "TBA / Onbekend"; 
 
     sheetGrid.forEach((row) => {
-        
-        // 1. Zoek naar een datum op deze rij en onthoud hem!
-        for (let i = 0; i < 5; i++) {
-            if (row[i]) {
-                let val = row[i].toString().trim();
-                let lw = val.toLowerCase();
-                let isDatum = lw.includes('jan') || lw.includes('feb') || lw.includes('mrt') || 
-                              lw.includes('apr') || lw.includes('mei') || lw.includes('jun') || 
-                              lw.includes('jul') || lw.includes('aug') || lw.includes('sep') || 
-                              lw.includes('okt') || lw.includes('nov') || lw.includes('dec') ||
-                              lw.includes('weekend');
-                
-                // Als we een maand zien en het is geen hele lange zin, slaan we hem op als huidig weekend
-                if (isDatum && val.length < 30) {
-                    huidigWeekend = val;
-                    break; 
-                }
+        // 1. Zoek naar een datum in de eerste 8 cellen (dus inclusief kolom E en F!)
+        row.slice(0, 8).forEach(cel => {
+            if (!cel) return;
+            let val = cel.toString().trim();
+            if (val.length < 4 || val.match(/^\d+\s*-\s*\d+$/)) return; // Negeer korte codes of "1-6"
+            
+            let lw = val.toLowerCase();
+            // Check op maanden, week, weekend, of data formats (zoals 12-09 of 12/09)
+            if (lw.match(/(jan|feb|mrt|apr|mei|jun|jul|aug|sep|okt|nov|dec|week|w-end)/) || val.match(/\d{1,2}[-/]\d{1,2}/)) {
+                huidigWeekend = val;
             }
-        }
+        });
 
-        // 2. Check of er wedstrijden (bijv. "1-6") op deze rij staan
+        // 2. Zoek de wedstrijden (1-6) op deze regel
         let heeftMatch = false;
         row.forEach(cel => { if(typeof cel === 'string' && cel.match(/(\d+)\s*-\s*(\d+)/)) heeftMatch = true; });
 
@@ -164,8 +153,16 @@ window.genereerSchemaVoorTeam = function(index) {
                             let tegNaam = tegTeam ? (tegTeam.Vereniging || tegTeam.vereniging) : `Team ${tegenstanderCode}`;
                             if (!tegNaam || tegNaam.trim() === '') tegNaam = "--- VRIJE PLEK ---";
 
-                            // Voeg toe met het onthouden weekend!
-                            berekendeWedstrijden.push({ weekend: huidigWeekend, thuis: thuisSpelend, tegenstander: tegNaam });
+                            // Voeg de wedstrijd toe met de datum + toekomstige planning velden!
+                            berekendeWedstrijden.push({ 
+                                type: "concept",
+                                weekend: huidigWeekend, 
+                                thuis: thuisSpelend, 
+                                tegenstander: tegNaam,
+                                tafel: [],        // Toekomst: Namen van tafel officials
+                                scheids: [],      // Toekomst: Namen van scheidsrechters
+                                zaalwacht: []     // Toekomst: Namen van zaalwacht
+                            });
                         }
                     }
                 }
@@ -173,15 +170,12 @@ window.genereerSchemaVoorTeam = function(index) {
         }
     });
 
-    if (berekendeWedstrijden.length === 0) {
-        alert(`Geen wedstrijden gevonden voor Code ${onzeCode} op het tabblad "${sheetNaam}". Weet je zeker dat dit het juiste tabblad is?`);
-        return;
-    }
+    if (berekendeWedstrijden.length === 0) return alert(`Geen wedstrijden gevonden op "${sheetNaam}". Verkeerd tabblad?`);
 
     window.bsTeams[index].conceptSchema = berekendeWedstrijden;
     localStorage.setItem('blackshots_poule_teams', JSON.stringify(window.bsTeams));
     
-    alert(`✅ Succes! ${berekendeWedstrijden.length} wedstrijden berekend voor ${bsData.teamNaam}.`);
+    alert(`✅ Succes! Schema gegenereerd voor ${bsData.teamNaam}.`);
     tekenPouleResultaten();
 };
 
@@ -237,7 +231,6 @@ window.tekenPouleResultaten = function() {
         let heeftDefinitief = teamWedstrijden.length > 0;
 
         let actieSectieHtml = '';
-        
         if (window.plantoolJSON) {
             let opties = '<option value="">-- Kies NBB Tabblad --</option>';
             Object.keys(window.plantoolJSON).forEach(sheet => {
@@ -295,7 +288,7 @@ window.tekenPouleResultaten = function() {
 };
 
 // ============================================================================
-// MODAL (POP-UP) LOGICA MET MOOIE DATUMS
+// MODAL (POP-UP) MET TOEKOMSTIGE PLANNING VELDEN!
 // ============================================================================
 window.openSchemaModal = function(index) {
     let bsData = window.bsTeams[index];
@@ -318,21 +311,27 @@ window.openSchemaModal = function(index) {
             let isThuis = w.Thuisteam && w.Thuisteam.toLowerCase().includes('black shots') && w.Thuisteam.includes(bsData.teamNaam);
             let tegenstander = isThuis ? w.Uitteam : w.Thuisteam;
             let badgeClass = w.Status === 'Te plannen' ? 'status-te-plannen' : 'status-gepland';
-            
             let weergaveDatum = maakMooieDatum(w.Datum, w.Tijd, w.Accommodatie); 
             
+            let planningBalk = isThuis 
+                ? `<div style="font-size:0.8rem; color:#7f8c8d; margin-top:8px; display:flex; gap:15px;"><span>📝 Tafel: <i style="color:#bdc3c7;">N.t.b.</i></span> <span>⚖️ Scheids: <i style="color:#bdc3c7;">N.t.b.</i></span> <span>🧹 Zaalwacht: <i style="color:#bdc3c7;">N.t.b.</i></span></div>`
+                : `<div style="font-size:0.8rem; color:#7f8c8d; margin-top:8px;">🚗 Rijschema: <i style="color:#bdc3c7;">N.t.b.</i></div>`;
+
             defHtml += `
-                <li style="border-left: 4px solid #9b59b6;">
-                    <div style="flex:1;">
-                        <strong style="color:#34495e; font-size:1rem;">${weergaveDatum}</strong><br>
-                        <span style="font-size:1rem;">
-                            ${isThuis ? '🏠 Thuis tegen:' : '🚌 Uit tegen:'} 
-                            <strong>${tegenstander}</strong>
-                        </span>
+                <li style="border-left: 4px solid #9b59b6; flex-direction:column; align-items:stretch;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div style="flex:1;">
+                            <strong style="color:#34495e; font-size:1rem;">${weergaveDatum}</strong><br>
+                            <span style="font-size:1rem;">
+                                ${isThuis ? '🏠 Thuis tegen:' : '🚌 Uit tegen:'} 
+                                <strong>${tegenstander}</strong>
+                            </span>
+                        </div>
+                        <div style="text-align:right;">
+                            <span class="status-badge ${badgeClass}">${w.Status}</span>
+                        </div>
                     </div>
-                    <div style="text-align:right;">
-                        <span class="status-badge ${badgeClass}">${w.Status}</span>
-                    </div>
+                    ${planningBalk}
                 </li>`;
         });
         defHtml += `</ul>`;
@@ -347,16 +346,23 @@ window.openSchemaModal = function(index) {
                 ? `<span class="status-badge" style="background:#e74c3c;">VRIJ</span>` 
                 : `<span class="status-badge status-concept">Concept</span>`;
             
+            let planningBalk = match.thuis 
+                ? `<div style="font-size:0.8rem; color:#7f8c8d; margin-top:8px; display:flex; gap:15px;"><span>📝 Tafel: <i style="color:#bdc3c7;">N.t.b.</i></span> <span>⚖️ Scheids: <i style="color:#bdc3c7;">N.t.b.</i></span> <span>🧹 Zaalwacht: <i style="color:#bdc3c7;">N.t.b.</i></span></div>`
+                : `<div style="font-size:0.8rem; color:#7f8c8d; margin-top:8px;">🚗 Rijschema: <i style="color:#bdc3c7;">N.t.b.</i></div>`;
+
             conceptHtml += `
-                <li>
-                    <div style="flex:1;">
-                        <strong style="color:#34495e; font-size:1.1rem;">Weekend van ${match.weekend}</strong><br>
-                        <span style="font-size:1rem;">
-                            ${match.thuis ? '🏠 Thuis tegen:' : '🚌 Uit tegen:'} 
-                            <strong>${match.tegenstander}</strong>
-                        </span>
+                <li style="flex-direction:column; align-items:stretch;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div style="flex:1;">
+                            <strong style="color:#34495e; font-size:1.1rem;">Weekend van ${match.weekend}</strong><br>
+                            <span style="font-size:1rem;">
+                                ${match.thuis ? '🏠 Thuis tegen:' : '🚌 Uit tegen:'} 
+                                <strong>${match.tegenstander}</strong>
+                            </span>
+                        </div>
+                        <div>${statusBadge}</div>
                     </div>
-                    <div>${statusBadge}</div>
+                    ${match.tegenstander !== "--- VRIJE PLEK ---" ? planningBalk : ''}
                 </li>`;
         });
         conceptHtml += `</ul>`;
