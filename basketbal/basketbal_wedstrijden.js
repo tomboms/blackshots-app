@@ -1,4 +1,4 @@
-// --- BASKETBAL_WEDSTRIJDEN.JS: CLOUD SYNC & DE ECHTE WEDSTRIJD MATCHMAKER ---
+// --- BASKETBAL_WEDSTRIJDEN.JS: CLOUD SYNC, POP-UPS & MATCHMAKER ---
 
 // 1. DATA INLADEN UIT CLOUD/GEHEUGEN
 window.bsTeams = JSON.parse(localStorage.getItem('blackshots_poule_teams')) || [];
@@ -109,21 +109,12 @@ window.koppelSchemaAanTeams = function() {
                        tabNamen.find(t => schemaGezocht.includes(t.toLowerCase().trim()) || t.toLowerCase().trim().includes(schemaGezocht));
 
         if (besteTab) {
-            sectie.innerHTML = `
-                <div style="background:#fdf2e9; padding:12px; border-radius:6px; border:1px solid #e67e22; display:flex; justify-content:space-between; align-items:center;">
-                    <div>
-                        <span style="font-size:0.8rem; color:#d35400; font-weight:bold; display:block;">Tabblad: ${besteTab}</span>
-                    </div>
-                    <button onclick="genereerSchemaVoorTeam(${index}, '${besteTab}')" style="background:#8e44ad; color:white; border:none; padding:8px 12px; border-radius:4px; font-weight:bold; cursor:pointer;">📅 Bereken</button>
-                </div>
-            `;
+            // Nu we het tabblad hebben, genereren we op de achtergrond direct het schema!
+            genereerSchemaVoorTeam(index, besteTab);
         }
     });
 };
 
-// ============================================================================
-// DE ECHTE KRAKER: ZOEK ONZE WEDSTRIJDEN IN DE PLANTOOL (DIT WERKT NU ECHT!)
-// ============================================================================
 window.genereerSchemaVoorTeam = function(index, sheetNaam) {
     let bsData = window.bsTeams[index];
     let sheetGrid = window.plantoolJSON[sheetNaam];
@@ -131,7 +122,6 @@ window.genereerSchemaVoorTeam = function(index, sheetNaam) {
     let onzeCode = parseInt(bsData.onzeCode);
 
     sheetGrid.forEach((row) => {
-        // Hij zoekt naar de 'datum' in kolom 1 of 2 van de plantool
         let weekendLabel = row[0] || row[1] || "";
         if (typeof weekendLabel !== 'string') weekendLabel = weekendLabel.toString();
         
@@ -146,7 +136,6 @@ window.genereerSchemaVoorTeam = function(index, sheetNaam) {
         if (bevatDatum) {
             row.forEach(cel => {
                 if(typeof cel === 'string') {
-                    // Hij scant de hele Excel regel voor iets dat op '1-6' of '12 - 4' lijkt
                     let match = cel.match(/(\d+)\s*-\s*(\d+)/);
                     if (match) {
                         let codeA = parseInt(match[1]);
@@ -170,12 +159,12 @@ window.genereerSchemaVoorTeam = function(index, sheetNaam) {
 
     window.bsTeams[index].conceptSchema = berekendeWedstrijden;
     localStorage.setItem('blackshots_poule_teams', JSON.stringify(window.bsTeams));
-    tekenPouleResultaten();
+    tekenPouleResultaten(); // UI updaten
 };
 
 
 // ============================================================================
-// STAP 3: LEES DE DEFINITIEVE NBB JSON (DE PLANNING FASE)
+// STAP 3: LEES DE DEFINITIEVE NBB JSON
 // ============================================================================
 window.verwerkNBBJson = function(e) {
     const file = e.target.files[0]; if (!file) return;
@@ -193,7 +182,7 @@ window.verwerkNBBJson = function(e) {
 
 
 // ============================================================================
-// SCHERM OPBOUW: ALLES SAMENVOEGEN
+// SCHERM OPBOUW (UI) & MODAL LOGICA
 // ============================================================================
 window.tekenPouleResultaten = function() {
     let container = document.getElementById('poule-resultaten');
@@ -205,7 +194,7 @@ window.tekenPouleResultaten = function() {
     }
 
     window.bsTeams.forEach((bsData, index) => {
-        // --- 1. TEGENSTANDERS LIJST ---
+        // Tegenstanders Tabel
         let lijstHtml = `<table class="team-lijst"><tr><th>Code</th><th>Vereniging</th><th>Team</th></tr>`;
         bsData.tegenstanders.forEach(tg => {
             let vNaam = tg['Vereniging'] || tg['vereniging'];
@@ -220,74 +209,21 @@ window.tekenPouleResultaten = function() {
         });
         lijstHtml += `</table>`;
 
-        // --- 2. HET BEREKENDE CONCEPT SCHEMA (PLANTOOL) ---
-        let conceptHtml = '';
-        if (bsData.conceptSchema && bsData.conceptSchema.length > 0) {
-            conceptHtml = `<h4 style="margin:20px 0 5px 0; color:#3498db;">📅 Concept Schema (Plantool)</h4><ul class="schema-lijst">`;
-            bsData.conceptSchema.forEach(match => {
-                let statusBadge = match.tegenstander === "--- VRIJE PLEK ---" 
-                    ? `<span class="status-badge" style="background:#e74c3c;">VRIJ</span>` 
-                    : `<span class="status-badge status-concept">Concept</span>`;
-                
-                conceptHtml += `
-                    <li>
-                        <div style="flex:1;">
-                            <strong style="color:#34495e;">${match.weekend}</strong><br>
-                            <span style="font-size:0.9rem;">
-                                ${match.thuis ? '🏠 Thuis tegen:' : '🚌 Uit tegen:'} 
-                                <strong>${match.tegenstander}</strong>
-                            </span>
-                        </div>
-                        <div>${statusBadge}</div>
-                    </li>`;
-            });
-            conceptHtml += `</ul>`;
-        }
+        // Check of we data hebben voor de Modal knop
+        let heeftConcept = bsData.conceptSchema && bsData.conceptSchema.length > 0;
+        let teamWedstrijden = window.nbbWedstrijden.filter(w => 
+            (w.Thuisteam && w.Thuisteam.toLowerCase().includes('black shots') && w.Thuisteam.includes(bsData.teamNaam)) || 
+            (w.Uitteam && w.Uitteam.toLowerCase().includes('black shots') && w.Uitteam.includes(bsData.teamNaam))
+        );
+        let heeftDefinitief = teamWedstrijden.length > 0;
 
-        // --- 3. DE DEFINITIEVE JSON WEDSTRIJDEN (NBB) ---
-        let defHtml = '';
-        if (window.nbbWedstrijden.length > 0) {
-            
-            // ZOEK DE WEDSTRIJDEN VAN ONS TEAM (Strikte check voor Thuis/Uit bug!)
-            let teamWedstrijden = window.nbbWedstrijden.filter(w => 
-                (w.Thuisteam && w.Thuisteam.toLowerCase().includes('black shots') && w.Thuisteam.includes(bsData.teamNaam)) || 
-                (w.Uitteam && w.Uitteam.toLowerCase().includes('black shots') && w.Uitteam.includes(bsData.teamNaam))
-            );
-
-            if (teamWedstrijden.length > 0) {
-                defHtml = `<h4 style="margin:20px 0 5px 0; color:#9b59b6;">✅ Definitieve Planning (NBB)</h4><ul class="schema-lijst">`;
-                
-                teamWedstrijden.forEach(w => {
-                    let isThuis = w.Thuisteam && w.Thuisteam.toLowerCase().includes('black shots') && w.Thuisteam.includes(bsData.teamNaam);
-                    let tegenstander = isThuis ? w.Uitteam : w.Thuisteam;
-                    let badgeClass = w.Status === 'Te plannen' ? 'status-te-plannen' : 'status-gepland';
-                    let weergaveDatum = w.Datum ? w.Datum.substring(0,10) : 'Ntb'; 
-                    
-                    defHtml += `
-                        <li style="border-left: 4px solid #9b59b6;">
-                            <div style="flex:1;">
-                                <strong style="color:#34495e;">${weergaveDatum} om ${w.Tijd || '?'}</strong><br>
-                                <span style="font-size:0.9rem;">
-                                    ${isThuis ? '🏠 Thuis tegen:' : '🚌 Uit tegen:'} 
-                                    <strong>${tegenstander}</strong>
-                                </span>
-                            </div>
-                            <div style="text-align:right;">
-                                <span class="status-badge ${badgeClass}">${w.Status}</span>
-                                <div style="font-size:0.75rem; color:#7f8c8d; margin-top:3px;">📍 ${w.Accommodatie}</div>
-                            </div>
-                        </li>`;
-                });
-                defHtml += `</ul>`;
-                conceptHtml = `<div style="margin-top:15px; font-size:0.85rem; color:#7f8c8d; font-style:italic;">Concept schema verborgen omdat de definitieve JSON actief is.</div>`;
-            }
-        }
-
-        let actieSectieHtml = `<div id="plantool-sectie-${index}" style="margin-top:15px;"></div>`;
-        if (conceptHtml === '' && defHtml === '') {
+        let actieSectieHtml = '';
+        if (heeftConcept || heeftDefinitief) {
+            actieSectieHtml = `<button onclick="openSchemaModal(${index})" style="width:100%; margin-top:20px; background:#3498db; color:white; border:none; padding:12px; border-radius:6px; font-weight:bold; font-size:1.1rem; cursor:pointer; box-shadow:0 4px 6px rgba(0,0,0,0.1); transition:0.2s;" onmouseover="this.style.background='#2980b9'" onmouseout="this.style.background='#3498db'">📅 Bekijk Speelschema</button>`;
+        } else {
             actieSectieHtml = `
                 <div style="margin-top:20px; padding-top:15px; border-top:1px dashed #bdc3c7;" id="plantool-sectie-${index}">
-                    <p style="font-size:0.85rem; color:#e74c3c; font-style:italic;">Upload de Plantool of JSON hierboven om de kalender te genereren...</p>
+                    <p style="font-size:0.85rem; color:#e74c3c; font-style:italic; margin:0;">Upload de Plantool of JSON hierboven om de kalender te genereren...</p>
                 </div>
             `;
         }
@@ -299,7 +235,6 @@ window.tekenPouleResultaten = function() {
                         <h3 style="margin:0 0 5px 0; color:var(--secondary-color); font-size:1.4rem;">${bsData.teamNaam}</h3>
                         <div style="font-size:0.9rem; color:#7f8c8d; margin-bottom:15px;">
                             <strong>Poule:</strong> ${bsData.pouleNaam} <br>
-                            <strong>NBB Schema:</strong> ${bsData.schemaType} <br>
                             <strong>Grootte:</strong> ${bsData.pouleGrootte} teams
                         </div>
                     </div>
@@ -313,11 +248,91 @@ window.tekenPouleResultaten = function() {
                 ${lijstHtml}
                 
                 ${actieSectieHtml}
-                ${conceptHtml}
-                ${defHtml}
             </div>
         `;
     });
+};
+
+// ============================================================================
+// MODAL (POP-UP) LOGICA
+// ============================================================================
+window.openSchemaModal = function(index) {
+    let bsData = window.bsTeams[index];
+    
+    document.getElementById('modal-titel').innerText = `Schema: ${bsData.teamNaam}`;
+    document.getElementById('modal-subtitel').innerText = `Poule: ${bsData.pouleNaam} | Code: ${bsData.onzeCode}`;
+    
+    let modalInhoud = document.getElementById('modal-inhoud');
+    modalInhoud.innerHTML = '';
+
+    // Deel 1: Definitieve JSON (Als die er is, zetten we die bovenaan!)
+    let teamWedstrijden = window.nbbWedstrijden.filter(w => 
+        (w.Thuisteam && w.Thuisteam.toLowerCase().includes('black shots') && w.Thuisteam.includes(bsData.teamNaam)) || 
+        (w.Uitteam && w.Uitteam.toLowerCase().includes('black shots') && w.Uitteam.includes(bsData.teamNaam))
+    );
+
+    if (teamWedstrijden.length > 0) {
+        let defHtml = `<h3 style="margin:0 0 10px 0; color:#9b59b6; border-bottom:2px solid #9b59b6; padding-bottom:5px;">✅ Definitieve Planning (NBB JSON)</h3><ul class="schema-lijst" style="margin-bottom:30px;">`;
+        
+        teamWedstrijden.forEach(w => {
+            let isThuis = w.Thuisteam && w.Thuisteam.toLowerCase().includes('black shots') && w.Thuisteam.includes(bsData.teamNaam);
+            let tegenstander = isThuis ? w.Uitteam : w.Thuisteam;
+            let badgeClass = w.Status === 'Te plannen' ? 'status-te-plannen' : 'status-gepland';
+            let weergaveDatum = w.Datum ? w.Datum.substring(0,10) : 'Ntb'; 
+            
+            defHtml += `
+                <li style="border-left: 4px solid #9b59b6;">
+                    <div style="flex:1;">
+                        <strong style="color:#34495e; font-size:1.1rem;">${weergaveDatum} om ${w.Tijd || '?'}</strong><br>
+                        <span style="font-size:1rem;">
+                            ${isThuis ? '🏠 Thuis tegen:' : '🚌 Uit tegen:'} 
+                            <strong>${tegenstander}</strong>
+                        </span>
+                    </div>
+                    <div style="text-align:right;">
+                        <span class="status-badge ${badgeClass}">${w.Status}</span>
+                        <div style="font-size:0.8rem; color:#7f8c8d; margin-top:5px;">📍 ${w.Accommodatie}</div>
+                    </div>
+                </li>`;
+        });
+        defHtml += `</ul>`;
+        modalInhoud.innerHTML += defHtml;
+    }
+
+    // Deel 2: Concept Schema (Plantool)
+    if (bsData.conceptSchema && bsData.conceptSchema.length > 0) {
+        let conceptHtml = `<h3 style="margin:0 0 10px 0; color:#3498db; border-bottom:2px solid #3498db; padding-bottom:5px;">📅 Concept Schema (Plantool)</h3><ul class="schema-lijst">`;
+        
+        bsData.conceptSchema.forEach(match => {
+            let statusBadge = match.tegenstander === "--- VRIJE PLEK ---" 
+                ? `<span class="status-badge" style="background:#e74c3c;">VRIJ</span>` 
+                : `<span class="status-badge status-concept">Concept</span>`;
+            
+            conceptHtml += `
+                <li>
+                    <div style="flex:1;">
+                        <strong style="color:#34495e; font-size:1.1rem;">${match.weekend}</strong><br>
+                        <span style="font-size:1rem;">
+                            ${match.thuis ? '🏠 Thuis tegen:' : '🚌 Uit tegen:'} 
+                            <strong>${match.tegenstander}</strong>
+                        </span>
+                    </div>
+                    <div>${statusBadge}</div>
+                </li>`;
+        });
+        conceptHtml += `</ul>`;
+        
+        if (teamWedstrijden.length > 0) {
+            conceptHtml = `<div style="margin-top:20px; padding:15px; background:#f8f9fa; border-radius:8px;">${conceptHtml}</div>`;
+        }
+        modalInhoud.innerHTML += conceptHtml;
+    }
+
+    document.getElementById('schema-modal').style.display = 'flex';
+};
+
+window.sluitSchemaModal = function() {
+    document.getElementById('schema-modal').style.display = 'none';
 };
 
 window.wisAlleData = function() {
