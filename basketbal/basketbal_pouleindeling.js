@@ -1,4 +1,4 @@
-// --- BASKETBAL_WEDSTRIJDEN.JS: RECHTSTREEKSE POULE-VERTALER & SCHONE DATUMS ---
+// --- BASKETBAL_POULEINDELING.JS: DE SLIMME DATUM & KOGELVRIJE MATCHMAKER ---
 
 window.bsTeams = JSON.parse(localStorage.getItem('blackshots_poule_teams')) || [];
 window.nbbWedstrijden = JSON.parse(localStorage.getItem('blackshots_wedstrijden_json')) || [];
@@ -31,13 +31,11 @@ function maakMooieDatum(datumStr, tijdStr, accommodatie) {
     } catch(e) { return datumStr; }
 }
 
-// Slimme Datum en Taal Opschoner voor de Plantool (Stap 2)
+// Slimme Datum Opschoner voor de Plantool (Stap 2)
 function maakNetteConceptDatum(ruweTekst) {
     if (!ruweTekst) return "TBA / Datum onbekend";
     let val = ruweTekst.toString().trim();
-    let lw = val.toLowerCase();
 
-    // Vertaal Engelse afkortingen en kale maanden naar voluit Nederlands
     let schoongemaakt = val
         .replace(/sep/i, 'september')
         .replace(/okt/i, 'oktober')
@@ -55,7 +53,6 @@ function maakNetteConceptDatum(ruweTekst) {
         .replace(/weekend/i, '')
         .trim();
 
-    // Bepaal de beste Nederlandse weergavevorm
     if (schoongemaakt.toLowerCase().startsWith('week')) {
         return "Speelronde: " + schoongemaakt;
     } else {
@@ -133,7 +130,9 @@ window.verwerkPlantoolBestand = function(e) {
     reader.readAsArrayBuffer(file);
 };
 
-// BEREKENING MET DE DROPDOWN KNOP
+// ============================================================================
+// DE BEREKENING (MET DE KOGELVRIJE KOLOM-SCHEIDING!)
+// ============================================================================
 window.genereerSchemaVoorTeam = function(index) {
     let selectEl = document.getElementById(`plantool-select-${index}`);
     if (!selectEl) return;
@@ -149,25 +148,40 @@ window.genereerSchemaVoorTeam = function(index) {
     let huidigWeekend = "TBA / Onbekend"; 
 
     sheetGrid.forEach((row) => {
-        // Scant de eerste 8 kolommen (A t/m H) op speelrondes of weekend-data
-        row.slice(0, 8).forEach(cel => {
-            if (!cel) return;
-            let val = cel.toString().trim();
-            if (val.length < 4 || val.match(/^\d+\s*-\s*\d+$/)) return; 
-            
-            let lw = val.toLowerCase();
-            if (lw.match(/(jan|feb|mrt|apr|mei|jun|jul|aug|sep|okt|nov|dec|week|w-end)/) || val.match(/\d{1,2}[-/]\d{1,2}/)) {
-                huidigWeekend = val;
+        // 1. DATUM ZOEKEN: We kijken ALLEEN naar Kolom A t/m F (index 0 t/m 5)
+        let tempDatum = "";
+        // Kijken specifiek eerst naar Kolom F (index 5) en E (index 4) omdat jij aangaf dat ze daar staan
+        if (row[5] && row[5].toString().match(/\d/)) tempDatum = row[5].toString().trim();
+        else if (row[4] && row[4].toString().match(/\d/)) tempDatum = row[4].toString().trim();
+        else {
+            // Fallback: Check alle eerste 6 kolommen
+            row.slice(0, 6).forEach(cel => {
+                if (cel && cel.toString().toLowerCase().match(/(jan|feb|mrt|apr|mei|jun|jul|aug|sep|okt|nov|dec|week)/)) {
+                    tempDatum = cel.toString().trim();
+                }
+            });
+        }
+        
+        if (tempDatum.length > 2) {
+            huidigWeekend = tempDatum;
+        }
+
+        // 2. WEDSTRIJDEN ZOEKEN: We slaan Kolom A t/m F 100% over! (Geen spook-wedstrijden meer)
+        let heeftMatch = false;
+        row.forEach((cel, colIdx) => { 
+            // Pas vanaf kolom G (index 6) kijken we of er wedstrijden staan
+            if (colIdx >= 6 && typeof cel === 'string' && cel.match(/^(\d+)\s*-\s*(\d+)$/)) {
+                heeftMatch = true; 
             }
         });
 
-        let heeftMatch = false;
-        row.forEach(cel => { if(typeof cel === 'string' && cel.match(/(\d+)\s*-\s*(\d+)/)) heeftMatch = true; });
-
         if (heeftMatch) {
-            row.forEach(cel => {
+            row.forEach((cel, colIdx) => {
+                if (colIdx < 6) return; // Blokkade: Blijf weg bij de datum kolommen!
+                
                 if(typeof cel === 'string') {
-                    let match = cel.match(/(\d+)\s*-\s*(\d+)/);
+                    // Strict patroon: exact "1-6" en niet verweven in een langere tekst
+                    let match = cel.match(/^(\d+)\s*-\s*(\d+)$/); 
                     if (match) {
                         let codeA = parseInt(match[1]);
                         let codeB = parseInt(match[2]);
@@ -182,7 +196,7 @@ window.genereerSchemaVoorTeam = function(index) {
 
                             berekendeWedstrijden.push({ 
                                 type: "concept",
-                                weekend: maakNetteConceptDatum(huidigWeekend), // HIER WORDT DE DATUM SCHOONGEMAAKT!
+                                weekend: maakNetteConceptDatum(huidigWeekend), 
                                 thuis: thuisSpelend, 
                                 tegenstander: tegNaam
                             });
@@ -311,7 +325,7 @@ window.tekenPouleResultaten = function() {
 };
 
 // ============================================================================
-// MODAL (POP-UP) ZONDER DE TAKEN-BALK
+// MODAL (POP-UP) SCHONE WEERGAVE
 // ============================================================================
 window.openSchemaModal = function(index) {
     let bsData = window.bsTeams[index];
@@ -327,7 +341,6 @@ window.openSchemaModal = function(index) {
         (w.Uitteam && w.Uitteam.toLowerCase().includes('black shots') && w.Uitteam.includes(bsData.teamNaam))
     );
 
-    // Definitieve Planning (JSON)
     if (teamWedstrijden.length > 0) {
         let defHtml = `<h3 style="margin:0 0 10px 0; color:#9b59b6; border-bottom:2px solid #9b59b6; padding-bottom:5px;">✅ Definitieve Planning (NBB JSON)</h3><ul class="schema-lijst" style="margin-bottom:30px;">`;
         
@@ -355,7 +368,6 @@ window.openSchemaModal = function(index) {
         modalInhoud.innerHTML += defHtml;
     }
 
-    // Concept Planning (Plantool)
     if (bsData.conceptSchema && bsData.conceptSchema.length > 0) {
         let conceptHtml = `<h3 style="margin:0 0 10px 0; color:#3498db; border-bottom:2px solid #3498db; padding-bottom:5px;">📅 Concept Schema (Plantool)</h3><ul class="schema-lijst">`;
         
