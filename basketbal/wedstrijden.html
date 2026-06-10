@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Black Shots - Wedstrijden & Poules</title>
+    <link rel="stylesheet" href="basketbal.css?v=3">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        .upload-box { border: 2px dashed #3498db; background: rgba(52, 152, 219, 0.05); padding: 30px; text-align: center; border-radius: 8px; cursor: pointer; transition: 0.2s; margin-bottom: 20px; }
+        .upload-box:hover { background: rgba(52, 152, 219, 0.1); border-color: #2980b9; }
+        .file-input { display: none; }
+        
+        .poule-card { background: white; border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; margin-bottom: 20px; border-top: 5px solid #e67e22; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .team-lijst { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.9rem; }
+        .team-lijst th { text-align: left; background: #eef2f5; padding: 8px; border-bottom: 2px solid #bdc3c7; }
+        .team-lijst td { padding: 8px; border-bottom: 1px solid #eee; }
+        .team-lijst tr.is-ons-team { background: rgba(39, 174, 96, 0.1); font-weight: bold; color: #27ae60; }
+
+        body.dark-mode .upload-box { border-color: #475569; background: rgba(71, 85, 105, 0.1); }
+        body.dark-mode .poule-card { background: #1e293b; border-color: #334155; }
+        body.dark-mode .team-lijst th { background: #0f172a; border-color: #475569; color: #f8fafc; }
+        body.dark-mode .team-lijst td { border-color: #334155; color: #cbd5e1; }
+        body.dark-mode .team-lijst tr.is-ons-team { background: rgba(39, 174, 96, 0.15); color: #2ecc71; }
+    </style>
+</head>
+<body>
+    <div id="cloud-status-indicator" style="position: fixed; bottom: 20px; right: 20px; background: #27ae60; color: white; padding: 10px 20px; border-radius: 30px; font-weight: bold; font-size: 0.9rem; z-index: 99999; opacity: 0; pointer-events: none;">☁️ Cloud Actief</div>
+
+    <nav class="top-nav">
+        <h1>🏀 Black Shots Clubbeheer</h1>
+    </nav>
+
+    <main class="content-sectie active" style="max-width:1200px; margin:20px auto; padding:15px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px;">
+            <h2 style="margin:0; color:var(--secondary-color);">⛹️ Poules & Wedstrijdplanner</h2>
+        </div>
+
+        <div style="display:flex; gap:20px; flex-wrap:wrap; margin-bottom:30px;">
+            <div style="flex:1; min-width:300px;">
+                <h3 style="color:var(--secondary-color); margin-top:0;">Stap 1: Poule Indeling (CSV/Excel)</h3>
+                <p style="font-size:0.9rem; color:#7f8c8d;">Upload de lijst van de bond. Het systeem zoekt automatisch alle Black Shots teams op.</p>
+                <label class="upload-box" style="display:block;">
+                    <input type="file" class="file-input" id="upload-indeling" accept=".csv, .xlsx, .xls" onchange="verwerkPouleBestand(event)">
+                    <span style="font-size:2rem; display:block; margin-bottom:10px;">📄</span>
+                    <strong id="label-indeling" style="color:#3498db;">Klik hier om de Poule Indeling in te laden</strong>
+                </label>
+            </div>
+
+            <div style="flex:1; min-width:300px; opacity:0.5; pointer-events:none;" id="stap-2-box">
+                <h3 style="color:var(--secondary-color); margin-top:0;">Stap 2: De NBB Plantool (.xlsm)</h3>
+                <p style="font-size:0.9rem; color:#7f8c8d;">Upload de landelijke macro plantool. Wij koppelen de codes aan de speeldata.</p>
+                <label class="upload-box" style="display:block; border-color:#9b59b6;">
+                    <input type="file" class="file-input" id="upload-plantool" accept=".xlsm, .xlsx" onchange="verwerkPlantoolBestand(event)">
+                    <span style="font-size:2rem; display:block; margin-bottom:10px;">📅</span>
+                    <strong id="label-plantool" style="color:#9b59b6;">Klik hier om de Plantool in te laden</strong>
+                </label>
+            </div>
+        </div>
+
+        <h3 style="color:var(--secondary-color); border-bottom:2px solid var(--border-color); padding-bottom:10px; margin-top:40px;">Onze Teams in deze Indeling</h3>
+        <div id="poule-resultaten" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(350px, 1fr)); gap:20px;">
+            <p style="color:#7f8c8d; font-style:italic;">Upload eerst de Poule Indeling om de resultaten te zien...</p>
+        </div>
+
+    </main>
+
+    <script src="basketbal_auth.js"></script>
+    <script src="basketbal_data.js"></script>
+    <script type="module" src="firebase_motor.js"></script>
+    <script src="basketbal_wedstrijden.js"></script>
+</body>
+</html>
