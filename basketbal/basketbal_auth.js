@@ -91,7 +91,10 @@ window.checkBeveiligingEnBouwMenu = function() {
             { id: 'team', url: 'team.html', icon: '👥', tekst: 'Teams' },
             { id: 'spelers', url: 'spelers.html', icon: '👤', tekst: 'Spelers' },
             { id: 'oefeningen', url: 'oefeningen.html', icon: '📋', tekst: 'Oefeningen' },
-            { id: 'wedstrijden', url: 'wedstrijden.html', icon: '⛹️', tekst: 'Wedstrijden' }, // <-- Deze is nieuw!
+            
+            // DEZE REGEL IS AANGEPAST:
+            { id: 'pouleindeling', url: 'pouleindeling.html', icon: '⛹️', tekst: 'Poule indeling' }, 
+            
             { id: 'toernooien', url: 'toernooien.html', icon: '🏆', tekst: 'Interne Toernooien' },
             { id: 'bestuur', url: 'bestuur.html', icon: '📁', tekst: 'Bestuur & Agenda' },
             { id: 'gebruikers', url: 'gebruikers.html', icon: '🔐', tekst: 'Trainer Beheer' },
