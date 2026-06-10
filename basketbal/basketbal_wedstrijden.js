@@ -1,4 +1,4 @@
-// --- BASKETBAL_WEDSTRIJDEN.JS: MANUELE PLANTOOL KOPPELING & FIX VOOR REFRESH ---
+// --- BASKETBAL_WEDSTRIJDEN.JS: MANUELE PLANTOOL KOPPELING MET DATUM-GEHEUGEN ---
 
 // 1. DATA INLADEN (We laden alleen de kleine, veilige data in!)
 window.bsTeams = JSON.parse(localStorage.getItem('blackshots_poule_teams')) || [];
@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
     tekenPouleResultaten();
 });
 
-// Mooie Datums Maken
+// Mooie Datums Maken voor de Definitieve JSON
 function maakMooieDatum(datumStr, tijdStr, accommodatie) {
     if (!datumStr) return "Datum onbekend";
     try {
@@ -47,7 +47,6 @@ window.verwerkPouleBestand = function(e) {
         
         window.bsTeams = [];
         
-        // Zoek onze teams en onthoud ALLEEN deze in het geheugen!
         ruweData.forEach(rij => {
             let vereniging = (rij['Vereniging'] || rij['vereniging'] || '').toString();
             if (vereniging.toLowerCase().includes('black shots')) {
@@ -70,7 +69,6 @@ window.verwerkPouleBestand = function(e) {
             }
         });
 
-        // Nu dit een klein bestand is, crasht de browser niet meer!
         localStorage.setItem('blackshots_poule_teams', JSON.stringify(window.bsTeams));
         
         document.getElementById('stap-2-box').style.opacity = '1';
@@ -100,13 +98,13 @@ window.verwerkPlantoolBestand = function(e) {
         
         document.getElementById('label-plantool').innerText = `✅ Klaar! Selecteer hieronder je tabbladen.`;
         document.getElementById('label-plantool').style.color = '#8e44ad';
-        tekenPouleResultaten(); // Herteken de lijst zodat de dropdowns verschijnen!
+        tekenPouleResultaten(); 
     };
     reader.readAsArrayBuffer(file);
 };
 
 // ============================================================================
-// DE BEREKENING (WORDT AANGEROPEN VANUIT DE DROPDOWN KNOP)
+// DE BEREKENING (MET HET NIEUWE DATUM-GEHEUGEN!)
 // ============================================================================
 window.genereerSchemaVoorTeam = function(index) {
     let selectEl = document.getElementById(`plantool-select-${index}`);
@@ -122,14 +120,35 @@ window.genereerSchemaVoorTeam = function(index) {
     let sheetGrid = window.plantoolJSON[sheetNaam];
     let berekendeWedstrijden = [];
     let onzeCode = parseInt(bsData.onzeCode);
+    
+    let huidigWeekend = "Onbekend"; // Dit is het geheugen!
 
     sheetGrid.forEach((row) => {
+        
+        // 1. Zoek naar een datum op deze rij en onthoud hem!
+        for (let i = 0; i < 5; i++) {
+            if (row[i]) {
+                let val = row[i].toString().trim();
+                let lw = val.toLowerCase();
+                let isDatum = lw.includes('jan') || lw.includes('feb') || lw.includes('mrt') || 
+                              lw.includes('apr') || lw.includes('mei') || lw.includes('jun') || 
+                              lw.includes('jul') || lw.includes('aug') || lw.includes('sep') || 
+                              lw.includes('okt') || lw.includes('nov') || lw.includes('dec') ||
+                              lw.includes('weekend');
+                
+                // Als we een maand zien en het is geen hele lange zin, slaan we hem op als huidig weekend
+                if (isDatum && val.length < 30) {
+                    huidigWeekend = val;
+                    break; 
+                }
+            }
+        }
+
+        // 2. Check of er wedstrijden (bijv. "1-6") op deze rij staan
         let heeftMatch = false;
         row.forEach(cel => { if(typeof cel === 'string' && cel.match(/(\d+)\s*-\s*(\d+)/)) heeftMatch = true; });
 
         if (heeftMatch) {
-            let weekendLabel = (row[0] || row[1] || row[2] || "Onbekend").toString().trim();
-            
             row.forEach(cel => {
                 if(typeof cel === 'string') {
                     let match = cel.match(/(\d+)\s*-\s*(\d+)/);
@@ -145,7 +164,8 @@ window.genereerSchemaVoorTeam = function(index) {
                             let tegNaam = tegTeam ? (tegTeam.Vereniging || tegTeam.vereniging) : `Team ${tegenstanderCode}`;
                             if (!tegNaam || tegNaam.trim() === '') tegNaam = "--- VRIJE PLEK ---";
 
-                            berekendeWedstrijden.push({ weekend: weekendLabel, thuis: thuisSpelend, tegenstander: tegNaam });
+                            // Voeg toe met het onthouden weekend!
+                            berekendeWedstrijden.push({ weekend: huidigWeekend, thuis: thuisSpelend, tegenstander: tegNaam });
                         }
                     }
                 }
@@ -158,7 +178,6 @@ window.genereerSchemaVoorTeam = function(index) {
         return;
     }
 
-    // Bewaar het in onze kleine database en sla op!
     window.bsTeams[index].conceptSchema = berekendeWedstrijden;
     localStorage.setItem('blackshots_poule_teams', JSON.stringify(window.bsTeams));
     
@@ -219,12 +238,9 @@ window.tekenPouleResultaten = function() {
 
         let actieSectieHtml = '';
         
-        // Als we de Plantool in het RAM hebben geladen, toon dan ALTIJD het dropdown menu, 
-        // zodat ze het schema opnieuw kunnen berekenen als ze dat willen!
         if (window.plantoolJSON) {
             let opties = '<option value="">-- Kies NBB Tabblad --</option>';
             Object.keys(window.plantoolJSON).forEach(sheet => {
-                // Slim proberen voor te selecteren
                 let selected = (bsData.schemaType.toLowerCase().includes(sheet.toLowerCase())) ? 'selected' : '';
                 opties += `<option value="${sheet}" ${selected}>${sheet}</option>`;
             });
@@ -246,7 +262,6 @@ window.tekenPouleResultaten = function() {
             `;
         }
 
-        // De grote blauwe knop
         let modalKnopHtml = '';
         if (heeftConcept || heeftDefinitief) {
             modalKnopHtml = `<button onclick="openSchemaModal(${index})" style="width:100%; margin-top:10px; background:#3498db; color:white; border:none; padding:12px; border-radius:6px; font-weight:bold; font-size:1.1rem; cursor:pointer; box-shadow:0 4px 6px rgba(0,0,0,0.1); transition:0.2s;" onmouseover="this.style.background='#2980b9'" onmouseout="this.style.background='#3498db'">👀 Bekijk Speelschema</button>`;
