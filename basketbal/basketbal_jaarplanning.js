@@ -34,7 +34,7 @@ window.jaarplanningData = window.jaarplanningData.map(item => {
     return item;
 });
 
-// Categorieën initialiseren
+// Categorieën initialiseren met de unieke jaarplanning-sleutel
 let opgeslagenCategorieen = JSON.parse(localStorage.getItem('blackshots_jaarplanning_categorieen'));
 if (opgeslagenCategorieen && opgeslagenCategorieen.length > 0) {
     window.kalenderCategorieen = opgeslagenCategorieen;
@@ -50,7 +50,6 @@ if (opgeslagenCategorieen && opgeslagenCategorieen.length > 0) {
         { id: 'tijdelijk', naam: 'Tijdelijk', kleur: '#ecf0f1', isVakantie: false, tekstKleur: '#7f8c8d', dashed: true },
         { id: 'memo', naam: 'Memo / Overig', kleur: '#3498db', isVakantie: false }
     ];
-    // Opslaan triggert jouw firebase_motor!
     localStorage.setItem('blackshots_jaarplanning_categorieen', JSON.stringify(window.kalenderCategorieen));
 }
 
@@ -260,8 +259,6 @@ function haalDynamischeItemsOp(isoDatum) {
 // ============================================================================
 // KALENDER TEKENEN
 // ============================================================================
-const maandNamen = ["Januari", "Februari", "Maart", "April", "Mei", "Juni", "Juli", "Augustus", "September", "Oktober", "November", "December"];
-
 window.tekenKalender = function() {
     let container = document.getElementById('kalender-container'); 
     container.innerHTML = '';
@@ -273,7 +270,7 @@ window.tekenKalender = function() {
             if(aVak) aVak.scrollIntoView({behavior: 'smooth', block: 'start'}); 
         }, 100);
     } else {
-        container.innerHTML = genereerMaandHTML(huidigJaar, huidigeMaand, true);
+        container.innerHTML = genereerMaandHTML(huidigJaar, IodineMaand = huidigeMaand, true);
     }
 };
 
@@ -282,12 +279,12 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
     let startVakje = eersteDag === 0 ? 6 : eersteDag - 1; 
     let aantalDagen = new Date(jaar, maand + 1, 0).getDate();
 
-    let navTitel = weergaveIsJaar ? `${jaar}` : `${maandNamen[maand]} ${jaar}`; 
+    let navTitel = weergaveIsJaar ? `${maandNamen[maand]} ${jaar}` : `${maandNamen[maand]} ${jaar}`; 
     let navHtml = toonNavigatie ? `
         <div style="display:flex; gap:10px; align-items:center;">
             <button onclick="gaNaarVandaag()" class="kalender-nav-btn" style="background:#3498db;">📅 Vandaag</button>
-            <button onclick="wijzigMaand(-1)" class="kalender-nav-btn">${weergaveIsJaar ? "◀ Vorig Jaar" : "◀ Vorige"}</button>
-            <button onclick="wijzigMaand(1)" class="kalender-nav-btn">${weergaveIsJaar ? "Volgend Jaar ▶" : "Volgende ▶"}</button>
+            <button onclick="wijzigMaand(-1)" class="kalender-nav-btn">◀ Vorige</button>
+            <button onclick="wijzigMaand(1)" class="kalender-nav-btn">Volgende ▶</button>
         </div>` : '';
 
     let html = `
@@ -336,9 +333,17 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
             }
 
             let isStartOfSpan = (isoDatum === item.isoDatum || new Date(isoDatum).getDay() === 1 || item.isDynamisch);
-            let weergaveTitel = item.titel || "Naamloos Item";
             
-            let weergaveTekst = isStartOfSpan ? weergaveTitel : '&nbsp;';
+            // HERSTELD: Tijd en Locatie weer strak aan de linkerkant met een scheidingslijntje!
+            let metaHtml = '';
+            if (isStartOfSpan && (item.tijd || item.locatie)) {
+                let metaArr = [];
+                if(item.tijd) metaArr.push(item.tijd);
+                if(item.locatie) metaArr.push(item.locatie);
+                metaHtml = `<span class="k-meta" style="opacity: 0.85; margin-right: 6px; padding-right: 6px; border-right: 1px solid rgba(255,255,255,0.4); font-weight: normal; font-size: 0.7rem; white-space: nowrap;">${metaArr.join(', ')}</span>`;
+            }
+
+            let weergaveTekst = isStartOfSpan ? (item.titel || "Naamloos") : '&nbsp;';
             
             let clickAction = item.isDynamisch
                 ? `onclick="event.stopPropagation(); openDagModal('${isoDatum}', ${dDag}, ${dMaand}, ${dJaar}, null)"`
@@ -352,13 +357,13 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
             }
 
             itemsHtml += `
-                <div class="k-item ${badgeClass} ${extraClass}" title="Klik om te bekijken/bewerken" ${clickAction} style="cursor:pointer;">
-                    <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0;">
-                        ${weergaveTekst}
+                <div class="k-item ${badgeClass} ${extraClass}" title="Klik om te bekijken/bewerken" ${clickAction} style="cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
+                    <div style="display:flex; align-items:center; overflow:hidden; white-space:nowrap; flex:1; min-width:0;">
+                        ${metaHtml}
+                        <span style="overflow:hidden; text-overflow:ellipsis;">${weergaveTekst}</span>
                     </div>
                     ${deleteKnop}
-                </div>
-            `;
+                </div>`;
         });
 
         let zalenOpDag = window.zaalhuurData.filter(z => z.isoDatum === isoDatum && !z.geannuleerd);
