@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Black Shots - Master Jaarplanning</title>
-    <link rel="stylesheet" href="basketbal.css?v=18">
+    <link rel="stylesheet" href="basketbal.css?v=20">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style id="dynamic-category-styles"></style>
 </head>
@@ -15,11 +15,12 @@
         <h1>🏀 Black Shots Clubbeheer</h1>
     </nav>
 
-    <main class="content-sectie active" style="max-width:1200px; margin:20px auto; padding:15px;">
+    <main id="hoofd-container" class="content-sectie active" style="max-width:1400px; margin:20px auto; padding:15px;">
         
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px;">
-            <h2 style="margin:0; color:var(--secondary-color);">📆 Master Jaarplanning (Leidend)</h2>
+            <h2 style="margin:0; color:var(--secondary-color);">📆 Master Jaarplanning</h2>
             <div style="display:flex; gap:10px;">
+                <button onclick="toggleFullScreen()" id="btn-fullscreen" style="background:#34495e; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">🔲 Full Screen</button>
                 <button onclick="openCategorieInstellingen()" style="background:#9b59b6; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">⚙️ Legenda & Kleuren</button>
                 <button onclick="wisselWeergave()" id="btn-weergave" style="background:#f39c12; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">🗓️ Toon Hele Jaar</button>
                 <button onclick="wisJaarplanning()" style="background:#e74c3c; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">🗑️ Wis Geheugen</button>
@@ -55,7 +56,10 @@
             <div style="display:flex; gap:15px; margin-bottom:15px;">
                 <div style="flex:1;">
                     <label style="font-weight:bold; font-size:0.9rem; color:#7f8c8d; display:block; margin-bottom:5px;">Categorie:</label>
-                    <select id="item-type" style="width:100%; padding:10px; border-radius:4px; border:1px solid #bdc3c7; font-weight:bold;"></select>
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <div id="type-kleur-preview" style="width:25px; height:25px; border-radius:50%; background:#3498db; border:1px solid #bdc3c7; flex-shrink:0;"></div>
+                        <select id="item-type" style="width:100%; padding:10px; border-radius:4px; border:1px solid #bdc3c7; font-weight:bold;"></select>
+                    </div>
                 </div>
                 <div style="flex:1;">
                     <label style="font-weight:bold; font-size:0.9rem; color:#7f8c8d; display:block; margin-bottom:5px;">Einddatum (Optioneel):</label>
@@ -97,7 +101,7 @@
         <div class="modal-content" style="max-width: 600px;">
             <button class="modal-close-btn" onclick="sluitCategorieInstellingen()">&times;</button>
             <h2 style="margin-top:0; color:#2c3e50;">⚙️ Eigen Categorieën & Kleuren</h2>
-            <p style="font-size:0.9rem; color:#7f8c8d; margin-bottom:15px;">Voeg je eigen labels toe, verwijder ze, of pas de kleuren aan. Let op: Categorieën met 'vakantie' in de ID kleuren de hele dag automatisch rood.</p>
+            <p style="font-size:0.9rem; color:#7f8c8d; margin-bottom:15px;">Voeg je eigen labels toe, verwijder ze, of pas de kleuren aan.</p>
             
             <div id="categorie-lijst" style="margin-bottom:20px; max-height:40vh; overflow-y:auto; padding-right:10px;"></div>
 
@@ -109,13 +113,12 @@
                     <button onclick="voegCategorieToe()" style="background:#3498db; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">➕ Toevoegen</button>
                 </div>
             </div>
-
         </div>
     </div>
 
     <script src="basketbal_auth.js"></script>
     <script src="basketbal_data.js"></script>
     <script type="module" src="firebase_motor.js"></script>
-    <script src="basketbal_jaarplanning.js?v=20"></script>
+    <script src="basketbal_jaarplanning.js?v=22"></script>
 </body>
 </html>

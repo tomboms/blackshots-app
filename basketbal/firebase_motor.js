@@ -1,7 +1,7 @@
 // --- FIREBASE_MOTOR.JS: VERBORGEN WOLK & VERSIE CONTROLE ---
 
 // 👇 VERANDER DIT NUMMER BIJ ELKE GITHUB PUSH (bijv. v2.1, v2.2) 👇
-const APP_VERSIE = "3.351";
+const APP_VERSIE = "3.5";
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
 import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
