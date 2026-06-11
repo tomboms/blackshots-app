@@ -1,4 +1,4 @@
-// --- BASKETBAL_JAARPLANNING.JS: INTERACTIEVE KLIKBARE KALENDER & ZAAL SYNC ---
+// --- BASKETBAL_JAARPLANNING.JS: BULK TOEVOEGEN & VAKANTIE MARKERING ---
 
 window.jaarplanningData = JSON.parse(localStorage.getItem('blackshots_jaarplanning_data')) || [];
 window.zaalhuurData = JSON.parse(localStorage.getItem('blackshots_zaalhuur_data')) || [];
@@ -72,14 +72,19 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
 
     for (let dag = 1; dag <= aantalDagen; dag++) {
         let isoDatum = `${jaar}-${(maand+1).toString().padStart(2, '0')}-${dag.toString().padStart(2, '0')}`;
-        let isVandaag = (isoDatum === vandaagStr) ? 'vandaag' : '';
+        let dagClasses = [];
+        if (isoDatum === vandaagStr) dagClasses.push('vandaag');
         
-        // 1. Haal items op uit het geheugen!
         let dagItems = window.jaarplanningData.filter(i => i.isoDatum === isoDatum);
+        
+        // CHECK VOOR RODE VAKANTIE ACHTERGROND
+        if (dagItems.some(i => i.type === "Vakantie")) {
+            dagClasses.push('vakantie-dag');
+        }
+
         let itemsHtml = '';
         dagItems.forEach(item => {
             let badgeClass = `k-${item.type.toLowerCase()}`;
-            // Stop de event propagation zodat het vakje erachter niet ook klikt
             itemsHtml += `
                 <div class="k-item ${badgeClass}" title="${item.tekst}">
                     <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:80%;">${item.tekst}</span>
@@ -88,7 +93,6 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
             `;
         });
 
-        // 2. MAGISCHE ZAALHUUR SYNC (Subtiel, zonder lelijke ballonnetjes)
         let zalenOpDag = window.zaalhuurData.filter(z => z.isoDatum === isoDatum && !z.geannuleerd);
         let uniekeZalen = [...new Set(zalenOpDag.map(z => z.zaal))];
         let zaalBalkHtml = '';
@@ -97,9 +101,8 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
             zaalBalkHtml = `<div class="kalender-zaal-balk">${korteNamen.join(' & ')}</div>`;
         }
 
-        // Het vakje is klikbaar en opent de pop-up
         html += `
-            <div class="kalender-dag ${isVandaag}" onclick="openDagModal('${isoDatum}', ${dag}, ${maand}, ${jaar})">
+            <div class="kalender-dag ${dagClasses.join(' ')}" onclick="openDagModal('${isoDatum}', ${dag}, ${maand}, ${jaar})">
                 <div class="kalender-dag-nummer">${dag}</div>
                 <div class="kalender-items">${itemsHtml}</div>
                 ${zaalBalkHtml}
@@ -116,15 +119,21 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
 }
 
 // ============================================================================
-// INTERACTIEF DAG-BEHEER (Klik op een dag in de kalender!)
+// INTERACTIEF DAG-BEHEER MET BULK TOEVOEGING
 // ============================================================================
 let actieveModalDatum = null;
 
 window.openDagModal = function(isoDatum, dag, maand, jaar) {
     actieveModalDatum = isoDatum;
     document.getElementById('modal-datum-titel').innerText = `Planning: ${dag} ${maandNamen[maand]} ${jaar}`;
+    document.getElementById('modal-start-label').innerText = `${dag} ${maandNamen[maand]}`;
     document.getElementById('item-tekst').value = '';
+    document.getElementById('item-einddatum').value = ''; // Reset einddatum
     
+    // Zet de einddatum min-waarde op de geselecteerde startdatum
+    document.getElementById('item-einddatum').min = isoDatum;
+    
+    verversModalLijst();
     document.getElementById('dag-modal').style.display = 'flex';
     document.getElementById('item-tekst').focus();
 };
@@ -136,15 +145,32 @@ window.sluitDagModal = function() {
 window.slaItemOp = function() {
     let type = document.getElementById('item-type').value;
     let tekst = document.getElementById('item-tekst').value.trim();
+    let eindDatumInput = document.getElementById('item-einddatum').value;
     
     if(!tekst) return alert("Vul een omschrijving in!");
 
-    window.jaarplanningData.push({
-        id: Date.now().toString(),
-        isoDatum: actieveModalDatum,
-        type: type,
-        tekst: tekst
-    });
+    let startDatumObj = new Date(actieveModalDatum);
+    let eindDatumObj = eindDatumInput ? new Date(eindDatumInput) : new Date(actieveModalDatum);
+
+    if (eindDatumObj < startDatumObj) {
+        return alert("De einddatum kan niet vóór de startdatum liggen!");
+    }
+
+    // Doorloop de datums en voeg voor élke dag in de reeks het item toe
+    let huidigeDatum = new Date(startDatumObj);
+    while (huidigeDatum <= eindDatumObj) {
+        let isoFormaat = huidigeDatum.toISOString().split('T')[0];
+        
+        window.jaarplanningData.push({
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+            isoDatum: isoFormaat,
+            type: type,
+            tekst: tekst
+        });
+        
+        // Ga 1 dag vooruit
+        huidigeDatum.setDate(huidigeDatum.getDate() + 1);
+    }
 
     localStorage.setItem('blackshots_jaarplanning_data', JSON.stringify(window.jaarplanningData));
     tekenKalender();
@@ -152,40 +178,38 @@ window.slaItemOp = function() {
 };
 
 window.verwijderItem = function(id) {
-    if(!confirm("Weet je zeker dat je dit item uit de kalender wilt verwijderen?")) return;
+    if(!confirm("Weet je zeker dat je dit item wilt verwijderen?")) return;
     window.jaarplanningData = window.jaarplanningData.filter(i => i.id !== id);
     localStorage.setItem('blackshots_jaarplanning_data', JSON.stringify(window.jaarplanningData));
+    verversModalLijst(); // Mocht je toevallig in de modal zitten
     tekenKalender();
 };
 
-// ============================================================================
-// OUDE BULK UPLOAD (Mocht je ooit CSV/Excel willen plakken)
-// ============================================================================
+function verversModalLijst() {
+    let lijst = document.getElementById('modal-huidige-items');
+    let itemsOpDag = window.jaarplanningData.filter(i => i.isoDatum === actieveModalDatum);
+    
+    if(itemsOpDag.length === 0) {
+        lijst.innerHTML = '<p style="color:#7f8c8d; font-size:0.9rem; margin:0;">Geen items gepland op deze startdatum.</p>';
+        return;
+    }
+
+    let html = '';
+    itemsOpDag.forEach(item => {
+        let badgeClass = `k-${item.type.toLowerCase()}`;
+        html += `
+            <div style="display:flex; justify-content:space-between; align-items:center; background:#f8f9fa; padding:8px; border:1px solid #eee; border-radius:4px; margin-bottom:5px;">
+                <div><span class="k-item ${badgeClass}" style="margin-right:10px;">${item.type}</span> ${item.tekst}</div>
+                <button onclick="verwijderItem('${item.id}')" style="background:transparent; border:none; color:#e74c3c; cursor:pointer; font-size:1.2rem;">🗑️</button>
+            </div>
+        `;
+    });
+    lijst.innerHTML = html;
+}
+
+// Oude Excel Bulk Upload
 window.verwerkPlanningBestand = function(e) {
-    const file = e.target.files[0]; if (!file) return;
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, {type: 'array'});
-        let ruweData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {header: 1}); // Leest zonder headers om jouw rare Excel te pakken!
-        
-        let toegevoegd = 0;
-
-        ruweData.forEach(row => {
-            if(!row || row.length === 0) return;
-            let tekst = row.join(' ').trim();
-            if(!tekst) return;
-
-            // Pakt datums zoals "12 jun" of "12-06-2026"
-            let match = tekst.match(/(\d{1,2})[-/\s]([a-zA-Z]+|\d{1,2})[-/\s]?(\d{2,4})?/);
-            if(match) {
-                // Hier zit nog de logica in voor een CSV, maar we sturen je naar handmatig typen!
-            }
-        });
-        
-        alert(`Functie momenteel omgeleid: Klik in de visuele kalender op een datum om hem toe te voegen! Dit is veel sneller dan de warrige Excel upload.`);
-    };
-    reader.readAsArrayBuffer(file);
+    alert(`Functie momenteel omgeleid: Klik in de visuele kalender op een datum om direct items in bulk (t/m datum) toe te voegen! Dit is veel sneller en overzichtelijker dan Excel.`);
 };
 
 window.wisJaarplanning = function() {
