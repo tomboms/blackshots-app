@@ -341,3 +341,178 @@ body.live-modus-actief .agenda-titel-input { border-bottom: none; pointer-events
 body.live-modus-actief .drag-handle, 
 body.live-modus-actief .delete-btn, 
 body.live-modus-actief .sub-btn { display: none !important; }
+
+/* ============================================================================
+   COMBINATIE EN STYLING VOOR POULE-INDELING & ZAALHUUR DASHBOARDS
+   ============================================================================ */
+
+/* Slepen & Uploaden Algemeen */
+.upload-container { height: 100%; }
+.upload-box {
+    border: 2px dashed #3498db;
+    background: rgba(52, 152, 219, 0.05);
+    padding: 25px;
+    text-align: center;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: 0.2s;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+.upload-box:hover {
+    background: rgba(52, 152, 219, 0.1);
+    border-color: #2980b9;
+    transform: translateY(-3px);
+}
+.file-input { display: none; }
+
+/* Zaalhuur specifieke uploadbox kleur accent */
+.zaalhuur-upload {
+    border-color: #27ae60;
+    background: rgba(39, 174, 96, 0.05);
+}
+.zaalhuur-upload:hover {
+    background: rgba(39, 174, 96, 0.1);
+    border-color: #219a52;
+}
+
+/* Poule-indeling Team Kaarten */
+.poule-card {
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    border-top: 5px solid #e67e22;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+}
+.team-lijst {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+    font-size: 0.9rem;
+}
+.team-lijst th {
+    text-align: left;
+    background: #eef2f5;
+    padding: 8px;
+    border-bottom: 2px solid #bdc3c7;
+}
+.team-lijst td {
+    padding: 8px;
+    border-bottom: 1px solid #eee;
+}
+.team-lijst tr.is-ons-team {
+    background: rgba(39, 174, 96, 0.1);
+    font-weight: bold;
+    color: #27ae60;
+}
+
+/* Kalenderscherm & Ronde Overzichten */
+.schema-lijst { list-style: none; padding: 0; margin: 0; }
+.schema-lijst li {
+    padding: 12px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.schema-lijst li:nth-child(even) { background: #fafafa; }
+
+/* Status Badges */
+.status-badge {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    display: inline-block;
+}
+.status-te-plannen { background: #f39c12; color: white; }
+.status-gepland, .status-geboekt { background: #27ae60; color: white; }
+.status-concept { background: #3498db; color: white; }
+.status-gefactureerd { background: #3498db; color: white; }
+.status-geannuleerd { background: #e74c3c; color: white; }
+.status-onbekend { background: #95a5a6; color: white; }
+
+/* Dashboard & Rent Statistieken */
+.stat-card {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    text-align: center;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    flex: 1;
+    min-width: 200px;
+}
+.stat-waarde { font-size: 2.5rem; font-weight: bold; margin: 10px 0 0 0; }
+
+/* Gemeente Huurlijst Tabel */
+.zaal-lijst {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+    font-size: 0.95rem;
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+}
+.zaal-lijst th { background: #2c3e50; color: white; padding: 12px; text-align: left; }
+.zaal-lijst td { padding: 12px; border-bottom: 1px solid #eee; }
+.zaal-lijst tr:hover { background: #f8f9fa; }
+
+.zaal-lijst tr.rij-geannuleerd {
+    background: #ffebee;
+    color: #c0392b;
+    text-decoration: line-through;
+    opacity: 0.7;
+}
+.zaal-lijst tr.rij-geannuleerd td:last-child { text-decoration: none; font-weight: bold; }
+.zaal-lijst tr.rij-gefactureerd { background: rgba(52, 152, 219, 0.05); }
+
+/* Modals (Popups) */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.6);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 99999;
+}
+.modal-content {
+    background: white;
+    padding: 25px;
+    border-radius: 8px;
+    width: 95%;
+    max-width: 800px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+}
+
+/* ============================================================================
+   DARK MODE OVERRIDES VOOR DEZE MODULES
+   ============================================================================ */
+body.dark-mode .upload-box { border-color: #475569; background: rgba(71, 85, 105, 0.1); }
+body.dark-mode .poule-card { background: #1e293b; border-color: #334155; }
+body.dark-mode .team-lijst th { background: #0f172a; border-color: #475569; color: #f8fafc; }
+body.dark-mode .team-lijst td { border-color: #334155; color: #cbd5e1; }
+body.dark-mode .team-lijst tr.is-ons-team { background: rgba(39, 174, 96, 0.15); color: #2ecc71; }
+body.dark-mode .schema-lijst li { border-color: #334155; }
+body.dark-mode .schema-lijst li:nth-child(even) { background: #0f172a; }
+body.dark-mode .modal-content { background: #1e293b; color: #f8fafc; border: 1px solid #334155; }
+body.dark-mode .stat-card { background: #1e293b; border-color: #334155; }
+body.dark-mode .zaal-lijst { background: #1e293b; }
+body.dark-mode .zaal-lijst th { background: #0f172a; border-color: #475569; }
+body.dark-mode .zaal-lijst td { border-color: #334155; color: #cbd5e1; }
+body.dark-mode .zaal-lijst tr:hover { background: #334155; }
+body.dark-mode .zaal-lijst tr.rij-geannuleerd { background: rgba(231, 76, 60, 0.15); color: #e74c3c; }
+body.dark-mode .zaal-lijst tr.rij-gefactureerd { background: rgba(52, 152, 219, 0.1); }

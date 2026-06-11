@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Black Shots - Zaalhuur</title>
+    <link rel="stylesheet" href="basketbal.css?v=7">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+    <div id="cloud-status-indicator" style="position: fixed; bottom: 20px; right: 20px; background: #27ae60; color: white; padding: 10px 20px; border-radius: 30px; font-weight: bold; font-size: 0.9rem; z-index: 99999; opacity: 0; pointer-events: none;">☁️ Cloud Actief</div>
+
+    <nav class="top-nav">
+        <h1>🏀 Black Shots Clubbeheer</h1>
+    </nav>
+
+    <main class="content-sectie active" style="max-width:1200px; margin:20px auto; padding:15px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px;">
+            <h2 style="margin:0; color:var(--secondary-color);">🏟️ Zaalhuur Overzicht</h2>
+            <button onclick="wisZaalhuur()" style="background:#e74c3c; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">🗑️ Wis Geheugen</button>
+        </div>
+
+        <div style="margin-bottom:30px;">
+            <label class="upload-box zaalhuur-upload">
+                <input type="file" class="file-input" id="upload-zaalhuur" accept=".xlsx, .xls, .csv" onchange="verwerkZaalhuurBestand(event)">
+                <span style="font-size:2.5rem; display:block; margin-bottom:10px;">📋</span>
+                <h3 style="margin:0 0 5px 0; color:#27ae60;">Upload Gemeente Export</h3>
+                <p style="font-size:0.85rem; color:#7f8c8d; margin:0 0 10px 0;">Upload het geëxporteerde Excel of CSV bestand van de gemeente portal.</p>
+                <strong id="label-zaalhuur" style="color:#27ae60;">Kies Bestand</strong>
+            </label>
+        </div>
+
+        <div style="display:flex; gap:20px; margin-bottom:30px; flex-wrap:wrap;">
+            <div class="stat-card" style="border-top: 4px solid #f39c12;">
+                <div style="color:#7f8c8d; font-size:0.9rem; font-weight:bold; text-transform:uppercase;">Totale Reserveringen</div>
+                <div class="stat-waarde" id="stat-totaal" style="color:#f39c12;">0</div>
+            </div>
+            <div class="stat-card" style="border-top: 4px solid #27ae60;">
+                <div style="color:#7f8c8d; font-size:0.9rem; font-weight:bold; text-transform:uppercase;">Actieve Uren</div>
+                <div class="stat-waarde" id="stat-uren" style="color:#27ae60;">0.0</div>
+            </div>
+            <div class="stat-card" style="border-top: 4px solid #3498db;">
+                <div style="color:#7f8c8d; font-size:0.9rem; font-weight:bold; text-transform:uppercase;">Gefactureerd</div>
+                <div class="stat-waarde" id="stat-gefactureerd" style="color:#3498db;">0</div>
+            </div>
+            <div class="stat-card" style="border-top: 4px solid #e74c3c;">
+                <div style="color:#7f8c8d; font-size:0.9rem; font-weight:bold; text-transform:uppercase;">Geannuleerd</div>
+                <div class="stat-waarde" id="stat-annuleringen" style="color:#e74c3c;">0</div>
+            </div>
+        </div>
+
+        <div id="zaalhuur-resultaten" style="overflow-x:auto;">
+            <p style="color:#7f8c8d; font-style:italic;">Upload een zaalhuur bestand om de lijst te bekijken...</p>
+        </div>
+
+    </main>
+
+    <script src="basketbal_auth.js"></script>
+    <script src="basketbal_data.js"></script>
+    <script type="module" src="firebase_motor.js"></script>
+    <script src="basketbal_zaalhuur.js?v=1"></script>
+</body>
+</html>
