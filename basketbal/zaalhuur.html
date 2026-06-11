@@ -69,26 +69,30 @@
             <button onclick="wisFilters()" style="background:#ecf0f1; color:#34495e; border:1px solid #cbd5e1; padding:8px 12px; border-radius:4px; cursor:pointer; height:35px; font-size:0.9rem;">✖ Wis Filters</button>
         </div>
 
-        <div style="display:flex; gap:15px; margin-bottom:30px; flex-wrap:wrap;">
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:15px; margin-bottom:30px;">
             <div class="stat-card" style="border-top: 4px solid #f39c12;">
-                <div style="color:#7f8c8d; font-size:0.85rem; font-weight:bold; text-transform:uppercase;">Reserveringen</div>
-                <div class="stat-waarde" id="stat-totaal" style="color:#f39c12; font-size:2.2rem;">0</div>
-            </div>
-            <div class="stat-card" style="border-top: 4px solid #27ae60;">
-                <div style="color:#7f8c8d; font-size:0.85rem; font-weight:bold; text-transform:uppercase;">Actieve Uren</div>
-                <div class="stat-waarde" id="stat-uren" style="color:#27ae60; font-size:2.2rem;">0.0 u</div>
-            </div>
-            <div class="stat-card" style="border-top: 4px solid #2ecc71;">
-                <div style="color:#7f8c8d; font-size:0.85rem; font-weight:bold; text-transform:uppercase;">Totale Kosten</div>
-                <div class="stat-waarde" id="stat-kosten" style="color:#2ecc71; font-size:2.2rem;">€ 0,00</div>
+                <div style="color:#7f8c8d; font-size:0.8rem; font-weight:bold; text-transform:uppercase;">Reserveringen</div>
+                <div class="stat-waarde" id="stat-totaal" style="color:#f39c12; font-size:2rem;">0</div>
             </div>
             <div class="stat-card" style="border-top: 4px solid #3498db;">
-                <div style="color:#7f8c8d; font-size:0.85rem; font-weight:bold; text-transform:uppercase;">Gefactureerd</div>
-                <div class="stat-waarde" id="stat-gefactureerd" style="color:#3498db; font-size:2.2rem;">0</div>
+                <div style="color:#7f8c8d; font-size:0.8rem; font-weight:bold; text-transform:uppercase;">Klokuren (Actief)</div>
+                <div class="stat-waarde" id="stat-klokuren" style="color:#3498db; font-size:2rem;">0.0 u</div>
+            </div>
+            <div class="stat-card" style="border-top: 4px solid #27ae60;">
+                <div style="color:#7f8c8d; font-size:0.8rem; font-weight:bold; text-transform:uppercase;">Gehuurde Uren</div>
+                <div class="stat-waarde" id="stat-gehuurd" style="color:#27ae60; font-size:2rem;">0.0 u</div>
+            </div>
+            <div class="stat-card" style="border-top: 4px solid #2ecc71;">
+                <div style="color:#7f8c8d; font-size:0.8rem; font-weight:bold; text-transform:uppercase;">Totale Kosten</div>
+                <div class="stat-waarde" id="stat-kosten" style="color:#2ecc71; font-size:2rem;">€ 0,00</div>
+            </div>
+            <div class="stat-card" style="border-top: 4px solid #9b59b6;">
+                <div style="color:#7f8c8d; font-size:0.8rem; font-weight:bold; text-transform:uppercase;">Gefactureerd</div>
+                <div class="stat-waarde" id="stat-gefactureerd" style="color:#9b59b6; font-size:2rem;">0</div>
             </div>
             <div class="stat-card" style="border-top: 4px solid #e74c3c;">
-                <div style="color:#7f8c8d; font-size:0.85rem; font-weight:bold; text-transform:uppercase;">Geannuleerd</div>
-                <div class="stat-waarde" id="stat-annuleringen" style="color:#e74c3c; font-size:2.2rem;">0</div>
+                <div style="color:#7f8c8d; font-size:0.8rem; font-weight:bold; text-transform:uppercase;">Geannuleerd</div>
+                <div class="stat-waarde" id="stat-annuleringen" style="color:#e74c3c; font-size:2rem;">0</div>
             </div>
         </div>
 
@@ -101,6 +105,6 @@
     <script src="basketbal_auth.js"></script>
     <script src="basketbal_data.js"></script>
     <script type="module" src="firebase_motor.js"></script>
-    <script src="basketbal_zaalhuur.js?v=3"></script>
+    <script src="basketbal_zaalhuur.js?v=4"></script>
 </body>
 </html>
