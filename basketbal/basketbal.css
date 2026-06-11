@@ -619,6 +619,37 @@ body.dark-mode .zaal-lijst tr.rij-gefactureerd { background: rgba(52, 152, 219, 
 body.dark-mode .timeline-item { background: #1e293b; border-color: #334155; }
 body.dark-mode .label-vakantie { background: rgba(26, 188, 156, 0.1); }
 
+
+/* ============================================================================
+   INTERACTIEVE BLOKKEN KALENDER (JAARPLANNING)
+   ============================================================================ */
+.kalender-header { display: flex; justify-content: space-between; align-items: center; background: #2c3e50; color: white; padding: 15px 20px; border-radius: 8px 8px 0 0; }
+.kalender-nav-btn { background: rgba(255,255,255,0.2); border: none; color: white; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.2s; font-size: 0.85rem; margin: 0 2px;}
+.kalender-nav-btn:hover { background: rgba(255,255,255,0.4); }
+
+.kalender-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; background: #bdc3c7; border: 2px solid #bdc3c7; border-top: none; }
+.kalender-weekdagen { display: grid; grid-template-columns: repeat(7, 1fr); background: #34495e; color: white; text-align: center; font-weight: bold; padding: 10px 0; font-size: 0.9rem; }
+.kalender-dag { background: white; min-height: 120px; display: flex; flex-direction: column; cursor: pointer; transition: 0.1s; position: relative; }
+.kalender-dag:hover { background: #f8f9fa; }
+.kalender-dag.leeg { background: #ecf0f1; cursor: default; }
+
+.kalender-dag-nummer { text-align: right; padding: 5px 8px; font-weight: bold; color: #7f8c8d; font-size: 0.9rem; border-bottom: 1px solid #f1f2f6; }
+.kalender-dag.vandaag .kalender-dag-nummer { background: #3498db; color: white; }
+
+.kalender-items { flex: 1; padding: 5px; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; }
+.kalender-zaal-balk { background: #eef2f5; color: #7f8c8d; font-size: 0.7rem; text-align: center; padding: 3px; font-weight: bold; border-top: 1px solid #bdc3c7; text-transform: uppercase; }
+
+/* Kalender Item Badges (Kleuren worden nu door JS geregeld via Instellingen!) */
+.k-item { font-size: 0.75rem; padding: 4px 6px; border-radius: 4px; font-weight: bold; line-height: 1.2; word-wrap: break-word; box-shadow: 0 1px 2px rgba(0,0,0,0.1); display:flex; justify-content:space-between; align-items:center; }
+.k-multiday { margin: 0 -5px; border-radius: 0; padding-left: 10px; padding-right: 10px; border-top: 1px solid rgba(0,0,0,0.1); border-bottom: 1px solid rgba(0,0,0,0.1); }
+.k-start { margin-left: 0; border-top-left-radius: 4px; border-bottom-left-radius: 4px; border-left: 2px solid rgba(0,0,0,0.2); }
+.k-end { margin-right: 0; border-top-right-radius: 4px; border-bottom-right-radius: 4px; border-right: 2px solid rgba(0,0,0,0.2); }
+
+/* Vakantie Markering */
+.kalender-dag.vakantie-dag { background-color: #ffebee; border: 1px solid #ffcdd2; }
+.kalender-dag.vakantie-dag:hover { background-color: #ffdae0; }
+.kalender-dag.vakantie-dag .kalender-dag-nummer { color: #c0392b; border-bottom-color: #ffcdd2; }
+
 /* Kruisje in de Modals (Pop-ups) */
 .modal-close-btn {
     position: absolute;
