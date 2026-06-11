@@ -30,49 +30,24 @@
             <label class="upload-box zaalhuur-upload">
                 <input type="file" class="file-input" id="upload-zaalhuur" accept=".xlsx, .xls, .csv" onchange="verwerkZaalhuurBestand(event)">
                 <span style="font-size:2.5rem; display:block; margin-bottom:10px;">📋</span>
-                <h3 style="margin:0 0 5px 0; color:#27ae60;">Upload Gemeente Portal Export</h3>
-                <p style="font-size:0.85rem; color:#7f8c8d; margin:0 0 10px 0;">Sleep je Excel hierin of klik om te uploaden. De app scant direct alle regels automatisch.</p>
+                <h3 style="margin:0 0 5px 0; color:#27ae60;">Upload Ingevuld Sjabloon</h3>
+                <p style="font-size:0.85rem; color:#7f8c8d; margin:0 0 10px 0;">Plak de gegevens in het Excel Sjabloon en upload hem hier om de kalender te genereren.</p>
                 <strong id="label-zaalhuur" style="color:#27ae60;">Kies Bestand</strong>
             </label>
         </div>
 
-        <div style="background:#f8f9fa; padding:15px; border-radius:8px; border:1px solid #cbd5e1; display:block; margin-bottom:25px; font-family: Arial, sans-serif;">
-            <div style="font-weight:bold; color:#2c3e50; margin-bottom:10px; display:inline-block; margin-right:15px;">🔍 Live Filters:</div>
-            <div style="display:inline-block; margin-right:10px; margin-bottom:5px;">
+        <div style="background:#f8f9fa; padding:15px; border-radius:8px; border:1px solid #cbd5e1; display:flex; align-items:flex-end; gap:15px; margin-bottom:25px; font-family: Arial, sans-serif; flex-wrap:wrap;">
+            <div style="font-weight:bold; color:#2c3e50; margin-bottom:10px;">🔍 Live Filters:</div>
+            
+            <div>
+                <label style="font-size:0.8rem; color:#7f8c8d; display:block; margin-bottom:3px; font-weight:bold;">Zaal:</label>
                 <select id="filter-zaal" onchange="tekenZaalhuurResultaten()" style="padding:8px; border-radius:4px; border:1px solid #cbd5e1; min-width:160px;">
                     <option value="">-- Alle Zalen --</option>
                 </select>
             </div>
-            <div style="display:inline-block; margin-right:10px; margin-bottom:5px;">
-                <select id="filter-dag" onchange="tekenZaalhuurResultaten()" style="padding:8px; border-radius:4px; border:1px solid #cbd5e1; min-width:140px;">
-                    <option value="">-- Alle Dagen --</option>
-                    <option value="maandag">Maandag</option>
-                    <option value="dinsdag">Dinsdag</option>
-                    <option value="woensdag">Woensdag</option>
-                    <option value="donderdag">Donderdag</option>
-                    <option value="vrijdag">Vrijdag</option>
-                    <option value="zaterdag">Zaterdag</option>
-                    <option value="zondag">Zondag</option>
-                </select>
-            </div>
-            <div style="display:inline-block; margin-right:10px; margin-bottom:5px;">
-                <select id="filter-maand" onchange="tekenZaalhuurResultaten()" style="padding:8px; border-radius:4px; border:1px solid #cbd5e1; min-width:140px;">
-                    <option value="">-- Alle Maanden --</option>
-                    <option value="jan">Januari</option>
-                    <option value="feb">Februari</option>
-                    <option value="mrt">Maart</option>
-                    <option value="apr">April</option>
-                    <option value="mei">Mei</option>
-                    <option value="jun">Juni</option>
-                    <option value="jul">Juli</option>
-                    <option value="aug">Augustus</option>
-                    <option value="sep">September</option>
-                    <option value="okt">Oktober</option>
-                    <option value="nov">November</option>
-                    <option value="dec">December</option>
-                </select>
-            </div>
-            <div style="display:inline-block; margin-bottom:5px;">
+            
+            <div>
+                <label style="font-size:0.8rem; color:#7f8c8d; display:block; margin-bottom:3px; font-weight:bold;">Status:</label>
                 <select id="filter-status" onchange="tekenZaalhuurResultaten()" style="padding:8px; border-radius:4px; border:1px solid #cbd5e1; min-width:140px;">
                     <option value="">-- Alle Statussen --</option>
                     <option value="Geboekt">Geboekt</option>
@@ -80,6 +55,18 @@
                     <option value="Geannuleerd">Geannuleerd</option>
                 </select>
             </div>
+
+            <div>
+                <label style="font-size:0.8rem; color:#7f8c8d; display:block; margin-bottom:3px; font-weight:bold;">Periode Van:</label>
+                <input type="date" id="filter-datum-van" onchange="tekenZaalhuurResultaten()" style="padding:7px; border-radius:4px; border:1px solid #cbd5e1;">
+            </div>
+
+            <div>
+                <label style="font-size:0.8rem; color:#7f8c8d; display:block; margin-bottom:3px; font-weight:bold;">Periode Tot:</label>
+                <input type="date" id="filter-datum-tot" onchange="tekenZaalhuurResultaten()" style="padding:7px; border-radius:4px; border:1px solid #cbd5e1;">
+            </div>
+            
+            <button onclick="wisFilters()" style="background:#ecf0f1; color:#34495e; border:1px solid #cbd5e1; padding:8px 12px; border-radius:4px; cursor:pointer; height:35px; font-size:0.9rem;">✖ Wis Filters</button>
         </div>
 
         <div style="display:flex; gap:15px; margin-bottom:30px; flex-wrap:wrap;">
@@ -114,6 +101,6 @@
     <script src="basketbal_auth.js"></script>
     <script src="basketbal_data.js"></script>
     <script type="module" src="firebase_motor.js"></script>
-    <script src="basketbal_zaalhuur.js?v=2"></script>
+    <script src="basketbal_zaalhuur.js?v=3"></script>
 </body>
 </html>
