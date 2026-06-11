@@ -516,3 +516,23 @@ body.dark-mode .zaal-lijst td { border-color: #334155; color: #cbd5e1; }
 body.dark-mode .zaal-lijst tr:hover { background: #334155; }
 body.dark-mode .zaal-lijst tr.rij-geannuleerd { background: rgba(231, 76, 60, 0.15); color: #e74c3c; }
 body.dark-mode .zaal-lijst tr.rij-gefactureerd { background: rgba(52, 152, 219, 0.1); }
+
+/* Klikbare Status Selects in Zaalhuur */
+.status-select {
+    border: 2px solid rgba(255,255,255,0.3);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    color: white;
+    cursor: pointer;
+    outline: none;
+    text-transform: uppercase;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+.status-select:hover { filter: brightness(1.1); }
+.status-select option { background: white; color: black; font-weight: normal; }
+
+.bg-geboekt { background-color: #27ae60; }
+.bg-geannuleerd { background-color: #e74c3c; }
+.bg-gefactureerd { background-color: #3498db; }

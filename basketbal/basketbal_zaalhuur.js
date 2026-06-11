@@ -1,4 +1,4 @@
-// --- BASKETBAL_ZAALHUUR.JS: ONDERSCHEID TUSSEN KLOKUREN EN GEHUURDE UREN ---
+// --- BASKETBAL_ZAALHUUR.JS: SMART MERGE & HANDMATIGE STATUS ---
 
 window.zaalhuurData = JSON.parse(localStorage.getItem('blackshots_zaalhuur_data')) || [];
 
@@ -9,6 +9,11 @@ document.addEventListener('DOMContentLoaded', () => {
         tekenZaalhuurResultaten();
     }
 });
+
+// Functie om een onzichtbare unieke ID te maken per reservering
+function genereerZaalID(datum, startTijd, zaal, zaaldeel) {
+    return `${datum}-${startTijd}-${zaal}-${zaaldeel}`.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+}
 
 window.downloadSjabloon = function() {
     const wb = XLSX.utils.book_new();
@@ -25,7 +30,6 @@ window.downloadSjabloon = function() {
 function converteerNaarISODatum(datumStr) {
     if (!datumStr) return "9999-12-31";
     let str = datumStr.toLowerCase();
-    
     let match = str.match(/(\d{1,2})\s+([a-z]+)\s+(\d{4})/);
     if (match) {
         let d = match[1].padStart(2, '0');
@@ -46,7 +50,6 @@ function converteerNaarISODatum(datumStr) {
         else if(mStr.includes('dec')) m="12";
         return `${y}-${m}-${d}`;
     }
-    
     let match2 = str.match(/(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})/);
     if (match2) {
         let d = match2[1].padStart(2, '0');
@@ -63,22 +66,21 @@ function berekenVerschilInUren(start, eind) {
         let sMatch = start.match(/(\d{1,2})[:.](\d{2})/);
         let eMatch = eind.match(/(\d{1,2})[:.](\d{2})/);
         if(!sMatch || !eMatch) return 0;
-        
         let sUur = parseInt(sMatch[1]);
         let sMin = parseInt(sMatch[2]);
         let eUur = parseInt(eMatch[1]);
         let eMin = parseInt(eMatch[2]);
-        
         let diff = (eUur + eMin/60) - (sUur + sMin/60);
         return diff > 0 ? diff : 0;
-    } catch(e) {
-        return 0;
-    }
+    } catch(e) { return 0; }
 }
 
+// ============================================================================
+// EXCEL BEREKENING (SMART MERGE / UPSERT)
+// ============================================================================
 window.verwerkZaalhuurBestand = function(e) {
     const file = e.target.files[0]; if (!file) return;
-    document.getElementById('label-zaalhuur').innerText = `⏳ Scannen...`;
+    document.getElementById('label-zaalhuur').innerText = `⏳ Samenvoegen...`;
     
     const reader = new FileReader();
     reader.onload = function(e) {
@@ -86,9 +88,14 @@ window.verwerkZaalhuurBestand = function(e) {
         const workbook = XLSX.read(data, {type: 'array'});
         let ruweData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {header: 1});
         
-        window.zaalhuurData = [];
-        let toegevoegdeDatums = [];
-        let geannuleerdeDatums = [];
+        // 1. Maak een slimme Map van BESTAANDE data (zodat we updaten ipv overschrijven)
+        let dataMap = {};
+        window.zaalhuurData.forEach(item => {
+            dataMap[item.id] = item;
+        });
+
+        let updateCount = 0;
+        let nieuwCount = 0;
 
         ruweData.forEach((row, idx) => {
             if (!row || row.length < 5 || idx === 0) return; 
@@ -103,9 +110,8 @@ window.verwerkZaalhuurBestand = function(e) {
 
             if (!datum || !tijdStr || !tijdStr.includes('-')) return;
 
-            let tijdParts = tijdStr.split('-');
-            let startTijd = tijdParts[0].trim();
-            let eindTijd = tijdParts[1].trim();
+            let startTijd = tijdStr.split('-')[0].trim();
+            let eindTijd = tijdStr.split('-')[1].trim();
 
             let cleanBedrag = bedragRaw.replace(/[€\s]/g, '');
             if (cleanBedrag.includes(',') && cleanBedrag.includes('.')) {
@@ -122,18 +128,21 @@ window.verwerkZaalhuurBestand = function(e) {
             if (stLower.includes('annuleer') || stLower.includes('verval') || stLower.includes('cancel')) {
                 status = "Geannuleerd";
                 isGeannuleerd = true;
-                if (!geannuleerdeDatums.includes(datum)) geannuleerdeDatums.push(datum);
             } else if (stLower.includes('factureer')) {
                 status = "Gefactureerd";
-                if (!toegevoegdeDatums.includes(datum)) toegevoegdeDatums.push(datum);
-            } else {
-                if (!toegevoegdeDatums.includes(datum)) toegevoegdeDatums.push(datum);
             }
 
             let berekendeUren = isGeannuleerd ? 0 : berekenVerschilInUren(startTijd, eindTijd);
             let uren = isNaN(berekendeUren) ? 0 : berekendeUren;
+            
+            // 2. Genereer een uniek ID
+            let id = genereerZaalID(datum, startTijd, zaal, zaaldeel);
 
-            window.zaalhuurData.push({
+            // 3. Update of Voeg toe
+            if(dataMap[id]) updateCount++; else nieuwCount++;
+
+            dataMap[id] = {
+                id: id,
                 datum: datum,
                 isoDatum: converteerNaarISODatum(datum),
                 startTijd: startTijd, 
@@ -145,18 +154,18 @@ window.verwerkZaalhuurBestand = function(e) {
                 status: status, 
                 geannuleerd: isGeannuleerd,
                 uren: uren
-            });
+            };
         });
 
+        // 4. Zet de Map weer terug naar de array
+        window.zaalhuurData = Object.values(dataMap);
+
         localStorage.setItem('blackshots_zaalhuur_data', JSON.stringify(window.zaalhuurData));
-        document.getElementById('label-zaalhuur').innerText = `✅ Ingeladen: ${file.name}`;
+        document.getElementById('label-zaalhuur').innerText = `✅ Database bijgewerkt!`;
         
         let banner = document.getElementById('notification-banner');
         if (banner) {
-            let msg = `<strong>🏟️ Zaalhuur Update Succesvol Verwerkt!</strong><br>`;
-            if (toegevoegdeDatums.length > 0) msg += `✅ <strong>Huur gevonden op o.a.:</strong> ${toegevoegdeDatums.slice(0,4).join(', ')}${toegevoegdeDatums.length > 4 ? '...' : ''}<br>`;
-            if (geannuleerdeDatums.length > 0) msg += `❌ <strong>Annuleringen verwerkt op:</strong> ${geannuleerdeDatums.slice(0,4).join(', ')}${geannuleerdeDatums.length > 4 ? '...' : ''}`;
-            banner.innerHTML = msg;
+            banner.innerHTML = `<strong>🏟️ Database Succesvol Bijgewerkt!</strong><br>✅ ${nieuwCount} nieuwe reserveringen toegevoegd.<br>🔄 ${updateCount} bestaande reserveringen geüpdatet.`;
             banner.style.display = 'block';
         }
 
@@ -181,6 +190,27 @@ window.wisFilters = function() {
     tekenZaalhuurResultaten();
 };
 
+// ============================================================================
+// HANDMATIGE STATUS UPDATE FUNCTIE (Direct in UI opslaan!)
+// ============================================================================
+window.updateGroepStatus = function(idsString, nieuweStatus) {
+    let ids = idsString.split(',');
+    
+    window.zaalhuurData.forEach(z => {
+        if(ids.includes(z.id)) {
+            z.status = nieuweStatus;
+            z.geannuleerd = (nieuweStatus === 'Geannuleerd');
+            z.uren = z.geannuleerd ? 0 : berekenVerschilInUren(z.startTijd, z.eindTijd); // Rekent direct uren opnieuw uit
+        }
+    });
+
+    localStorage.setItem('blackshots_zaalhuur_data', JSON.stringify(window.zaalhuurData));
+    tekenZaalhuurResultaten(); // Herteken direct om rekensommen live te updaten
+};
+
+// ============================================================================
+// INTERACTIEVE UI TEKENEN
+// ============================================================================
 window.tekenZaalhuurResultaten = function() {
     let container = document.getElementById('zaalhuur-resultaten');
     
@@ -208,13 +238,11 @@ window.tekenZaalhuurResultaten = function() {
         return;
     }
 
-    // Grote Tellers Berekenen
     let totaalKosten = gefilterdeData.reduce((som, z) => som + (z.geannuleerd ? 0 : z.bedrag), 0);
     let totaalGehuurdeUren = gefilterdeData.reduce((som, z) => som + (z.geannuleerd ? 0 : (Number(z.uren) || 0)), 0);
     let aantalGeannuleerd = gefilterdeData.filter(z => z.status === "Geannuleerd").length;
     let aantalGefactureerd = gefilterdeData.filter(z => z.status === "Gefactureerd").length;
 
-    // Slimme berekening voor globale 'Klokuren' (Telt dubbele boekingstijden maar 1x mee)
     let uniekeTijdvakken = new Set();
     gefilterdeData.forEach(z => {
         if (!z.geannuleerd) uniekeTijdvakken.add(`${z.datum}|${z.startTijd}|${z.eindTijd}`);
@@ -232,7 +260,6 @@ window.tekenZaalhuurResultaten = function() {
     document.getElementById('stat-gefactureerd').innerText = aantalGefactureerd;
     document.getElementById('stat-annuleringen').innerText = aantalGeannuleerd;
 
-    // Groeperen per Dag
     let groepenPerDag = {};
     gefilterdeData.forEach(z => {
         if (!groepenPerDag[z.datum]) groepenPerDag[z.datum] = [];
@@ -247,12 +274,13 @@ window.tekenZaalhuurResultaten = function() {
         ruweItems.forEach(zaal => {
             let slotKey = `${zaal.startTijd}-${zaal.eindTijd}-${zaal.status}-${zaal.zaal}`;
             if (!uniekeTijdsloten[slotKey]) {
-                uniekeTijdsloten[slotKey] = { ...zaal, zaaldeelLijst: [zaal.zaaldeel], aantalZalen: 1 };
+                uniekeTijdsloten[slotKey] = { ...zaal, zaaldeelLijst: [zaal.zaaldeel], idLijst: [zaal.id], aantalZalen: 1 };
             } else {
                 let uniekeNaam = zaal.zaaldeel;
                 if (!uniekeTijdsloten[slotKey].zaaldeelLijst.includes(uniekeNaam)) {
                     uniekeTijdsloten[slotKey].zaaldeelLijst.push(uniekeNaam);
                 }
+                uniekeTijdsloten[slotKey].idLijst.push(zaal.id); // Bewaar alle IDs om ze in 1x te kunnen updaten!
                 uniekeTijdsloten[slotKey].bedrag += zaal.bedrag;
                 uniekeTijdsloten[slotKey].uren += zaal.uren;
                 uniekeTijdsloten[slotKey].aantalZalen += 1;
@@ -262,7 +290,6 @@ window.tekenZaalhuurResultaten = function() {
         let samengevoegdeItems = Object.values(uniekeTijdsloten);
         samengevoegdeItems.sort((a, b) => a.startTijd.localeCompare(b.startTijd));
         
-        // Totalen voor deze specifieke dag
         let dagTotaalKosten = samengevoegdeItems.reduce((som, z) => som + (z.geannuleerd ? 0 : z.bedrag), 0);
         let dagTotaalGehuurd = samengevoegdeItems.reduce((som, z) => som + (z.geannuleerd ? 0 : (Number(z.uren) || 0)), 0);
         
@@ -286,34 +313,43 @@ window.tekenZaalhuurResultaten = function() {
         `;
 
         samengevoegdeItems.forEach(zaal => {
-            let badgeClass = "status-onbekend";
-            if (zaal.status === "Geboekt") badgeClass = "status-geboekt";
-            if (zaal.status === "Geannuleerd") badgeClass = "status-geannuleerd";
-            if (zaal.status === "Gefactureerd") badgeClass = "status-gefactureerd";
+            let bgClass = "bg-onbekend";
+            if (zaal.status === "Geboekt") bgClass = "bg-geboekt";
+            if (zaal.status === "Geannuleerd") bgClass = "bg-geannuleerd";
+            if (zaal.status === "Gefactureerd") bgClass = "bg-gefactureerd";
 
-            let rowStyle = zaal.geannuleerd ? 'background:#fef2f2; color:#b91c1c; text-decoration:line-through; opacity:0.7;' : '';
+            let rowStyle = zaal.geannuleerd ? 'background:#fef2f2; color:#b91c1c; opacity:0.8;' : '';
+            let textDeco = zaal.geannuleerd ? 'text-decoration:line-through;' : '';
             let zaaldeelWeergave = zaal.zaaldeelLijst.join(' & ');
             
-            // Duidelijke uitleg bij meerdere zalen op 1 tijd
             let weergaveUren = zaal.aantalZalen > 1 
-                ? `<span style="color:#e67e22; font-weight:bold;">${(zaal.uren / zaal.aantalZalen).toFixed(1)} Klokuur</span><br><small style="color:#7f8c8d;">(x${zaal.aantalZalen} zalen = ${zaal.uren.toFixed(1)} gehuurd)</small>` 
-                : `<span style="font-weight:bold;">${zaal.uren.toFixed(1)} u</span>`;
+                ? `<span style="color:#e67e22; font-weight:bold; ${textDeco}">${(zaal.uren / zaal.aantalZalen).toFixed(1)} Klokuur</span><br><small style="color:#7f8c8d; ${textDeco}">(x${zaal.aantalZalen} zalen = ${zaal.uren.toFixed(1)} gehuurd)</small>` 
+                : `<span style="font-weight:bold; ${textDeco}">${zaal.uren.toFixed(1)} u</span>`;
+
+            // HIER ZIT HET NIEUWE DROPDOWN MENU
+            let dropdownHtml = `
+                <select onchange="updateGroepStatus('${zaal.idLijst.join(',')}', this.value)" class="status-select ${bgClass}">
+                    <option value="Geboekt" ${zaal.status === 'Geboekt' ? 'selected' : ''}>Geboekt</option>
+                    <option value="Gefactureerd" ${zaal.status === 'Gefactureerd' ? 'selected' : ''}>Gefactureerd</option>
+                    <option value="Geannuleerd" ${zaal.status === 'Geannuleerd' ? 'selected' : ''}>Geannuleerd</option>
+                </select>
+            `;
 
             html += `
                 <tr style="border-bottom:1px solid #e2e8f0; ${rowStyle}">
-                    <td style="padding:12px 20px; font-weight:bold; width:150px; vertical-align:top;">⏰ ${zaal.startTijd} - ${zaal.eindTijd}</td>
+                    <td style="padding:12px 20px; font-weight:bold; width:150px; vertical-align:top; ${textDeco}">⏰ ${zaal.startTijd} - ${zaal.eindTijd}</td>
                     <td style="padding:12px 20px; vertical-align:top;">
-                        <span style="font-size:1rem; font-weight:bold; color:#2c3e50;">${zaal.zaal}</span><br>
-                        <small style="color:#64748b; font-style:italic;">${zaaldeelWeergave} ${zaal.opmerking !== '-' ? '<br>💬 ' + zaal.opmerking : ''}</small>
+                        <span style="font-size:1rem; font-weight:bold; color:#2c3e50; ${textDeco}">${zaal.zaal}</span><br>
+                        <small style="color:#64748b; font-style:italic; ${textDeco}">${zaaldeelWeergave} ${zaal.opmerking !== '-' ? '<br>💬 ' + zaal.opmerking : ''}</small>
                     </td>
                     <td style="padding:12px 20px; text-align:right; width:160px; vertical-align:top;">
                         ${weergaveUren}
                     </td>
-                    <td style="padding:12px 20px; text-align:right; font-weight:bold; width:100px; vertical-align:top;">
+                    <td style="padding:12px 20px; text-align:right; font-weight:bold; width:100px; vertical-align:top; ${textDeco}">
                         ${zaal.geannuleerd ? '€ 0,00' : '€ ' + zaal.bedrag.toFixed(2).replace('.', ',')}
                     </td>
-                    <td style="padding:12px 20px; text-align:right; width:130px; text-decoration:none !important; vertical-align:top;">
-                        <span class="status-badge ${badgeClass}">${zaal.status}</span>
+                    <td style="padding:12px 20px; text-align:right; width:150px; text-decoration:none !important; vertical-align:top;">
+                        ${dropdownHtml}
                     </td>
                 </tr>
             `;

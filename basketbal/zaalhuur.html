@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Black Shots - Zaalhuur</title>
-    <link rel="stylesheet" href="basketbal.css?v=8">
+    <link rel="stylesheet" href="basketbal.css?v=9">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
@@ -31,7 +31,7 @@
                 <input type="file" class="file-input" id="upload-zaalhuur" accept=".xlsx, .xls, .csv" onchange="verwerkZaalhuurBestand(event)">
                 <span style="font-size:2.5rem; display:block; margin-bottom:10px;">📋</span>
                 <h3 style="margin:0 0 5px 0; color:#27ae60;">Upload Ingevuld Sjabloon</h3>
-                <p style="font-size:0.85rem; color:#7f8c8d; margin:0 0 10px 0;">Plak de gegevens in het Excel Sjabloon en upload hem hier om de kalender te genereren.</p>
+                <p style="font-size:0.85rem; color:#7f8c8d; margin:0 0 10px 0;">Plak de gegevens in het Excel Sjabloon en upload hem hier om de kalender te updaten.</p>
                 <strong id="label-zaalhuur" style="color:#27ae60;">Kies Bestand</strong>
             </label>
         </div>
@@ -96,15 +96,13 @@
             </div>
         </div>
 
-        <div id="zaalhuur-resultaten" style="overflow-x:auto;">
-            <p style="color:#7f8c8d; font-style:italic;">Upload een zaalhuur bestand om de planning te bekijken...</p>
-        </div>
+        <div id="zaalhuur-resultaten" style="overflow-x:auto;"></div>
 
     </main>
 
     <script src="basketbal_auth.js"></script>
     <script src="basketbal_data.js"></script>
     <script type="module" src="firebase_motor.js"></script>
-    <script src="basketbal_zaalhuur.js?v=4"></script>
+    <script src="basketbal_zaalhuur.js?v=9"></script>
 </body>
 </html>
