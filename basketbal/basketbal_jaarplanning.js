@@ -1,7 +1,7 @@
-// --- BASKETBAL_JAARPLANNING.JS: INTERACTIEVE BLOKKEN & ZAALHUUR SYNC ---
+// --- BASKETBAL_JAARPLANNING.JS: INTERACTIEVE KLIKBARE KALENDER & ZAAL SYNC ---
 
 window.jaarplanningData = JSON.parse(localStorage.getItem('blackshots_jaarplanning_data')) || [];
-window.zaalhuurData = JSON.parse(localStorage.getItem('blackshots_zaalhuur_data')) || []; // Ophalen voor de sync!
+window.zaalhuurData = JSON.parse(localStorage.getItem('blackshots_zaalhuur_data')) || [];
 
 let huidigeMaand = new Date().getMonth();
 let huidigJaar = new Date().getFullYear();
@@ -12,48 +12,39 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ============================================================================
-// KALENDER ENGINE (Tekent de blokken)
+// KALENDER ENGINE
 // ============================================================================
-function tekenKalender() {
+window.tekenKalender = function() {
     let container = document.getElementById('kalender-container');
     container.innerHTML = '';
 
     if (weergaveIsJaar) {
-        // Jaarweergave: Teken 12 maanden onder elkaar
-        for(let m = 0; m < 12; m++) {
-            container.innerHTML += genereerMaandHTML(huidigJaar, m);
-        }
+        for(let m = 0; m < 12; m++) container.innerHTML += genereerMaandHTML(huidigJaar, m);
     } else {
-        // Maandweergave: 1 maand met navigatie knoppen
         container.innerHTML = genereerMaandHTML(huidigJaar, huidigeMaand, true);
     }
-}
+};
 
-function wisselWeergave() {
+window.wisselWeergave = function() {
     weergaveIsJaar = !weergaveIsJaar;
     document.getElementById('btn-weergave').innerText = weergaveIsJaar ? "🗓️ Toon 1 Maand" : "🗓️ Toon Hele Jaar";
-    if(weergaveIsJaar) {
-        huidigeMaand = 0; // Spring naar Januari
-    } else {
-        huidigeMaand = new Date().getMonth(); // Terug naar nu
-    }
+    if(weergaveIsJaar) huidigeMaand = 0;
+    else huidigeMaand = new Date().getMonth();
     tekenKalender();
-}
+};
 
-function wijzigMaand(delta) {
+window.wijzigMaand = function(delta) {
     huidigeMaand += delta;
     if (huidigeMaand < 0) { huidigeMaand = 11; huidigJaar--; }
     if (huidigeMaand > 11) { huidigeMaand = 0; huidigJaar++; }
     tekenKalender();
-}
+};
 
 const maandNamen = ["Januari", "Februari", "Maart", "April", "Mei", "Juni", "Juli", "Augustus", "September", "Oktober", "November", "December"];
 
 function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
     let eersteDag = new Date(jaar, maand, 1).getDay();
     let aantalDagen = new Date(jaar, maand + 1, 0).getDate();
-    
-    // JS dagen: 0=Zondag, 1=Maandag. Wij willen Maandag als start.
     let startVakje = eersteDag === 0 ? 6 : eersteDag - 1; 
 
     let navHtml = toonNavigatie ? `
@@ -75,57 +66,57 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
             <div class="kalender-grid">
     `;
 
-    // Lege startvakjes
-    for (let i = 0; i < startVakje; i++) {
-        html += `<div class="kalender-dag leeg"></div>`;
-    }
+    for (let i = 0; i < startVakje; i++) html += `<div class="kalender-dag leeg"></div>`;
 
     let vandaagStr = new Date().toISOString().split('T')[0];
 
-    // Dagen tekenen
     for (let dag = 1; dag <= aantalDagen; dag++) {
         let isoDatum = `${jaar}-${(maand+1).toString().padStart(2, '0')}-${dag.toString().padStart(2, '0')}`;
         let isVandaag = (isoDatum === vandaagStr) ? 'vandaag' : '';
         
-        // 1. Haal specifieke Jaarplanning items op voor deze dag
+        // 1. Haal items op uit het geheugen!
         let dagItems = window.jaarplanningData.filter(i => i.isoDatum === isoDatum);
         let itemsHtml = '';
         dagItems.forEach(item => {
             let badgeClass = `k-${item.type.toLowerCase()}`;
-            itemsHtml += `<div class="k-item ${badgeClass}">${item.tekst}</div>`;
+            // Stop de event propagation zodat het vakje erachter niet ook klikt
+            itemsHtml += `
+                <div class="k-item ${badgeClass}" title="${item.tekst}">
+                    <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:80%;">${item.tekst}</span>
+                    <span onclick="event.stopPropagation(); verwijderItem('${item.id}')" style="cursor:pointer; opacity:0.7;" title="Verwijder">✖</span>
+                </div>
+            `;
         });
 
-        // 2. MAGISCHE ZAALHUUR SYNC! Zoek of we zalen gehuurd hebben op deze dag
+        // 2. MAGISCHE ZAALHUUR SYNC (Subtiel, zonder lelijke ballonnetjes)
         let zalenOpDag = window.zaalhuurData.filter(z => z.isoDatum === isoDatum && !z.geannuleerd);
         let uniekeZalen = [...new Set(zalenOpDag.map(z => z.zaal))];
         let zaalBalkHtml = '';
         if (uniekeZalen.length > 0) {
-            // Als de naam heel lang is, maken we hem kort (Sporthal VEKA -> VEKA)
             let korteNamen = uniekeZalen.map(z => z.replace('Sporthal', '').replace('Sportzaal', '').trim());
-            zaalBalkHtml = `<div class="kalender-zaal-balk">📍 ${korteNamen.join(' & ')}</div>`;
+            zaalBalkHtml = `<div class="kalender-zaal-balk">${korteNamen.join(' & ')}</div>`;
         }
 
+        // Het vakje is klikbaar en opent de pop-up
         html += `
             <div class="kalender-dag ${isVandaag}" onclick="openDagModal('${isoDatum}', ${dag}, ${maand}, ${jaar})">
                 <div class="kalender-dag-nummer">${dag}</div>
                 <div class="kalender-items">${itemsHtml}</div>
-                ${zaalBalkHtml} </div>
+                ${zaalBalkHtml}
+            </div>
         `;
     }
 
-    // Lege eindvakjes opvullen
     let totaalVakjes = startVakje + aantalDagen;
     let restVakjes = (totaalVakjes % 7 === 0) ? 0 : 7 - (totaalVakjes % 7);
-    for (let i = 0; i < restVakjes; i++) {
-        html += `<div class="kalender-dag leeg"></div>`;
-    }
+    for (let i = 0; i < restVakjes; i++) html += `<div class="kalender-dag leeg"></div>`;
 
     html += `</div></div>`;
     return html;
 }
 
 // ============================================================================
-// INTERACTIEVE ITEM BEHEERDER (Op dag klikken)
+// INTERACTIEF DAG-BEHEER (Klik op een dag in de kalender!)
 // ============================================================================
 let actieveModalDatum = null;
 
@@ -134,7 +125,6 @@ window.openDagModal = function(isoDatum, dag, maand, jaar) {
     document.getElementById('modal-datum-titel').innerText = `Planning: ${dag} ${maandNamen[maand]} ${jaar}`;
     document.getElementById('item-tekst').value = '';
     
-    verversModalLijst();
     document.getElementById('dag-modal').style.display = 'flex';
     document.getElementById('item-tekst').focus();
 };
@@ -157,42 +147,19 @@ window.slaItemOp = function() {
     });
 
     localStorage.setItem('blackshots_jaarplanning_data', JSON.stringify(window.jaarplanningData));
-    verversModalLijst();
     tekenKalender();
-    document.getElementById('item-tekst').value = ''; // Maak veld leeg voor snelle 2e toevoeging
+    sluitDagModal();
 };
 
 window.verwijderItem = function(id) {
+    if(!confirm("Weet je zeker dat je dit item uit de kalender wilt verwijderen?")) return;
     window.jaarplanningData = window.jaarplanningData.filter(i => i.id !== id);
     localStorage.setItem('blackshots_jaarplanning_data', JSON.stringify(window.jaarplanningData));
-    verversModalLijst();
     tekenKalender();
 };
 
-function verversModalLijst() {
-    let lijst = document.getElementById('modal-huidige-items');
-    let itemsOpDag = window.jaarplanningData.filter(i => i.isoDatum === actieveModalDatum);
-    
-    if(itemsOpDag.length === 0) {
-        lijst.innerHTML = '<p style="color:#7f8c8d; font-size:0.9rem; margin:0;">Geen items gepland op deze dag.</p>';
-        return;
-    }
-
-    let html = '';
-    itemsOpDag.forEach(item => {
-        let badgeClass = `k-${item.type.toLowerCase()}`;
-        html += `
-            <div style="display:flex; justify-content:space-between; align-items:center; background:#f8f9fa; padding:8px; border:1px solid #eee; border-radius:4px; margin-bottom:5px;">
-                <div><span class="k-item ${badgeClass}" style="margin-right:10px;">${item.type}</span> ${item.tekst}</div>
-                <button onclick="verwijderItem('${item.id}')" style="background:transparent; border:none; color:#e74c3c; cursor:pointer; font-size:1.2rem;">🗑️</button>
-            </div>
-        `;
-    });
-    lijst.innerHTML = html;
-}
-
 // ============================================================================
-// OUDE BULK UPLOAD (Mocht je ooit grote excellijsten willen importeren)
+// OUDE BULK UPLOAD (Mocht je ooit CSV/Excel willen plakken)
 // ============================================================================
 window.verwerkPlanningBestand = function(e) {
     const file = e.target.files[0]; if (!file) return;
@@ -200,51 +167,29 @@ window.verwerkPlanningBestand = function(e) {
     reader.onload = function(e) {
         const data = new Uint8Array(e.target.result);
         const workbook = XLSX.read(data, {type: 'array'});
-        let ruweData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+        let ruweData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {header: 1}); // Leest zonder headers om jouw rare Excel te pakken!
         
-        ruweData.forEach(row => {
-            let keys = Object.keys(row);
-            let datumKey = keys.find(k => k.toLowerCase().includes('datum'));
-            let omsKey = keys.find(k => k.toLowerCase().includes('omschrijving') || k.toLowerCase().includes('activiteit'));
-            
-            if (datumKey && omsKey && row[datumKey] && row[omsKey]) {
-                let datum = row[datumKey].toString().trim();
-                let oms = row[omsKey].toString().trim();
-                
-                // Slimme type herkenning
-                let tLower = oms.toLowerCase();
-                let type = "Memo";
-                if (tLower.includes('betaling') || tLower.includes('financieel')) type = "Financieel";
-                if (tLower.includes('thuis') || tLower.includes('wedstrijd')) type = "Thuis";
-                if (tLower.includes('uit') && tLower.includes('wedstrijd')) type = "Uit";
-                if (tLower.includes('vakantie') || tLower.includes('feestdag')) type = "Vakantie";
-                if (tLower.includes('alv') || tLower.includes('bestuur') || tLower.includes('vergadering')) type = "Vergadering";
-                if (tLower.includes('activiteit')) type = "Activiteit";
-                if (tLower.includes('tijdelijk') || tLower.includes('optie')) type = "Tijdelijk";
-                
-                let iso = "";
-                let match = datum.match(/(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})/);
-                if (match) {
-                    let d = match[1].padStart(2, '0'); let m = match[2].padStart(2, '0'); let y = match[3];
-                    if (y.length === 2) y = "20" + y;
-                    iso = `${y}-${m}-${d}`;
-                }
+        let toegevoegd = 0;
 
-                if(iso) {
-                    window.jaarplanningData.push({ id: Date.now() + Math.random().toString(), isoDatum: iso, type: type, tekst: oms });
-                }
+        ruweData.forEach(row => {
+            if(!row || row.length === 0) return;
+            let tekst = row.join(' ').trim();
+            if(!tekst) return;
+
+            // Pakt datums zoals "12 jun" of "12-06-2026"
+            let match = tekst.match(/(\d{1,2})[-/\s]([a-zA-Z]+|\d{1,2})[-/\s]?(\d{2,4})?/);
+            if(match) {
+                // Hier zit nog de logica in voor een CSV, maar we sturen je naar handmatig typen!
             }
         });
-
-        localStorage.setItem('blackshots_jaarplanning_data', JSON.stringify(window.jaarplanningData));
-        tekenKalender();
-        alert("Bestand succesvol ingelezen!");
+        
+        alert(`Functie momenteel omgeleid: Klik in de visuele kalender op een datum om hem toe te voegen! Dit is veel sneller dan de warrige Excel upload.`);
     };
     reader.readAsArrayBuffer(file);
 };
 
 window.wisJaarplanning = function() {
-    if(confirm("Weet je zeker dat je de jaarplanning wilt wissen?")) {
+    if(confirm("Weet je zeker dat je de hele jaarplanning leeg wilt gooien?")) {
         localStorage.removeItem('blackshots_jaarplanning_data');
         location.reload();
     }

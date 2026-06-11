@@ -623,96 +623,35 @@ body.dark-mode .label-vakantie { background: rgba(26, 188, 156, 0.1); }
 /* ============================================================================
    INTERACTIEVE BLOKKEN KALENDER (JAARPLANNING)
    ============================================================================ */
-.kalender-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: #2c3e50;
-    color: white;
-    padding: 15px 20px;
-    border-radius: 8px 8px 0 0;
-}
-.kalender-nav-btn {
-    background: rgba(255,255,255,0.2);
-    border: none;
-    color: white;
-    padding: 8px 15px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-weight: bold;
-    transition: 0.2s;
-}
+.kalender-header { display: flex; justify-content: space-between; align-items: center; background: #2c3e50; color: white; padding: 15px 20px; border-radius: 8px 8px 0 0; }
+.kalender-nav-btn { background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.2s; }
 .kalender-nav-btn:hover { background: rgba(255,255,255,0.4); }
 
-.kalender-grid {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 2px;
-    background: #bdc3c7;
-    border: 2px solid #bdc3c7;
-    border-top: none;
-}
-.kalender-weekdagen {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    background: #34495e;
-    color: white;
-    text-align: center;
-    font-weight: bold;
-    padding: 10px 0;
-    font-size: 0.9rem;
-}
-.kalender-dag {
-    background: white;
-    min-height: 130px;
-    display: flex;
-    flex-direction: column;
-    cursor: pointer;
-    transition: 0.1s;
-}
+.kalender-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; background: #bdc3c7; border: 2px solid #bdc3c7; border-top: none; }
+.kalender-weekdagen { display: grid; grid-template-columns: repeat(7, 1fr); background: #34495e; color: white; text-align: center; font-weight: bold; padding: 10px 0; font-size: 0.9rem; }
+.kalender-dag { background: white; min-height: 120px; display: flex; flex-direction: column; cursor: pointer; transition: 0.1s; position: relative; }
 .kalender-dag:hover { background: #f8f9fa; }
 .kalender-dag.leeg { background: #ecf0f1; cursor: default; }
-.kalender-dag-nummer {
-    text-align: right;
-    padding: 5px 8px;
-    font-weight: bold;
-    color: #7f8c8d;
-    font-size: 0.9rem;
-    border-bottom: 1px solid #f1f2f6;
-}
-.kalender-dag.vandaag .kalender-dag-nummer {
-    background: #3498db;
-    color: white;
-}
-.kalender-items {
-    flex: 1;
-    padding: 5px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    overflow-y: auto;
-}
+
+.kalender-dag-nummer { text-align: right; padding: 5px 8px; font-weight: bold; color: #7f8c8d; font-size: 0.9rem; border-bottom: 1px solid #f1f2f6; }
+.kalender-dag.vandaag .kalender-dag-nummer { background: #3498db; color: white; }
+
+.kalender-items { flex: 1; padding: 5px; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; }
+
+/* Rustige Zaalbalk (Geen rare iconen meer) */
 .kalender-zaal-balk {
-    background: #e8f8f5;
-    color: #27ae60;
-    font-size: 0.75rem;
+    background: #eef2f5;
+    color: #7f8c8d;
+    font-size: 0.7rem;
     text-align: center;
-    padding: 4px;
+    padding: 3px;
     font-weight: bold;
-    border-top: 2px solid #2ecc71;
+    border-top: 1px solid #bdc3c7;
+    text-transform: uppercase;
 }
 
 /* Kalender Item Badges */
-.k-item {
-    font-size: 0.75rem;
-    padding: 4px 6px;
-    border-radius: 4px;
-    color: white;
-    font-weight: bold;
-    line-height: 1.2;
-    word-wrap: break-word;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-}
+.k-item { font-size: 0.75rem; padding: 4px 6px; border-radius: 4px; color: white; font-weight: bold; line-height: 1.2; word-wrap: break-word; box-shadow: 0 1px 2px rgba(0,0,0,0.1); display:flex; justify-content:space-between; align-items:center; }
 .k-memo { background: #3498db; } /* Blauw */
 .k-vakantie { background: #f1c40f; color: #333; } /* Geel */
 .k-financieel { background: #e84393; } /* Roze */
@@ -720,9 +659,4 @@ body.dark-mode .label-vakantie { background: rgba(26, 188, 156, 0.1); }
 .k-uit { background: #e74c3c; } /* Rood */
 .k-activiteit { background: #9b59b6; } /* Paars */
 .k-vergadering { background: #34495e; } /* Donkerblauw */
-.k-tijdelijk { 
-    background: #ecf0f1; 
-    color: #7f8c8d; 
-    border: 1px dashed #95a5a6; 
-    box-shadow: none;
-} /* Grijs */
+.k-tijdelijk { background: #ecf0f1; color: #7f8c8d; border: 1px dashed #95a5a6; box-shadow: none; } /* Grijs */
