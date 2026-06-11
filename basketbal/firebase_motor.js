@@ -1,7 +1,7 @@
 // --- FIREBASE_MOTOR.JS: VERBORGEN WOLK & VERSIE CONTROLE ---
 
 // 👇 VERANDER DIT NUMMER BIJ ELKE GITHUB PUSH 👇
-const APP_VERSIE = "3.522";
+const APP_VERSIE = "3.523";
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
 import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
@@ -77,12 +77,13 @@ window.autoUpload = async function(key, value) {
 window.forceerCloudCheck = async function() {
     if (!navigator.onLine || window.isDownloading) return;
     
-    // NIEUW: De drie kalender-sleutels zijn hier toegevoegd!
+    // HIER STAAN NU OOK DE POULE- EN NBB-SLEUTELS IN!
     const onderdelen = [
         'blackshots_teams', 'blackshots_spelers', 'blackshots_oefeningen', 
         'blackshots_toernooi', 'blackshots_trainingen', 'blackshots_gebruikers', 
         'blackshots_bestuur', 'blackshots_jaarplanning_data', 
-        'blackshots_zaalhuur_data', 'blackshots_jaarplanning_categorieen'
+        'blackshots_zaalhuur_data', 'blackshots_jaarplanning_categorieen',
+        'blackshots_poule_teams', 'blackshots_wedstrijden_json'
     ];
     
     window.isDownloading = true;
@@ -103,12 +104,15 @@ window.forceerCloudCheck = async function() {
                     if (key === 'blackshots_oefeningen') window.oefeningenDB = parsedData;
                     if (key === 'blackshots_toernooi') window.toernooiDB = parsedData;
                     
-                    // Stuur de nieuwe data door naar de kalender als deze geopend is
                     if (key === 'blackshots_jaarplanning_data' || key === 'blackshots_jaarplanning_categorieen') {
                         if (typeof window.ontvangCloudData === 'function') window.ontvangCloudData(key, parsedData);
                     }
                     if (key === 'blackshots_zaalhuur_data') {
                         if (typeof window.ontvangCloudDataZaalhuur === 'function') window.ontvangCloudDataZaalhuur(key, parsedData);
+                    }
+                    // LUISTERAAR VOOR DE POULE INDELING:
+                    if (key === 'blackshots_poule_teams' || key === 'blackshots_wedstrijden_json') {
+                        if (typeof window.ontvangCloudDataPoule === 'function') window.ontvangCloudDataPoule(key, parsedData);
                     }
                     
                     heeftNieuweData = true; 
@@ -128,10 +132,10 @@ window.forceerCloudCheck = async function() {
         if(typeof window.renderGebruikers === 'function') window.renderGebruikers();
         if(typeof window.tekenKalender === 'function') window.tekenKalender();
         if(typeof window.tekenZaalhuurResultaten === 'function') window.tekenZaalhuurResultaten();
+        if(typeof window.tekenPouleResultaten === 'function') window.tekenPouleResultaten();
     }
 };
 
-// OMDAT JIJ DIT HEBT GEBOUWD, HOEVEN WE NERGENS IN DE APP MEER MOEILIJK TE DOEN OVER OPSLAAN!
 const origineleSetItem = localStorage.setItem;
 localStorage.setItem = function(key, value) {
     origineleSetItem.apply(this, arguments);

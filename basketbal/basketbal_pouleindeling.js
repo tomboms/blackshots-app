@@ -1,4 +1,32 @@
-// --- BASKETBAL_POULEINDELING.JS: STABIELE VERSIE MET POULES & NL DATUMS ---
+// --- BASKETBAL_POULEINDELING.JS: FIREBASE CLOUD SYNC ACTIEF ---
+
+// ============================================================================
+// CLOUD SYNC MOTOR
+// ============================================================================
+window.slaDataOp = function(sleutel, data) {
+    localStorage.setItem(sleutel, JSON.stringify(data));
+    if (typeof window.opslaanInFirebase === 'function') window.opslaanInFirebase(sleutel, data);
+    else if (typeof window.bewaarNaarFirebase === 'function') window.bewaarNaarFirebase(sleutel, data);
+    else document.dispatchEvent(new CustomEvent('cloudSync', { detail: { sleutel: sleutel, data: data } }));
+};
+
+// Luisteraar voor binnenkomende Cloud data!
+window.ontvangCloudDataPoule = function(sleutel, data) {
+    if (!data) return;
+    if (sleutel === 'blackshots_poule_teams') {
+        window.bsTeams = data;
+        if (window.bsTeams.length > 0) {
+            let s2 = document.getElementById('stap-2-box');
+            if(s2) { s2.style.opacity = '1'; s2.style.pointerEvents = 'all'; }
+        }
+    }
+    if (sleutel === 'blackshots_wedstrijden_json') {
+        window.nbbWedstrijden = data;
+        let lbl = document.getElementById('label-json');
+        if(lbl) lbl.innerText = `✅ JSON Definitief ingeladen vanuit Cloud!`;
+    }
+    tekenPouleResultaten();
+};
 
 window.bsTeams = JSON.parse(localStorage.getItem('blackshots_poule_teams')) || [];
 window.nbbWedstrijden = JSON.parse(localStorage.getItem('blackshots_wedstrijden_json')) || [];
@@ -16,89 +44,34 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ============================================================================
-// DE NEDERLANDSE DATUM VERTALERS (FIXT EXCEL ENGELS & "SEPTEMBERTEMBER")
+// DE NEDERLANDSE DATUM VERTALERS 
 // ============================================================================
-
-// 1. Vertaler voor het Concept Schema (Plantool Excel)
 function maakNetteConceptDatum(ruweTekst) {
     if (!ruweTekst) return "TBA / Datum onbekend";
     let val = ruweTekst.toString().trim();
 
     let schoongemaakt = val
-        // Dagen
-        .replace(/Monday/ig, 'maandag')
-        .replace(/Tuesday/ig, 'dinsdag')
-        .replace(/Wednesday/ig, 'woensdag')
-        .replace(/Thursday/ig, 'donderdag')
-        .replace(/Friday/ig, 'vrijdag')
-        .replace(/Saturday/ig, 'zaterdag')
-        .replace(/Sunday/ig, 'zondag')
-        .replace(/\bMon\b/ig, 'ma')
-        .replace(/\bTue\b/ig, 'di')
-        .replace(/\bWed\b/ig, 'wo')
-        .replace(/\bThu\b/ig, 'do')
-        .replace(/\bFri\b/ig, 'vr')
-        .replace(/\bSat\b/ig, 'za')
-        .replace(/\bSun\b/ig, 'zo')
-        // Maanden - Volledige woorden eerst, om "septembertember" te voorkomen!
-        .replace(/January/ig, 'januari')
-        .replace(/February/ig, 'februari')
-        .replace(/March/ig, 'maart')
-        .replace(/April/ig, 'april')
-        .replace(/June/ig, 'juni')
-        .replace(/July/ig, 'juli')
-        .replace(/August/ig, 'augustus')
-        .replace(/September/ig, 'september')
-        .replace(/October/ig, 'oktober')
-        .replace(/November/ig, 'november')
-        .replace(/December/ig, 'december')
-        // Daarna pas afkortingen veilig vertalen
-        .replace(/\bJan\b/ig, 'januari')
-        .replace(/\bFeb\b/ig, 'februari')
-        .replace(/\bMar\b/ig, 'maart')
-        .replace(/\bApr\b/ig, 'april')
-        .replace(/\bMay\b/ig, 'mei')
-        .replace(/\bJun\b/ig, 'juni')
-        .replace(/\bJul\b/ig, 'juli')
-        .replace(/\bAug\b/ig, 'augustus')
-        .replace(/\bSep\b/ig, 'september')
-        .replace(/\bOct\b/ig, 'oktober')
-        .replace(/\bNov\b/ig, 'november')
-        .replace(/\bDec\b/ig, 'december')
-        // Schoonmaak lelijke tekens
-        .replace(/,/g, '') 
-        .replace(/-/g, ' ')
-        .replace(/weekend van/ig, '')
-        .replace(/weekend/ig, '')
-        .replace(/\s+/g, ' ')
-        .trim();
+        .replace(/Monday/ig, 'maandag').replace(/Tuesday/ig, 'dinsdag').replace(/Wednesday/ig, 'woensdag').replace(/Thursday/ig, 'donderdag').replace(/Friday/ig, 'vrijdag').replace(/Saturday/ig, 'zaterdag').replace(/Sunday/ig, 'zondag')
+        .replace(/\bMon\b/ig, 'ma').replace(/\bTue\b/ig, 'di').replace(/\bWed\b/ig, 'wo').replace(/\bThu\b/ig, 'do').replace(/\bFri\b/ig, 'vr').replace(/\bSat\b/ig, 'za').replace(/\bSun\b/ig, 'zo')
+        .replace(/January/ig, 'januari').replace(/February/ig, 'februari').replace(/March/ig, 'maart').replace(/April/ig, 'april').replace(/June/ig, 'juni').replace(/July/ig, 'juli').replace(/August/ig, 'augustus').replace(/September/ig, 'september').replace(/October/ig, 'oktober').replace(/November/ig, 'november').replace(/December/ig, 'december')
+        .replace(/\bJan\b/ig, 'januari').replace(/\bFeb\b/ig, 'februari').replace(/\bMar\b/ig, 'maart').replace(/\bApr\b/ig, 'april').replace(/\bMay\b/ig, 'mei').replace(/\bJun\b/ig, 'juni').replace(/\bJul\b/ig, 'juli').replace(/\bAug\b/ig, 'augustus').replace(/\bSep\b/ig, 'september').replace(/\bOct\b/ig, 'oktober').replace(/\bNov\b/ig, 'november').replace(/\bDec\b/ig, 'december')
+        .replace(/,/g, '').replace(/-/g, ' ').replace(/weekend van/ig, '').replace(/weekend/ig, '').replace(/\s+/g, ' ').trim();
 
-    // SLIMME VOLGORDE FIX: Draai "oktober 30" om naar "30 oktober"
     schoongemaakt = schoongemaakt.replace(/\b(januari|februari|maart|april|mei|juni|juli|augustus|september|oktober|november|december)\s+(\d{1,2})\b/ig, '$2 $1');
-
     schoongemaakt = schoongemaakt.charAt(0).toUpperCase() + schoongemaakt.slice(1);
 
-    if (schoongemaakt.toLowerCase().startsWith('week')) {
-        return "Speelronde: " + schoongemaakt;
-    } else if (schoongemaakt.match(/(Maandag|Dinsdag|Woensdag|Donderdag|Vrijdag|Zaterdag|Zondag|Ma|Di|Wo|Do|Vr|Za|Zo)/i)) {
-        return schoongemaakt; 
-    } else {
-        return "Weekend van " + schoongemaakt; 
-    }
+    if (schoongemaakt.toLowerCase().startsWith('week')) return "Speelronde: " + schoongemaakt;
+    else if (schoongemaakt.match(/(Maandag|Dinsdag|Woensdag|Donderdag|Vrijdag|Zaterdag|Zondag|Ma|Di|Wo|Do|Vr|Za|Zo)/i)) return schoongemaakt; 
+    else return "Weekend van " + schoongemaakt; 
 }
 
-// 2. Vertaler voor het Definitieve Schema (JSON)
 function maakMooieDatum(datumStr, tijdStr, accommodatie) {
     if (!datumStr) return "Datum onbekend";
     try {
         let d = new Date(datumStr);
         const dagen = ['Zondag', 'Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag'];
-        let dag = dagen[d.getDay()];
-        let dagNummer = d.getDate().toString().padStart(2, '0');
-        let maandNummer = (d.getMonth() + 1).toString().padStart(2, '0');
-        let jaar = d.getFullYear();
-        let tijd = tijdStr ? tijdStr.substring(0, 5) : ''; 
-        let locatie = accommodatie ? ` in ${accommodatie}` : '';
+        let dag = dagen[d.getDay()]; let dagNummer = d.getDate().toString().padStart(2, '0'); let maandNummer = (d.getMonth() + 1).toString().padStart(2, '0'); let jaar = d.getFullYear();
+        let tijd = tijdStr ? tijdStr.substring(0, 5) : ''; let locatie = accommodatie ? ` in ${accommodatie}` : '';
         return `${dag} ${dagNummer}-${maandNummer}-${jaar}${tijd ? ' om ' + tijd : ''}${locatie}`;
     } catch(e) { return datumStr; }
 }
@@ -140,7 +113,9 @@ window.verwerkPouleBestand = function(e) {
             }
         });
 
-        localStorage.setItem('blackshots_poule_teams', JSON.stringify(window.bsTeams));
+        // HIER IS HET AANGEPAST NAAR DE CLOUD OPSLAG
+        window.slaDataOp('blackshots_poule_teams', window.bsTeams);
+        
         document.getElementById('stap-2-box').style.opacity = '1';
         document.getElementById('stap-2-box').style.pointerEvents = 'all';
         document.getElementById('label-indeling').innerText = `✅ Ingeladen: ${file.name}`;
@@ -173,9 +148,6 @@ window.verwerkPlantoolBestand = function(e) {
     reader.readAsArrayBuffer(file);
 };
 
-// ============================================================================
-// DE BEREKENING (MET ANTI-INHAAL & ANTI-SPOOK FILTER)
-// ============================================================================
 window.genereerSchemaVoorTeam = function(index) {
     let selectEl = document.getElementById(`plantool-select-${index}`);
     if (!selectEl) return;
@@ -187,65 +159,47 @@ window.genereerSchemaVoorTeam = function(index) {
     let sheetGrid = window.plantoolJSON[sheetNaam];
     let berekendeWedstrijden = [];
     let onzeCode = parseInt(bsData.onzeCode);
-    
     let huidigWeekend = "TBA / Onbekend"; 
 
     sheetGrid.forEach((row) => {
         let tempDatum = "";
-        
-        // Zoek ALLEEN in kolom A t/m F (index 0-5) om te voorkomen dat we 'Inhaalweekend' notities uit kolom G oppikken!
         row.slice(0, 6).forEach(cel => {
             if (!cel) return;
             let val = cel.toString().trim();
             if (val.length < 3 || val.match(/^\d+\s*-\s*\d+$/)) return;
-            
             let lw = val.toLowerCase();
             
-            // BLOKKADE: Als het woord 'inhaal', 'beker', 'reserve' of 'vakantie' erin staat, genegeerd!
-            if (lw.includes('inhaal') || lw.includes('beker') || lw.includes('vakantie') || lw.includes('reserve') || lw.includes('geen wed')) {
-                return; 
-            }
+            if (lw.includes('inhaal') || lw.includes('beker') || lw.includes('vakantie') || lw.includes('reserve') || lw.includes('geen wed')) return; 
 
             if (lw.match(/(jan|feb|mar|mrt|apr|may|mei|jun|jul|aug|sep|oct|okt|nov|dec|week|monday|saturday|sunday)/) || val.match(/\d{1,2}[-/]\d{1,2}/)) {
                 tempDatum = val;
             }
         });
         
-        if (tempDatum.length > 2) {
-            huidigWeekend = tempDatum;
-        }
+        if (tempDatum.length > 2) huidigWeekend = tempDatum;
 
         let heeftMatch = false;
         row.forEach((cel, colIdx) => { 
-            // Pas vanaf kolom G (index 6) scannen we op echte wedstrijden
-            if (colIdx >= 6 && typeof cel === 'string' && cel.match(/^(\d+)\s*-\s*(\d+)$/)) {
-                heeftMatch = true; 
-            }
+            if (colIdx >= 6 && typeof cel === 'string' && cel.match(/^(\d+)\s*-\s*(\d+)$/)) heeftMatch = true; 
         });
 
         if (heeftMatch) {
             row.forEach((cel, colIdx) => {
                 if (colIdx < 6) return; 
-                
                 if(typeof cel === 'string') {
                     let match = cel.match(/^(\d+)\s*-\s*(\d+)$/); 
                     if (match) {
-                        let codeA = parseInt(match[1]);
-                        let codeB = parseInt(match[2]);
-
+                        let codeA = parseInt(match[1]); let codeB = parseInt(match[2]);
                         if (codeA === onzeCode || codeB === onzeCode) {
                             let tegenstanderCode = (codeA === onzeCode) ? codeB : codeA;
                             let thuisSpelend = (codeA === onzeCode);
-                            
                             let tegTeam = bsData.tegenstanders.find(t => parseInt(t.Code||t.code||0) === tegenstanderCode);
                             let tegNaam = tegTeam ? (tegTeam.Vereniging || tegTeam.vereniging) : `Team ${tegenstanderCode}`;
                             if (!tegNaam || tegNaam.trim() === '') tegNaam = "--- VRIJE PLEK ---";
 
                             berekendeWedstrijden.push({ 
-                                type: "concept",
-                                weekend: maakNetteConceptDatum(huidigWeekend), 
-                                thuis: thuisSpelend, 
-                                tegenstander: tegNaam
+                                type: "concept", weekend: maakNetteConceptDatum(huidigWeekend), 
+                                thuis: thuisSpelend, tegenstander: tegNaam
                             });
                         }
                     }
@@ -257,7 +211,8 @@ window.genereerSchemaVoorTeam = function(index) {
     if (berekendeWedstrijden.length === 0) return alert(`Geen wedstrijden gevonden op "${sheetNaam}". Verkeerd tabblad?`);
 
     window.bsTeams[index].conceptSchema = berekendeWedstrijden;
-    localStorage.setItem('blackshots_poule_teams', JSON.stringify(window.bsTeams));
+    // HIER IS HET AANGEPAST NAAR DE CLOUD OPSLAG
+    window.slaDataOp('blackshots_poule_teams', window.bsTeams);
     
     alert(`✅ Succes! ${berekendeWedstrijden.length} wedstrijden berekend voor ${bsData.teamNaam}.`);
     tekenPouleResultaten();
@@ -273,7 +228,10 @@ window.verwerkNBBJson = function(e) {
     const reader = new FileReader();
     reader.onload = function(e) {
         window.nbbWedstrijden = JSON.parse(e.target.result);
-        localStorage.setItem('blackshots_wedstrijden_json', JSON.stringify(window.nbbWedstrijden));
+        
+        // HIER IS HET AANGEPAST NAAR DE CLOUD OPSLAG
+        window.slaDataOp('blackshots_wedstrijden_json', window.nbbWedstrijden);
+        
         document.getElementById('label-json').innerText = `✅ Ingeladen!`;
         tekenPouleResultaten(); 
     };
@@ -281,7 +239,7 @@ window.verwerkNBBJson = function(e) {
 };
 
 // ============================================================================
-// SCHERM OPBOUW (UI) - HIER ZIT DE POULE INDELING WEER IN!
+// SCHERM OPBOUW (UI)
 // ============================================================================
 window.tekenPouleResultaten = function() {
     let container = document.getElementById('poule-resultaten');
@@ -293,7 +251,6 @@ window.tekenPouleResultaten = function() {
     }
 
     window.bsTeams.forEach((bsData, index) => {
-        
         let lijstHtml = `<table class="team-lijst"><tr><th>Code</th><th>Vereniging</th><th>Team</th></tr>`;
         bsData.tegenstanders.forEach(tg => {
             let vNaam = tg['Vereniging'] || tg['vereniging'];
@@ -361,10 +318,8 @@ window.tekenPouleResultaten = function() {
                         <span style="font-size:1.8rem; font-weight:bold;">${bsData.onzeCode}</span>
                     </div>
                 </div>
-                
                 <h4 style="margin:0 0 5px 0; color:#34495e;">Tegenstanders</h4>
                 ${lijstHtml} 
-                
                 ${actieSectieHtml}
                 ${modalKnopHtml}
             </div>
@@ -372,12 +327,8 @@ window.tekenPouleResultaten = function() {
     });
 };
 
-// ============================================================================
-// MODAL (POP-UP) SCHONE WEERGAVE
-// ============================================================================
 window.openSchemaModal = function(index) {
     let bsData = window.bsTeams[index];
-    
     document.getElementById('modal-titel').innerText = `Schema: ${bsData.teamNaam}`;
     document.getElementById('modal-subtitel').innerText = `Poule: ${bsData.pouleNaam} | Code: ${bsData.onzeCode}`;
     
@@ -391,7 +342,6 @@ window.openSchemaModal = function(index) {
 
     if (teamWedstrijden.length > 0) {
         let defHtml = `<h3 style="margin:0 0 10px 0; color:#9b59b6; border-bottom:2px solid #9b59b6; padding-bottom:5px;">✅ Definitieve Planning (NBB JSON)</h3><ul class="schema-lijst" style="margin-bottom:30px;">`;
-        
         teamWedstrijden.forEach(w => {
             let isThuis = w.Thuisteam && w.Thuisteam.toLowerCase().includes('black shots') && w.Thuisteam.includes(bsData.teamNaam);
             let tegenstander = isThuis ? w.Uitteam : w.Thuisteam;
@@ -418,7 +368,6 @@ window.openSchemaModal = function(index) {
 
     if (bsData.conceptSchema && bsData.conceptSchema.length > 0) {
         let conceptHtml = `<h3 style="margin:0 0 10px 0; color:#3498db; border-bottom:2px solid #3498db; padding-bottom:5px;">📅 Concept Schema (Plantool)</h3><ul class="schema-lijst">`;
-        
         bsData.conceptSchema.forEach(match => {
             let statusBadge = match.tegenstander === "--- VRIJE PLEK ---" 
                 ? `<span class="status-badge" style="background:#e74c3c;">VRIJ</span>` 
@@ -438,9 +387,7 @@ window.openSchemaModal = function(index) {
         });
         conceptHtml += `</ul>`;
         
-        if (teamWedstrijden.length > 0) {
-            conceptHtml = `<div style="margin-top:20px; padding:15px; background:#f8f9fa; border-radius:8px;">${conceptHtml}</div>`;
-        }
+        if (teamWedstrijden.length > 0) conceptHtml = `<div style="margin-top:20px; padding:15px; background:#f8f9fa; border-radius:8px;">${conceptHtml}</div>`;
         modalInhoud.innerHTML += conceptHtml;
     }
 
@@ -453,8 +400,10 @@ window.sluitSchemaModal = function() {
 
 window.wisAlleData = function() {
     if(confirm("Weet je zeker dat je alle Poules en Schema's uit het geheugen wilt wissen?")) {
-        localStorage.removeItem('blackshots_poule_teams');
-        localStorage.removeItem('blackshots_wedstrijden_json');
+        window.bsTeams = [];
+        window.nbbWedstrijden = [];
+        window.slaDataOp('blackshots_poule_teams', window.bsTeams);
+        window.slaDataOp('blackshots_wedstrijden_json', window.nbbWedstrijden);
         location.reload();
     }
 };
