@@ -1,4 +1,22 @@
-// --- BASKETBAL_JAARPLANNING.JS: TIJD/LOCATIE TERUG & FIREBASE PREP ---
+// --- BASKETBAL_JAARPLANNING.JS: FIREBASE CLOUD SYNC ACTIEF ---
+
+// ============================================================================
+// CLOUD SYNC MOTOR
+// ============================================================================
+window.slaDataOp = function(sleutel, data) {
+    // 1. Lokale backup (voor snelheid en offline gebruik)
+    localStorage.setItem(sleutel, JSON.stringify(data));
+    
+    // 2. FIREBASE CLOUD SYNC (Kijkt of je firebase_motor.js is geladen)
+    if (typeof window.opslaanInFirebase === 'function') {
+        window.opslaanInFirebase(sleutel, data);
+    } else if (typeof window.bewaarNaarFirebase === 'function') {
+        window.bewaarNaarFirebase(sleutel, data);
+    } else {
+        // Fallback event voor custom firebase setups
+        document.dispatchEvent(new CustomEvent('cloudSync', { detail: { sleutel: sleutel, data: data } }));
+    }
+};
 
 window.jaarplanningData = JSON.parse(localStorage.getItem('blackshots_jaarplanning_data')) || [];
 window.zaalhuurData = JSON.parse(localStorage.getItem('blackshots_zaalhuur_data')) || [];
@@ -11,37 +29,19 @@ window.jaarplanningData = window.jaarplanningData.map(item => {
     return item;
 });
 
-// ============================================================================
-// CATEGORIEEN INIT & FIREBASE HOOK
-// ============================================================================
-// Functie om de categorieën op te slaan (Zowel Lokaal als voorbereid op Firebase)
-window.slaCategorieenOp = function() {
-    localStorage.setItem('blackshots_categorieen', JSON.stringify(window.kalenderCategorieen));
-    
-    // Hier kan je firebase_motor.js op inhaken:
-    // if(typeof bewaarNaarFirebase === 'function') bewaarNaarFirebase('categorieen', window.kalenderCategorieen);
-};
+const standaardCategorieen = [
+    { id: 'thuis', naam: 'Thuis Wedstrijd', kleur: '#27ae60', isVakantie: false },
+    { id: 'uit', naam: 'Uit Wedstrijd', kleur: '#e74c3c', isVakantie: false },
+    { id: 'training', naam: 'Training', kleur: '#16a085', isVakantie: false },
+    { id: 'vergadering', naam: 'Vergadering', kleur: '#34495e', isVakantie: false },
+    { id: 'financieel', naam: 'Financieel', kleur: '#e84393', isVakantie: false },
+    { id: 'vakantie', naam: 'Vakantie / Feestdag', kleur: '#f1c40f', isVakantie: true, tekstKleur: '#333333' },
+    { id: 'activiteit', naam: 'Activiteit', kleur: '#9b59b6', isVakantie: false },
+    { id: 'tijdelijk', naam: 'Tijdelijk', kleur: '#ecf0f1', isVakantie: false, tekstKleur: '#7f8c8d', dashed: true },
+    { id: 'memo', naam: 'Memo / Overig', kleur: '#3498db', isVakantie: false }
+];
 
-// Initialisatie
-let opgeslagenCategorieen = JSON.parse(localStorage.getItem('blackshots_categorieen'));
-
-if (opgeslagenCategorieen && opgeslagenCategorieen.length > 0) {
-    window.kalenderCategorieen = opgeslagenCategorieen;
-} else {
-    // SEED: Alleen de eerste keer dat de app opstart (of na een harde reset)
-    window.kalenderCategorieen = [
-        { id: 'thuis', naam: 'Thuis Wedstrijd', kleur: '#27ae60', isVakantie: false },
-        { id: 'uit', naam: 'Uit Wedstrijd', kleur: '#e74c3c', isVakantie: false },
-        { id: 'training', naam: 'Training', kleur: '#16a085', isVakantie: false },
-        { id: 'vergadering', naam: 'Vergadering', kleur: '#34495e', isVakantie: false },
-        { id: 'financieel', naam: 'Financieel', kleur: '#e84393', isVakantie: false },
-        { id: 'vakantie', naam: 'Vakantie / Feestdag', kleur: '#f1c40f', isVakantie: true, tekstKleur: '#333333' },
-        { id: 'activiteit', naam: 'Activiteit', kleur: '#9b59b6', isVakantie: false },
-        { id: 'tijdelijk', naam: 'Tijdelijk', kleur: '#ecf0f1', isVakantie: false, tekstKleur: '#7f8c8d', dashed: true },
-        { id: 'memo', naam: 'Memo / Overig', kleur: '#3498db', isVakantie: false }
-    ];
-    slaCategorieenOp(); // Push direct naar opslag/firebase
-}
+window.kalenderCategorieen = JSON.parse(localStorage.getItem('blackshots_categorieen')) || standaardCategorieen;
 
 let huidigeMaand = new Date().getMonth();
 let huidigJaar = new Date().getFullYear();
@@ -66,9 +66,6 @@ document.addEventListener('keydown', function(event) {
     }
 });
 
-// ============================================================================
-// FULLSCREEN & VANDAAG
-// ============================================================================
 window.toggleFullScreen = function() {
     let body = document.body; let container = document.getElementById('hoofd-container'); let btn = document.getElementById('btn-fullscreen');
     if (body.classList.contains('is-fullscreen')) {
@@ -83,9 +80,6 @@ window.gaNaarVandaag = function() {
     if (weergaveIsJaar) { setTimeout(() => { let mDiv = document.getElementById(`maand-${huidigeMaand}`); if(mDiv) mDiv.scrollIntoView({behavior: "smooth", block: "start"}); }, 100); }
 };
 
-// ============================================================================
-// CATEGORIEEN FUNCTIES
-// ============================================================================
 function laadDynamischeKleuren() {
     let styleTag = document.getElementById('dynamic-category-styles');
     let cssText = '';
@@ -145,23 +139,20 @@ window.voegCategorieToe = function() {
     if(!naam) return alert("Vul een naam in");
     let id = naam.toLowerCase().replace(/[^a-z0-9]/g, '');
     window.kalenderCategorieen.push({ id: id, naam: naam, kleur: kleur, isVakantie: id.includes('vakantie') || id.includes('vrij') });
-    slaCategorieenOp();
+    window.slaDataOp('blackshots_categorieen', window.kalenderCategorieen); // CLOUD SYNC
     document.getElementById('nieuwe-cat-naam').value = '';
     tekenCategorieLijst();
 };
 
-window.updateCatKleur = function(index, nieuweKleur) { window.kalenderCategorieen[index].kleur = nieuweKleur; slaCategorieenOp(); };
-window.updateCatNaam = function(index, nieuweNaam) { window.kalenderCategorieen[index].naam = nieuweNaam; slaCategorieenOp(); };
+window.updateCatKleur = function(index, nieuweKleur) { window.kalenderCategorieen[index].kleur = nieuweKleur; window.slaDataOp('blackshots_categorieen', window.kalenderCategorieen); };
+window.updateCatNaam = function(index, nieuweNaam) { window.kalenderCategorieen[index].naam = nieuweNaam; window.slaDataOp('blackshots_categorieen', window.kalenderCategorieen); };
 window.verwijderCategorie = function(index) { 
     if(!confirm("Zeker weten?")) return;
     window.kalenderCategorieen.splice(index, 1); 
-    slaCategorieenOp(); 
+    window.slaDataOp('blackshots_categorieen', window.kalenderCategorieen); // CLOUD SYNC
     tekenCategorieLijst(); 
 };
 
-// ============================================================================
-// DYNAMISCHE HUB (NBB)
-// ============================================================================
 function stripTeamNaam(langeNaam) { return langeNaam ? langeNaam.replace(/Black Shots/ig, '').trim() : "?"; }
 
 function haalDynamischeItemsOp(isoDatum) {
@@ -180,9 +171,6 @@ function haalDynamischeItemsOp(isoDatum) {
     return dynamischeItems;
 }
 
-// ============================================================================
-// KALENDER TEKENEN
-// ============================================================================
 window.tekenKalender = function() {
     let container = document.getElementById('kalender-container');
     container.innerHTML = '';
@@ -218,7 +206,7 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
     let startVakje = eersteDag === 0 ? 6 : eersteDag - 1; 
     let aantalDagen = new Date(jaar, maand + 1, 0).getDate();
 
-    let navTitel = `${maandNamen[maand]} ${jaar}`; 
+    let navTitel = weergaveIsJaar ? `${jaar}` : `${maandNamen[maand]} ${jaar}`; 
     let navTekstVorig = weergaveIsJaar ? "◀ Vorig Jaar" : "◀ Vorige";
     let navTekstVolgend = weergaveIsJaar ? "Volgend Jaar ▶" : "Volgende ▶";
 
@@ -282,7 +270,6 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
             let isStartOfSpan = (isoDatum === item.isoDatum || dObj.getDay() === 1 || item.isDynamisch);
             let weergaveTitel = item.titel || "Naamloos Item";
             
-            // HIER STAAT DE TIJD & LOCATIE WEER STRIK OP 1 REGEL
             let metaHtml = '';
             if (isStartOfSpan && (item.tijd || item.locatie)) {
                 let metaArr = [];
@@ -335,18 +322,8 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
     return html;
 }
 
-// ============================================================================
-// INTERACTIEF DAG-BEHEER
-// ============================================================================
 let actieveModalDatum = null;
 let actieveEditId = null;
-
-// API Hook voor opslaan
-window.slaJaarplanningOp = function() {
-    localStorage.setItem('blackshots_jaarplanning_data', JSON.stringify(window.jaarplanningData));
-    // Als firebase_motor is gelinkt:
-    // if(typeof bewaarNaarFirebase === 'function') bewaarNaarFirebase('jaarplanning', window.jaarplanningData);
-}
 
 window.openDagModal = function(isoDatum, dag, maand, jaar, editId = null) {
     actieveModalDatum = isoDatum;
@@ -416,14 +393,19 @@ window.slaItemOp = function() {
             type: type, tijd: tijd, locatie: locatie, titel: titel, omschrijving: omschrijving 
         });
     }
-    window.slaJaarplanningOp();
+    
+    // Opslaan in LocalStorage én Firebase!
+    window.slaDataOp('blackshots_jaarplanning_data', window.jaarplanningData);
+    
     tekenKalender(); sluitDagModal();
 };
 
 window.verwijderItem = function(id) {
     if(!confirm("Weet je zeker dat je dit item wilt verwijderen?")) return;
     window.jaarplanningData = window.jaarplanningData.filter(i => i.id !== id);
-    window.slaJaarplanningOp();
+    
+    // Synchroniseer de verwijdering met de cloud
+    window.slaDataOp('blackshots_jaarplanning_data', window.jaarplanningData);
     
     if(actieveEditId === id) {
         actieveEditId = null;
@@ -482,11 +464,13 @@ function verversModalLijst() {
     lijst.innerHTML = html;
 }
 
-window.downloadSjabloon = function() { /* ... */ };
-window.verwerkPlanningBestand = function(e) { /* ... */ };
+window.downloadSjabloon = function() { /* Ongewijzigd gehouden */ };
+window.verwerkPlanningBestand = function(e) { /* Ongewijzigd gehouden */ };
+
 window.wisJaarplanning = function() {
     if(confirm("Weet je zeker dat je de hele jaarplanning leeg wilt gooien?")) {
-        localStorage.removeItem('blackshots_jaarplanning_data');
+        window.jaarplanningData = [];
+        window.slaDataOp('blackshots_jaarplanning_data', window.jaarplanningData);
         location.reload();
     }
 };
