@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Black Shots - Zaalhuur</title>
-    <link rel="stylesheet" href="basketbal.css?v=10">
+    <link rel="stylesheet" href="basketbal.css?v=11">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
@@ -37,10 +37,14 @@
             </label>
 
             <div style="background: rgba(52, 152, 219, 0.05); border: 2px dashed #3498db; padding: 20px; border-radius: 8px; display:flex; flex-direction:column; justify-content:center;">
-                <h3 style="margin:0 0 5px 0; color:#3498db; text-align:center;">✉️ Snelle Mail Update</h3>
-                <p style="font-size:0.85rem; color:#7f8c8d; margin:0 0 10px 0; text-align:center;">Kopieer de tekst uit de bevestigingsmail of annuleringsmail en plak hem hier:</p>
-                <textarea id="mail-plakbox" placeholder="Plak hier de tekst uit je Outlook mail..." style="width:100%; height:70px; padding:10px; border-radius:6px; border:1px solid #bdc3c7; margin-bottom:10px; resize:none;"></textarea>
-                <button onclick="verwerkMailTekst()" style="background:#3498db; color:white; border:none; padding:10px; border-radius:6px; font-weight:bold; cursor:pointer;">Zoek & Update Planning</button>
+                <h3 style="margin:0 0 5px 0; color:#3498db; text-align:center;">✉️ Snelle Mail Plakbox</h3>
+                <p style="font-size:0.85rem; color:#7f8c8d; margin:0 0 10px 0; text-align:center;">Kopieer en plak hier direct reserveringen uit een e-mail:</p>
+                <textarea id="mail-plakbox" placeholder="Voorbeeld: BN2026010654 €299,9113 september 2026 van 09:45 uur tot 15:15 uur" style="width:100%; height:80px; padding:10px; border-radius:6px; border:1px solid #bdc3c7; margin-bottom:10px; resize:vertical;"></textarea>
+                
+                <div style="display:flex; gap:10px;">
+                    <button onclick="verwerkMailTekst('boek')" style="flex:1; background:#27ae60; color:white; border:none; padding:10px; border-radius:6px; font-weight:bold; cursor:pointer;">✅ Voeg Toe / Boek</button>
+                    <button onclick="verwerkMailTekst('annuleer')" style="flex:1; background:#e74c3c; color:white; border:none; padding:10px; border-radius:6px; font-weight:bold; cursor:pointer;">❌ Annuleer</button>
+                </div>
             </div>
             
         </div>
@@ -107,6 +111,6 @@
     <script src="basketbal_auth.js"></script>
     <script src="basketbal_data.js"></script>
     <script type="module" src="firebase_motor.js"></script>
-    <script src="basketbal_zaalhuur.js?v=10"></script>
+    <script src="basketbal_zaalhuur.js?v=11"></script>
 </body>
 </html>
