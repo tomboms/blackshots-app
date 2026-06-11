@@ -8,13 +8,12 @@ window.toggleDarkMode = function() {
     body.classList.toggle('dark-mode');
     
     let isDark = body.classList.contains('dark-mode');
-    localStorage.setItem('bs_darkmode', isDark); // Gekoppeld aan basketbal_auth.js key!
+    localStorage.setItem('bs_darkmode', isDark); 
     
     let btn = document.getElementById('dark-mode-toggle');
     if(btn) btn.innerText = isDark ? '☀️' : '🌙';
 };
 
-// Controleer direct bij het inladen of de donkere stand geactiveerd was
 document.addEventListener('DOMContentLoaded', () => {
     if (localStorage.getItem('bs_darkmode') === 'true') {
         document.body.classList.add('dark-mode');
@@ -35,12 +34,12 @@ window.geplandeTrainingenDB = JSON.parse(localStorage.getItem('blackshots_traini
 // DYNAMISCH LIVE DASHBOARD
 // ============================================================================
 window.laadDashboardData = function() {
-    // 1. Teams en spelerstellingen inladen
+    // 1. Teams en spelerstellingen
     const teamLijst = document.getElementById('dash-teams-lijst');
     if (teamLijst) {
         teamLijst.innerHTML = '';
         if (window.teamsDB.length === 0) {
-            teamLijst.innerHTML = '<li style="list-style:none; color:var(--text-muted); font-style:italic; margin-left:-20px;">Nee geen actieve teams aanwezig.</li>';
+            teamLijst.innerHTML = '<li style="list-style:none; color:var(--text-muted); font-style:italic; margin-left:-20px;">Geen actieve teams aanwezig.</li>';
         }
         window.teamsDB.forEach(team => { 
             let count = window.spelersDB.filter(s => {
@@ -53,92 +52,112 @@ window.laadDashboardData = function() {
         });
     }
 
-    // 2. Basis statistieken vullen (Oefeningen & Totaal aantal unieke leden)
+    // 2. Basis statistieken
     const oefCount = document.getElementById('dash-oef-count');
     if (oefCount) oefCount.innerText = window.oefeningenDB.length;
 
     const ledenCount = document.getElementById('dash-leden-count');
     if (ledenCount) ledenCount.innerText = window.spelersDB.length;
 
-    // 3. NIEUW: Bereken de huidige kalenderweek van de JAARPLANNING
+    // 3. DE NIEUWE WEEK-VIEW (7 KOLOMMEN) VOOR DE JAARPLANNING
     const jaarplanningWeekContainer = document.getElementById('dash-jaarplanning-week');
     if (jaarplanningWeekContainer) {
         let jaarplanningData = JSON.parse(localStorage.getItem('blackshots_jaarplanning_data')) || [];
         let kalenderCategorieen = JSON.parse(localStorage.getItem('blackshots_jaarplanning_categorieen')) || [];
+        let nbbWedstrijden = JSON.parse(localStorage.getItem('blackshots_wedstrijden_json')) || [];
         
-        // Bereken maandag t/m zondag van de huidige week
+        // LOKALE DATUM (Fix voor het timezone/zondagavond probleem!)
         let vandaag = new Date();
+        let vandaagIso = `${vandaag.getFullYear()}-${String(vandaag.getMonth()+1).padStart(2,'0')}-${String(vandaag.getDate()).padStart(2,'0')}`;
+        
         let huidigeDag = vandaag.getDay(); 
         let afstandTotMaandag = huidigeDag === 0 ? -6 : 1 - huidigeDag;
         
         let maandag = new Date(vandaag);
         maandag.setDate(vandaag.getDate() + afstandTotMaandag);
-        maandag.setHours(0,0,0,0);
-        
-        let zondag = new Date(maandag);
-        zondag.setDate(maandag.getDate() + 6);
-        zondag.setHours(23,59,59,999);
 
-        // Filter alle jaarplanning items die in deze week vallen
-        let weekItems = jaarplanningData.filter(item => {
-            if(!item.isoDatum) return false;
-            let start = item.isoDatum;
-            let eind = item.eindDatum || item.isoDatum;
+        let dagenLijst = ["Ma", "Di", "Wo", "Do", "Vr", "Za", "Zo"];
+        let weekHtml = `<div style="display:flex; gap:10px; overflow-x:auto; padding-bottom:10px; min-height:220px;">`;
+
+        for(let i=0; i<7; i++) {
+            let loopDag = new Date(maandag);
+            loopDag.setDate(maandag.getDate() + i);
             
-            let isoMaandag = maandag.toISOString().split('T')[0];
-            let isoZondag = zondag.toISOString().split('T')[0];
+            // Handmatige lokale ISO string om tijdszone verschuivingen te voorkomen
+            let isoDag = `${loopDag.getFullYear()}-${String(loopDag.getMonth()+1).padStart(2,'0')}-${String(loopDag.getDate()).padStart(2,'0')}`;
             
-            // Check op overlap van datums
-            return (start <= isoZondag && eind >= isoMaandag);
-        });
+            let isVandaag = (isoDag === vandaagIso);
+            let headerBg = isVandaag ? 'var(--primary-color)' : 'var(--secondary-color)';
+            let headerText = 'white';
+            let borderCol = isVandaag ? 'var(--primary-color)' : 'var(--border-color)';
 
-        if (weekItems.length === 0) {
-            jaarplanningWeekContainer.innerHTML = '<p style="color: var(--text-muted); font-style: italic; margin: 0;">Geen clubactiviteiten gepland voor deze week.</p>';
-        } else {
-            // Sorteer de items chronologisch op startdatum
-            weekItems.sort((a,b) => a.isoDatum.localeCompare(b.isoDatum));
-            
-            let html = '';
-            weekItems.forEach(item => {
-                let typeId = (item.type || 'memo').toLowerCase();
-                let cat = kalenderCategorieen.find(c => c.id === typeId);
-                let kleur = cat ? cat.kleur : '#3498db';
-                
-                // Formatteer de datum naar iets moois (bijv: "14 jun")
-                let dObj = new Date(item.isoDatum);
-                let datumTekst = `${dObj.getDate()} ${dObj.toLocaleString('nl-NL', { month: 'short' })}`;
-                if(item.eindDatum && item.eindDatum !== item.isoDatum) {
-                    let eObj = new Date(item.eindDatum);
-                    datumTekst += ` t/m ${eObj.getDate()} ${eObj.toLocaleString('nl-NL', { month: 'short' })}`;
-                }
-
-                let extraMeta = [];
-                if(item.tijd) extraMeta.push(`⏰ ${item.tijd}`);
-                if(item.locatie) extraMeta.push(`📍 ${item.locatie}`);
-                let metaString = extraMeta.length > 0 ? `<div style="font-size:0.75rem; color:var(--text-muted); margin-top:3px;">${extraMeta.join(' | ')}</div>` : '';
-
-                html += `
-                    <div style="background:var(--bg-color); padding:10px 12px; border-radius:6px; border-left:5px solid ${kleur}; margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
-                        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                            <strong style="font-size:0.95rem; color:var(--text-color);">${item.titel}</strong>
-                            <span style="font-size:0.75rem; background:rgba(0,0,0,0.05); padding:2px 6px; border-radius:10px; font-weight:bold; color:var(--text-muted); white-space:nowrap;">${datumTekst}</span>
-                        </div>
-                        ${metaString}
-                    </div>
-                `;
+            // Handmatige activiteiten ophalen
+            let dagItems = jaarplanningData.filter(item => {
+                if(!item.isoDatum) return false;
+                let start = item.isoDatum;
+                let eind = item.eindDatum || item.isoDatum;
+                return (start <= isoDag && eind >= isoDag);
             });
-            jaarplanningWeekContainer.innerHTML = html;
+
+            // NBB data dynamisch ophalen
+            let wedstrijdenOpDag = nbbWedstrijden.filter(w => w.Datum && w.Datum.startsWith(isoDag));
+            if (wedstrijdenOpDag.length > 0) {
+                let thuisTeams = [], uitTeams = [];
+                wedstrijdenOpDag.forEach(w => {
+                    if (w.Thuisteam && w.Thuisteam.toLowerCase().includes('black shots')) thuisTeams.push(w.Thuisteam.replace(/Black Shots/ig, '').trim()||"?");
+                    else if (w.Uitteam && w.Uitteam.toLowerCase().includes('black shots')) uitTeams.push(w.Uitteam.replace(/Black Shots/ig, '').trim()||"?");
+                });
+                if (thuisTeams.length > 0) dagItems.push({ titel: `Thuis: ${[...new Set(thuisTeams)].join(', ')}`, type: 'thuis' });
+                if (uitTeams.length > 0) dagItems.push({ titel: `Uit: ${[...new Set(uitTeams)].join(', ')}`, type: 'uit' });
+            }
+
+            let itemsHtml = '';
+            if(dagItems.length > 0) {
+                dagItems.forEach(item => {
+                    let typeId = (item.type || 'memo').toLowerCase();
+                    let cat = kalenderCategorieen.find(c => c.id === typeId);
+                    
+                    let kleur = cat ? cat.kleur : '#3498db';
+                    let tekstKleur = cat && cat.tekstKleur ? cat.tekstKleur : '#ffffff';
+
+                    let extraMeta = [];
+                    if(item.tijd) extraMeta.push(`⏰ ${item.tijd}`);
+                    if(item.locatie) extraMeta.push(`📍 ${item.locatie}`);
+                    let metaString = extraMeta.length > 0 ? `<div style="font-size:0.7rem; opacity:0.9; margin-top:4px; font-weight:normal;">${extraMeta.join('<br>')}</div>` : '';
+
+                    itemsHtml += `
+                        <div style="background:${kleur}; color:${tekstKleur}; padding:8px; border-radius:4px; margin-bottom:6px; font-size:0.8rem; font-weight:bold; box-shadow:0 1px 2px rgba(0,0,0,0.1);">
+                            <div style="white-space:normal; line-height:1.2;">${item.titel}</div>
+                            ${metaString}
+                        </div>
+                    `;
+                });
+            } else {
+                itemsHtml = `<div style="color:var(--text-muted); font-size:0.8rem; text-align:center; padding:10px 0; font-style:italic;">Geen items</div>`;
+            }
+
+            weekHtml += `
+                <div style="flex: 1; min-width: 120px; background: var(--card-bg); border: 2px solid ${borderCol}; border-radius: 6px; display: flex; flex-direction: column; overflow: hidden; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
+                    <div style="background: ${headerBg}; color: ${headerText}; text-align: center; padding: 8px 0; font-weight: bold; border-bottom: 1px solid ${borderCol};">
+                        ${dagenLijst[i]} <span style="font-size:1.2rem; display:block;">${loopDag.getDate()}</span>
+                    </div>
+                    <div style="padding: 8px; flex: 1; display:flex; flex-direction:column; background: var(--card-bg);">
+                        ${itemsHtml}
+                    </div>
+                </div>
+            `;
         }
+        weekHtml += `</div>`;
+        jaarplanningWeekContainer.innerHTML = weekHtml;
     }
 };
 
-// Start de dashboard lading direct bij inladen op de achtergrond
 document.addEventListener('DOMContentLoaded', () => {
     setTimeout(window.laadDashboardData, 200);
 });
 
 // ============================================================================
-// INSTELLINGEN COMPONENTEN (HOUDEN WE INTACT)
+// INSTELLINGEN COMPONENTEN
 // ============================================================================
 window.voegCategorieToe = function() {
     const inputField = document.getElementById('nieuwe-cat-naam');

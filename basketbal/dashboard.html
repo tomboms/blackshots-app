@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Black Shots - Dashboard</title>
     <link rel="stylesheet" href="basketbal.css">
-    <style id="dynamic-category-styles"></style>
 </head>
 <body style="overflow-y: auto;">
 
@@ -38,17 +37,17 @@
                 <p class="stat-sub">Beschikbaar in trainingsbibliotheek</p>
             </div>
 
-            <div class="card" style="border-top-color: #3498db; grid-row: span 2;">
+            <div class="card" style="border-top-color: #3498db;">
                 <h3 style="margin-top:0; color: var(--text-color);">📋 Actieve Teams</h3>
                 <ul id="dash-teams-lijst" style="padding-left:20px; margin:15px 0 0 0; line-height: 1.8; font-weight: 500;">
                     <li style="color: var(--text-muted); font-style: italic; list-style: none; margin-left: -20px;">Teams worden geladen...</li>
                 </ul>
             </div>
 
-            <div class="card" style="border-top-color: #9b59b6; grid-row: span 2; display: flex; flex-direction: column;">
+            <div class="card" style="border-top-color: #9b59b6; grid-column: 1 / -1; display: flex; flex-direction: column;">
                 <h3 style="margin-top:0; color: var(--text-color);">📅 Jaarplanning Deze Week</h3>
-                <div id="dash-jaarplanning-week" style="margin-top: 15px; flex: 1; overflow-y: auto; max-height: 350px;">
-                    <p style="color: var(--text-muted); font-style: italic; margin: 0;">Geen activiteiten gepland voor deze week.</p>
+                <div id="dash-jaarplanning-week" style="margin-top: 15px; flex: 1;">
+                    <p style="color: var(--text-muted); font-style: italic; margin: 0;">Kalender wordt geladen...</p>
                 </div>
             </div>
 
