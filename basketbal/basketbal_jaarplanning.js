@@ -1,4 +1,4 @@
-// --- BASKETBAL_JAARPLANNING.JS: GOOGLE CALENDAR STIJL & TIJDZONE FIX ---
+// --- BASKETBAL_JAARPLANNING.JS: KOGELVRIJE MODAL & BULK UPLOAD ---
 
 window.jaarplanningData = JSON.parse(localStorage.getItem('blackshots_jaarplanning_data')) || [];
 window.zaalhuurData = JSON.parse(localStorage.getItem('blackshots_zaalhuur_data')) || [];
@@ -68,7 +68,6 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
 
     for (let i = 0; i < startVakje; i++) html += `<div class="kalender-dag leeg"></div>`;
 
-    // Trucje om tijdzone fouten te voorkomen voor 'Vandaag'
     let dNu = new Date();
     let vandaagStr = `${dNu.getFullYear()}-${String(dNu.getMonth()+1).padStart(2,'0')}-${String(dNu.getDate()).padStart(2,'0')}`;
 
@@ -77,28 +76,25 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
         let dagClasses = [];
         if (isoDatum === vandaagStr) dagClasses.push('vandaag');
         
-        // 1. Haal items op die OP of OVER deze datum vallen (Meerdaags!)
         let dagItems = window.jaarplanningData.filter(i => {
-            let eind = i.eindDatum || i.isoDatum;
-            return isoDatum >= i.isoDatum && isoDatum <= eind;
+            let eind = i.eindDatum || i.isoDatum || "";
+            return isoDatum >= (i.isoDatum || "") && isoDatum <= eind;
         });
         
         if (dagItems.some(i => i.type === "Vakantie")) dagClasses.push('vakantie-dag');
 
         let itemsHtml = '';
         dagItems.forEach(item => {
-            let badgeClass = `k-${item.type.toLowerCase()}`;
+            let badgeClass = `k-${(item.type || "Memo").toLowerCase()}`;
             let eind = item.eindDatum || item.isoDatum;
             let extraClass = '';
             
-            // Logica voor de Google Calendar "Doorloop Balken"
             if (item.isoDatum !== eind) {
                 extraClass += ' k-multiday';
                 if (isoDatum === item.isoDatum) extraClass += ' k-start';
                 if (isoDatum === eind) extraClass += ' k-end';
             }
 
-            // Toon de tekst (en prullenbak) alleen op de eerste dag, OF op maandagen om het leesbaar te houden
             let dObj = new Date(isoDatum);
             let isStartOfSpan = (isoDatum === item.isoDatum || dObj.getDay() === 1);
             let weergaveTekst = isStartOfSpan ? item.tekst : '&nbsp;';
@@ -112,7 +108,6 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
             `;
         });
 
-        // 2. ZAALHUUR SYNC
         let zalenOpDag = window.zaalhuurData.filter(z => z.isoDatum === isoDatum && !z.geannuleerd);
         let uniekeZalen = [...new Set(zalenOpDag.map(z => z.zaal))];
         let zaalBalkHtml = '';
@@ -139,42 +134,63 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
 }
 
 // ============================================================================
-// INTERACTIEF DAG-BEHEER (Nu met Kogelvrije Datums!)
+// INTERACTIEF DAG-BEHEER (KOGELVRIJ!)
 // ============================================================================
 let actieveModalDatum = null;
 
 window.openDagModal = function(isoDatum, dag, maand, jaar) {
     actieveModalDatum = isoDatum;
-    document.getElementById('modal-datum-titel').innerText = `Planning: ${dag} ${maandNamen[maand]} ${jaar}`;
-    document.getElementById('modal-start-label').innerText = `${dag} ${maandNamen[maand]}`;
-    document.getElementById('item-tekst').value = '';
-    document.getElementById('item-einddatum').value = ''; 
-    document.getElementById('item-einddatum').min = isoDatum;
     
-    verversModalLijst();
-    document.getElementById('dag-modal').style.display = 'flex';
-    document.getElementById('item-tekst').focus();
+    try {
+        let titel = document.getElementById('modal-datum-titel');
+        if(titel) titel.innerText = `Planning: ${dag} ${maandNamen[maand]} ${jaar}`;
+        
+        let startLabel = document.getElementById('modal-start-label');
+        if(startLabel) startLabel.innerText = `${dag} ${maandNamen[maand]}`;
+        
+        let tekstVeld = document.getElementById('item-tekst');
+        if(tekstVeld) {
+            tekstVeld.value = '';
+            setTimeout(() => tekstVeld.focus(), 100);
+        }
+        
+        let eindVeld = document.getElementById('item-einddatum');
+        if(eindVeld) {
+            eindVeld.value = ''; 
+            eindVeld.min = isoDatum;
+        }
+        
+        verversModalLijst();
+        
+        let modal = document.getElementById('dag-modal');
+        if(modal) modal.style.display = 'flex';
+        
+    } catch(err) {
+        console.error("Fout bij openen modal:", err);
+        alert("Er ging iets mis met het openen van de pop-up. Geef de pagina een harde verversing met CTRL+F5.");
+    }
 };
 
 window.sluitDagModal = function() {
-    document.getElementById('dag-modal').style.display = 'none';
+    let modal = document.getElementById('dag-modal');
+    if(modal) modal.style.display = 'none';
 };
 
 window.slaItemOp = function() {
-    let type = document.getElementById('item-type').value;
-    let tekst = document.getElementById('item-tekst').value.trim();
-    let eindDatumInput = document.getElementById('item-einddatum').value;
+    let typeEl = document.getElementById('item-type');
+    let tekstEl = document.getElementById('item-tekst');
+    let eindEl = document.getElementById('item-einddatum');
     
-    if(!tekst) return alert("Vul een omschrijving in!");
+    if(!tekstEl || !tekstEl.value.trim()) return alert("Vul een omschrijving in!");
 
-    let eindDatum = eindDatumInput ? eindDatumInput : actieveModalDatum;
+    let tekst = tekstEl.value.trim();
+    let type = typeEl ? typeEl.value : "Memo";
+    let eindDatum = (eindEl && eindEl.value) ? eindEl.value : actieveModalDatum;
 
-    // String vergelijking (YYYY-MM-DD) is 100% veilig en immuun voor tijdzone-verschuivingen!
     if (eindDatum < actieveModalDatum) {
         return alert("De einddatum kan niet vóór de startdatum liggen!");
     }
 
-    // Voeg 1 slim item toe die de datums overspant!
     window.jaarplanningData.push({
         id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
         isoDatum: actieveModalDatum,
@@ -198,11 +214,11 @@ window.verwijderItem = function(id) {
 
 function verversModalLijst() {
     let lijst = document.getElementById('modal-huidige-items');
+    if(!lijst) return;
     
-    // Pak items die OVER deze dag heen vallen
     let itemsOpDag = window.jaarplanningData.filter(i => {
-        let eind = i.eindDatum || i.isoDatum;
-        return actieveModalDatum >= i.isoDatum && actieveModalDatum <= eind;
+        let eind = i.eindDatum || i.isoDatum || "";
+        return actieveModalDatum >= (i.isoDatum||"") && actieveModalDatum <= eind;
     });
     
     if(itemsOpDag.length === 0) {
@@ -212,7 +228,7 @@ function verversModalLijst() {
 
     let html = '';
     itemsOpDag.forEach(item => {
-        let badgeClass = `k-${item.type.toLowerCase()}`;
+        let badgeClass = `k-${(item.type||"Memo").toLowerCase()}`;
         let extraInfo = (item.isoDatum !== item.eindDatum) ? ` <small style="color:#7f8c8d;">(Reeks t/m ${item.eindDatum})</small>` : '';
         html += `
             <div style="display:flex; justify-content:space-between; align-items:center; background:#f8f9fa; padding:8px; border:1px solid #eee; border-radius:4px; margin-bottom:5px;">
@@ -224,8 +240,76 @@ function verversModalLijst() {
     lijst.innerHTML = html;
 }
 
+// ============================================================================
+// ECHTE BULK UPLOAD (EXCEL SJABLOON)
+// ============================================================================
+window.downloadSjabloon = function() {
+    const wb = XLSX.utils.book_new();
+    const sjabloonData = [
+        ["Datum (DD-MM-YYYY)", "Omschrijving", "Type (Memo, Financieel, Thuis, Uit, Vakantie, Training, Vergadering)", "Einddatum (Optioneel)"],
+        ["20-12-2026", "Kerstvakantie", "Vakantie", "04-01-2027"],
+        ["10-09-2026", "Betaling 1e termijn", "Financieel", ""],
+        ["15-11-2026", "Thuis wedstrijd H1", "Thuis", ""]
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(sjabloonData);
+    XLSX.utils.book_append_sheet(wb, ws, "Bulk_Import");
+    XLSX.writeFile(wb, "BlackShots_Planning_Sjabloon.xlsx");
+};
+
+function parseDatumNaarISO(datumStr) {
+    if (!datumStr) return "";
+    let match = datumStr.toString().match(/(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})/);
+    if (match) {
+        let d = match[1].padStart(2, '0');
+        let m = match[2].padStart(2, '0');
+        let y = match[3];
+        if (y.length === 2) y = "20" + y;
+        return `${y}-${m}-${d}`;
+    }
+    return ""; 
+}
+
 window.verwerkPlanningBestand = function(e) {
-    alert(`Functie momenteel omgeleid: Klik in de visuele kalender op een datum om direct items in bulk (t/m datum) toe te voegen! Dit is veel sneller en overzichtelijker dan Excel.`);
+    const file = e.target.files[0]; if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, {type: 'array'});
+        let ruweData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {defval:""});
+        
+        let teller = 0;
+
+        ruweData.forEach(row => {
+            let keys = Object.keys(row);
+            let datumKey = keys.find(k => k.toLowerCase().includes('datum'));
+            let omsKey = keys.find(k => k.toLowerCase().includes('omschrijving'));
+            let typeKey = keys.find(k => k.toLowerCase().includes('type'));
+            let eindKey = keys.find(k => k.toLowerCase().includes('eind'));
+            
+            if (datumKey && omsKey && row[datumKey] && row[omsKey]) {
+                let isoDatum = parseDatumNaarISO(row[datumKey]);
+                if(!isoDatum) return;
+
+                let isoEind = eindKey ? parseDatumNaarISO(row[eindKey]) : "";
+                if(!isoEind) isoEind = isoDatum;
+
+                window.jaarplanningData.push({
+                    id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+                    isoDatum: isoDatum,
+                    eindDatum: isoEind,
+                    type: (typeKey && row[typeKey]) ? row[typeKey].toString().trim() : "Memo",
+                    tekst: row[omsKey].toString().trim()
+                });
+                teller++;
+            }
+        });
+
+        localStorage.setItem('blackshots_jaarplanning_data', JSON.stringify(window.jaarplanningData));
+        alert(`✅ Bulk Upload Succesvol! Er zijn ${teller} items toegevoegd aan de kalender.`);
+        tekenKalender();
+    };
+    reader.readAsArrayBuffer(file);
 };
 
 window.wisJaarplanning = function() {
