@@ -1,6 +1,5 @@
-// --- BASKETBAL_ZAALHUUR.JS ---
+// --- BASKETBAL_ZAALHUUR.JS: DE INHOUDS-SCANNER ---
 
-// Haal data uit lokaal geheugen. Firebase pakt de 'blackshots_' prefix direct op!
 window.zaalhuurData = JSON.parse(localStorage.getItem('blackshots_zaalhuur_data')) || [];
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -11,7 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ============================================================================
-// EXCEL / CSV UITLEZEN EN SLIM VERWERKEN
+// EXCEL / CSV UITLEZEN (ZONDER KOPJES!)
 // ============================================================================
 window.verwerkZaalhuurBestand = function(e) {
     const file = e.target.files[0]; 
@@ -24,56 +23,86 @@ window.verwerkZaalhuurBestand = function(e) {
         const data = new Uint8Array(e.target.result);
         const workbook = XLSX.read(data, {type: 'array'});
         
-        let ruweData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {defval: ""});
+        // We lezen het bestand in als losse rijen (header: 1), we kijken dus niet meer naar kolomnamen!
+        let ruweData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {header: 1});
         
         window.zaalhuurData = [];
 
-        ruweData.forEach(rij => {
-            // Voeg alle waarden van de rij samen tot één lange zin om makkelijk te zoeken
-            let rijTekst = Object.values(rij).join(' ').toLowerCase();
-            
-            // Sla compleet lege regels over
+        ruweData.forEach(row => {
+            if (!row || row.length === 0) return; // Lege rij skippen
+
+            let rijTekst = row.join(' ').toLowerCase();
             if (!rijTekst.trim()) return;
 
-            // Zoek de belangrijkste kolommen (ongeacht hoe de gemeente ze exact noemt)
-            let datum = vindWaarde(rij, ['datum', 'date', 'dag']);
-            let startTijd = vindWaarde(rij, ['start', 'van', 'begin', 'tijd']);
-            let eindTijd = vindWaarde(rij, ['eind', 'tot']);
-            let accommodatie = vindWaarde(rij, ['accommodatie', 'locatie', 'complex', 'zaal', 'sport']);
-            
-            // Soms staat de tijd in 1 kolom als "19:00 - 20:30". Dat splitsen we hier op:
-            if (startTijd && startTijd.includes('-') && !eindTijd) {
-                let parts = startTijd.split('-');
-                startTijd = parts[0].trim();
-                eindTijd = parts[1].trim();
+            let datum = "";
+            let startTijd = "";
+            let eindTijd = "";
+            let accommodatie = "";
+
+            // Loop door elke cel in de rij en kijk of de INHOUD lijkt op wat we zoeken
+            row.forEach(cel => {
+                if (!cel) return;
+                let celStr = cel.toString().trim();
+                let lw = celStr.toLowerCase();
+                
+                // 1. Zoek naar een Datum (bijv: 12-10-2026, 12/10/26 of 12 oktober 2026)
+                if (lw.match(/\d{1,2}[-\/]\d{1,2}[-\/]\d{2,4}/) || lw.match(/\d{1,2}\s+(jan|feb|mrt|apr|mei|jun|jul|aug|sep|okt|nov|dec)[a-z]*\s+\d{4}/)) {
+                    datum = celStr;
+                }
+                
+                // 2. Zoek naar een Tijd (bijv: 19:00 - 20:30 of 19.00-20.30)
+                if (lw.match(/\d{1,2}[:.]\d{2}\s*-\s*\d{1,2}[:.]\d{2}/)) {
+                    let parts = celStr.split('-');
+                    startTijd = parts[0].trim();
+                    eindTijd = parts[1].trim();
+                } 
+                // Als start en eindtijd in losse kolommen staan (bijv cel 1: 19:00, cel 2: 20:30)
+                else if (lw.match(/^\d{1,2}[:.]\d{2}$/)) {
+                    if (!startTijd) startTijd = celStr;
+                    else if (!eindTijd) eindTijd = celStr;
+                }
+
+                // 3. Zoek naar de Locatie/Accommodatie
+                if (lw.match(/(sporthal|gymzaal|sportcentrum|veka|brandevoort|braak|veld|zaal)/)) {
+                    accommodatie = celStr;
+                }
+            });
+
+            // Fallback: Als accommodatie leeg is, pak de eerste tekst die geen datum/tijd is
+            if (!accommodatie) {
+                let mogelijkeNamen = row.filter(c => {
+                    let s = c ? c.toString().toLowerCase() : "";
+                    return s.length > 3 && !s.match(/\d/) && !s.includes('geannuleerd') && !s.includes('geboekt') && !s.includes('gefactureerd');
+                });
+                if (mogelijkeNamen.length > 0) accommodatie = mogelijkeNamen[0].toString().trim();
             }
 
-            // Bepaal de status (Geboekt / Geannuleerd / Gefactureerd)
-            let status = "Onbekend";
+            // Bepaal Status
+            let status = "Geboekt"; // Standaard aanname
             let isGeannuleerd = false;
 
-            if (rijTekst.includes('geannuleerd') || rijTekst.includes('vervallen') || rijTekst.includes('cancel')) {
+            if (rijTekst.includes('geannuleerd') || rijTekst.includes('vervallen') || rijTekst.includes('cancel') || rijTekst.includes('doorgehaald')) {
                 status = "Geannuleerd";
                 isGeannuleerd = true;
             } else if (rijTekst.includes('gefactureerd')) {
                 status = "Gefactureerd";
-            } else if (rijTekst.includes('geboekt') || rijTekst.includes('definitief')) {
-                status = "Geboekt";
+            } else if (rijTekst.includes('optie') || rijTekst.includes('concept')) {
+                status = "Optie";
             }
 
-            // Bereken de actieve uren
+            // Bereken uren
             let uren = 0;
             if (!isGeannuleerd && startTijd && eindTijd) {
                 uren = berekenVerschilInUren(startTijd, eindTijd);
             }
 
-            // Voeg alleen toe als we minimaal een datum en een tijd hebben
-            if (datum && startTijd && /\d/.test(startTijd)) {
+            // Voeg toe aan ons systeem ALS we tenminste een datum en een tijd hebben gevonden
+            if (datum && startTijd) {
                 window.zaalhuurData.push({
                     datum: datum,
                     startTijd: startTijd,
-                    eindTijd: eindTijd,
-                    accommodatie: accommodatie || "Onbekend",
+                    eindTijd: eindTijd || "?",
+                    accommodatie: accommodatie || "Zaal onbekend",
                     uren: uren,
                     status: status,
                     geannuleerd: isGeannuleerd
@@ -88,15 +117,6 @@ window.verwerkZaalhuurBestand = function(e) {
     reader.readAsArrayBuffer(file);
 };
 
-// Hulpscript om flexibel kolomnamen te zoeken
-function vindWaarde(rij, zoektermen) {
-    let gevondenKey = Object.keys(rij).find(key => 
-        zoektermen.some(term => key.toLowerCase().includes(term))
-    );
-    return gevondenKey ? rij[gevondenKey].toString().trim() : "";
-}
-
-// Hulpscript om uren correct te berekenen (bijv. "19:00" tot "20:30" = 1.5)
 function berekenVerschilInUren(start, eind) {
     try {
         let [startUur, startMin] = start.replace('.', ':').split(':').map(Number);
@@ -117,11 +137,11 @@ window.tekenZaalhuurResultaten = function() {
     let container = document.getElementById('zaalhuur-resultaten');
     
     if (window.zaalhuurData.length === 0) {
-        container.innerHTML = '<p style="color:#7f8c8d; font-style:italic;">Geen data gevonden. Weet je zeker dat het bestand de juiste kolommen heeft?</p>';
+        container.innerHTML = '<p style="color:#7f8c8d; font-style:italic;">Geen geldige rijen gevonden. Staan er datums en tijden in de Excel?</p>';
         return;
     }
 
-    // Statistieken berekenen
+    // Statistieken
     let totaalReserveringen = window.zaalhuurData.length;
     let aantalGeannuleerd = window.zaalhuurData.filter(z => z.status === "Geannuleerd").length;
     let aantalGefactureerd = window.zaalhuurData.filter(z => z.status === "Gefactureerd").length;
@@ -132,7 +152,7 @@ window.tekenZaalhuurResultaten = function() {
     document.getElementById('stat-gefactureerd').innerText = aantalGefactureerd;
     document.getElementById('stat-uren').innerText = totaalUren.toFixed(1) + " u";
 
-    // Tabel opbouwen
+    // Tabel
     let tabelHtml = `
         <table class="zaal-lijst">
             <thead>
@@ -152,6 +172,7 @@ window.tekenZaalhuurResultaten = function() {
         if (zaal.status === "Geboekt") badgeClass = "status-geboekt";
         if (zaal.status === "Geannuleerd") badgeClass = "status-geannuleerd";
         if (zaal.status === "Gefactureerd") badgeClass = "status-gefactureerd";
+        if (zaal.status === "Optie") badgeClass = "status-te-plannen"; // Oranje
             
         let rowClass = "";
         if (zaal.status === "Geannuleerd") rowClass = "rij-geannuleerd";
