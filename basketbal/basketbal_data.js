@@ -33,6 +33,18 @@ window.geplandeTrainingenDB = JSON.parse(localStorage.getItem('blackshots_traini
 // ============================================================================
 // DYNAMISCH LIVE DASHBOARD ENGINE
 // ============================================================================
+window.dashboardWeekOffset = window.dashboardWeekOffset || 0;
+
+window.wijzigDashboardWeek = function(delta) {
+    window.dashboardWeekOffset += delta;
+    window.laadDashboardData();
+};
+
+window.resetDashboardWeek = function() {
+    window.dashboardWeekOffset = 0;
+    window.laadDashboardData();
+};
+
 window.laadDashboardData = function() {
     // 1. Teams en spelerstellingen inladen
     const teamLijst = document.getElementById('dash-teams-lijst');
@@ -110,22 +122,36 @@ window.laadDashboardData = function() {
         zaalhuurMaandEl.innerText = `Kosten voor ${nu.toLocaleString('nl-NL', { month: 'long' })}`;
     }
 
-    // 5. DE LIVE WEEK-VIEW (7 KOLOMMEN) VOOR DE JAARPLANNING + ZAALHUUR + VAKANTIEKLEUREN
+    // 5. DE LIVE WEEK-VIEW (7 KOLOMMEN) MET NAVIGATIE ONDERSTEUNING
     const jaarplanningWeekContainer = document.getElementById('dash-jaarplanning-week');
+    const weekLabel = document.getElementById('dash-week-label');
     if (jaarplanningWeekContainer) {
         let jaarplanningData = JSON.parse(localStorage.getItem('blackshots_jaarplanning_data')) || [];
         let kalenderCategorieen = JSON.parse(localStorage.getItem('blackshots_jaarplanning_categorieen')) || [];
         let nbbWedstrijden = JSON.parse(localStorage.getItem('blackshots_wedstrijden_json')) || [];
         let zaalhuurData = JSON.parse(localStorage.getItem('blackshots_zaalhuur_data')) || [];
         
-        let vandaag = new Date();
-        let vandaagIso = `${vandaag.getFullYear()}-${String(vandaag.getMonth()+1).padStart(2,'0')}-${String(vandaag.getDate()).padStart(2,'0')}`;
+        // Update het labelletje met welke week we bekijken
+        if (weekLabel) {
+            if (window.dashboardWeekOffset === 0) weekLabel.innerText = "(Deze Week)";
+            else if (window.dashboardWeekOffset === 1) weekLabel.innerText = "(Volgende Week)";
+            else if (window.dashboardWeekOffset === -1) weekLabel.innerText = "(Vorige Week)";
+            else weekLabel.innerText = `(${window.dashboardWeekOffset > 0 ? '+' : ''}${window.dashboardWeekOffset} Weken)`;
+        }
+
+        // De echte datum voor het blauwe "vandaag" randje
+        let echteVandaag = new Date();
+        let echteVandaagIso = `${echteVandaag.getFullYear()}-${String(echteVandaag.getMonth()+1).padStart(2,'0')}-${String(echteVandaag.getDate()).padStart(2,'0')}`;
+
+        // De berekende datum (inclusief verschuiving)
+        let kalenderDatum = new Date();
+        kalenderDatum.setDate(kalenderDatum.getDate() + (window.dashboardWeekOffset * 7));
         
-        let huidigeDag = vandaag.getDay(); 
+        let huidigeDag = kalenderDatum.getDay(); 
         let afstandTotMaandag = huidigeDag === 0 ? -6 : 1 - huidigeDag;
         
-        let maandag = new Date(vandaag);
-        maandag.setDate(vandaag.getDate() + afstandTotMaandag);
+        let maandag = new Date(kalenderDatum);
+        maandag.setDate(kalenderDatum.getDate() + afstandTotMaandag);
 
         let dagenLijst = ["Ma", "Di", "Wo", "Do", "Vr", "Za", "Zo"];
         let weekHtml = `<div style="display:flex; gap:10px; overflow-x:auto; padding-bottom:10px; min-height:240px;">`;
@@ -135,7 +161,7 @@ window.laadDashboardData = function() {
             loopDag.setDate(maandag.getDate() + i);
             
             let isoDag = `${loopDag.getFullYear()}-${String(loopDag.getMonth()+1).padStart(2,'0')}-${String(loopDag.getDate()).padStart(2,'0')}`;
-            let isVandaag = (isoDag === vandaagIso);
+            let isVandaag = (isoDag === echteVandaagIso);
 
             // Handmatige activiteiten ophalen
             let dagItems = jaarplanningData.filter(item => {
@@ -167,6 +193,7 @@ window.laadDashboardData = function() {
             let cardBg = isVakantieDag ? 'rgba(231, 76, 60, 0.04)' : 'var(--card-bg)';
             let borderCol = isVandaag ? 'var(--primary-color)' : (isVakantieDag ? 'rgba(231, 76, 60, 0.3)' : 'var(--border-color)');
             let headerBg = isVandaag ? 'var(--primary-color)' : (isVakantieDag ? '#e74c3c' : 'var(--secondary-color)');
+            let nummerKleur = isVakantieDag ? '#e74c3c' : 'var(--text-color)';
 
             let itemsHtml = '';
             if(dagItems.length > 0) {
@@ -203,7 +230,7 @@ window.laadDashboardData = function() {
             weekHtml += `
                 <div style="flex: 1; min-width: 130px; background: ${cardBg}; border: 2px solid ${borderCol}; border-radius: 6px; display: flex; flex-direction: column; overflow: hidden; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
                     <div style="background: ${headerBg}; color: white; text-align: center; padding: 8px 0; font-weight: bold; border-bottom: 1px solid ${borderCol};">
-                        ${dagenLijst[i]} <span style="font-size:1.2rem; display:block; color: white;">${loopDag.getDate()}</span>
+                        ${dagenLijst[i]} <span style="font-size:1.2rem; display:block; color: ${isVandaag ? 'white' : nummerKleur};">${loopDag.getDate()}</span>
                     </div>
                     <div style="padding: 8px; flex: 1; display:flex; flex-direction:column; background: transparent;">
                         ${itemsHtml}
