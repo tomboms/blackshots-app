@@ -1,4 +1,4 @@
-// --- BASKETBAL_JAARPLANNING.JS: TIJD & LOCATIE TOEGEVOEGD ---
+// --- BASKETBAL_JAARPLANNING.JS: STRAKKE KALENDER (WAT -> TIJD/LOCATIE OP 1 REGEL) ---
 
 window.jaarplanningData = JSON.parse(localStorage.getItem('blackshots_jaarplanning_data')) || [];
 window.zaalhuurData = JSON.parse(localStorage.getItem('blackshots_zaalhuur_data')) || [];
@@ -11,7 +11,6 @@ window.jaarplanningData = window.jaarplanningData.map(item => {
     return item;
 });
 
-// De "Fabrieksinstellingen" (Worden overschreven door LocalStorage/Firebase)
 const standaardCategorieen = [
     { id: 'thuis', naam: 'Thuis Wedstrijd', kleur: '#27ae60', isVakantie: false },
     { id: 'uit', naam: 'Uit Wedstrijd', kleur: '#e74c3c', isVakantie: false },
@@ -45,9 +44,6 @@ document.addEventListener('keydown', function(event) {
     }
 });
 
-// ============================================================================
-// DYNAMISCHE KLEUREN
-// ============================================================================
 function laadDynamischeKleuren() {
     let styleTag = document.getElementById('dynamic-category-styles');
     let cssText = '';
@@ -62,12 +58,14 @@ function laadDynamischeKleuren() {
 
 function updateDropdownKleur() {
     let select = document.getElementById('item-type');
-    if(!select) return;
+    let bolletje = document.getElementById('type-kleur-preview');
+    if(!select || !bolletje) return;
     let cat = window.kalenderCategorieen.find(c => c.id === select.value);
     if(cat) {
-        select.style.backgroundColor = cat.kleur;
-        select.style.color = cat.tekstKleur || '#ffffff';
-        select.style.border = cat.dashed ? '2px dashed #95a5a6' : 'none';
+        bolletje.style.backgroundColor = cat.kleur;
+        select.style.backgroundColor = '#ffffff';
+        select.style.color = '#333333';
+        select.style.border = '1px solid #bdc3c7';
     }
 }
 
@@ -76,24 +74,14 @@ function vulDropdown() {
     if(!select) return;
     select.innerHTML = '';
     window.kalenderCategorieen.forEach(cat => {
-        let tKleur = cat.tekstKleur || '#ffffff';
-        select.innerHTML += `<option value="${cat.id}" style="background-color:${cat.kleur}; color:${tKleur}; font-weight:bold;">${cat.naam}</option>`;
+        select.innerHTML += `<option value="${cat.id}">${cat.naam}</option>`;
     });
     select.onchange = updateDropdownKleur;
     updateDropdownKleur();
 }
 
-window.openCategorieInstellingen = function() {
-    tekenCategorieLijst();
-    document.getElementById('categorie-modal').style.display = 'flex';
-};
-
-window.sluitCategorieInstellingen = function() {
-    document.getElementById('categorie-modal').style.display = 'none';
-    laadDynamischeKleuren();
-    vulDropdown();
-    tekenKalender();
-};
+window.openCategorieInstellingen = function() { tekenCategorieLijst(); document.getElementById('categorie-modal').style.display = 'flex'; };
+window.sluitCategorieInstellingen = function() { document.getElementById('categorie-modal').style.display = 'none'; laadDynamischeKleuren(); vulDropdown(); tekenKalender(); };
 
 function tekenCategorieLijst() {
     let lijst = document.getElementById('categorie-lijst');
@@ -117,10 +105,8 @@ window.voegCategorieToe = function() {
     let naam = document.getElementById('nieuwe-cat-naam').value.trim();
     let kleur = document.getElementById('nieuwe-cat-kleur').value;
     if(!naam) return alert("Vul een naam in");
-    
     let id = naam.toLowerCase().replace(/[^a-z0-9]/g, '');
     let isVakantie = id.includes('vakantie') || id.includes('vrij');
-
     window.kalenderCategorieen.push({ id: id, naam: naam, kleur: kleur, isVakantie: isVakantie });
     localStorage.setItem('blackshots_categorieen', JSON.stringify(window.kalenderCategorieen));
     document.getElementById('nieuwe-cat-naam').value = '';
@@ -130,15 +116,12 @@ window.voegCategorieToe = function() {
 window.updateCatKleur = function(index, nieuweKleur) { window.kalenderCategorieen[index].kleur = nieuweKleur; localStorage.setItem('blackshots_categorieen', JSON.stringify(window.kalenderCategorieen)); };
 window.updateCatNaam = function(index, nieuweNaam) { window.kalenderCategorieen[index].naam = nieuweNaam; localStorage.setItem('blackshots_categorieen', JSON.stringify(window.kalenderCategorieen)); };
 window.verwijderCategorie = function(index) { 
-    if(!confirm("Weet je zeker dat je deze categorie wilt verwijderen? (Geplande items behouden hun tekst, maar verliezen hun kleur).")) return;
+    if(!confirm("Weet je zeker dat je deze categorie wilt verwijderen? (Geplande items verliezen hierdoor hun speciale kleur).")) return;
     window.kalenderCategorieen.splice(index, 1); 
     localStorage.setItem('blackshots_categorieen', JSON.stringify(window.kalenderCategorieen)); 
     tekenCategorieLijst(); 
 };
 
-// ============================================================================
-// DYNAMISCHE HUB (NBB)
-// ============================================================================
 function stripTeamNaam(langeNaam) { return langeNaam ? langeNaam.replace(/Black Shots/ig, '').trim() : "?"; }
 
 function haalDynamischeItemsOp(isoDatum) {
@@ -157,9 +140,6 @@ function haalDynamischeItemsOp(isoDatum) {
     return dynamischeItems;
 }
 
-// ============================================================================
-// KALENDER TEKENEN
-// ============================================================================
 window.tekenKalender = function() {
     let container = document.getElementById('kalender-container');
     container.innerHTML = '';
@@ -243,32 +223,32 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
             let isStartOfSpan = (isoDatum === item.isoDatum || dObj.getDay() === 1 || item.isDynamisch);
             let weergaveTitel = item.titel || "Naamloos Item";
             
-            // Nieuw: Meta (Tijd / Locatie) check
+            // HIER IS HET OPGELOST: Eerst Titel, dan Tijd/Locatie erachter, superstrak op 1 regel
             let metaHtml = '';
             if (isStartOfSpan && (item.tijd || item.locatie)) {
                 let metaArr = [];
                 if(item.tijd) metaArr.push(item.tijd);
                 if(item.locatie) metaArr.push(item.locatie);
-                metaHtml = `<span class="k-meta">${metaArr.join(', ')}</span>`;
+                metaHtml = ` <span style="font-weight:normal; font-size:0.85em; opacity:0.85;">(${metaArr.join(' | ')})</span>`;
             }
 
-            let weergaveTekst = isStartOfSpan ? weergaveTitel : '&nbsp;';
+            let weergaveTekst = isStartOfSpan ? (weergaveTitel + metaHtml) : '&nbsp;';
+            
             let clickAction = item.isDynamisch
                 ? `onclick="event.stopPropagation(); openDagModal('${isoDatum}', ${dag}, ${maand}, ${jaar}, null)"`
                 : `onclick="event.stopPropagation(); openDagModal('${isoDatum}', ${dag}, ${maand}, ${jaar}, '${item.id}')"`;
 
             let deleteKnop = '';
             if(!item.isDynamisch && isStartOfSpan) {
-                deleteKnop = `<span onclick="event.stopPropagation(); verwijderItem('${item.id}')" style="cursor:pointer; opacity:0.7; margin-left:5px;" title="Verwijder Reeks">✖</span>`;
+                deleteKnop = `<span onclick="event.stopPropagation(); verwijderItem('${item.id}')" style="cursor:pointer; opacity:0.7; margin-left:5px; flex-shrink:0;" title="Verwijder Reeks">✖</span>`;
             } else if (item.isDynamisch && isStartOfSpan) {
-                deleteKnop = `<span style="opacity:0.5; margin-left:5px; font-size:0.6rem;" title="Gekoppeld via ${item.bron}">🔗</span>`;
+                deleteKnop = `<span style="opacity:0.5; margin-left:5px; font-size:0.6rem; flex-shrink:0;" title="Gekoppeld via ${item.bron}">🔗</span>`;
             }
 
             itemsHtml += `
-                <div class="k-item ${badgeClass} ${extraClass}" title="Klik om te bekijken of te bewerken" ${clickAction} style="cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
-                    <div style="display:flex; align-items:center; overflow:hidden; white-space:nowrap; max-width:85%;">
-                        ${metaHtml}
-                        <span style="overflow:hidden; text-overflow:ellipsis;">${weergaveTekst}</span>
+                <div class="k-item ${badgeClass} ${extraClass}" title="Klik om te bekijken of te bewerken" ${clickAction} style="cursor:pointer;">
+                    <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0;">
+                        ${weergaveTekst}
                     </div>
                     ${deleteKnop}
                 </div>
@@ -301,7 +281,7 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
 }
 
 // ============================================================================
-// INTERACTIEF DAG-BEHEER (Met Tijd & Locatie)
+// INTERACTIEF DAG-BEHEER
 // ============================================================================
 let actieveModalDatum = null;
 let actieveEditId = null;
@@ -350,9 +330,7 @@ window.bewerkItem = function(id) {
     document.getElementById('btn-opslaan').innerText = '💾 Wijzigingen Opslaan';
 };
 
-window.sluitDagModal = function() {
-    document.getElementById('dag-modal').style.display = 'none';
-};
+window.sluitDagModal = function() { document.getElementById('dag-modal').style.display = 'none'; };
 
 window.slaItemOp = function() {
     let type = document.getElementById('item-type').value;
@@ -393,10 +371,8 @@ window.verwijderItem = function(id) {
     
     if(actieveEditId === id) {
         actieveEditId = null;
-        document.getElementById('item-tijd').value = '';
-        document.getElementById('item-locatie').value = '';
-        document.getElementById('item-titel').value = '';
-        document.getElementById('item-omschrijving').value = '';
+        document.getElementById('item-tijd').value = ''; document.getElementById('item-locatie').value = '';
+        document.getElementById('item-titel').value = ''; document.getElementById('item-omschrijving').value = '';
         document.getElementById('btn-opslaan').innerText = '💾 Opslaan';
     }
     
@@ -460,7 +436,6 @@ function verversModalLijst() {
     lijst.innerHTML = html;
 }
 
-// Bulk Upload Code (Lijst Sjabloon)
 window.downloadSjabloon = function() {
     const wb = XLSX.utils.book_new();
     const sjabloonData = [
@@ -491,7 +466,6 @@ window.verwerkPlanningBestand = function(e) {
             let locKey = keys.find(k => k.toLowerCase().includes('locatie'));
             let eindKey = keys.find(k => k.toLowerCase().includes('eind'));
             
-            // Compatibiliteit met oude sjabloon ("Omschrijving" was eerst "Titel")
             let actTitel = (titelKey && row[titelKey]) ? row[titelKey].toString().trim() : (omsKey ? row[omsKey].toString().trim() : "Naamloos");
             let actOms = (omsKey && titelKey) ? row[omsKey].toString().trim() : "";
 
