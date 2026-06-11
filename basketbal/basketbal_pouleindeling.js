@@ -1,4 +1,4 @@
-// --- BASKETBAL_POULEINDELING.JS: VOLLEDIG NEDERLANDS, RECHTOPSTAANDE DATUMS & KOGELVRIJ ---
+// --- BASKETBAL_POULEINDELING.JS: STABIELE VERSIE MET POULES & NL DATUMS ---
 
 window.bsTeams = JSON.parse(localStorage.getItem('blackshots_poule_teams')) || [];
 window.nbbWedstrijden = JSON.parse(localStorage.getItem('blackshots_wedstrijden_json')) || [];
@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ============================================================================
-// DE NEDERLANDSE DATUM VERTALERS (FIXT EXCEL ENGELS & VOLGORDE)
+// DE NEDERLANDSE DATUM VERTALERS (FIXT EXCEL ENGELS & "SEPTEMBERTEMBER")
 // ============================================================================
 
 // 1. Vertaler voor het Concept Schema (Plantool Excel)
@@ -24,7 +24,6 @@ function maakNetteConceptDatum(ruweTekst) {
     if (!ruweTekst) return "TBA / Datum onbekend";
     let val = ruweTekst.toString().trim();
 
-    // Vertaal Engelse Excel output naar strak Nederlands
     let schoongemaakt = val
         // Dagen
         .replace(/Monday/ig, 'maandag')
@@ -41,19 +40,31 @@ function maakNetteConceptDatum(ruweTekst) {
         .replace(/\bFri\b/ig, 'vr')
         .replace(/\bSat\b/ig, 'za')
         .replace(/\bSun\b/ig, 'zo')
-        // Maanden
-        .replace(/January|\bJan\b/ig, 'januari')
-        .replace(/February|\bFeb\b/ig, 'februari')
-        .replace(/March|\bMar\b/ig, 'maart')
-        .replace(/April|\bApr\b/ig, 'april')
+        // Maanden - Volledige woorden eerst, om "septembertember" te voorkomen!
+        .replace(/January/ig, 'januari')
+        .replace(/February/ig, 'februari')
+        .replace(/March/ig, 'maart')
+        .replace(/April/ig, 'april')
+        .replace(/June/ig, 'juni')
+        .replace(/July/ig, 'juli')
+        .replace(/August/ig, 'augustus')
+        .replace(/September/ig, 'september')
+        .replace(/October/ig, 'oktober')
+        .replace(/November/ig, 'november')
+        .replace(/December/ig, 'december')
+        // Daarna pas afkortingen veilig vertalen
+        .replace(/\bJan\b/ig, 'januari')
+        .replace(/\bFeb\b/ig, 'februari')
+        .replace(/\bMar\b/ig, 'maart')
+        .replace(/\bApr\b/ig, 'april')
         .replace(/\bMay\b/ig, 'mei')
-        .replace(/June|\bJun\b/ig, 'juni')
-        .replace(/July|\bJul\b/ig, 'juli')
-        .replace(/August|\bAug\b/ig, 'augustus')
-        .replace(/September|\bSep\b/ig, 'september')
-        .replace(/October|\bOct\b/ig, 'oktober')
-        .replace(/November|\bNov\b/ig, 'november')
-        .replace(/December|\bDec\b/ig, 'december')
+        .replace(/\bJun\b/ig, 'juni')
+        .replace(/\bJul\b/ig, 'juli')
+        .replace(/\bAug\b/ig, 'augustus')
+        .replace(/\bSep\b/ig, 'september')
+        .replace(/\bOct\b/ig, 'oktober')
+        .replace(/\bNov\b/ig, 'november')
+        .replace(/\bDec\b/ig, 'december')
         // Schoonmaak lelijke tekens
         .replace(/,/g, '') 
         .replace(/-/g, ' ')
@@ -65,10 +76,8 @@ function maakNetteConceptDatum(ruweTekst) {
     // SLIMME VOLGORDE FIX: Draai "oktober 30" om naar "30 oktober"
     schoongemaakt = schoongemaakt.replace(/\b(januari|februari|maart|april|mei|juni|juli|augustus|september|oktober|november|december)\s+(\d{1,2})\b/ig, '$2 $1');
 
-    // Maak de eerste letter een mooie hoofdletter
     schoongemaakt = schoongemaakt.charAt(0).toUpperCase() + schoongemaakt.slice(1);
 
-    // Bepaal voorvoegsel
     if (schoongemaakt.toLowerCase().startsWith('week')) {
         return "Speelronde: " + schoongemaakt;
     } else if (schoongemaakt.match(/(Maandag|Dinsdag|Woensdag|Donderdag|Vrijdag|Zaterdag|Zondag|Ma|Di|Wo|Do|Vr|Za|Zo)/i)) {
@@ -90,7 +99,7 @@ function maakMooieDatum(datumStr, tijdStr, accommodatie) {
         let jaar = d.getFullYear();
         let tijd = tijdStr ? tijdStr.substring(0, 5) : ''; 
         let locatie = accommodatie ? ` in ${accommodatie}` : '';
-        return `${day} ${dagNummer}-${maandNummer}-${jaar}${tijd ? ' om ' + tijd : ''}${locatie}`;
+        return `${dag} ${dagNummer}-${maandNummer}-${jaar}${tijd ? ' om ' + tijd : ''}${locatie}`;
     } catch(e) { return datumStr; }
 }
 
@@ -165,7 +174,7 @@ window.verwerkPlantoolBestand = function(e) {
 };
 
 // ============================================================================
-// DE BEREKENING
+// DE BEREKENING (MET ANTI-INHAAL & ANTI-SPOOK FILTER)
 // ============================================================================
 window.genereerSchemaVoorTeam = function(index) {
     let selectEl = document.getElementById(`plantool-select-${index}`);
@@ -183,12 +192,20 @@ window.genereerSchemaVoorTeam = function(index) {
 
     sheetGrid.forEach((row) => {
         let tempDatum = "";
-        row.slice(0, 8).forEach(cel => {
+        
+        // Zoek ALLEEN in kolom A t/m F (index 0-5) om te voorkomen dat we 'Inhaalweekend' notities uit kolom G oppikken!
+        row.slice(0, 6).forEach(cel => {
             if (!cel) return;
             let val = cel.toString().trim();
             if (val.length < 3 || val.match(/^\d+\s*-\s*\d+$/)) return;
             
             let lw = val.toLowerCase();
+            
+            // BLOKKADE: Als het woord 'inhaal', 'beker', 'reserve' of 'vakantie' erin staat, genegeerd!
+            if (lw.includes('inhaal') || lw.includes('beker') || lw.includes('vakantie') || lw.includes('reserve') || lw.includes('geen wed')) {
+                return; 
+            }
+
             if (lw.match(/(jan|feb|mar|mrt|apr|may|mei|jun|jul|aug|sep|oct|okt|nov|dec|week|monday|saturday|sunday)/) || val.match(/\d{1,2}[-/]\d{1,2}/)) {
                 tempDatum = val;
             }
@@ -200,6 +217,7 @@ window.genereerSchemaVoorTeam = function(index) {
 
         let heeftMatch = false;
         row.forEach((cel, colIdx) => { 
+            // Pas vanaf kolom G (index 6) scannen we op echte wedstrijden
             if (colIdx >= 6 && typeof cel === 'string' && cel.match(/^(\d+)\s*-\s*(\d+)$/)) {
                 heeftMatch = true; 
             }
@@ -263,7 +281,7 @@ window.verwerkNBBJson = function(e) {
 };
 
 // ============================================================================
-// SCHERM OPBOUW (UI)
+// SCHERM OPBOUW (UI) - HIER ZIT DE POULE INDELING WEER IN!
 // ============================================================================
 window.tekenPouleResultaten = function() {
     let container = document.getElementById('poule-resultaten');
@@ -275,6 +293,7 @@ window.tekenPouleResultaten = function() {
     }
 
     window.bsTeams.forEach((bsData, index) => {
+        
         let lijstHtml = `<table class="team-lijst"><tr><th>Code</th><th>Vereniging</th><th>Team</th></tr>`;
         bsData.tegenstanders.forEach(tg => {
             let vNaam = tg['Vereniging'] || tg['vereniging'];
@@ -344,7 +363,7 @@ window.tekenPouleResultaten = function() {
                 </div>
                 
                 <h4 style="margin:0 0 5px 0; color:#34495e;">Tegenstanders</h4>
-                ${lijstHtml}
+                ${lijstHtml} 
                 
                 ${actieSectieHtml}
                 ${modalKnopHtml}
