@@ -1,171 +1,246 @@
-// --- BASKETBAL_JAARPLANNING.JS: DE MASTER KAPSTOK ---
+// --- BASKETBAL_JAARPLANNING.JS: INTERACTIEVE BLOKKEN & ZAALHUUR SYNC ---
 
 window.jaarplanningData = JSON.parse(localStorage.getItem('blackshots_jaarplanning_data')) || [];
+window.zaalhuurData = JSON.parse(localStorage.getItem('blackshots_zaalhuur_data')) || []; // Ophalen voor de sync!
+
+let huidigeMaand = new Date().getMonth();
+let huidigJaar = new Date().getFullYear();
+let weergaveIsJaar = false;
 
 document.addEventListener('DOMContentLoaded', () => {
-    if (window.jaarplanningData.length > 0) {
-        document.getElementById('label-planning').innerText = `✅ Planning geladen (${window.jaarplanningData.length} items)`;
-        tekenPlanning();
-    }
+    tekenKalender();
 });
 
 // ============================================================================
-// HET LIJST-SJABLOON (Cruciaal voor software!)
+// KALENDER ENGINE (Tekent de blokken)
 // ============================================================================
-window.downloadSjabloon = function() {
-    const wb = XLSX.utils.book_new();
-    const sjabloonData = [
-        ["Datum", "Omschrijving / Activiteit", "Locatie", "Opmerking"],
-        ["24-12-2026", "Kerstavond", "-", "Sporthallen gesloten"],
-        ["10-09-2026", "Betaling 1e termijn contributie", "-", "Deadline penningmeester"],
-        ["15-11-2026", "Thuis wedstrijden", "Sporthal VEKA", "Vanaf U14 t/m Heren 1"],
-        ["22-09-2026", "ALV Bestuur", "Sportzaal Westwijzer", "Start 20:00"]
-    ];
-    const ws = XLSX.utils.aoa_to_sheet(sjabloonData);
-    XLSX.utils.book_append_sheet(wb, ws, "Jaarplanning Lijst");
-    XLSX.writeFile(wb, "Jaarplanning_Sjabloon_Lijst.xlsx");
+function tekenKalender() {
+    let container = document.getElementById('kalender-container');
+    container.innerHTML = '';
+
+    if (weergaveIsJaar) {
+        // Jaarweergave: Teken 12 maanden onder elkaar
+        for(let m = 0; m < 12; m++) {
+            container.innerHTML += genereerMaandHTML(huidigJaar, m);
+        }
+    } else {
+        // Maandweergave: 1 maand met navigatie knoppen
+        container.innerHTML = genereerMaandHTML(huidigJaar, huidigeMaand, true);
+    }
+}
+
+function wisselWeergave() {
+    weergaveIsJaar = !weergaveIsJaar;
+    document.getElementById('btn-weergave').innerText = weergaveIsJaar ? "🗓️ Toon 1 Maand" : "🗓️ Toon Hele Jaar";
+    if(weergaveIsJaar) {
+        huidigeMaand = 0; // Spring naar Januari
+    } else {
+        huidigeMaand = new Date().getMonth(); // Terug naar nu
+    }
+    tekenKalender();
+}
+
+function wijzigMaand(delta) {
+    huidigeMaand += delta;
+    if (huidigeMaand < 0) { huidigeMaand = 11; huidigJaar--; }
+    if (huidigeMaand > 11) { huidigeMaand = 0; huidigJaar++; }
+    tekenKalender();
+}
+
+const maandNamen = ["Januari", "Februari", "Maart", "April", "Mei", "Juni", "Juli", "Augustus", "September", "Oktober", "November", "December"];
+
+function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
+    let eersteDag = new Date(jaar, maand, 1).getDay();
+    let aantalDagen = new Date(jaar, maand + 1, 0).getDate();
+    
+    // JS dagen: 0=Zondag, 1=Maandag. Wij willen Maandag als start.
+    let startVakje = eersteDag === 0 ? 6 : eersteDag - 1; 
+
+    let navHtml = toonNavigatie ? `
+        <div>
+            <button onclick="wijzigMaand(-1)" class="kalender-nav-btn">◀ Vorige</button>
+            <button onclick="wijzigMaand(1)" class="kalender-nav-btn">Volgende ▶</button>
+        </div>
+    ` : '<div></div>';
+
+    let html = `
+        <div style="margin-bottom: 30px;">
+            <div class="kalender-header">
+                <h2 style="margin:0; font-size:1.5rem;">${maandNamen[maand]} ${jaar}</h2>
+                ${navHtml}
+            </div>
+            <div class="kalender-weekdagen">
+                <div>Ma</div><div>Di</div><div>Wo</div><div>Do</div><div>Vr</div><div>Za</div><div>Zo</div>
+            </div>
+            <div class="kalender-grid">
+    `;
+
+    // Lege startvakjes
+    for (let i = 0; i < startVakje; i++) {
+        html += `<div class="kalender-dag leeg"></div>`;
+    }
+
+    let vandaagStr = new Date().toISOString().split('T')[0];
+
+    // Dagen tekenen
+    for (let dag = 1; dag <= aantalDagen; dag++) {
+        let isoDatum = `${jaar}-${(maand+1).toString().padStart(2, '0')}-${dag.toString().padStart(2, '0')}`;
+        let isVandaag = (isoDatum === vandaagStr) ? 'vandaag' : '';
+        
+        // 1. Haal specifieke Jaarplanning items op voor deze dag
+        let dagItems = window.jaarplanningData.filter(i => i.isoDatum === isoDatum);
+        let itemsHtml = '';
+        dagItems.forEach(item => {
+            let badgeClass = `k-${item.type.toLowerCase()}`;
+            itemsHtml += `<div class="k-item ${badgeClass}">${item.tekst}</div>`;
+        });
+
+        // 2. MAGISCHE ZAALHUUR SYNC! Zoek of we zalen gehuurd hebben op deze dag
+        let zalenOpDag = window.zaalhuurData.filter(z => z.isoDatum === isoDatum && !z.geannuleerd);
+        let uniekeZalen = [...new Set(zalenOpDag.map(z => z.zaal))];
+        let zaalBalkHtml = '';
+        if (uniekeZalen.length > 0) {
+            // Als de naam heel lang is, maken we hem kort (Sporthal VEKA -> VEKA)
+            let korteNamen = uniekeZalen.map(z => z.replace('Sporthal', '').replace('Sportzaal', '').trim());
+            zaalBalkHtml = `<div class="kalender-zaal-balk">📍 ${korteNamen.join(' & ')}</div>`;
+        }
+
+        html += `
+            <div class="kalender-dag ${isVandaag}" onclick="openDagModal('${isoDatum}', ${dag}, ${maand}, ${jaar})">
+                <div class="kalender-dag-nummer">${dag}</div>
+                <div class="kalender-items">${itemsHtml}</div>
+                ${zaalBalkHtml} </div>
+        `;
+    }
+
+    // Lege eindvakjes opvullen
+    let totaalVakjes = startVakje + aantalDagen;
+    let restVakjes = (totaalVakjes % 7 === 0) ? 0 : 7 - (totaalVakjes % 7);
+    for (let i = 0; i < restVakjes; i++) {
+        html += `<div class="kalender-dag leeg"></div>`;
+    }
+
+    html += `</div></div>`;
+    return html;
+}
+
+// ============================================================================
+// INTERACTIEVE ITEM BEHEERDER (Op dag klikken)
+// ============================================================================
+let actieveModalDatum = null;
+
+window.openDagModal = function(isoDatum, dag, maand, jaar) {
+    actieveModalDatum = isoDatum;
+    document.getElementById('modal-datum-titel').innerText = `Planning: ${dag} ${maandNamen[maand]} ${jaar}`;
+    document.getElementById('item-tekst').value = '';
+    
+    verversModalLijst();
+    document.getElementById('dag-modal').style.display = 'flex';
+    document.getElementById('item-tekst').focus();
 };
 
-// ============================================================================
-// DE SLIMME LABEL-SCANNER
-// ============================================================================
-function bepaalType(tekst) {
-    let t = tekst.toLowerCase();
-    
-    if (t.includes('betaling') || t.includes('termijn') || t.includes('contributie') || t.includes('financ')) return "Financieel";
-    if (t.includes('deadline') || t.includes('uiterlijk')) return "Deadline";
-    if (t.includes('alv') || t.includes('vergadering') || t.includes('bespreking') || t.includes('bestuur')) return "Bestuur";
-    if (t.includes('vakantie') || t.includes('feestdag') || t.includes('kerst') || t.includes('oudjaar') || t.includes('nieuwjaar')) return "Vakantie";
-    if (t.includes('wedstrijd') || t.includes('toernooi')) return "Wedstrijd";
-    if (t.includes('training') || t.includes('veka') || t.includes('veste') || t.includes('westwijzer')) return "Training";
-    
-    return "Overig";
-}
+window.sluitDagModal = function() {
+    document.getElementById('dag-modal').style.display = 'none';
+};
 
-function parseDatumNaarISO(datumStr) {
-    if (!datumStr) return "9999-12-31";
+window.slaItemOp = function() {
+    let type = document.getElementById('item-type').value;
+    let tekst = document.getElementById('item-tekst').value.trim();
     
-    // Bijv "24-12-2026"
-    let match = datumStr.match(/(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})/);
-    if (match) {
-        let d = match[1].padStart(2, '0');
-        let m = match[2].padStart(2, '0');
-        let y = match[3];
-        if (y.length === 2) y = "20" + y;
-        return `${y}-${m}-${d}`;
+    if(!tekst) return alert("Vul een omschrijving in!");
+
+    window.jaarplanningData.push({
+        id: Date.now().toString(),
+        isoDatum: actieveModalDatum,
+        type: type,
+        tekst: tekst
+    });
+
+    localStorage.setItem('blackshots_jaarplanning_data', JSON.stringify(window.jaarplanningData));
+    verversModalLijst();
+    tekenKalender();
+    document.getElementById('item-tekst').value = ''; // Maak veld leeg voor snelle 2e toevoeging
+};
+
+window.verwijderItem = function(id) {
+    window.jaarplanningData = window.jaarplanningData.filter(i => i.id !== id);
+    localStorage.setItem('blackshots_jaarplanning_data', JSON.stringify(window.jaarplanningData));
+    verversModalLijst();
+    tekenKalender();
+};
+
+function verversModalLijst() {
+    let lijst = document.getElementById('modal-huidige-items');
+    let itemsOpDag = window.jaarplanningData.filter(i => i.isoDatum === actieveModalDatum);
+    
+    if(itemsOpDag.length === 0) {
+        lijst.innerHTML = '<p style="color:#7f8c8d; font-size:0.9rem; margin:0;">Geen items gepland op deze dag.</p>';
+        return;
     }
-    return datumStr; // Fallback
+
+    let html = '';
+    itemsOpDag.forEach(item => {
+        let badgeClass = `k-${item.type.toLowerCase()}`;
+        html += `
+            <div style="display:flex; justify-content:space-between; align-items:center; background:#f8f9fa; padding:8px; border:1px solid #eee; border-radius:4px; margin-bottom:5px;">
+                <div><span class="k-item ${badgeClass}" style="margin-right:10px;">${item.type}</span> ${item.tekst}</div>
+                <button onclick="verwijderItem('${item.id}')" style="background:transparent; border:none; color:#e74c3c; cursor:pointer; font-size:1.2rem;">🗑️</button>
+            </div>
+        `;
+    });
+    lijst.innerHTML = html;
 }
 
 // ============================================================================
-// EXCEL INLEZEN
+// OUDE BULK UPLOAD (Mocht je ooit grote excellijsten willen importeren)
 // ============================================================================
 window.verwerkPlanningBestand = function(e) {
     const file = e.target.files[0]; if (!file) return;
-    document.getElementById('label-planning').innerText = `⏳ Inlezen...`;
-    
     const reader = new FileReader();
     reader.onload = function(e) {
         const data = new Uint8Array(e.target.result);
         const workbook = XLSX.read(data, {type: 'array'});
         let ruweData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
         
-        window.jaarplanningData = [];
-
         ruweData.forEach(row => {
             let keys = Object.keys(row);
             let datumKey = keys.find(k => k.toLowerCase().includes('datum'));
             let omsKey = keys.find(k => k.toLowerCase().includes('omschrijving') || k.toLowerCase().includes('activiteit'));
-            let locKey = keys.find(k => k.toLowerCase().includes('locatie'));
             
             if (datumKey && omsKey && row[datumKey] && row[omsKey]) {
                 let datum = row[datumKey].toString().trim();
                 let oms = row[omsKey].toString().trim();
-                let type = bepaalType(oms);
                 
-                window.jaarplanningData.push({
-                    id: Date.now() + Math.random().toString(36).substr(2, 9),
-                    datum: datum,
-                    isoDatum: parseDatumNaarISO(datum),
-                    omschrijving: oms,
-                    locatie: locKey && row[locKey] ? row[locKey].toString().trim() : "",
-                    type: type
-                });
+                // Slimme type herkenning
+                let tLower = oms.toLowerCase();
+                let type = "Memo";
+                if (tLower.includes('betaling') || tLower.includes('financieel')) type = "Financieel";
+                if (tLower.includes('thuis') || tLower.includes('wedstrijd')) type = "Thuis";
+                if (tLower.includes('uit') && tLower.includes('wedstrijd')) type = "Uit";
+                if (tLower.includes('vakantie') || tLower.includes('feestdag')) type = "Vakantie";
+                if (tLower.includes('alv') || tLower.includes('bestuur') || tLower.includes('vergadering')) type = "Vergadering";
+                if (tLower.includes('activiteit')) type = "Activiteit";
+                if (tLower.includes('tijdelijk') || tLower.includes('optie')) type = "Tijdelijk";
+                
+                let iso = "";
+                let match = datum.match(/(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})/);
+                if (match) {
+                    let d = match[1].padStart(2, '0'); let m = match[2].padStart(2, '0'); let y = match[3];
+                    if (y.length === 2) y = "20" + y;
+                    iso = `${y}-${m}-${d}`;
+                }
+
+                if(iso) {
+                    window.jaarplanningData.push({ id: Date.now() + Math.random().toString(), isoDatum: iso, type: type, tekst: oms });
+                }
             }
         });
 
-        // Sorteer netjes op datum
-        window.jaarplanningData.sort((a, b) => a.isoDatum.localeCompare(b.isoDatum));
-
         localStorage.setItem('blackshots_jaarplanning_data', JSON.stringify(window.jaarplanningData));
-        document.getElementById('label-planning').innerText = `✅ Ingeladen: ${window.jaarplanningData.length} items`;
-        tekenPlanning();
+        tekenKalender();
+        alert("Bestand succesvol ingelezen!");
     };
     reader.readAsArrayBuffer(file);
-};
-
-// ============================================================================
-// TIJDLIJN TEKENEN
-// ============================================================================
-window.tekenPlanning = function() {
-    let container = document.getElementById('planning-resultaten');
-    let filterType = document.getElementById('filter-type').value;
-
-    let data = window.jaarplanningData.filter(item => {
-        return !filterType || item.type === filterType;
-    });
-
-    if (data.length === 0) {
-        container.innerHTML = '<p style="color:#7f8c8d; font-style:italic;">Geen activiteiten gevonden in de planning.</p>';
-        return;
-    }
-
-    // Groepeer op Maand-Jaar (bijv "2026-12")
-    let maanden = {};
-    data.forEach(item => {
-        let maandKey = item.isoDatum.substring(0, 7); // Pakt YYYY-MM
-        if (!maanden[maandKey]) maanden[maandKey] = [];
-        maanden[maandKey].push(item);
-    });
-
-    let html = '';
-    
-    // Zet maand-cijfers om naar mooie tekst
-    const maandNamen = ["Januari", "Februari", "Maart", "April", "Mei", "Juni", "Juli", "Augustus", "September", "Oktober", "November", "December"];
-
-    Object.keys(maanden).sort().forEach(mKey => {
-        let y = mKey.split('-')[0];
-        let m = parseInt(mKey.split('-')[1]) - 1;
-        let mooieMaand = `${maandNamen[m]} ${y}`;
-
-        html += `<div class="timeline-maand">${mooieMaand}</div>`;
-
-        maanden[mKey].forEach(item => {
-            let labelClass = `label-${item.type.toLowerCase()}`;
-            let icon = "📌";
-            if (item.type === "Financieel") icon = "💰";
-            if (item.type === "Deadline") icon = "⏰";
-            if (item.type === "Bestuur") icon = "🗣️";
-            if (item.type === "Vakantie") icon = "🌴";
-            if (item.type === "Wedstrijd") icon = "🏀";
-            if (item.type === "Training") icon = "🏃‍♂️";
-
-            html += `
-                <div class="timeline-item ${labelClass}">
-                    <div>
-                        <strong style="color:#2c3e50; font-size:1.1rem; display:block; margin-bottom:5px;">${item.datum}</strong>
-                        <span style="font-size:1.1rem; color:#34495e;">${item.omschrijving}</span>
-                        ${item.locatie && item.locatie !== '-' ? `<br><small style="color:#7f8c8d;">📍 ${item.locatie}</small>` : ''}
-                    </div>
-                    <div>
-                        <span class="label-badge badge">${icon} ${item.type}</span>
-                    </div>
-                </div>
-            `;
-        });
-    });
-
-    container.innerHTML = html;
 };
 
 window.wisJaarplanning = function() {

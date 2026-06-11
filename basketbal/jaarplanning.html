@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Black Shots - Jaarplanning</title>
-    <link rel="stylesheet" href="basketbal.css?v=12">
+    <title>Black Shots - Master Jaarplanning</title>
+    <link rel="stylesheet" href="basketbal.css?v=13">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
@@ -14,48 +14,66 @@
         <h1>🏀 Black Shots Clubbeheer</h1>
     </nav>
 
-    <main class="content-sectie active" style="max-width:1000px; margin:20px auto; padding:15px;">
+    <main class="content-sectie active" style="max-width:1200px; margin:20px auto; padding:15px;">
         
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px;">
-            <h2 style="margin:0; color:var(--secondary-color);">📆 Master Jaarplanning</h2>
+            <h2 style="margin:0; color:var(--secondary-color);">📆 Master Jaarplanning (Leidend)</h2>
             <div style="display:flex; gap:10px;">
-                <button onclick="downloadSjabloon()" style="background:#2ecc71; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">📥 Download Lijst-Sjabloon</button>
+                <button onclick="wisselWeergave()" id="btn-weergave" style="background:#f39c12; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">🗓️ Toon Hele Jaar</button>
                 <button onclick="wisJaarplanning()" style="background:#e74c3c; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">🗑️ Wis Geheugen</button>
             </div>
         </div>
 
-        <div style="margin-bottom:25px;">
-            <label class="upload-box" style="border-color:#9b59b6; background:rgba(155, 89, 182, 0.05);">
+        <div id="kalender-container" style="box-shadow: 0 10px 20px rgba(0,0,0,0.05); border-radius:8px; overflow:hidden; margin-bottom: 30px;">
+            </div>
+
+        <div style="margin-top:40px; padding-top:20px; border-top:2px dashed #cbd5e1;">
+            <label class="upload-box" style="border-color:#95a5a6; background:rgba(149, 165, 166, 0.05); padding:15px; max-width:400px;">
                 <input type="file" class="file-input" id="upload-planning" accept=".xlsx, .xls, .csv" onchange="verwerkPlanningBestand(event)">
-                <span style="font-size:2.5rem; display:block; margin-bottom:10px;">📅</span>
-                <h3 style="margin:0 0 5px 0; color:#9b59b6;">Upload de Jaarplanning</h3>
-                <p style="font-size:0.85rem; color:#7f8c8d; margin:0 0 10px 0;">Upload je overzicht met alle club-activiteiten, deadlines, wedstrijden en vakanties.</p>
-                <strong id="label-planning" style="color:#9b59b6;">Kies Bestand</strong>
+                <h4 style="margin:0 0 5px 0; color:#7f8c8d;">Bulk Upload (Optioneel)</h4>
+                <p style="font-size:0.75rem; color:#95a5a6; margin:0;">Upload een Excel-lijst om in één keer veel items toe te voegen.</p>
             </label>
-        </div>
-
-        <div style="background:#f8f9fa; padding:15px; border-radius:8px; border:1px solid #cbd5e1; display:flex; gap:15px; margin-bottom:25px; flex-wrap:wrap;">
-            <div style="font-weight:bold; color:#2c3e50; align-self:center;">🔍 Toon alleen:</div>
-            <select id="filter-type" onchange="tekenPlanning()" style="padding:8px; border-radius:4px; border:1px solid #cbd5e1;">
-                <option value="">-- Alles --</option>
-                <option value="Financieel">💰 Financieel & Contributie</option>
-                <option value="Deadline">⏰ Deadlines</option>
-                <option value="Bestuur">🗣️ Bestuur & ALV</option>
-                <option value="Wedstrijd">🏀 Wedstrijden</option>
-                <option value="Training">🏃‍♂️ Trainingen & Zaal</option>
-                <option value="Vakantie">🌴 Vakanties & Feestdagen</option>
-            </select>
-        </div>
-
-        <div id="planning-resultaten">
-            <p style="color:#7f8c8d; font-style:italic;">Upload een bestand om de tijdlijn te genereren...</p>
         </div>
 
     </main>
 
+    <div id="dag-modal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 500px;">
+            <h2 id="modal-datum-titel" style="margin-top:0; color:#2c3e50;">Beheer Dag</h2>
+            
+            <div style="margin-bottom:15px;">
+                <label style="font-weight:bold; font-size:0.9rem; color:#7f8c8d; display:block; margin-bottom:5px;">Soort Activiteit:</label>
+                <select id="item-type" style="width:100%; padding:10px; border-radius:4px; border:1px solid #bdc3c7;">
+                    <option value="Thuis">🟩 Thuis Wedstrijd</option>
+                    <option value="Uit">🟥 Uit Wedstrijd</option>
+                    <option value="Training">🏃‍♂️ Training (Losse toevoeging)</option>
+                    <option value="Vergadering">🗣️ Vergadering (Bestuur/ALV/Coach)</option>
+                    <option value="Financieel">🩷 Financieel / Contributie</option>
+                    <option value="Vakantie">🟨 Vakantie / Feestdag</option>
+                    <option value="Activiteit">🟪 Club Activiteit</option>
+                    <option value="Tijdelijk">⬜ Tijdelijk / Optie</option>
+                    <option value="Memo">🟦 Memo / Overig</option>
+                </select>
+            </div>
+
+            <div style="margin-bottom:20px;">
+                <label style="font-weight:bold; font-size:0.9rem; color:#7f8c8d; display:block; margin-bottom:5px;">Omschrijving / Teams:</label>
+                <input type="text" id="item-tekst" placeholder="Bijv: Heren 1, X12 & U14 of Betaling 1e termijn" style="width:100%; padding:10px; border-radius:4px; border:1px solid #bdc3c7;">
+            </div>
+
+            <div style="display:flex; gap:10px;">
+                <button onclick="slaItemOp()" style="flex:1; background:#2ecc71; color:white; border:none; padding:10px; border-radius:4px; font-weight:bold; cursor:pointer;">💾 Opslaan</button>
+                <button onclick="sluitDagModal()" style="background:#95a5a6; color:white; border:none; padding:10px; border-radius:4px; font-weight:bold; cursor:pointer;">Annuleren</button>
+            </div>
+
+            <h4 style="margin: 20px 0 10px 0; color:#34495e; border-top:1px solid #eee; padding-top:10px;">Huidige items op deze dag:</h4>
+            <div id="modal-huidige-items"></div>
+        </div>
+    </div>
+
     <script src="basketbal_auth.js"></script>
     <script src="basketbal_data.js"></script>
     <script type="module" src="firebase_motor.js"></script>
-    <script src="basketbal_jaarplanning.js?v=1"></script>
+    <script src="basketbal_jaarplanning.js?v=2"></script>
 </body>
 </html>
