@@ -1,4 +1,4 @@
-// --- BASKETBAL_DATA.JS: RUSTIGE DATABASE, DASHBOARD ENGINE & DARK MODE ---
+// --- BASKETBAL_DATA.JS: DASHBOARD ENGINE, LIVE CLOUD LISTENERS & DARK MODE ---
 
 // ============================================================================
 // UNIVERSEEL DARK MODE SYSTEEM
@@ -31,10 +31,10 @@ window.categorieenDB = JSON.parse(localStorage.getItem('blackshots_categorieen')
 window.geplandeTrainingenDB = JSON.parse(localStorage.getItem('blackshots_trainingen')) || {};
 
 // ============================================================================
-// DYNAMISCH LIVE DASHBOARD
+// DYNAMISCH LIVE DASHBOARD ENGINE
 // ============================================================================
 window.laadDashboardData = function() {
-    // 1. Teams en spelerstellingen
+    // 1. Teams en spelerstellingen inladen
     const teamLijst = document.getElementById('dash-teams-lijst');
     if (teamLijst) {
         teamLijst.innerHTML = '';
@@ -52,21 +52,72 @@ window.laadDashboardData = function() {
         });
     }
 
-    // 2. Basis statistieken
+    // 2. Basis statistieken vullen
     const oefCount = document.getElementById('dash-oef-count');
     if (oefCount) oefCount.innerText = window.oefeningenDB.length;
 
     const ledenCount = document.getElementById('dash-leden-count');
     if (ledenCount) ledenCount.innerText = window.spelersDB.length;
 
-    // 3. DE NIEUWE WEEK-VIEW (7 KOLOMMEN) VOOR DE JAARPLANNING
+    // 3. DYNAMISCH BEREKENEN VAN DE VOLGENDE BESTUURSVERGADERING
+    const bestuurDateEl = document.getElementById('dash-bestuur-date');
+    const bestuurTijdEl = document.getElementById('dash-bestuur-tijd');
+    if (bestuurDateEl) {
+        let bestuurDB = JSON.parse(localStorage.getItem('blackshots_bestuur')) || [];
+        let vandaagObj = new Date();
+        let vandaagStr = `${vandaagObj.getFullYear()}-${String(vandaagObj.getMonth()+1).padStart(2,'0')}-${String(vandaagObj.getDate()).padStart(2,'0')}`;
+        
+        let toekomstigeVergaderingen = bestuurDB.filter(v => {
+            if(!v.datum) return false;
+            let parts = v.datum.split('-');
+            let isoDat = v.datum;
+            if(parts[0].length === 2) isoDat = `${parts[2]}-${parts[1]}-${parts[0]}`;
+            return isoDat >= vandaagStr;
+        });
+
+        toekomstigeVergaderingen.sort((a,b) => {
+            let dateA = a.datum.split('-')[0].length === 2 ? `${a.datum.split('-')[2]}-${a.datum.split('-')[1]}-${a.datum.split('-')[0]}` : a.datum;
+            let dateB = b.datum.split('-')[0].length === 2 ? `${b.datum.split('-')[2]}-${b.datum.split('-')[1]}-${b.datum.split('-')[0]}` : b.datum;
+            return dateA.localeCompare(dateB);
+        });
+
+        if (toekomstigeVergaderingen.length > 0) {
+            let volgende = toekomstigeVergaderingen[0];
+            bestuurDateEl.innerText = volgende.datum;
+            bestuurTijdEl.innerText = volgende.tijd ? `⏰ Om ${volgende.tijd} uur` : 'Klik om te openen';
+        } else {
+            bestuurDateEl.innerText = 'Geen gepland';
+            bestuurTijdEl.innerText = 'Klik om te plannen';
+        }
+    }
+
+    // 4. DYNAMISCH BEREKENEN VAN DE ZAALHUUR KOSTEN VAN DEZE MAAND
+    const zaalhuurKostenEl = document.getElementById('dash-zaalhuur-kosten');
+    const zaalhuurMaandEl = document.getElementById('dash-zaalhuur-maand');
+    if (zaalhuurKostenEl) {
+        let zaalhuurData = JSON.parse(localStorage.getItem('blackshots_zaalhuur_data')) || [];
+        let nu = new Date();
+        let huidigeJaarMaand = `${nu.getFullYear()}-${String(nu.getMonth()+1).padStart(2,'0')}`;
+        
+        let dezeMaandKosten = zaalhuurData.reduce((som, z) => {
+            if (z.isoDatum && z.isoDatum.startsWith(huidigeJaarMaand) && !z.geannuleerd) {
+                return som + (parseFloat(z.bedrag) || 0);
+            }
+            return som;
+        }, 0);
+
+        zaalhuurKostenEl.innerText = "€ " + dezeMaandKosten.toFixed(2).replace('.', ',');
+        zaalhuurMaandEl.innerText = `Kosten voor ${nu.toLocaleString('nl-NL', { month: 'long' })}`;
+    }
+
+    // 5. DE LIVE WEEK-VIEW (7 KOLOMMEN) VOOR DE JAARPLANNING + ZAALHUUR + VAKANTIEKLEUREN
     const jaarplanningWeekContainer = document.getElementById('dash-jaarplanning-week');
     if (jaarplanningWeekContainer) {
         let jaarplanningData = JSON.parse(localStorage.getItem('blackshots_jaarplanning_data')) || [];
         let kalenderCategorieen = JSON.parse(localStorage.getItem('blackshots_jaarplanning_categorieen')) || [];
         let nbbWedstrijden = JSON.parse(localStorage.getItem('blackshots_wedstrijden_json')) || [];
+        let zaalhuurData = JSON.parse(localStorage.getItem('blackshots_zaalhuur_data')) || [];
         
-        // LOKALE DATUM (Fix voor het timezone/zondagavond probleem!)
         let vandaag = new Date();
         let vandaagIso = `${vandaag.getFullYear()}-${String(vandaag.getMonth()+1).padStart(2,'0')}-${String(vandaag.getDate()).padStart(2,'0')}`;
         
@@ -77,19 +128,14 @@ window.laadDashboardData = function() {
         maandag.setDate(vandaag.getDate() + afstandTotMaandag);
 
         let dagenLijst = ["Ma", "Di", "Wo", "Do", "Vr", "Za", "Zo"];
-        let weekHtml = `<div style="display:flex; gap:10px; overflow-x:auto; padding-bottom:10px; min-height:220px;">`;
+        let weekHtml = `<div style="display:flex; gap:10px; overflow-x:auto; padding-bottom:10px; min-height:240px;">`;
 
         for(let i=0; i<7; i++) {
             let loopDag = new Date(maandag);
             loopDag.setDate(maandag.getDate() + i);
             
-            // Handmatige lokale ISO string om tijdszone verschuivingen te voorkomen
             let isoDag = `${loopDag.getFullYear()}-${String(loopDag.getMonth()+1).padStart(2,'0')}-${String(loopDag.getDate()).padStart(2,'0')}`;
-            
             let isVandaag = (isoDag === vandaagIso);
-            let headerBg = isVandaag ? 'var(--primary-color)' : 'var(--secondary-color)';
-            let headerText = 'white';
-            let borderCol = isVandaag ? 'var(--primary-color)' : 'var(--border-color)';
 
             // Handmatige activiteiten ophalen
             let dagItems = jaarplanningData.filter(item => {
@@ -111,12 +157,23 @@ window.laadDashboardData = function() {
                 if (uitTeams.length > 0) dagItems.push({ titel: `Uit: ${[...new Set(uitTeams)].join(', ')}`, type: 'uit' });
             }
 
+            // STYLING OP BASIS VAN VAKANTIE
+            let isVakantieDag = dagItems.some(item => {
+                let typeId = (item.type || 'memo').toLowerCase();
+                let cat = kalenderCategorieen.find(c => c.id === typeId);
+                return cat && cat.isVakantie;
+            });
+
+            let cardBg = isVakantieDag ? 'rgba(231, 76, 60, 0.04)' : 'var(--card-bg)';
+            let borderCol = isVandaag ? 'var(--primary-color)' : (isVakantieDag ? 'rgba(231, 76, 60, 0.3)' : 'var(--border-color)');
+            let headerBg = isVandaag ? 'var(--primary-color)' : (isVakantieDag ? '#e74c3c' : 'var(--secondary-color)');
+            let nummerKleur = isVakantieDag ? '#e74c3c' : 'var(--text-color)';
+
             let itemsHtml = '';
             if(dagItems.length > 0) {
                 dagItems.forEach(item => {
                     let typeId = (item.type || 'memo').toLowerCase();
                     let cat = kalenderCategorieen.find(c => c.id === typeId);
-                    
                     let kleur = cat ? cat.kleur : '#3498db';
                     let tekstKleur = cat && cat.tekstKleur ? cat.tekstKleur : '#ffffff';
 
@@ -133,16 +190,25 @@ window.laadDashboardData = function() {
                     `;
                 });
             } else {
-                itemsHtml = `<div style="color:var(--text-muted); font-size:0.8rem; text-align:center; padding:10px 0; font-style:italic;">Geen items</div>`;
+                itemsHtml = `<div style="color:var(--text-muted); font-size:0.8rem; text-align:center; padding:15px 0; font-style:italic;">Geen items</div>`;
+            }
+
+            // ZAALHUUR BALKEN DETECTEREN EN STYLEN ONDERAAN DE DAG (Net als op de jaarplanning!)
+            let zalenOpDag = zaalhuurData.filter(z => z.isoDatum === isoDag && !z.geannuleerd);
+            let zaalBalkHtml = '';
+            if (zalenOpDag.length > 0) {
+                let uniekeZalen = [...new Set(zalenOpDag.map(z => z.zaal.replace('Sporthal ', '').replace('Sportzaal ', '').trim()))];
+                zaalBalkHtml = `<div class="kalender-zaal-balk" style="background: var(--hover-bg); color: var(--text-muted); font-size: 0.68rem; text-align: center; padding: 4px; font-weight: bold; border-top: 1px solid var(--border-color); text-transform: uppercase; margin-top: auto;">${uniekeZalen.join(' & ')}</div>`;
             }
 
             weekHtml += `
-                <div style="flex: 1; min-width: 120px; background: var(--card-bg); border: 2px solid ${borderCol}; border-radius: 6px; display: flex; flex-direction: column; overflow: hidden; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
-                    <div style="background: ${headerBg}; color: ${headerText}; text-align: center; padding: 8px 0; font-weight: bold; border-bottom: 1px solid ${borderCol};">
-                        ${dagenLijst[i]} <span style="font-size:1.2rem; display:block;">${loopDag.getDate()}</span>
+                <div style="flex: 1; min-width: 130px; background: ${cardBg}; border: 2px solid ${borderCol}; border-radius: 6px; display: flex; flex-direction: column; overflow: hidden; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
+                    <div style="background: ${headerBg}; color: white; text-align: center; padding: 8px 0; font-weight: bold; border-bottom: 1px solid ${borderCol};">
+                        ${dagenLijst[i]} <span style="font-size:1.2rem; display:block; color: ${isVandaag ? 'white' : nummerKleur};">${loopDag.getDate()}</span>
                     </div>
-                    <div style="padding: 8px; flex: 1; display:flex; flex-direction:column; background: var(--card-bg);">
+                    <div style="padding: 8px; flex: 1; display:flex; flex-direction:column; background: transparent;">
                         ${itemsHtml}
+                        ${zaalBalkHtml}
                     </div>
                 </div>
             `;
