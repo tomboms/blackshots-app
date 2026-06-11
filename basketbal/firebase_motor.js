@@ -1,7 +1,7 @@
 // --- FIREBASE_MOTOR.JS: VERBORGEN WOLK & VERSIE CONTROLE ---
 
-// 👇 VERANDER DIT NUMMER BIJ ELKE GITHUB PUSH (bijv. v2.1, v2.2) 👇
-const APP_VERSIE = "3.521";
+// 👇 VERANDER DIT NUMMER BIJ ELKE GITHUB PUSH 👇
+const APP_VERSIE = "3.522";
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
 import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
@@ -76,10 +76,16 @@ window.autoUpload = async function(key, value) {
 
 window.forceerCloudCheck = async function() {
     if (!navigator.onLine || window.isDownloading) return;
-    // Inclusief de nieuwe gebruikers map!
-    const onderdelen = ['blackshots_teams', 'blackshots_spelers', 'blackshots_oefeningen', 'blackshots_toernooi', 'blackshots_trainingen', 'blackshots_gebruikers', 'blackshots_bestuur'];
+    
+    // NIEUW: De drie kalender-sleutels zijn hier toegevoegd!
+    const onderdelen = [
+        'blackshots_teams', 'blackshots_spelers', 'blackshots_oefeningen', 
+        'blackshots_toernooi', 'blackshots_trainingen', 'blackshots_gebruikers', 
+        'blackshots_bestuur', 'blackshots_jaarplanning_data', 
+        'blackshots_zaalhuur_data', 'blackshots_jaarplanning_categorieen'
+    ];
+    
     window.isDownloading = true;
-
     let heeftNieuweData = false;
 
     for (let key of onderdelen) {
@@ -89,11 +95,21 @@ window.forceerCloudCheck = async function() {
                 let cloudData = JSON.stringify(docSnap.data().data);
                 if (localStorage.getItem(key) !== cloudData) {
                     localStorage.setItem(key, cloudData);
-                    if (key === 'blackshots_teams') window.teamsDB = JSON.parse(cloudData);
-                    if (key === 'blackshots_spelers') window.spelersDB = JSON.parse(cloudData);
-                    if (key === 'blackshots_trainingen') window.geplandeTrainingenDB = JSON.parse(cloudData);
-                    if (key === 'blackshots_oefeningen') window.oefeningenDB = JSON.parse(cloudData);
-                    if (key === 'blackshots_toernooi') window.toernooiDB = JSON.parse(cloudData);
+                    let parsedData = JSON.parse(cloudData);
+                    
+                    if (key === 'blackshots_teams') window.teamsDB = parsedData;
+                    if (key === 'blackshots_spelers') window.spelersDB = parsedData;
+                    if (key === 'blackshots_trainingen') window.geplandeTrainingenDB = parsedData;
+                    if (key === 'blackshots_oefeningen') window.oefeningenDB = parsedData;
+                    if (key === 'blackshots_toernooi') window.toernooiDB = parsedData;
+                    
+                    // Stuur de nieuwe data door naar de kalender als deze geopend is
+                    if (key === 'blackshots_jaarplanning_data' || key === 'blackshots_jaarplanning_categorieen') {
+                        if (typeof window.ontvangCloudData === 'function') window.ontvangCloudData(key, parsedData);
+                    }
+                    if (key === 'blackshots_zaalhuur_data') {
+                        if (typeof window.ontvangCloudDataZaalhuur === 'function') window.ontvangCloudDataZaalhuur(key, parsedData);
+                    }
                     
                     heeftNieuweData = true; 
                 }
@@ -110,9 +126,12 @@ window.forceerCloudCheck = async function() {
         if(typeof window.renderSpelers === 'function') window.renderSpelers();
         if(typeof window.renderWeekAgenda === 'function') window.renderWeekAgenda();
         if(typeof window.renderGebruikers === 'function') window.renderGebruikers();
+        if(typeof window.tekenKalender === 'function') window.tekenKalender();
+        if(typeof window.tekenZaalhuurResultaten === 'function') window.tekenZaalhuurResultaten();
     }
 };
 
+// OMDAT JIJ DIT HEBT GEBOUWD, HOEVEN WE NERGENS IN DE APP MEER MOEILIJK TE DOEN OVER OPSLAAN!
 const origineleSetItem = localStorage.setItem;
 localStorage.setItem = function(key, value) {
     origineleSetItem.apply(this, arguments);

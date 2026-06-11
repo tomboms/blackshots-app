@@ -1,20 +1,17 @@
-// --- BASKETBAL_ZAALHUUR.JS: KOGELVRIJE PLAKBOX, SMART MERGE & FIREBASE CLOUD SYNC ---
+// --- BASKETBAL_ZAALHUUR.JS ---
 
 // ============================================================================
-// CLOUD SYNC MOTOR
+// CLOUD ONTVANGER
 // ============================================================================
-window.slaDataOp = function(sleutel, data) {
-    // 1. Lokale backup (snelheid)
-    localStorage.setItem(sleutel, JSON.stringify(data));
-    
-    // 2. FIREBASE CLOUD SYNC
-    if (typeof window.opslaanInFirebase === 'function') {
-        window.opslaanInFirebase(sleutel, data);
-    } else if (typeof window.bewaarNaarFirebase === 'function') {
-        window.bewaarNaarFirebase(sleutel, data);
-    } else {
-        // Fallback voor andere eventuele cloud-scripts
-        document.dispatchEvent(new CustomEvent('cloudSync', { detail: { sleutel: sleutel, data: data } }));
+window.ontvangCloudDataZaalhuur = function(sleutel, data) {
+    if (sleutel === 'blackshots_zaalhuur_data' && data) {
+        window.zaalhuurData = data;
+        let lbl = document.getElementById('label-zaalhuur');
+        if (lbl && window.zaalhuurData.length > 0) {
+            lbl.innerText = `✅ Zaalhuur geladen (${window.zaalhuurData.length} regels)`;
+        }
+        updateZaalDropdown();
+        tekenZaalhuurResultaten();
     }
 };
 
@@ -22,7 +19,8 @@ window.zaalhuurData = JSON.parse(localStorage.getItem('blackshots_zaalhuur_data'
 
 document.addEventListener('DOMContentLoaded', () => {
     if (window.zaalhuurData.length > 0) {
-        document.getElementById('label-zaalhuur').innerText = `✅ Zaalhuur geladen (${window.zaalhuurData.length} regels)`;
+        let lbl = document.getElementById('label-zaalhuur');
+        if(lbl) lbl.innerText = `✅ Zaalhuur geladen (${window.zaalhuurData.length} regels)`;
         updateZaalDropdown();
         tekenZaalhuurResultaten();
     }
@@ -47,6 +45,7 @@ function converteerNaarISODatum(datumStr) {
     if (!datumStr) return "9999-12-31";
     let str = datumStr.toLowerCase();
     let match = str.match(/(\d{1,2})\s+([a-z]+)\s+(\d{4})/);
+    
     if (match) {
         let d = match[1].padStart(2, '0');
         let mStr = match[2];
@@ -66,6 +65,7 @@ function converteerNaarISODatum(datumStr) {
         else if(mStr.includes('dec')) m="12";
         return `${y}-${m}-${d}`;
     }
+    
     let match2 = str.match(/(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})/);
     if (match2) {
         let d = match2[1].padStart(2, '0');
@@ -92,7 +92,7 @@ function berekenVerschilInUren(start, eind) {
 }
 
 // ============================================================================
-// MAGIC MAIL SCANNER MET 2 ACTIES (VOEG TOE / ANNULEER)
+// MAGIC MAIL SCANNER 
 // ============================================================================
 window.verwerkMailTekst = function(actie) {
     let tekst = document.getElementById('mail-plakbox').value;
@@ -108,7 +108,6 @@ window.verwerkMailTekst = function(actie) {
 
     for(let i=0; i<lines.length; i++) {
         let line = lines[i].trim();
-        
         let regex = /(?:€\s*(\d+[,.]\d{2}))?\s*(\d{1,2})\s+([a-zA-Z]+)\s+(\d{4})\s+van\s+(\d{2}[:.]\d{2})(?:\s*uur)?\s*tot\s+(\d{2}[:.]\d{2})/i;
         let match = regex.exec(line);
 
@@ -173,7 +172,7 @@ window.verwerkMailTekst = function(actie) {
     }
 
     if(matchCount > 0) {
-        window.slaDataOp('blackshots_zaalhuur_data', window.zaalhuurData); // CLOUD SYNC
+        localStorage.setItem('blackshots_zaalhuur_data', JSON.stringify(window.zaalhuurData));
         document.getElementById('mail-plakbox').value = ""; 
         
         let msg = `✅ Er zijn ${matchCount} tijden in je tekst gevonden.\n\n`;
@@ -188,9 +187,6 @@ window.verwerkMailTekst = function(actie) {
     }
 };
 
-// ============================================================================
-// EXCEL BEREKENING
-// ============================================================================
 window.verwerkZaalhuurBestand = function(e) {
     const file = e.target.files[0]; if (!file) return;
     
@@ -251,15 +247,16 @@ window.verwerkZaalhuurBestand = function(e) {
         });
 
         window.zaalhuurData = Object.values(dataMap);
-        window.slaDataOp('blackshots_zaalhuur_data', window.zaalhuurData); // CLOUD SYNC
+        localStorage.setItem('blackshots_zaalhuur_data', JSON.stringify(window.zaalhuurData));
         document.getElementById('label-zaalhuur').innerText = `✅ Database bijgewerkt!`;
-        updateZaalDropdown(); tekenZaalhuurResultaten();
+        updateZaalDropdown(); 
+        tekenZaalhuurResultaten();
     };
     reader.readAsArrayBuffer(file);
 };
 
 // ============================================================================
-// HANDMATIGE UPDATES (STATUS, TYPE, DELETE)
+// HANDMATIGE UPDATES
 // ============================================================================
 window.updateGroepStatus = function(idsString, nieuweStatus) {
     if(nieuweStatus === 'Geannuleerd') {
@@ -275,22 +272,22 @@ window.updateGroepStatus = function(idsString, nieuweStatus) {
             z.uren = z.geannuleerd ? 0 : berekenVerschilInUren(z.startTijd, z.eindTijd); 
         }
     });
-    window.slaDataOp('blackshots_zaalhuur_data', window.zaalhuurData); // CLOUD SYNC
+    localStorage.setItem('blackshots_zaalhuur_data', JSON.stringify(window.zaalhuurData));
     tekenZaalhuurResultaten(); 
 };
 
 window.updateGroepType = function(idsString, nieuwType) {
     let ids = idsString.split(',');
     window.zaalhuurData.forEach(z => { if(ids.includes(z.id)) z.type = nieuwType; });
-    window.slaDataOp('blackshots_zaalhuur_data', window.zaalhuurData); // CLOUD SYNC
+    localStorage.setItem('blackshots_zaalhuur_data', JSON.stringify(window.zaalhuurData));
 };
 
 window.verwijderGroep = function(idsString) {
-    if(!confirm("Weet je zeker dat je deze reservering definitief wilt verwijderen uit de app? (Je gebruikt dit bijv. bij een tijdverschuiving)")) return;
+    if(!confirm("Weet je zeker dat je deze reservering definitief wilt verwijderen uit de app?")) return;
     
     let ids = idsString.split(',');
     window.zaalhuurData = window.zaalhuurData.filter(z => !ids.includes(z.id));
-    window.slaDataOp('blackshots_zaalhuur_data', window.zaalhuurData); // CLOUD SYNC
+    localStorage.setItem('blackshots_zaalhuur_data', JSON.stringify(window.zaalhuurData));
     tekenZaalhuurResultaten();
 };
 
@@ -444,7 +441,7 @@ window.tekenZaalhuurResultaten = function() {
 window.wisZaalhuur = function() {
     if(confirm("Weet je zeker dat je alle zaalhuur data wilt wissen? Dit wordt ook direct in de cloud verwijderd!")) {
         window.zaalhuurData = [];
-        window.slaDataOp('blackshots_zaalhuur_data', window.zaalhuurData); // CLOUD SYNC: Slaat leeg array op
+        localStorage.setItem('blackshots_zaalhuur_data', JSON.stringify(window.zaalhuurData));
         location.reload();
     }
 };
