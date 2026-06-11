@@ -559,4 +559,62 @@ body.dark-mode .zaal-lijst tr.rij-gefactureerd { background: rgba(52, 152, 219, 
 .btn-verwijder:hover {
     opacity: 1;
     transform: scale(1.1);
+    
 }
+
+/* ============================================================================
+   JAARPLANNING TIJDLIJN STYLING
+   ============================================================================ */
+.timeline-maand {
+    background: #2c3e50;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    margin: 30px 0 15px 0;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+.timeline-item {
+    background: white;
+    border-left: 5px solid #bdc3c7;
+    padding: 15px;
+    margin-bottom: 10px;
+    border-radius: 0 6px 6px 0;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: 0.2s;
+}
+.timeline-item:hover { transform: translateX(5px); }
+
+/* Slimme Labels */
+.label-financieel { border-left-color: #f1c40f; }
+.label-financieel .badge { background: #f1c40f; color: #fff; }
+
+.label-bestuur { border-left-color: #9b59b6; }
+.label-bestuur .badge { background: #9b59b6; color: #fff; }
+
+.label-deadline { border-left-color: #e74c3c; }
+.label-deadline .badge { background: #e74c3c; color: #fff; }
+
+.label-vakantie { border-left-color: #1abc9c; background: #f4fbf9; }
+.label-vakantie .badge { background: #1abc9c; color: #fff; }
+
+.label-wedstrijd { border-left-color: #e67e22; }
+.label-wedstrijd .badge { background: #e67e22; color: #fff; }
+
+.label-training { border-left-color: #3498db; }
+.label-training .badge { background: #3498db; color: #fff; }
+
+.label-badge {
+    padding: 4px 10px;
+    border-radius: 15px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+body.dark-mode .timeline-item { background: #1e293b; border-color: #334155; }
+body.dark-mode .label-vakantie { background: rgba(26, 188, 156, 0.1); }

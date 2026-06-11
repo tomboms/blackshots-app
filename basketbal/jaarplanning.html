@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Black Shots - Jaarplanning</title>
+    <link rel="stylesheet" href="basketbal.css?v=12">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+    <div id="cloud-status-indicator" style="position: fixed; bottom: 20px; right: 20px; background: #27ae60; color: white; padding: 10px 20px; border-radius: 30px; font-weight: bold; font-size: 0.9rem; z-index: 99999; opacity: 0; pointer-events: none;">☁️ Cloud Actief</div>
+
+    <nav class="top-nav">
+        <h1>🏀 Black Shots Clubbeheer</h1>
+    </nav>
+
+    <main class="content-sectie active" style="max-width:1000px; margin:20px auto; padding:15px;">
+        
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px;">
+            <h2 style="margin:0; color:var(--secondary-color);">📆 Master Jaarplanning</h2>
+            <div style="display:flex; gap:10px;">
+                <button onclick="downloadSjabloon()" style="background:#2ecc71; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">📥 Download Lijst-Sjabloon</button>
+                <button onclick="wisJaarplanning()" style="background:#e74c3c; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">🗑️ Wis Geheugen</button>
+            </div>
+        </div>
+
+        <div style="margin-bottom:25px;">
+            <label class="upload-box" style="border-color:#9b59b6; background:rgba(155, 89, 182, 0.05);">
+                <input type="file" class="file-input" id="upload-planning" accept=".xlsx, .xls, .csv" onchange="verwerkPlanningBestand(event)">
+                <span style="font-size:2.5rem; display:block; margin-bottom:10px;">📅</span>
+                <h3 style="margin:0 0 5px 0; color:#9b59b6;">Upload de Jaarplanning</h3>
+                <p style="font-size:0.85rem; color:#7f8c8d; margin:0 0 10px 0;">Upload je overzicht met alle club-activiteiten, deadlines, wedstrijden en vakanties.</p>
+                <strong id="label-planning" style="color:#9b59b6;">Kies Bestand</strong>
+            </label>
+        </div>
+
+        <div style="background:#f8f9fa; padding:15px; border-radius:8px; border:1px solid #cbd5e1; display:flex; gap:15px; margin-bottom:25px; flex-wrap:wrap;">
+            <div style="font-weight:bold; color:#2c3e50; align-self:center;">🔍 Toon alleen:</div>
+            <select id="filter-type" onchange="tekenPlanning()" style="padding:8px; border-radius:4px; border:1px solid #cbd5e1;">
+                <option value="">-- Alles --</option>
+                <option value="Financieel">💰 Financieel & Contributie</option>
+                <option value="Deadline">⏰ Deadlines</option>
+                <option value="Bestuur">🗣️ Bestuur & ALV</option>
+                <option value="Wedstrijd">🏀 Wedstrijden</option>
+                <option value="Training">🏃‍♂️ Trainingen & Zaal</option>
+                <option value="Vakantie">🌴 Vakanties & Feestdagen</option>
+            </select>
+        </div>
+
+        <div id="planning-resultaten">
+            <p style="color:#7f8c8d; font-style:italic;">Upload een bestand om de tijdlijn te genereren...</p>
+        </div>
+
+    </main>
+
+    <script src="basketbal_auth.js"></script>
+    <script src="basketbal_data.js"></script>
+    <script type="module" src="firebase_motor.js"></script>
+    <script src="basketbal_jaarplanning.js?v=1"></script>
+</body>
+</html>

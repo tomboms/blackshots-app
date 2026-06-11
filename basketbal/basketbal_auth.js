@@ -87,6 +87,8 @@ window.checkBeveiligingEnBouwMenu = function() {
         
         const allePaginas = [
             { id: 'dashboard', url: 'dashboard.html', icon: '📊', tekst: 'Dashboard' },
+            // VOEG DEZE REGEL TOE AAN DE LIJST:
+            { id: 'jaarplanning', url: 'jaarplanning.html', icon: '📆', tekst: 'Jaarplanning' },
             { id: 'agenda', url: 'agenda.html', icon: '📅', tekst: 'Weekagenda' },
             { id: 'team', url: 'team.html', icon: '👥', tekst: 'Teams' },
             { id: 'spelers', url: 'spelers.html', icon: '👤', tekst: 'Spelers' },
