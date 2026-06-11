@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Black Shots - Master Jaarplanning</title>
-    <link rel="stylesheet" href="basketbal.css?v=20">
+    <title>Black Shots - Jaarplanning</title>
+    <link rel="stylesheet" href="basketbal.css?v=21">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style id="dynamic-category-styles"></style>
 </head>
@@ -18,7 +18,7 @@
     <main id="hoofd-container" class="content-sectie active" style="max-width:1400px; margin:20px auto; padding:15px;">
         
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px;">
-            <h2 style="margin:0; color:var(--secondary-color);">📆 Master Jaarplanning</h2>
+            <h2 style="margin:0; color:var(--secondary-color);">Jaarplanning</h2>
             <div style="display:flex; gap:10px;">
                 <button onclick="toggleFullScreen()" id="btn-fullscreen" style="background:#34495e; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">🔲 Full Screen</button>
                 <button onclick="openCategorieInstellingen()" style="background:#9b59b6; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">⚙️ Legenda & Kleuren</button>
@@ -101,7 +101,7 @@
         <div class="modal-content" style="max-width: 600px;">
             <button class="modal-close-btn" onclick="sluitCategorieInstellingen()">&times;</button>
             <h2 style="margin-top:0; color:#2c3e50;">⚙️ Eigen Categorieën & Kleuren</h2>
-            <p style="font-size:0.9rem; color:#7f8c8d; margin-bottom:15px;">Voeg je eigen labels toe, verwijder ze, of pas de kleuren aan.</p>
+            <p style="font-size:0.9rem; color:#7f8c8d; margin-bottom:15px;">Voeg je eigen labels toe, verwijder ze, of pas de kleuren aan. Let op: Categorieën met 'vakantie' in de ID kleuren de hele dag automatisch rood.</p>
             
             <div id="categorie-lijst" style="margin-bottom:20px; max-height:40vh; overflow-y:auto; padding-right:10px;"></div>
 
@@ -119,6 +119,6 @@
     <script src="basketbal_auth.js"></script>
     <script src="basketbal_data.js"></script>
     <script type="module" src="firebase_motor.js"></script>
-    <script src="basketbal_jaarplanning.js?v=22"></script>
+    <script src="basketbal_jaarplanning.js?v=23"></script>
 </body>
 </html>

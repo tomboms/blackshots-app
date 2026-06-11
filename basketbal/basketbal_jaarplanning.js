@@ -1,4 +1,4 @@
-// --- BASKETBAL_JAARPLANNING.JS: FULLSCREEN, OVERLAP MAANDEN & VANDAAG KNOP ---
+// --- BASKETBAL_JAARPLANNING.JS: TIJD/LOCATIE TERUG & FIREBASE PREP ---
 
 window.jaarplanningData = JSON.parse(localStorage.getItem('blackshots_jaarplanning_data')) || [];
 window.zaalhuurData = JSON.parse(localStorage.getItem('blackshots_zaalhuur_data')) || [];
@@ -11,19 +11,37 @@ window.jaarplanningData = window.jaarplanningData.map(item => {
     return item;
 });
 
-const standaardCategorieen = [
-    { id: 'thuis', naam: 'Thuis Wedstrijd', kleur: '#27ae60', isVakantie: false },
-    { id: 'uit', naam: 'Uit Wedstrijd', kleur: '#e74c3c', isVakantie: false },
-    { id: 'training', naam: 'Training', kleur: '#16a085', isVakantie: false },
-    { id: 'vergadering', naam: 'Vergadering', kleur: '#34495e', isVakantie: false },
-    { id: 'financieel', naam: 'Financieel', kleur: '#e84393', isVakantie: false },
-    { id: 'vakantie', naam: 'Vakantie / Feestdag', kleur: '#f1c40f', isVakantie: true, tekstKleur: '#333333' },
-    { id: 'activiteit', naam: 'Activiteit', kleur: '#9b59b6', isVakantie: false },
-    { id: 'tijdelijk', naam: 'Tijdelijk', kleur: '#ecf0f1', isVakantie: false, tekstKleur: '#7f8c8d', dashed: true },
-    { id: 'memo', naam: 'Memo / Overig', kleur: '#3498db', isVakantie: false }
-];
+// ============================================================================
+// CATEGORIEEN INIT & FIREBASE HOOK
+// ============================================================================
+// Functie om de categorieën op te slaan (Zowel Lokaal als voorbereid op Firebase)
+window.slaCategorieenOp = function() {
+    localStorage.setItem('blackshots_categorieen', JSON.stringify(window.kalenderCategorieen));
+    
+    // Hier kan je firebase_motor.js op inhaken:
+    // if(typeof bewaarNaarFirebase === 'function') bewaarNaarFirebase('categorieen', window.kalenderCategorieen);
+};
 
-window.kalenderCategorieen = JSON.parse(localStorage.getItem('blackshots_categorieen')) || standaardCategorieen;
+// Initialisatie
+let opgeslagenCategorieen = JSON.parse(localStorage.getItem('blackshots_categorieen'));
+
+if (opgeslagenCategorieen && opgeslagenCategorieen.length > 0) {
+    window.kalenderCategorieen = opgeslagenCategorieen;
+} else {
+    // SEED: Alleen de eerste keer dat de app opstart (of na een harde reset)
+    window.kalenderCategorieen = [
+        { id: 'thuis', naam: 'Thuis Wedstrijd', kleur: '#27ae60', isVakantie: false },
+        { id: 'uit', naam: 'Uit Wedstrijd', kleur: '#e74c3c', isVakantie: false },
+        { id: 'training', naam: 'Training', kleur: '#16a085', isVakantie: false },
+        { id: 'vergadering', naam: 'Vergadering', kleur: '#34495e', isVakantie: false },
+        { id: 'financieel', naam: 'Financieel', kleur: '#e84393', isVakantie: false },
+        { id: 'vakantie', naam: 'Vakantie / Feestdag', kleur: '#f1c40f', isVakantie: true, tekstKleur: '#333333' },
+        { id: 'activiteit', naam: 'Activiteit', kleur: '#9b59b6', isVakantie: false },
+        { id: 'tijdelijk', naam: 'Tijdelijk', kleur: '#ecf0f1', isVakantie: false, tekstKleur: '#7f8c8d', dashed: true },
+        { id: 'memo', naam: 'Memo / Overig', kleur: '#3498db', isVakantie: false }
+    ];
+    slaCategorieenOp(); // Push direct naar opslag/firebase
+}
 
 let huidigeMaand = new Date().getMonth();
 let huidigJaar = new Date().getFullYear();
@@ -42,7 +60,6 @@ document.addEventListener('keydown', function(event) {
         if (dagModal && dagModal.style.display === 'flex') sluitDagModal();
         if (catModal && catModal.style.display === 'flex') sluitCategorieInstellingen();
         
-        // Escape haalt je ook uit fullscreen!
         if (document.body.classList.contains('is-fullscreen')) {
             window.toggleFullScreen();
         }
@@ -50,39 +67,24 @@ document.addEventListener('keydown', function(event) {
 });
 
 // ============================================================================
-// FULLSCREEN & VANDAAG FUNCTIES
+// FULLSCREEN & VANDAAG
 // ============================================================================
 window.toggleFullScreen = function() {
-    let body = document.body;
-    let container = document.getElementById('hoofd-container');
-    let btn = document.getElementById('btn-fullscreen');
-    
+    let body = document.body; let container = document.getElementById('hoofd-container'); let btn = document.getElementById('btn-fullscreen');
     if (body.classList.contains('is-fullscreen')) {
-        body.classList.remove('is-fullscreen');
-        container.classList.remove('fullscreen-mode');
-        btn.innerText = "🔲 Full Screen";
+        body.classList.remove('is-fullscreen'); container.classList.remove('fullscreen-mode'); btn.innerText = "🔲 Full Screen";
     } else {
-        body.classList.add('is-fullscreen');
-        container.classList.add('fullscreen-mode');
-        btn.innerText = "❌ Sluit Full Screen";
+        body.classList.add('is-fullscreen'); container.classList.add('fullscreen-mode'); btn.innerText = "❌ Sluit Full Screen";
     }
 };
 
 window.gaNaarVandaag = function() {
-    huidigeMaand = new Date().getMonth();
-    huidigJaar = new Date().getFullYear();
-    tekenKalender();
-    
-    if (weergaveIsJaar) {
-        setTimeout(() => {
-            let maandDiv = document.getElementById(`maand-${huidigeMaand}`);
-            if(maandDiv) maandDiv.scrollIntoView({behavior: "smooth", block: "start"});
-        }, 100);
-    }
+    huidigeMaand = new Date().getMonth(); huidigJaar = new Date().getFullYear(); tekenKalender();
+    if (weergaveIsJaar) { setTimeout(() => { let mDiv = document.getElementById(`maand-${huidigeMaand}`); if(mDiv) mDiv.scrollIntoView({behavior: "smooth", block: "start"}); }, 100); }
 };
 
 // ============================================================================
-// DYNAMISCHE KLEUREN & CATEGORIEEN
+// CATEGORIEEN FUNCTIES
 // ============================================================================
 function laadDynamischeKleuren() {
     let styleTag = document.getElementById('dynamic-category-styles');
@@ -103,9 +105,7 @@ function updateDropdownKleur() {
     let cat = window.kalenderCategorieen.find(c => c.id === select.value);
     if(cat) {
         bolletje.style.backgroundColor = cat.kleur;
-        select.style.backgroundColor = '#ffffff';
-        select.style.color = '#333333';
-        select.style.border = '1px solid #bdc3c7';
+        select.style.backgroundColor = '#ffffff'; select.style.color = '#333333'; select.style.border = '1px solid #bdc3c7';
     }
 }
 
@@ -113,9 +113,7 @@ function vulDropdown() {
     let select = document.getElementById('item-type');
     if(!select) return;
     select.innerHTML = '';
-    window.kalenderCategorieen.forEach(cat => {
-        select.innerHTML += `<option value="${cat.id}">${cat.naam}</option>`;
-    });
+    window.kalenderCategorieen.forEach(cat => { select.innerHTML += `<option value="${cat.id}">${cat.naam}</option>`; });
     select.onchange = updateDropdownKleur;
     updateDropdownKleur();
 }
@@ -147,17 +145,17 @@ window.voegCategorieToe = function() {
     if(!naam) return alert("Vul een naam in");
     let id = naam.toLowerCase().replace(/[^a-z0-9]/g, '');
     window.kalenderCategorieen.push({ id: id, naam: naam, kleur: kleur, isVakantie: id.includes('vakantie') || id.includes('vrij') });
-    localStorage.setItem('blackshots_categorieen', JSON.stringify(window.kalenderCategorieen));
+    slaCategorieenOp();
     document.getElementById('nieuwe-cat-naam').value = '';
     tekenCategorieLijst();
 };
 
-window.updateCatKleur = function(index, nieuweKleur) { window.kalenderCategorieen[index].kleur = nieuweKleur; localStorage.setItem('blackshots_categorieen', JSON.stringify(window.kalenderCategorieen)); };
-window.updateCatNaam = function(index, nieuweNaam) { window.kalenderCategorieen[index].naam = nieuweNaam; localStorage.setItem('blackshots_categorieen', JSON.stringify(window.kalenderCategorieen)); };
+window.updateCatKleur = function(index, nieuweKleur) { window.kalenderCategorieen[index].kleur = nieuweKleur; slaCategorieenOp(); };
+window.updateCatNaam = function(index, nieuweNaam) { window.kalenderCategorieen[index].naam = nieuweNaam; slaCategorieenOp(); };
 window.verwijderCategorie = function(index) { 
     if(!confirm("Zeker weten?")) return;
     window.kalenderCategorieen.splice(index, 1); 
-    localStorage.setItem('blackshots_categorieen', JSON.stringify(window.kalenderCategorieen)); 
+    slaCategorieenOp(); 
     tekenCategorieLijst(); 
 };
 
@@ -190,11 +188,7 @@ window.tekenKalender = function() {
     container.innerHTML = '';
     if (weergaveIsJaar) {
         for(let m = 0; m < 12; m++) container.innerHTML += genereerMaandHTML(huidigJaar, m, false);
-        // Scroll automatisch naar huidige maand als we de Jaarweergave inladen
-        setTimeout(() => {
-            let actueleMaandVak = document.getElementById(`maand-${new Date().getMonth()}`);
-            if(actueleMaandVak) actueleMaandVak.scrollIntoView({behavior: 'smooth', block: 'start'});
-        }, 100);
+        setTimeout(() => { let aVak = document.getElementById(`maand-${new Date().getMonth()}`); if(aVak) aVak.scrollIntoView({behavior: 'smooth', block: 'start'}); }, 100);
     } else {
         container.innerHTML = genereerMaandHTML(huidigJaar, huidigeMaand, true);
     }
@@ -224,7 +218,7 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
     let startVakje = eersteDag === 0 ? 6 : eersteDag - 1; 
     let aantalDagen = new Date(jaar, maand + 1, 0).getDate();
 
-    let navTitel = `${maandNamen[maand]} ${jaar}`; // Fix: altijd naam tonen, ook in jaarweergave!
+    let navTitel = `${maandNamen[maand]} ${jaar}`; 
     let navTekstVorig = weergaveIsJaar ? "◀ Vorig Jaar" : "◀ Vorige";
     let navTekstVolgend = weergaveIsJaar ? "Volgend Jaar ▶" : "Volgende ▶";
 
@@ -242,7 +236,6 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
             <div class="kalender-grid">
     `;
 
-    // MAGIC LOOP: Deze loop berekent de overlappende dagen van de vorige en volgende maand!
     let totaalVakjes = startVakje + aantalDagen;
     let restVakjes = (totaalVakjes % 7 === 0) ? 0 : 7 - (totaalVakjes % 7);
     let eindLoop = aantalDagen + restVakjes;
@@ -251,18 +244,14 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
     let vandaagStr = `${dNu.getFullYear()}-${String(dNu.getMonth()+1).padStart(2,'0')}-${String(dNu.getDate()).padStart(2,'0')}`;
 
     for (let dagOffset = 1 - startVakje; dagOffset <= eindLoop; dagOffset++) {
-        // Javascript Date regelt de overloop naar vorige/volgende maand automatisch!
         let echteDatum = new Date(jaar, maand, dagOffset);
-        let dJaar = echteDatum.getFullYear();
-        let dMaand = echteDatum.getMonth();
-        let dDag = echteDatum.getDate();
-        
+        let dJaar = echteDatum.getFullYear(); let dMaand = echteDatum.getMonth(); let dDag = echteDatum.getDate();
         let isoDatum = `${dJaar}-${String(dMaand+1).padStart(2, '0')}-${String(dDag).padStart(2, '0')}`;
         let isAndereMaand = (dMaand !== maand);
         
         let dagClasses = [];
         if (isoDatum === vandaagStr) dagClasses.push('vandaag');
-        if (isAndereMaand) dagClasses.push('andere-maand'); // Lichtgrijs
+        if (isAndereMaand) dagClasses.push('andere-maand'); 
         
         let handmatigeItems = window.jaarplanningData.filter(i => {
             let eind = i.eindDatum || i.isoDatum || "";
@@ -292,7 +281,17 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
             let dObj = new Date(isoDatum);
             let isStartOfSpan = (isoDatum === item.isoDatum || dObj.getDay() === 1 || item.isDynamisch);
             let weergaveTitel = item.titel || "Naamloos Item";
-            let weergaveTekst = isStartOfSpan ? weergaveTitel : '&nbsp;';
+            
+            // HIER STAAT DE TIJD & LOCATIE WEER STRIK OP 1 REGEL
+            let metaHtml = '';
+            if (isStartOfSpan && (item.tijd || item.locatie)) {
+                let metaArr = [];
+                if(item.tijd) metaArr.push(item.tijd);
+                if(item.locatie) metaArr.push(item.locatie);
+                metaHtml = ` <span style="font-weight:normal; font-size:0.85em; opacity:0.85;">(${metaArr.join(' | ')})</span>`;
+            }
+
+            let weergaveTekst = isStartOfSpan ? (weergaveTitel + metaHtml) : '&nbsp;';
             
             let clickAction = item.isDynamisch
                 ? `onclick="event.stopPropagation(); openDagModal('${isoDatum}', ${dDag}, ${dMaand}, ${dJaar}, null)"`
@@ -341,6 +340,13 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
 // ============================================================================
 let actieveModalDatum = null;
 let actieveEditId = null;
+
+// API Hook voor opslaan
+window.slaJaarplanningOp = function() {
+    localStorage.setItem('blackshots_jaarplanning_data', JSON.stringify(window.jaarplanningData));
+    // Als firebase_motor is gelinkt:
+    // if(typeof bewaarNaarFirebase === 'function') bewaarNaarFirebase('jaarplanning', window.jaarplanningData);
+}
 
 window.openDagModal = function(isoDatum, dag, maand, jaar, editId = null) {
     actieveModalDatum = isoDatum;
@@ -410,14 +416,14 @@ window.slaItemOp = function() {
             type: type, tijd: tijd, locatie: locatie, titel: titel, omschrijving: omschrijving 
         });
     }
-    localStorage.setItem('blackshots_jaarplanning_data', JSON.stringify(window.jaarplanningData));
+    window.slaJaarplanningOp();
     tekenKalender(); sluitDagModal();
 };
 
 window.verwijderItem = function(id) {
     if(!confirm("Weet je zeker dat je dit item wilt verwijderen?")) return;
     window.jaarplanningData = window.jaarplanningData.filter(i => i.id !== id);
-    localStorage.setItem('blackshots_jaarplanning_data', JSON.stringify(window.jaarplanningData));
+    window.slaJaarplanningOp();
     
     if(actieveEditId === id) {
         actieveEditId = null;
@@ -476,6 +482,11 @@ function verversModalLijst() {
     lijst.innerHTML = html;
 }
 
-window.downloadSjabloon = function() { /* Ongewijzigd */ };
-window.verwerkPlanningBestand = function(e) { /* Ongewijzigd */ };
-window.wisJaarplanning = function() { /* Ongewijzigd */ };
+window.downloadSjabloon = function() { /* ... */ };
+window.verwerkPlanningBestand = function(e) { /* ... */ };
+window.wisJaarplanning = function() {
+    if(confirm("Weet je zeker dat je de hele jaarplanning leeg wilt gooien?")) {
+        localStorage.removeItem('blackshots_jaarplanning_data');
+        location.reload();
+    }
+};
