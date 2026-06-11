@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Black Shots - Master Jaarplanning</title>
-    <link rel="stylesheet" href="basketbal.css?v=17">
+    <link rel="stylesheet" href="basketbal.css?v=18">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style id="dynamic-category-styles"></style>
 </head>
@@ -63,6 +63,17 @@
                 </div>
             </div>
 
+            <div style="display:flex; gap:15px; margin-bottom:15px;">
+                <div style="flex:1;">
+                    <label style="font-weight:bold; font-size:0.9rem; color:#7f8c8d; display:block; margin-bottom:5px;">Tijd (Optioneel):</label>
+                    <input type="text" id="item-tijd" placeholder="Bijv: 19:30 - 21:00" style="width:100%; padding:10px; border-radius:4px; border:1px solid #bdc3c7;">
+                </div>
+                <div style="flex:1;">
+                    <label style="font-weight:bold; font-size:0.9rem; color:#7f8c8d; display:block; margin-bottom:5px;">Locatie (Optioneel):</label>
+                    <input type="text" id="item-locatie" placeholder="Bijv: Sporthal VEKA" style="width:100%; padding:10px; border-radius:4px; border:1px solid #bdc3c7;">
+                </div>
+            </div>
+
             <div style="margin-bottom:15px;">
                 <label style="font-weight:bold; font-size:0.9rem; color:#7f8c8d; display:block; margin-bottom:5px;">Korte Titel (Zichtbaar in het blokje):</label>
                 <input type="text" id="item-titel" placeholder="Bijv: Heren 1 of ALV" style="width:100%; padding:10px; border-radius:4px; border:1px solid #bdc3c7; font-weight:bold;">
@@ -70,7 +81,7 @@
 
             <div style="margin-bottom:20px;">
                 <label style="font-weight:bold; font-size:0.9rem; color:#7f8c8d; display:block; margin-bottom:5px;">Volledige Details (Optioneel):</label>
-                <textarea id="item-omschrijving" placeholder="Typ hier alle details, tijden, notities of bijzonderheden in..." style="width:100%; padding:10px; border-radius:4px; border:1px solid #bdc3c7; height:80px; resize:vertical;"></textarea>
+                <textarea id="item-omschrijving" placeholder="Typ hier alle overige details, notities of bijzonderheden in..." style="width:100%; padding:10px; border-radius:4px; border:1px solid #bdc3c7; height:80px; resize:vertical;"></textarea>
             </div>
 
             <div style="display:flex; gap:10px;">
@@ -105,6 +116,6 @@
     <script src="basketbal_auth.js"></script>
     <script src="basketbal_data.js"></script>
     <script type="module" src="firebase_motor.js"></script>
-    <script src="basketbal_jaarplanning.js?v=19"></script>
+    <script src="basketbal_jaarplanning.js?v=20"></script>
 </body>
 </html>

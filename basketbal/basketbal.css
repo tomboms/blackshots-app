@@ -670,3 +670,14 @@ body.dark-mode .label-vakantie { background: rgba(26, 188, 156, 0.1); }
 .modal-content {
     position: relative; /* Zorgt dat het kruisje perfect rechtsboven blijft */
 }
+
+/* Tijd & Locatie labels in de kalender blokjes */
+.k-meta {
+    opacity: 0.85;
+    margin-right: 6px;
+    padding-right: 6px;
+    border-right: 1px solid rgba(255,255,255,0.4);
+    font-weight: normal;
+    font-size: 0.7rem;
+    white-space: nowrap;
+}

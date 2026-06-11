@@ -1,4 +1,4 @@
-// --- BASKETBAL_JAARPLANNING.JS: ESCAPE-KEY, LIVE DROPDOWN KLEUREN & NBB HUB ---
+// --- BASKETBAL_JAARPLANNING.JS: TIJD & LOCATIE TOEGEVOEGD ---
 
 window.jaarplanningData = JSON.parse(localStorage.getItem('blackshots_jaarplanning_data')) || [];
 window.zaalhuurData = JSON.parse(localStorage.getItem('blackshots_zaalhuur_data')) || [];
@@ -11,6 +11,7 @@ window.jaarplanningData = window.jaarplanningData.map(item => {
     return item;
 });
 
+// De "Fabrieksinstellingen" (Worden overschreven door LocalStorage/Firebase)
 const standaardCategorieen = [
     { id: 'thuis', naam: 'Thuis Wedstrijd', kleur: '#27ae60', isVakantie: false },
     { id: 'uit', naam: 'Uit Wedstrijd', kleur: '#e74c3c', isVakantie: false },
@@ -35,9 +36,6 @@ document.addEventListener('DOMContentLoaded', () => {
     tekenKalender();
 });
 
-// ============================================================================
-// ESCAPE TOETS LUISTERAAR (Sluit pop-ups)
-// ============================================================================
 document.addEventListener('keydown', function(event) {
     if (event.key === "Escape") {
         let dagModal = document.getElementById('dag-modal');
@@ -48,7 +46,7 @@ document.addEventListener('keydown', function(event) {
 });
 
 // ============================================================================
-// DYNAMISCHE KLEUREN & INSTELLINGEN
+// DYNAMISCHE KLEUREN
 // ============================================================================
 function laadDynamischeKleuren() {
     let styleTag = document.getElementById('dynamic-category-styles');
@@ -62,7 +60,6 @@ function laadDynamischeKleuren() {
     styleTag.innerHTML = cssText;
 }
 
-// Zorgt dat de geselecteerde optie in het menu de juiste kleur krijgt
 function updateDropdownKleur() {
     let select = document.getElementById('item-type');
     if(!select) return;
@@ -80,11 +77,10 @@ function vulDropdown() {
     select.innerHTML = '';
     window.kalenderCategorieen.forEach(cat => {
         let tKleur = cat.tekstKleur || '#ffffff';
-        // Elke optie krijgt nu zijn eigen achtergrondkleur!
         select.innerHTML += `<option value="${cat.id}" style="background-color:${cat.kleur}; color:${tKleur}; font-weight:bold;">${cat.naam}</option>`;
     });
     select.onchange = updateDropdownKleur;
-    updateDropdownKleur(); // Kleur direct toepassen bij inladen
+    updateDropdownKleur();
 }
 
 window.openCategorieInstellingen = function() {
@@ -141,7 +137,7 @@ window.verwijderCategorie = function(index) {
 };
 
 // ============================================================================
-// DYNAMISCHE HUB (Data uit NBB module overpakken)
+// DYNAMISCHE HUB (NBB)
 // ============================================================================
 function stripTeamNaam(langeNaam) { return langeNaam ? langeNaam.replace(/Black Shots/ig, '').trim() : "?"; }
 
@@ -246,8 +242,17 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
             let dObj = new Date(isoDatum);
             let isStartOfSpan = (isoDatum === item.isoDatum || dObj.getDay() === 1 || item.isDynamisch);
             let weergaveTitel = item.titel || "Naamloos Item";
-            let weergaveTekst = isStartOfSpan ? weergaveTitel : '&nbsp;';
             
+            // Nieuw: Meta (Tijd / Locatie) check
+            let metaHtml = '';
+            if (isStartOfSpan && (item.tijd || item.locatie)) {
+                let metaArr = [];
+                if(item.tijd) metaArr.push(item.tijd);
+                if(item.locatie) metaArr.push(item.locatie);
+                metaHtml = `<span class="k-meta">${metaArr.join(', ')}</span>`;
+            }
+
+            let weergaveTekst = isStartOfSpan ? weergaveTitel : '&nbsp;';
             let clickAction = item.isDynamisch
                 ? `onclick="event.stopPropagation(); openDagModal('${isoDatum}', ${dag}, ${maand}, ${jaar}, null)"`
                 : `onclick="event.stopPropagation(); openDagModal('${isoDatum}', ${dag}, ${maand}, ${jaar}, '${item.id}')"`;
@@ -260,8 +265,11 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
             }
 
             itemsHtml += `
-                <div class="k-item ${badgeClass} ${extraClass}" title="Klik om te bekijken of te bewerken" ${clickAction} style="cursor:pointer;">
-                    <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:85%; display:inline-block;">${weergaveTekst}</span>
+                <div class="k-item ${badgeClass} ${extraClass}" title="Klik om te bekijken of te bewerken" ${clickAction} style="cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
+                    <div style="display:flex; align-items:center; overflow:hidden; white-space:nowrap; max-width:85%;">
+                        ${metaHtml}
+                        <span style="overflow:hidden; text-overflow:ellipsis;">${weergaveTekst}</span>
+                    </div>
                     ${deleteKnop}
                 </div>
             `;
@@ -293,7 +301,7 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
 }
 
 // ============================================================================
-// INTERACTIEF DAG-BEHEER (Met Lezen/Bewerken Modus!)
+// INTERACTIEF DAG-BEHEER (Met Tijd & Locatie)
 // ============================================================================
 let actieveModalDatum = null;
 let actieveEditId = null;
@@ -311,6 +319,8 @@ window.openDagModal = function(isoDatum, dag, maand, jaar, editId = null) {
     } else {
         let select = document.getElementById('item-type');
         if(select && select.options.length > 0) select.selectedIndex = 0;
+        document.getElementById('item-tijd').value = '';
+        document.getElementById('item-locatie').value = '';
         document.getElementById('item-titel').value = '';
         document.getElementById('item-omschrijving').value = '';
         if(eindVeld) eindVeld.value = '';
@@ -330,11 +340,10 @@ window.bewerkItem = function(id) {
     
     actieveEditId = id;
     let typeSelect = document.getElementById('item-type');
-    if(typeSelect) {
-        typeSelect.value = item.type || 'memo';
-        updateDropdownKleur();
-    }
+    if(typeSelect) { typeSelect.value = item.type || 'memo'; updateDropdownKleur(); }
     
+    document.getElementById('item-tijd').value = item.tijd || '';
+    document.getElementById('item-locatie').value = item.locatie || '';
     document.getElementById('item-titel').value = item.titel || '';
     document.getElementById('item-omschrijving').value = item.omschrijving || '';
     document.getElementById('item-einddatum').value = (item.eindDatum && item.eindDatum !== item.isoDatum) ? item.eindDatum : '';
@@ -347,6 +356,8 @@ window.sluitDagModal = function() {
 
 window.slaItemOp = function() {
     let type = document.getElementById('item-type').value;
+    let tijd = document.getElementById('item-tijd').value.trim();
+    let locatie = document.getElementById('item-locatie').value.trim();
     let titel = document.getElementById('item-titel').value.trim();
     let omschrijving = document.getElementById('item-omschrijving').value.trim();
     let eindEl = document.getElementById('item-einddatum');
@@ -359,20 +370,14 @@ window.slaItemOp = function() {
     if(actieveEditId) {
         let item = window.jaarplanningData.find(i => i.id === actieveEditId);
         if(item) {
-            item.type = type;
-            item.titel = titel;
-            item.omschrijving = omschrijving;
-            item.eindDatum = eindDatum;
+            item.type = type; item.tijd = tijd; item.locatie = locatie; item.titel = titel; item.omschrijving = omschrijving; item.eindDatum = eindDatum;
         }
         actieveEditId = null;
     } else {
         window.jaarplanningData.push({
             id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
-            isoDatum: actieveModalDatum,
-            eindDatum: eindDatum,
-            type: type,
-            titel: titel,
-            omschrijving: omschrijving 
+            isoDatum: actieveModalDatum, eindDatum: eindDatum,
+            type: type, tijd: tijd, locatie: locatie, titel: titel, omschrijving: omschrijving 
         });
     }
 
@@ -388,6 +393,8 @@ window.verwijderItem = function(id) {
     
     if(actieveEditId === id) {
         actieveEditId = null;
+        document.getElementById('item-tijd').value = '';
+        document.getElementById('item-locatie').value = '';
         document.getElementById('item-titel').value = '';
         document.getElementById('item-omschrijving').value = '';
         document.getElementById('btn-opslaan').innerText = '💾 Opslaan';
@@ -430,6 +437,11 @@ function verversModalLijst() {
         `;
 
         let weergaveTitel = item.titel || "Activiteit";
+        
+        let metaTekst = [];
+        if(item.tijd) metaTekst.push(`⏰ ${item.tijd}`);
+        if(item.locatie) metaTekst.push(`📍 ${item.locatie}`);
+        let metaInfo = metaTekst.length > 0 ? `<div style="font-size:0.8rem; color:#7f8c8d; margin-bottom:5px;">${metaTekst.join(' | ')}</div>` : '';
 
         html += `
             <div style="background:#f8f9fa; padding:12px; border:1px solid #eee; border-radius:6px; margin-bottom:10px; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
@@ -440,6 +452,7 @@ function verversModalLijst() {
                     </div>
                     <div>${actieKnoppen}</div>
                 </div>
+                ${metaInfo}
                 ${item.omschrijving ? `<div style="color:#34495e; font-size:0.95rem; white-space:pre-wrap; border-left:3px solid #bdc3c7; padding-left:10px; margin-top:10px;">${item.omschrijving}</div>` : ''}
             </div>
         `;
@@ -447,11 +460,13 @@ function verversModalLijst() {
     lijst.innerHTML = html;
 }
 
+// Bulk Upload Code (Lijst Sjabloon)
 window.downloadSjabloon = function() {
     const wb = XLSX.utils.book_new();
     const sjabloonData = [
-        ["Datum (DD-MM-YYYY)", "Omschrijving", "Type (Memo, Financieel, Thuis, Uit, Vakantie, Training, Vergadering)", "Einddatum (Optioneel)"],
-        ["20-12-2026", "Kerstvakantie", "Vakantie", "04-01-2027"]
+        ["Datum (DD-MM-YYYY)", "Titel", "Omschrijving", "Type (bijv. Memo, Thuis, Vakantie)", "Tijd", "Locatie", "Einddatum (Optioneel)"],
+        ["20-12-2026", "Kerstvakantie", "Zalen gesloten", "Vakantie", "", "", "04-01-2027"],
+        ["10-09-2026", "ALV Bestuur", "Notulen via mail", "Vergadering", "20:00", "De Veste", ""]
     ];
     const ws = XLSX.utils.aoa_to_sheet(sjabloonData);
     XLSX.utils.book_append_sheet(wb, ws, "Bulk_Import");
@@ -468,12 +483,19 @@ window.verwerkPlanningBestand = function(e) {
         let teller = 0;
         ruweData.forEach(row => {
             let keys = Object.keys(row);
-            let datumKey = keys.find(k => k.toLowerCase().includes('datum'));
+            let datumKey = keys.find(k => k.toLowerCase().includes('datum') && !k.toLowerCase().includes('eind'));
+            let titelKey = keys.find(k => k.toLowerCase().includes('titel'));
             let omsKey = keys.find(k => k.toLowerCase().includes('omschrijving'));
             let typeKey = keys.find(k => k.toLowerCase().includes('type'));
+            let tijdKey = keys.find(k => k.toLowerCase().includes('tijd') && !k.toLowerCase().includes('datum'));
+            let locKey = keys.find(k => k.toLowerCase().includes('locatie'));
             let eindKey = keys.find(k => k.toLowerCase().includes('eind'));
             
-            if (datumKey && omsKey && row[datumKey] && row[omsKey]) {
+            // Compatibiliteit met oude sjabloon ("Omschrijving" was eerst "Titel")
+            let actTitel = (titelKey && row[titelKey]) ? row[titelKey].toString().trim() : (omsKey ? row[omsKey].toString().trim() : "Naamloos");
+            let actOms = (omsKey && titelKey) ? row[omsKey].toString().trim() : "";
+
+            if (datumKey && row[datumKey]) {
                 let isoDatum = row[datumKey].toString().match(/(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})/) ? row[datumKey].toString().replace(/(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})/, (m,d,mo,y)=>`${y.length===2?'20'+y:y}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`) : "";
                 if(!isoDatum) return;
                 let isoEind = eindKey && row[eindKey] ? row[eindKey].toString().replace(/(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})/, (m,d,mo,y)=>`${y.length===2?'20'+y:y}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`) : isoDatum;
@@ -482,7 +504,9 @@ window.verwerkPlanningBestand = function(e) {
                     id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
                     isoDatum: isoDatum, eindDatum: isoEind,
                     type: (typeKey && row[typeKey]) ? row[typeKey].toString().trim() : "memo",
-                    titel: row[omsKey].toString().trim()
+                    titel: actTitel, omschrijving: actOms,
+                    tijd: (tijdKey && row[tijdKey]) ? row[tijdKey].toString().trim() : "",
+                    locatie: (locKey && row[locKey]) ? row[locKey].toString().trim() : ""
                 });
                 teller++;
             }
