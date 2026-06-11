@@ -5,32 +5,53 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Black Shots - Dashboard</title>
     <link rel="stylesheet" href="basketbal.css">
+    <style id="dynamic-category-styles"></style>
 </head>
 <body style="overflow-y: auto;">
 
-    <div id="cloud-status-indicator" style="position: fixed; bottom: 20px; right: 20px; background: #27ae60; color: white; padding: 10px 20px; border-radius: 30px; font-weight: bold; font-size: 0.9rem; box-shadow: 0 4px 10px rgba(0,0,0,0.2); z-index: 99999; transition: 0.3s;">
+    <div id="cloud-status-indicator" style="position: fixed; bottom: 20px; right: 20px; background: #27ae60; color: white; padding: 10px 20px; border-radius: 30px; font-weight: bold; font-size: 0.9rem; box-shadow: 0 4px 10px rgba(0,0,0,0.2); z-index: 99999; transition: 0.3s; opacity: 0; pointer-events: none;">
         ☁️ Cloud Actief
     </div>
 
     <nav class="top-nav">
         <h1>🏀 Black Shots Clubbeheer</h1>
-        <a href="../index.html" class="terug-knop">🏠 Terug naar Portaal</a>
+        <div style="display:flex; align-items:center; gap:15px;">
+            <button id="dark-mode-toggle" onclick="window.toggleDarkMode()" style="background:transparent; border:none; font-size:1.4rem; cursor:pointer; padding:5px; line-height:1;" title="Schakel Dark Mode">🌙</button>
+            <a href="../index.html" class="terug-knop">🏠 Terug naar Portaal</a>
+        </div>
     </nav>
 
-    
-
     <main class="content-sectie active">
-        <h2>Welkom, Coach Tom!</h2>
+        <h2 style="margin-bottom: 25px;">Club Dashboard</h2>
+        
         <div class="dashboard-grid">
-            <div class="card" style="border-top-color: #3498db;">
-                <h3 style="margin-top:0;">Actuele Teams</h3>
-                <ul id="dash-teams-lijst" style="padding-left:20px; margin-bottom:0; color:#34495e;"></ul>
+            
+            <div class="card" style="border-top-color: #2ecc71;">
+                <h3 style="margin-top:0; color: var(--text-color);">👥 Club Grootte</h3>
+                <p id="dash-leden-count" class="stat-waarde" style="color: #2ecc71;">0</p>
+                <p class="stat-sub">Totaal aantal actieve leden</p>
             </div>
+
             <div class="card" style="border-top-color: #e67e22;">
-                <h3 style="margin-top:0;">Oefeningen Database</h3>
-                <p id="dash-oef-count" style="font-size: 2rem; font-weight: bold; margin: 10px 0; color: #e67e22;">0</p>
-                <p style="color:#7f8c8d; margin:0;">Beschikbare oefeningen</p>
+                <h3 style="margin-top:0; color: var(--text-color);">🏀 Oefeningen</h3>
+                <p id="dash-oef-count" class="stat-waarde" style="color: #e67e22;">0</p>
+                <p class="stat-sub">Beschikbaar in trainingsbibliotheek</p>
             </div>
+
+            <div class="card" style="border-top-color: #3498db; grid-row: span 2;">
+                <h3 style="margin-top:0; color: var(--text-color);">📋 Actieve Teams</h3>
+                <ul id="dash-teams-lijst" style="padding-left:20px; margin:15px 0 0 0; line-height: 1.8; font-weight: 500;">
+                    <li style="color: var(--text-muted); font-style: italic; list-style: none; margin-left: -20px;">Teams worden geladen...</li>
+                </ul>
+            </div>
+
+            <div class="card" style="border-top-color: #9b59b6; grid-row: span 2; display: flex; flex-direction: column;">
+                <h3 style="margin-top:0; color: var(--text-color);">📅 Jaarplanning Deze Week</h3>
+                <div id="dash-jaarplanning-week" style="margin-top: 15px; flex: 1; overflow-y: auto; max-height: 350px;">
+                    <p style="color: var(--text-muted); font-style: italic; margin: 0;">Geen activiteiten gepland voor deze week.</p>
+                </div>
+            </div>
+
         </div>
     </main>
 
