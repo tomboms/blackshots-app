@@ -38,24 +38,26 @@
     </main>
 
     <div id="dag-detail-modal" class="modal-overlay">
-        <div class="modal-content" style="max-width:900px; padding:20px;">
+        <div class="modal-content" style="max-width:900px; padding:30px;">
             <button class="modal-close-btn" onclick="window.sluitDagDetail()">&times;</button>
             <h2 id="modal-titel" style="margin-top:0; color:var(--secondary-color); border-bottom:1px solid var(--border-color); padding-bottom:10px;">Team Training</h2>
             
-            <div style="display:flex; gap:20px; flex-wrap:wrap;">
+            <div style="display:flex; gap:30px; flex-wrap:wrap; margin-top:20px;">
                 <div style="flex:1; min-width:300px;">
-                    <h3 style="color:var(--primary-color);">Tijdlijn</h3>
-                    <div id="tijdlijn-container" style="background:var(--card-alt-bg); border:1px solid var(--border-color); border-radius:6px; min-height:250px; padding:10px; display:flex; flex-direction:column; gap:10px;"></div>
-                    <button class="primary-btn" onclick="window.opslaanDagDetail()" style="width:100%; margin-top:15px; font-size:1.1rem;">💾 Opslaan & Sluiten</button>
+                    <h3 style="color:var(--primary-color); margin-top:0;">Tijdlijn</h3>
+                    <div id="tijdlijn-container" style="background:var(--card-alt-bg); border:1px solid var(--border-color); border-radius:6px; min-height:350px; padding:15px; display:flex; flex-direction:column; gap:10px;"></div>
+                    <button class="primary-btn" onclick="window.opslaanDagDetail()" style="width:100%; margin-top:15px; font-size:1.1rem; padding:15px;">💾 Opslaan & Sluiten</button>
                 </div>
 
-                <div style="flex:1; min-width:300px; border-left:2px solid var(--border-color); padding-left:20px;">
-                    <h3 style="color:#e67e22;">Voeg Oefening Toe</h3>
-                    <select id="filter-categorie" onchange="window.tekenOefeningenKiezer()" style="width:100%; padding:8px; margin-bottom:10px; border-radius:4px; border:1px solid var(--input-border);">
-                        <option value="all">-- Alle Categorieën --</option>
-                    </select>
-                    <input type="text" id="zoek-oefening" onkeyup="window.tekenOefeningenKiezer()" placeholder="Zoek op naam..." style="width:100%; padding:8px; margin-bottom:15px; border-radius:4px; border:1px solid var(--input-border);">
-                    <div id="oefeningen-kiezer" style="max-height:300px; overflow-y:auto; padding-right:5px;"></div>
+                <div style="flex:1; min-width:300px; border-left:2px solid var(--border-color); padding-left:30px;">
+                    <h3 style="color:#e67e22; margin-top:0;">Voeg Oefening Toe</h3>
+                    <div style="background:var(--hover-bg); padding:15px; border-radius:6px; margin-bottom:15px;">
+                        <select id="filter-categorie" onchange="window.tekenOefeningenKiezer()" style="width:100%; padding:10px; margin-bottom:10px; border-radius:4px; border:1px solid var(--input-border);">
+                            <option value="all">-- Alle Categorieën --</option>
+                        </select>
+                        <input type="text" id="zoek-oefening" onkeyup="window.tekenOefeningenKiezer()" placeholder="🔍 Zoek op naam..." style="width:100%; padding:10px; border-radius:4px; border:1px solid var(--input-border); margin:0;">
+                    </div>
+                    <div id="oefeningen-kiezer" style="max-height:400px; overflow-y:auto; padding-right:10px;"></div>
                 </div>
             </div>
         </div>
@@ -66,8 +68,6 @@
             <button class="modal-close-btn" onclick="document.getElementById('bulk-modal').style.display='none'">&times;</button>
             <h2 style="color:#e74c3c; margin-top:0;">🛑 Annuleer Periode</h2>
             <p style="font-size:0.9rem; color:var(--text-muted);">Verwijder alle trainingen in deze periode.</p>
-            <label style="text-align:left; font-weight:bold; display:block; margin-top:10px;">Reden:</label>
-            <input type="text" id="bulk-reden" placeholder="Zomervakantie, Feestdag..." style="width:100%; padding:10px;">
             <div style="display:flex; gap:10px; margin-bottom:15px;">
                 <div style="flex:1;">
                     <label style="font-weight:bold; font-size:0.85rem;">Vanaf (datum):</label>
