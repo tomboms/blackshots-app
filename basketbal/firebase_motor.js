@@ -1,10 +1,10 @@
-// --- FIREBASE_MOTOR.JS: VERBORGEN WOLK & VERSIE CONTROLE ---
+// --- FIREBASE_MOTOR.JS: LIVE SYNC & VERSIE CONTROLE ---
 
 // 👇 VERANDER DIT NUMMER BIJ ELKE GITHUB PUSH 👇
-const APP_VERSIE = "3.523";
+const APP_VERSIE = "3.5214";
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
-import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
+import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyAZXtE9MSgveV8kYlh68rpMZvKh5_oLhBc",
@@ -65,6 +65,9 @@ window.addEventListener('offline', () => updateStatus('offline'));
 window.addEventListener('online', () => updateStatus('verborgen'));
 setTimeout(() => updateStatus('verborgen'), 100);
 
+// ============================================================================
+// OPSLAAN NAAR FIREBASE
+// ============================================================================
 window.autoUpload = async function(key, value) {
     if (!navigator.onLine || window.isDownloading) return;
     try {
@@ -74,10 +77,13 @@ window.autoUpload = async function(key, value) {
     } catch(e) { console.error("Upload fout:", e); }
 };
 
-window.forceerCloudCheck = async function() {
-    if (!navigator.onLine || window.isDownloading) return;
+// ============================================================================
+// LIVE LUISTEREN NAAR FIREBASE (VERVANGT DE OUDE GETDOC)
+// ============================================================================
+window.startLiveSync = function() {
+    if (!navigator.onLine) return;
     
-    // HIER STAAN NU OOK DE POULE- EN NBB-SLEUTELS IN!
+    // Al jouw app-onderdelen (inclusief gebruikers!)
     const onderdelen = [
         'blackshots_teams', 'blackshots_spelers', 'blackshots_oefeningen', 
         'blackshots_toernooi', 'blackshots_trainingen', 'blackshots_gebruikers', 
@@ -85,17 +91,22 @@ window.forceerCloudCheck = async function() {
         'blackshots_zaalhuur_data', 'blackshots_jaarplanning_categorieen',
         'blackshots_poule_teams', 'blackshots_wedstrijden_json'
     ];
-    
-    window.isDownloading = true;
-    let heeftNieuweData = false;
 
-    for (let key of onderdelen) {
-        try {
-            const docSnap = await getDoc(doc(db, "blackshots", key));
+    onderdelen.forEach(key => {
+        // onSnapshot is de magische live-luisteraar. Triggert bij laden én bij elke cloud-wijziging!
+        onSnapshot(doc(db, "blackshots", key), (docSnap) => {
             if (docSnap.exists()) {
                 let cloudData = JSON.stringify(docSnap.data().data);
+                
+                // Alleen updaten als de cloud écht verschilt van wat er op het scherm staat
                 if (localStorage.getItem(key) !== cloudData) {
+                    
+                    // 1. Blokkeer tijdelijk de upload, anders ontstaat er een oneindige loop!
+                    window.isDownloading = true; 
                     localStorage.setItem(key, cloudData);
+                    window.isDownloading = false;
+                    
+                    // 2. Data is veilig lokaal opgeslagen, nu uitpakken
                     let parsedData = JSON.parse(cloudData);
                     
                     if (key === 'blackshots_teams') window.teamsDB = parsedData;
@@ -104,43 +115,44 @@ window.forceerCloudCheck = async function() {
                     if (key === 'blackshots_oefeningen') window.oefeningenDB = parsedData;
                     if (key === 'blackshots_toernooi') window.toernooiDB = parsedData;
                     
+                    // Stuur door naar de juiste modules als die toevallig open staan op het scherm
                     if (key === 'blackshots_jaarplanning_data' || key === 'blackshots_jaarplanning_categorieen') {
                         if (typeof window.ontvangCloudData === 'function') window.ontvangCloudData(key, parsedData);
                     }
                     if (key === 'blackshots_zaalhuur_data') {
                         if (typeof window.ontvangCloudDataZaalhuur === 'function') window.ontvangCloudDataZaalhuur(key, parsedData);
                     }
-                    // LUISTERAAR VOOR DE POULE INDELING:
                     if (key === 'blackshots_poule_teams' || key === 'blackshots_wedstrijden_json') {
                         if (typeof window.ontvangCloudDataPoule === 'function') window.ontvangCloudDataPoule(key, parsedData);
                     }
                     
-                    heeftNieuweData = true; 
+                    updateStatus('bijgewerkt');
+                    
+                    // Schermen hertekenen
+                    if(typeof window.laadDashboardData === 'function') window.laadDashboardData();
+                    if(typeof window.renderTeamBeheer === 'function') window.renderTeamBeheer();
+                    if(typeof window.renderSpelers === 'function') window.renderSpelers();
+                    if(typeof window.renderWeekAgenda === 'function') window.renderWeekAgenda();
+                    if(typeof window.renderGebruikers === 'function') window.renderGebruikers();
+                    if(typeof window.tekenKalender === 'function') window.tekenKalender();
+                    if(typeof window.tekenZaalhuurResultaten === 'function') window.tekenZaalhuurResultaten();
+                    if(typeof window.tekenPouleResultaten === 'function') window.tekenPouleResultaten();
                 }
             }
-        } catch(e) { console.error("Sync fout:", e); }
-    }
-    
-    window.isDownloading = false;
-    
-    if (heeftNieuweData) {
-        updateStatus('bijgewerkt');
-        if(typeof window.laadDashboardData === 'function') window.laadDashboardData();
-        if(typeof window.renderTeamBeheer === 'function') window.renderTeamBeheer();
-        if(typeof window.renderSpelers === 'function') window.renderSpelers();
-        if(typeof window.renderWeekAgenda === 'function') window.renderWeekAgenda();
-        if(typeof window.renderGebruikers === 'function') window.renderGebruikers();
-        if(typeof window.tekenKalender === 'function') window.tekenKalender();
-        if(typeof window.tekenZaalhuurResultaten === 'function') window.tekenZaalhuurResultaten();
-        if(typeof window.tekenPouleResultaten === 'function') window.tekenPouleResultaten();
-    }
+        });
+    });
 };
 
+// ============================================================================
+// ONDERSCHEP ALLE LOKALE OPSLAG ACTIES
+// ============================================================================
 const origineleSetItem = localStorage.setItem;
 localStorage.setItem = function(key, value) {
     origineleSetItem.apply(this, arguments);
+    // Als we zelf data opslaan (en niet aan het downloaden zijn), stuur het naar de cloud!
     if (window.isDownloading || !key.startsWith('blackshots_')) return;
     window.autoUpload(key, JSON.parse(value));
 };
 
-setTimeout(window.forceerCloudCheck, 1000);
+// Start de live verbinding 1 seconde na het inladen van de pagina
+setTimeout(window.startLiveSync, 1000);
