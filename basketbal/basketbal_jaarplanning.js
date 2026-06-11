@@ -1,15 +1,17 @@
-// --- BASKETBAL_JAARPLANNING.JS: DE DYNAMISCHE HUB (LEEST MEE MET ANDERE MODULES) ---
+// --- BASKETBAL_JAARPLANNING.JS: DE KOGELVRIJE HUB (LEEST NBB JSON & FIXT OUDE DATA) ---
 
-// 1. Haal de eigen handmatige data op
 window.jaarplanningData = JSON.parse(localStorage.getItem('blackshots_jaarplanning_data')) || [];
-
-// 2. Haal de data van ANDERE modules op (De "Lees-mee" functie)
 window.zaalhuurData = JSON.parse(localStorage.getItem('blackshots_zaalhuur_data')) || [];
 window.nbbWedstrijden = JSON.parse(localStorage.getItem('blackshots_wedstrijden_json')) || [];
-window.bestuurAgenda = JSON.parse(localStorage.getItem('blackshots_bestuur_agenda')) || []; // Voor in de toekomst
-window.interneCompetitie = JSON.parse(localStorage.getItem('blackshots_interne_competitie')) || []; // Voor in de toekomst
 
-// Standaard Black Shots Categorieën
+// Zorg dat oude items ("tekst") automatisch geüpgraded worden naar "titel"
+window.jaarplanningData = window.jaarplanningData.map(item => {
+    if(!item.titel && item.tekst) item.titel = item.tekst;
+    if(!item.titel) item.titel = "Naamloos Item";
+    if(!item.type) item.type = "memo";
+    return item;
+});
+
 const standaardCategorieen = [
     { id: 'thuis', naam: 'Thuis Wedstrijd', kleur: '#27ae60', isVakantie: false },
     { id: 'uit', naam: 'Uit Wedstrijd', kleur: '#e74c3c', isVakantie: false },
@@ -34,6 +36,9 @@ document.addEventListener('DOMContentLoaded', () => {
     tekenKalender();
 });
 
+// ============================================================================
+// DYNAMISCHE KLEUREN & INSTELLINGEN
+// ============================================================================
 function laadDynamischeKleuren() {
     let styleTag = document.getElementById('dynamic-category-styles');
     let cssText = '';
@@ -55,11 +60,57 @@ function vulDropdown() {
     });
 }
 
-// ============================================================================
-// DYNAMISCHE DATA GENERATORS (Zet andere modules om naar kalender-items)
-// ============================================================================
+window.openCategorieInstellingen = function() {
+    tekenCategorieLijst();
+    document.getElementById('categorie-modal').style.display = 'flex';
+};
 
-// Haalt teams uit de lange NBB naam (bijv. "Black Shots MSE 1" -> "MSE 1")
+window.sluitCategorieInstellingen = function() {
+    document.getElementById('categorie-modal').style.display = 'none';
+    laadDynamischeKleuren();
+    vulDropdown();
+    tekenKalender();
+};
+
+function tekenCategorieLijst() {
+    let lijst = document.getElementById('categorie-lijst');
+    lijst.innerHTML = '';
+    window.kalenderCategorieen.forEach((cat, index) => {
+        let isStandaard = standaardCategorieen.some(s => s.id === cat.id);
+        lijst.innerHTML += `
+            <div style="display:flex; align-items:center; justify-content:space-between; padding:10px; border-bottom:1px solid #eee;">
+                <div style="display:flex; align-items:center; gap:10px; flex:1;">
+                    <input type="color" value="${cat.kleur}" onchange="updateCatKleur(${index}, this.value)" style="width:30px; height:30px; border:none; cursor:pointer;">
+                    <input type="text" value="${cat.naam}" onchange="updateCatNaam(${index}, this.value)" style="padding:5px; border:1px solid #cbd5e1; border-radius:4px; flex:1;" ${isStandaard ? 'disabled title="Standaard categorie"' : ''}>
+                </div>
+                ${!isStandaard ? `<button onclick="verwijderCategorie(${index})" style="background:transparent; border:none; color:#e74c3c; cursor:pointer; font-size:1.2rem; margin-left:10px;">🗑️</button>` : '<span style="width:30px;"></span>'}
+            </div>
+        `;
+    });
+}
+
+window.voegCategorieToe = function() {
+    let naam = document.getElementById('nieuwe-cat-naam').value.trim();
+    let kleur = document.getElementById('nieuwe-cat-kleur').value;
+    if(!naam) return alert("Vul een naam in");
+    
+    let id = naam.toLowerCase().replace(/[^a-z0-9]/g, '');
+    let isVakantie = id.includes('vakantie') || id.includes('vrij');
+
+    window.kalenderCategorieen.push({ id: id, naam: naam, kleur: kleur, isVakantie: isVakantie });
+    localStorage.setItem('blackshots_categorieen', JSON.stringify(window.kalenderCategorieen));
+    document.getElementById('nieuwe-cat-naam').value = '';
+    tekenCategorieLijst();
+};
+
+window.updateCatKleur = function(index, nieuweKleur) { window.kalenderCategorieen[index].kleur = nieuweKleur; localStorage.setItem('blackshots_categorieen', JSON.stringify(window.kalenderCategorieen)); };
+window.updateCatNaam = function(index, nieuweNaam) { window.kalenderCategorieen[index].naam = nieuweNaam; localStorage.setItem('blackshots_categorieen', JSON.stringify(window.kalenderCategorieen)); };
+window.verwijderCategorie = function(index) { window.kalenderCategorieen.splice(index, 1); localStorage.setItem('blackshots_categorieen', JSON.stringify(window.kalenderCategorieen)); tekenCategorieLijst(); };
+
+
+// ============================================================================
+// DYNAMISCHE HUB (Data uit NBB module overpakken)
+// ============================================================================
 function stripTeamNaam(langeNaam) {
     if(!langeNaam) return "?";
     return langeNaam.replace(/Black Shots/ig, '').trim();
@@ -68,65 +119,37 @@ function stripTeamNaam(langeNaam) {
 function haalDynamischeItemsOp(isoDatum) {
     let dynamischeItems = [];
 
-    // 1. NBB WEDSTRIJDEN BUNDELEN
+    // NBB WEDSTRIJDEN INLADEN
     let wedstrijdenOpDag = window.nbbWedstrijden.filter(w => w.Datum && w.Datum.startsWith(isoDatum));
     if (wedstrijdenOpDag.length > 0) {
         let thuisTeams = [];
         let uitTeams = [];
 
         wedstrijdenOpDag.forEach(w => {
-            if (w.Thuisteam && w.Thuisteam.toLowerCase().includes('black shots')) {
-                thuisTeams.push(stripTeamNaam(w.Thuisteam));
-            } else if (w.Uitteam && w.Uitteam.toLowerCase().includes('black shots')) {
-                uitTeams.push(stripTeamNaam(w.Uitteam));
-            }
+            if (w.Thuisteam && w.Thuisteam.toLowerCase().includes('black shots')) thuisTeams.push(stripTeamNaam(w.Thuisteam));
+            else if (w.Uitteam && w.Uitteam.toLowerCase().includes('black shots')) uitTeams.push(stripTeamNaam(w.Uitteam));
         });
 
         if (thuisTeams.length > 0) {
             dynamischeItems.push({
-                isDynamisch: true,
-                bron: "Poule-indeling",
-                type: "thuis",
+                isDynamisch: true, bron: "NBB App", type: "thuis",
                 titel: `Thuis: ${[...new Set(thuisTeams)].join(', ')}`,
-                omschrijving: `Geïmporteerd via NBB JSON.\nTeams: ${thuisTeams.join(', ')}`
+                omschrijving: `Gekoppeld via de Poule-indeling module.\nSpelende teams: ${thuisTeams.join(', ')}`
             });
         }
         if (uitTeams.length > 0) {
             dynamischeItems.push({
-                isDynamisch: true,
-                bron: "Poule-indeling",
-                type: "uit",
+                isDynamisch: true, bron: "NBB App", type: "uit",
                 titel: `Uit: ${[...new Set(uitTeams)].join(', ')}`,
-                omschrijving: `Geïmporteerd via NBB JSON.\nTeams: ${uitTeams.join(', ')}`
+                omschrijving: `Gekoppeld via de Poule-indeling module.\nSpelende teams: ${uitTeams.join(', ')}`
             });
         }
     }
-
-    // 2. TOEKOMSTIGE BESTUURSAGENDA (Placeholder)
-    let agendaOpDag = window.bestuurAgenda.filter(a => a.isoDatum === isoDatum);
-    agendaOpDag.forEach(a => {
-        dynamischeItems.push({
-            isDynamisch: true, bron: "Bestuur", type: "vergadering", 
-            titel: a.titel || "Vergadering", 
-            omschrijving: "Klik hier om naar de agenda te gaan (binnenkort mogelijk)."
-        });
-    });
-
-    // 3. TOEKOMSTIGE INTERNE COMPETITIE (Placeholder)
-    let internOpDag = window.interneCompetitie.filter(i => i.isoDatum === isoDatum);
-    if(internOpDag.length > 0) {
-        dynamischeItems.push({
-            isDynamisch: true, bron: "Interne Competitie", type: "activiteit", 
-            titel: "Interne Competitie", 
-            omschrijving: "Er worden vandaag interne wedstrijden gespeeld."
-        });
-    }
-
     return dynamischeItems;
 }
 
 // ============================================================================
-// KALENDER ENGINE
+// KALENDER TEKENEN
 // ============================================================================
 window.tekenKalender = function() {
     let container = document.getElementById('kalender-container');
@@ -163,15 +186,11 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
     let startVakje = eersteDag === 0 ? 6 : eersteDag - 1; 
 
     let navTitel = weergaveIsJaar ? `${jaar}` : `${maandNamen[maand]} ${jaar}`;
-    let navTekstVorig = weergaveIsJaar ? "◀ Vorig Jaar" : "◀ Vorige";
-    let navTekstVolgend = weergaveIsJaar ? "Volgend Jaar ▶" : "Volgende ▶";
+    let navHtml = toonNavigatie ? `<div><button onclick="wijzigMaand(-1)" class="kalender-nav-btn">◀ Vorige</button><button onclick="wijzigMaand(1)" class="kalender-nav-btn">Volgende ▶</button></div>` : '';
 
     let html = `
         <div style="margin-bottom: 30px;">
-            <div class="kalender-header">
-                <h2 style="margin:0; font-size:1.5rem;">${navTitel}</h2>
-                ${toonNavigatie ? `<div><button onclick="wijzigMaand(-1)" class="kalender-nav-btn">${navTekstVorig}</button><button onclick="wijzigMaand(1)" class="kalender-nav-btn">${navTekstVolgend}</button></div>` : ''}
-            </div>
+            <div class="kalender-header"><h2 style="margin:0; font-size:1.5rem;">${navTitel}</h2>${navHtml}</div>
             <div class="kalender-weekdagen"><div>Ma</div><div>Di</div><div>Wo</div><div>Do</div><div>Vr</div><div>Za</div><div>Zo</div></div>
             <div class="kalender-grid">
     `;
@@ -191,17 +210,18 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
             return isoDatum >= (i.isoDatum||"") && isoDatum <= eind;
         });
 
-        // Combineer handmatig + Gekoppelde module items
         let dynamischeItems = haalDynamischeItemsOp(isoDatum);
         let alleItems = [...handmatigeItems, ...dynamischeItems];
         
-        if (alleItems.some(i => window.kalenderCategorieen.find(c => c.id === i.type && c.isVakantie))) {
+        // Zorg dat de categorie naam kogelvrij is (lowercase check)
+        if (alleItems.some(i => window.kalenderCategorieen.find(c => c.id.toLowerCase() === (i.type||"").toLowerCase() && c.isVakantie))) {
             dagClasses.push('vakantie-dag');
         }
 
         let itemsHtml = '';
         alleItems.forEach(item => {
-            let badgeClass = `k-${item.type}`;
+            let typeId = (item.type || 'memo').toLowerCase();
+            let badgeClass = `k-${typeId}`;
             let eind = item.eindDatum || item.isoDatum || isoDatum;
             let extraClass = '';
             
@@ -213,9 +233,9 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
 
             let dObj = new Date(isoDatum);
             let isStartOfSpan = (isoDatum === item.isoDatum || dObj.getDay() === 1 || item.isDynamisch);
-            let weergaveTekst = isStartOfSpan ? item.titel : '&nbsp;';
+            let weergaveTitel = item.titel || "Naamloos Item";
+            let weergaveTekst = isStartOfSpan ? weergaveTitel : '&nbsp;';
             
-            // Verberg prullenbak voor items uit andere modules
             let deleteKnop = '';
             if(!item.isDynamisch && isStartOfSpan) {
                 deleteKnop = `<span onclick="event.stopPropagation(); verwijderItem('${item.id}')" style="cursor:pointer; opacity:0.7; margin-left:5px;" title="Verwijder Reeks">✖</span>`;
@@ -224,7 +244,7 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
             }
 
             itemsHtml += `
-                <div class="k-item ${badgeClass} ${extraClass}" title="Klik voor beschrijving: ${item.titel}">
+                <div class="k-item ${badgeClass} ${extraClass}" title="${weergaveTitel}">
                     <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:85%; display:inline-block;">${weergaveTekst}</span>
                     ${deleteKnop}
                 </div>
@@ -257,7 +277,7 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
 }
 
 // ============================================================================
-// INTERACTIEF DAG-BEHEER (Met Detail Omschrijvingen!)
+// MODAL BEHEER (Nu met veilige checks)
 // ============================================================================
 let actieveModalDatum = null;
 
@@ -331,8 +351,9 @@ function verversModalLijst() {
 
     let html = '';
     alleItems.forEach(item => {
-        let cat = window.kalenderCategorieen.find(c => c.id === item.type);
-        let badgeClass = `k-${item.type}`;
+        let typeId = (item.type || 'memo').toLowerCase();
+        let cat = window.kalenderCategorieen.find(c => c.id === typeId);
+        let badgeClass = `k-${typeId}`;
         
         let extraInfo = '';
         if(item.isDynamisch) extraInfo = ` <small style="color:#3498db; font-weight:bold;">(Gekoppeld via ${item.bron})</small>`;
@@ -340,12 +361,14 @@ function verversModalLijst() {
         
         let deleteKnop = item.isDynamisch ? '' : `<button onclick="verwijderItem('${item.id}')" style="background:transparent; border:none; color:#e74c3c; cursor:pointer; font-size:1.2rem;">🗑️</button>`;
 
+        let weergaveTitel = item.titel || "Activiteit";
+
         html += `
             <div style="background:#f8f9fa; padding:12px; border:1px solid #eee; border-radius:6px; margin-bottom:10px; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
                 <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:5px;">
                     <div style="font-weight:bold; color:#2c3e50; font-size:1.1rem;">
-                        <span class="k-item ${badgeClass}" style="display:inline-block; margin-right:8px; font-size:0.8rem;">${cat ? cat.naam : item.type}</span> 
-                        ${item.titel} ${extraInfo}
+                        <span class="k-item ${badgeClass}" style="display:inline-block; margin-right:8px; font-size:0.8rem;">${cat ? cat.naam : (item.type||"Memo")}</span> 
+                        ${weergaveTitel} ${extraInfo}
                     </div>
                     ${deleteKnop}
                 </div>
@@ -356,8 +379,57 @@ function verversModalLijst() {
     lijst.innerHTML = html;
 }
 
-// Categorie instellingen (zoals eerder geprogrammeerd)...
-window.openCategorieInstellingen = function() { document.getElementById('categorie-modal').style.display = 'flex'; tekenCategorieLijst(); };
-window.sluitCategorieInstellingen = function() { document.getElementById('categorie-modal').style.display = 'none'; laadDynamischeKleuren(); vulDropdown(); tekenKalender(); };
-function tekenCategorieLijst() { /* ... Code uit vorige stap (bewaard voor beknoptheid) ... */ }
-// etc...
+window.downloadSjabloon = function() {
+    const wb = XLSX.utils.book_new();
+    const sjabloonData = [
+        ["Datum (DD-MM-YYYY)", "Omschrijving", "Type (Memo, Financieel, Thuis, Uit, Vakantie, Training, Vergadering)", "Einddatum (Optioneel)"],
+        ["20-12-2026", "Kerstvakantie", "Vakantie", "04-01-2027"],
+        ["10-09-2026", "Betaling 1e termijn", "Financieel", ""]
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(sjabloonData);
+    XLSX.utils.book_append_sheet(wb, ws, "Bulk_Import");
+    XLSX.writeFile(wb, "BlackShots_Planning_Sjabloon.xlsx");
+};
+
+window.verwerkPlanningBestand = function(e) {
+    const file = e.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, {type: 'array'});
+        let ruweData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {defval:""});
+        let teller = 0;
+        ruweData.forEach(row => {
+            let keys = Object.keys(row);
+            let datumKey = keys.find(k => k.toLowerCase().includes('datum'));
+            let omsKey = keys.find(k => k.toLowerCase().includes('omschrijving'));
+            let typeKey = keys.find(k => k.toLowerCase().includes('type'));
+            let eindKey = keys.find(k => k.toLowerCase().includes('eind'));
+            
+            if (datumKey && omsKey && row[datumKey] && row[omsKey]) {
+                let isoDatum = row[datumKey].toString().match(/(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})/) ? row[datumKey].toString().replace(/(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})/, (m,d,mo,y)=>`${y.length===2?'20'+y:y}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`) : "";
+                if(!isoDatum) return;
+                let isoEind = eindKey && row[eindKey] ? row[eindKey].toString().replace(/(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})/, (m,d,mo,y)=>`${y.length===2?'20'+y:y}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`) : isoDatum;
+
+                window.jaarplanningData.push({
+                    id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+                    isoDatum: isoDatum, eindDatum: isoEind,
+                    type: (typeKey && row[typeKey]) ? row[typeKey].toString().trim() : "memo",
+                    titel: row[omsKey].toString().trim()
+                });
+                teller++;
+            }
+        });
+        localStorage.setItem('blackshots_jaarplanning_data', JSON.stringify(window.jaarplanningData));
+        alert(`✅ Bulk Upload Succesvol! Er zijn ${teller} items toegevoegd.`);
+        tekenKalender();
+    };
+    reader.readAsArrayBuffer(file);
+};
+
+window.wisJaarplanning = function() {
+    if(confirm("Weet je zeker dat je de hele jaarplanning leeg wilt gooien?")) {
+        localStorage.removeItem('blackshots_jaarplanning_data');
+        location.reload();
+    }
+};
