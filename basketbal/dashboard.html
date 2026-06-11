@@ -37,6 +37,18 @@
                 <p class="stat-sub">Beschikbaar in trainingsbibliotheek</p>
             </div>
 
+            <div class="card" style="border-top-color: #9b59b6; cursor: pointer;" onclick="window.location.href='bestuur.html'" title="Klik om naar Bestuur te gaan">
+                <h3 style="margin-top:0; color: var(--text-color);">💼 Bestuursvergadering</h3>
+                <p id="dash-bestuur-date" class="stat-waarde" style="color: #9b59b6; font-size: 1.7rem; margin: 15px 0 5px 0;">Geen gepland</p>
+                <p id="dash-bestuur-tijd" class="stat-sub">Klik voor agenda & notulen</p>
+            </div>
+
+            <div class="card" style="border-top-color: #f1c40f;">
+                <h3 style="margin-top:0; color: var(--text-color);">🪙 Zaalhuur Deze Maand</h3>
+                <p id="dash-zaalhuur-kosten" class="stat-waarde" style="color: #f1c40f;">€ 0,00</p>
+                <p id="dash-zaalhuur-maand" class="stat-sub">Lopende kosten deze maand</p>
+            </div>
+
             <div class="card" style="border-top-color: #3498db;">
                 <h3 style="margin-top:0; color: var(--text-color);">📋 Actieve Teams</h3>
                 <ul id="dash-teams-lijst" style="padding-left:20px; margin:15px 0 0 0; line-height: 1.8; font-weight: 500;">
@@ -44,13 +56,24 @@
                 </ul>
             </div>
 
-            <div class="card" style="border-top-color: #9b59b6; grid-column: 1 / -1; display: flex; flex-direction: column;">
+            <div class="card" style="border-top-color: #e74c3c; grid-column: 1 / -1; display: flex; flex-direction: column;">
                 <h3 style="margin-top:0; color: var(--text-color);">📅 Jaarplanning Deze Week</h3>
                 <div id="dash-jaarplanning-week" style="margin-top: 15px; flex: 1;">
                     <p style="color: var(--text-muted); font-style: italic; margin: 0;">Kalender wordt geladen...</p>
                 </div>
             </div>
 
+        </div>
+
+        <div class="card" style="margin-top: 25px; border-top-color: #7f8c8d;">
+            <h3 style="margin-top: 0; margin-bottom: 15px; font-size: 1.1rem; color: var(--text-color);">⚡ Snelkoppelingen Portaal</h3>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button onclick="window.location.href='jaarplanning.html'" class="primary-btn" style="background:#e74c3c;">📅 Master Jaarplanning</button>
+                <button onclick="window.location.href='zaalhuur.html'" class="primary-btn" style="background:#27ae60;">🏟️ Zaalhuur Beheer</button>
+                <button onclick="window.location.href='pouleindeling.html'" class="primary-btn" style="background:#e67e22;">  Poule-indelingen</button>
+                <button onclick="window.location.href='agenda.html'" class="primary-btn" style="background:#3498db;">🗓️ Weekagenda Teams</button>
+                <button onclick="window.location.href='spelers.html'" class="primary-btn" style="background:#2ecc71;">👤 Spelers Database</button>
+            </div>
         </div>
     </main>
 
