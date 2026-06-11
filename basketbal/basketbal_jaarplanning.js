@@ -1,4 +1,4 @@
-// --- BASKETBAL_JAARPLANNING.JS: ESCAPE-KEY, KLIK & LEES EN STRAKKE DROPDOWNS ---
+// --- BASKETBAL_JAARPLANNING.JS: ESCAPE-KEY, LIVE DROPDOWN KLEUREN & NBB HUB ---
 
 window.jaarplanningData = JSON.parse(localStorage.getItem('blackshots_jaarplanning_data')) || [];
 window.zaalhuurData = JSON.parse(localStorage.getItem('blackshots_zaalhuur_data')) || [];
@@ -17,7 +17,7 @@ const standaardCategorieen = [
     { id: 'training', naam: 'Training', kleur: '#16a085', isVakantie: false },
     { id: 'vergadering', naam: 'Vergadering', kleur: '#34495e', isVakantie: false },
     { id: 'financieel', naam: 'Financieel', kleur: '#e84393', isVakantie: false },
-    { id: 'vakantie', naam: 'Vakantie / Feestdag', kleur: '#f1c40f', isVakantie: true },
+    { id: 'vakantie', naam: 'Vakantie / Feestdag', kleur: '#f1c40f', isVakantie: true, tekstKleur: '#333333' },
     { id: 'activiteit', naam: 'Activiteit', kleur: '#9b59b6', isVakantie: false },
     { id: 'tijdelijk', naam: 'Tijdelijk', kleur: '#ecf0f1', isVakantie: false, tekstKleur: '#7f8c8d', dashed: true },
     { id: 'memo', naam: 'Memo / Overig', kleur: '#3498db', isVakantie: false }
@@ -36,7 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ============================================================================
-// ESCAPE TOETS LUISTERAAR (Sluit alle pop-ups)
+// ESCAPE TOETS LUISTERAAR (Sluit pop-ups)
 // ============================================================================
 document.addEventListener('keydown', function(event) {
     if (event.key === "Escape") {
@@ -62,14 +62,29 @@ function laadDynamischeKleuren() {
     styleTag.innerHTML = cssText;
 }
 
+// Zorgt dat de geselecteerde optie in het menu de juiste kleur krijgt
+function updateDropdownKleur() {
+    let select = document.getElementById('item-type');
+    if(!select) return;
+    let cat = window.kalenderCategorieen.find(c => c.id === select.value);
+    if(cat) {
+        select.style.backgroundColor = cat.kleur;
+        select.style.color = cat.tekstKleur || '#ffffff';
+        select.style.border = cat.dashed ? '2px dashed #95a5a6' : 'none';
+    }
+}
+
 function vulDropdown() {
     let select = document.getElementById('item-type');
     if(!select) return;
     select.innerHTML = '';
-    // Simpele, schone dropdown zonder kleuren!
     window.kalenderCategorieen.forEach(cat => {
-        select.innerHTML += `<option value="${cat.id}">${cat.naam}</option>`;
+        let tKleur = cat.tekstKleur || '#ffffff';
+        // Elke optie krijgt nu zijn eigen achtergrondkleur!
+        select.innerHTML += `<option value="${cat.id}" style="background-color:${cat.kleur}; color:${tKleur}; font-weight:bold;">${cat.naam}</option>`;
     });
+    select.onchange = updateDropdownKleur;
+    updateDropdownKleur(); // Kleur direct toepassen bij inladen
 }
 
 window.openCategorieInstellingen = function() {
@@ -88,10 +103,11 @@ function tekenCategorieLijst() {
     let lijst = document.getElementById('categorie-lijst');
     lijst.innerHTML = '';
     window.kalenderCategorieen.forEach((cat, index) => {
-        let isStandaard = standaardCategorieen.some(s => s.id === cat.id);
+        let kleurPreview = `<div style="width:20px; height:20px; border-radius:50%; background-color:${cat.kleur}; border: 1px solid #ccc; margin-right:10px;"></div>`;
         lijst.innerHTML += `
             <div style="display:flex; align-items:center; justify-content:space-between; padding:10px; border-bottom:1px solid #eee;">
                 <div style="display:flex; align-items:center; gap:10px; flex:1;">
+                    ${kleurPreview}
                     <input type="color" value="${cat.kleur}" onchange="updateCatKleur(${index}, this.value)" style="width:30px; height:30px; border:none; cursor:pointer;" title="Klik om kleur te wijzigen">
                     <input type="text" value="${cat.naam}" onchange="updateCatNaam(${index}, this.value)" style="padding:5px; border:1px solid #cbd5e1; border-radius:4px; flex:1; font-weight:bold;">
                 </div>
@@ -123,7 +139,6 @@ window.verwijderCategorie = function(index) {
     localStorage.setItem('blackshots_categorieen', JSON.stringify(window.kalenderCategorieen)); 
     tekenCategorieLijst(); 
 };
-
 
 // ============================================================================
 // DYNAMISCHE HUB (Data uit NBB module overpakken)
@@ -233,9 +248,6 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
             let weergaveTitel = item.titel || "Naamloos Item";
             let weergaveTekst = isStartOfSpan ? weergaveTitel : '&nbsp;';
             
-            // HIER IS DE KLIK-LOGICA AANGEPAST
-            // Dynamisch = open modal leeg (info staat onderin)
-            // Handmatig = open modal direct in bewerk-modus!
             let clickAction = item.isDynamisch
                 ? `onclick="event.stopPropagation(); openDagModal('${isoDatum}', ${dag}, ${maand}, ${jaar}, null)"`
                 : `onclick="event.stopPropagation(); openDagModal('${isoDatum}', ${dag}, ${maand}, ${jaar}, '${item.id}')"`;
@@ -286,7 +298,6 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
 let actieveModalDatum = null;
 let actieveEditId = null;
 
-// Open modal met optionele Edit ID als we op een specifiek item hebben geklikt
 window.openDagModal = function(isoDatum, dag, maand, jaar, editId = null) {
     actieveModalDatum = isoDatum;
     actieveEditId = editId; 
@@ -296,19 +307,20 @@ window.openDagModal = function(isoDatum, dag, maand, jaar, editId = null) {
     if(eindVeld) eindVeld.min = isoDatum;
 
     if (editId) {
-        bewerkItem(editId); // Hergebruik bewerk functie om de velden te vullen
+        bewerkItem(editId);
     } else {
-        // Leegmaken voor een nieuw item
+        let select = document.getElementById('item-type');
+        if(select && select.options.length > 0) select.selectedIndex = 0;
         document.getElementById('item-titel').value = '';
         document.getElementById('item-omschrijving').value = '';
         if(eindVeld) eindVeld.value = '';
         document.getElementById('btn-opslaan').innerText = '💾 Opslaan';
+        updateDropdownKleur();
     }
     
     verversModalLijst();
     document.getElementById('dag-modal').style.display = 'flex';
     
-    // Als we geen item bewerken, focus direct op de titelbox
     if(!editId) setTimeout(() => document.getElementById('item-titel').focus(), 50);
 };
 
@@ -318,7 +330,10 @@ window.bewerkItem = function(id) {
     
     actieveEditId = id;
     let typeSelect = document.getElementById('item-type');
-    if(typeSelect) typeSelect.value = item.type || 'memo';
+    if(typeSelect) {
+        typeSelect.value = item.type || 'memo';
+        updateDropdownKleur();
+    }
     
     document.getElementById('item-titel').value = item.titel || '';
     document.getElementById('item-omschrijving').value = item.omschrijving || '';
@@ -432,7 +447,6 @@ function verversModalLijst() {
     lijst.innerHTML = html;
 }
 
-// Bulk import logic (ongewijzigd gehouden voor beknoptheid)
 window.downloadSjabloon = function() {
     const wb = XLSX.utils.book_new();
     const sjabloonData = [
