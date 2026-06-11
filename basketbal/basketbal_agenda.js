@@ -1,4 +1,4 @@
-// --- BASKETBAL_AGENDA.JS: TRAININGEN AGENDA MET ZAALHUUR & JAARPLANNING SYNC ---
+// --- BASKETBAL_AGENDA.JS: WEEKAGENDA MET ZAALHUUR & JAARPLANNING SYNC ---
 
 let actieveTraining = null;
 let actieveTijdlijn = [];
@@ -9,12 +9,11 @@ let d = actieveWeekStart.getDay();
 let diff = actieveWeekStart.getDate() - d + (d === 0 ? -6 : 1);
 actieveWeekStart.setDate(diff);
 
-// Data inladen
 window.teamsDB = JSON.parse(localStorage.getItem('blackshots_teams')) || [];
 window.oefeningenDB = JSON.parse(localStorage.getItem('blackshots_oefeningen')) || [];
 window.geplandeTrainingenDB = JSON.parse(localStorage.getItem('blackshots_trainingen')) || {};
 
-// DATA REPARATEUR (Omzetten oude structuur)
+// DATA REPARATEUR (Omzetten oude structuur naar nieuwe robuuste structuur)
 if (Array.isArray(window.geplandeTrainingenDB)) {
     let oudeArray = window.geplandeTrainingenDB;
     window.geplandeTrainingenDB = {};
@@ -36,7 +35,6 @@ if (Array.isArray(window.geplandeTrainingenDB)) {
     localStorage.setItem('blackshots_trainingen', JSON.stringify(window.geplandeTrainingenDB));
 }
 
-// Navigatie
 window.wijzigWeek = function(delta) {
     actieveWeekStart.setDate(actieveWeekStart.getDate() + (delta * 7));
     window.renderWeekAgenda();
@@ -57,14 +55,13 @@ window.renderWeekAgenda = function() {
     let label = document.getElementById('week-label');
     if (!grid) return;
 
-    // Haal verse cloud/lokale data op voor de checks
     let zaalhuurData = JSON.parse(localStorage.getItem('blackshots_zaalhuur_data')) || [];
     let jaarplanningData = JSON.parse(localStorage.getItem('blackshots_jaarplanning_data')) || [];
     let kalenderCategorieen = JSON.parse(localStorage.getItem('blackshots_jaarplanning_categorieen')) || [];
 
     let startDatum = new Date(actieveWeekStart);
     let eindDatum = new Date(actieveWeekStart);
-    eindDatum.setDate(startDatum.getDate() + 4); // We tonen Maandag t/m Vrijdag
+    eindDatum.setDate(startDatum.getDate() + 4); // Toon Ma t/m Vr
     
     let sMnd = startDatum.toLocaleString('nl-NL', { month: 'short' });
     let eMnd = eindDatum.toLocaleString('nl-NL', { month: 'short' });
@@ -105,7 +102,7 @@ window.renderWeekAgenda = function() {
         // 3. TRAININGEN OPHALEN
         let actieveKeys = Object.keys(window.geplandeTrainingenDB).filter(k => k.startsWith(isoDatum) && window.geplandeTrainingenDB[k].length > 0);
 
-        // Bepaal Waarschuwingen & Kleuren
+        // Styling Logica
         let bgClass = "background: var(--card-alt-bg);";
         let headerClass = "background: var(--secondary-color);";
         let waarschuwingHtml = "";
@@ -115,7 +112,7 @@ window.renderWeekAgenda = function() {
             bgClass = "background: rgba(231, 76, 60, 0.05); border: 2px solid #e74c3c;";
             headerClass = "background: #e74c3c;";
         } else if (actieveKeys.length > 0 && gehuurdeZalen.length === 0) {
-            // Alarm: Wel trainingen gepland, maar geen zaal!
+            // Alarm: Wel trainingen, maar geen zaal!
             bgClass = "background: rgba(231, 76, 60, 0.05); border: 2px solid #e74c3c;";
             headerClass = "background: #e74c3c;";
             waarschuwingHtml = `<div style="background:#e74c3c; color:white; padding:10px; text-align:center; font-weight:bold; font-size:0.9rem; border-radius:0 0 6px 6px; margin-top:auto; box-shadow:0 -2px 5px rgba(0,0,0,0.1);">⚠️ PAS OP: GEEN ZAAL GEHUURD!</div>`;
@@ -129,7 +126,6 @@ window.renderWeekAgenda = function() {
             }
         }
 
-        // Bouw de HTML Kolom op
         agendaHtml += `
             <div class="dag-kolom" style="${bgClass} display:flex; flex-direction:column; justify-content:flex-start; min-height:280px; position:relative;">
                 <div class="dag-header" style="${headerClass} color:white; padding:10px; text-align:center; font-weight:bold; font-size:1.1rem; border-radius:6px 6px 0 0;">
@@ -149,7 +145,7 @@ window.renderWeekAgenda = function() {
             `;
         } else {
             if (actieveKeys.length > 0) {
-                // Hier is de Side-By-Side (Grid) container toegevoegd!
+                // Side-By-Side (Grid) layout voor de trainingen
                 agendaHtml += `<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap:10px; margin-bottom:15px;">`;
                 
                 actieveKeys.forEach(k => {
@@ -159,7 +155,6 @@ window.renderWeekAgenda = function() {
                     let tijd = team ? team.trainingTijd : "Tijd onbekend";
                     let veldInfo = team && team.trainingLocatie ? `<span style="display:inline-block; font-size:0.7rem; background:rgba(52, 152, 219, 0.1); color:var(--primary-color); padding:2px 5px; border-radius:4px; margin-top:3px;">📍 Veld ${team.trainingLocatie}</span>` : '';
                     
-                    // Beveiliging: Mag deze trainer dit team aanpassen?
                     let uDB = JSON.parse(localStorage.getItem('bs_actieve_gebruiker')) || {};
                     let isTrainer = (uDB.rol === 'trainer');
                     let magBewerken = !isTrainer || (uDB.teams && (uDB.teams.includes('all') || uDB.teams.includes(teamId)));
@@ -182,7 +177,7 @@ window.renderWeekAgenda = function() {
                 agendaHtml += `<p style="text-align:center; color:var(--text-muted); font-size:0.9rem; font-style:italic; margin-top:20px;">Geen trainingen ingepland.</p>`;
             }
 
-            // Knoppen onderaan (Voor Admins/Bestuur)
+            // Actieknoppen onderaan
             agendaHtml += `
                 <div style="margin-top:auto; display:flex; flex-direction:column; gap:5px;">
                     <button class="admin-only" onclick="window.openTeamKiezer('${isoDatum}')" style="background:transparent; border:2px dashed var(--border-dark); color:var(--text-color); padding:10px; border-radius:6px; font-size:0.9rem; font-weight:bold; cursor:pointer; transition:0.2s;">
@@ -203,8 +198,29 @@ window.renderWeekAgenda = function() {
 };
 
 // ============================================================================
-// MODALS & DETAIL BEWERKING (Blijven intact)
+// BULK ANNULEREN & MODALS
 // ============================================================================
+window.openBulkModal = function() {
+    document.getElementById('bulk-modal').style.display = 'flex';
+};
+
+window.voerBulkAnnuleringUit = function() {
+    let start = document.getElementById('bulk-start').value;
+    let eind = document.getElementById('bulk-eind').value;
+    if (!start || !eind || start > eind) return alert("Vul een geldige periode in.");
+    
+    if(confirm(`Weet je zeker dat je alle trainingen tussen ${start} en ${eind} wilt wissen?`)) {
+        Object.keys(window.geplandeTrainingenDB).forEach(k => {
+            let datum = k.split('_')[0];
+            if (datum >= start && datum <= eind) delete window.geplandeTrainingenDB[k];
+        });
+        localStorage.setItem('blackshots_trainingen', JSON.stringify(window.geplandeTrainingenDB));
+        document.getElementById('bulk-modal').style.display = 'none';
+        window.renderWeekAgenda();
+        alert("Trainingen verwijderd!");
+    }
+};
+
 window.openTeamKiezer = function(isoDatum) {
     let uDB = JSON.parse(localStorage.getItem('bs_actieve_gebruiker')) || {};
     let isTrainer = (uDB.rol === 'trainer');
@@ -212,7 +228,7 @@ window.openTeamKiezer = function(isoDatum) {
     let keuzes = window.teamsDB.filter(t => !isTrainer || (uDB.teams && (uDB.teams.includes('all') || uDB.teams.includes(t.id))));
     if (keuzes.length === 0) return alert("Je hebt geen teams toegewezen gekregen.");
 
-    let teamId = prompt("Welk team wil je inplannen op deze dag?\n\nKies uit: \n" + keuzes.map(t => `- ${t.naam}`).join('\n') + "\n\n(Typ de exacte naam of annuleer)");
+    let teamId = prompt("Welk team wil je inplannen op deze dag?\\n\\nKies uit: \\n" + keuzes.map(t => `- ${t.naam}`).join('\\n') + "\\n\\n(Typ de exacte naam of annuleer)");
     if (!teamId) return;
 
     let match = keuzes.find(t => t.naam.toLowerCase() === teamId.toLowerCase());
@@ -222,12 +238,8 @@ window.openTeamKiezer = function(isoDatum) {
             window.geplandeTrainingenDB[key] = [];
             localStorage.setItem('blackshots_trainingen', JSON.stringify(window.geplandeTrainingenDB));
             window.renderWeekAgenda();
-        } else {
-            alert("Dit team is al ingepland op deze dag.");
-        }
-    } else {
-        alert("Team niet gevonden of je hebt geen rechten.");
-    }
+        } else alert("Dit team is al ingepland op deze dag.");
+    } else alert("Team niet gevonden of je hebt geen rechten.");
 };
 
 window.openDagDetail = function(isoDatum, teamId) {
@@ -268,7 +280,7 @@ window.wisDag = function(isoDatum) {
 };
 
 // ============================================================================
-// OEFENINGEN & TIJDLIJN BEHEER (Voor de modal)
+// OEFENINGEN KIEZEN IN DE MODAL
 // ============================================================================
 window.tekenOefeningenKiezer = function() {
     let container = document.getElementById('oefeningen-kiezer');
@@ -300,7 +312,6 @@ window.tekenOefeningenKiezer = function() {
         let isProgressie = (oef.type === 'progressie');
         let progLijst = isProgressie ? `<ul style="margin:5px 0 0 20px; font-size:0.8rem; color:var(--text-muted);">` + oef.stappen.map(s => `<li>${s.naam} (${s.duur}m)</li>`).join('') + `</ul>` : '';
         let badge = isProgressie ? '🔄 Oefeningen-Reeks' : '⏱️ Losse Oefening';
-        let imgHtml = oef.afbeeldingData ? `<img src="${oef.afbeeldingData}" style="width:100%; max-height:100px; object-fit:contain; margin-bottom:10px; border-radius:4px; border:1px solid #ccc;">` : '';
 
         html += `
             <div style="background:var(--bg-color); border:1px solid var(--border-color); border-radius:6px; margin-bottom:10px; overflow:hidden;">
@@ -354,14 +365,14 @@ window.tekenTijdlijn = function() {
     actieveTijdlijn.forEach((oef, idx) => {
         let tijdText = oef.type === 'progressie' ? `${oef.totaleDuur} min (Reeks)` : `${oef.duur} min`;
         html += `
-            <div style="background:var(--card-bg); border-left:4px solid var(--primary-color); padding:10px; border-radius:4px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+            <div style="background:var(--card-bg); border-left:4px solid var(--primary-color); padding:10px; border-radius:4px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 1px 3px rgba(0,0,0,0.05); margin-bottom:8px;">
                 <div>
                     <strong style="color:var(--text-color); font-size:1rem;">${idx+1}. ${oef.naam}</strong><br>
                     <span style="font-size:0.8rem; color:var(--text-muted);">${tijdText}</span>
                 </div>
                 <div style="display:flex; gap:5px;">
-                    ${idx > 0 ? `<button onclick="window.verschuifTijdlijn(${idx}, -1)" style="background:var(--border-color); border:none; padding:5px; border-radius:4px; cursor:pointer;">⬆️</button>` : ''}
-                    ${idx < actieveTijdlijn.length - 1 ? `<button onclick="window.verschuifTijdlijn(${idx}, 1)" style="background:var(--border-color); border:none; padding:5px; border-radius:4px; cursor:pointer;">⬇️</button>` : ''}
+                    ${idx > 0 ? `<button onclick="window.verschuifTijdlijn(${idx}, -1)" style="background:var(--border-color); color:var(--text-color); border:none; padding:5px; border-radius:4px; cursor:pointer;">⬆️</button>` : ''}
+                    ${idx < actieveTijdlijn.length - 1 ? `<button onclick="window.verschuifTijdlijn(${idx}, 1)" style="background:var(--border-color); color:var(--text-color); border:none; padding:5px; border-radius:4px; cursor:pointer;">⬇️</button>` : ''}
                     <button onclick="window.verwijderUitTijdlijn(${idx})" style="background:#e74c3c; color:white; border:none; padding:5px 8px; border-radius:4px; cursor:pointer; margin-left:5px;">✖</button>
                 </div>
             </div>
@@ -370,7 +381,7 @@ window.tekenTijdlijn = function() {
     container.innerHTML = html;
 };
 
-// Start applicatie
+// Start de module
 document.addEventListener('DOMContentLoaded', () => {
     window.renderWeekAgenda();
 });

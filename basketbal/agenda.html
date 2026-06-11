@@ -23,7 +23,7 @@
     <main class="content-sectie active" style="max-width:1400px;">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; margin-bottom:15px; border-bottom:2px solid var(--border-color); padding-bottom:10px;">
             <div>
-                <h2 style="margin:0; color:var(--secondary-color);">🗓️ Trainingsagenda</h2>
+                <h2 style="margin:0; color:var(--secondary-color);">🗓️ Trainingen</h2>
                 <span id="week-label" style="font-size:0.9rem; color:var(--text-muted); font-weight:bold;">...</span>
             </div>
             <div style="display:flex; gap:10px;">
@@ -70,7 +70,7 @@
             <input type="text" id="bulk-reden" placeholder="Zomervakantie, Feestdag..." style="width:100%; padding:10px;">
             <div style="display:flex; gap:10px; margin-bottom:15px;">
                 <div style="flex:1;">
-                    <label style="font-weight:bold; font-size:0.85rem;">Vanaf:</label>
+                    <label style="font-weight:bold; font-size:0.85rem;">Vanaf (datum):</label>
                     <input type="date" id="bulk-start" style="width:100%; padding:8px;">
                 </div>
                 <div style="flex:1;">
@@ -83,8 +83,8 @@
     </div>
 
     <script src="basketbal_data.js"></script>
-    <script src="basketbal_auth.js"></script>
     <script src="basketbal_agenda.js"></script>
+    <script src="basketbal_auth.js"></script>
     <script type="module" src="firebase_motor.js"></script>
 </body>
 </html>
