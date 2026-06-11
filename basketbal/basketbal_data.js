@@ -167,7 +167,6 @@ window.laadDashboardData = function() {
             let cardBg = isVakantieDag ? 'rgba(231, 76, 60, 0.04)' : 'var(--card-bg)';
             let borderCol = isVandaag ? 'var(--primary-color)' : (isVakantieDag ? 'rgba(231, 76, 60, 0.3)' : 'var(--border-color)');
             let headerBg = isVandaag ? 'var(--primary-color)' : (isVakantieDag ? '#e74c3c' : 'var(--secondary-color)');
-            let nummerKleur = isVakantieDag ? '#e74c3c' : 'var(--text-color)';
 
             let itemsHtml = '';
             if(dagItems.length > 0) {
@@ -193,7 +192,7 @@ window.laadDashboardData = function() {
                 itemsHtml = `<div style="color:var(--text-muted); font-size:0.8rem; text-align:center; padding:15px 0; font-style:italic;">Geen items</div>`;
             }
 
-            // ZAALHUUR BALKEN DETECTEREN EN STYLEN ONDERAAN DE DAG (Net als op de jaarplanning!)
+            // ZAALHUUR BALKEN DETECTEREN EN STYLEN ONDERAAN DE DAG
             let zalenOpDag = zaalhuurData.filter(z => z.isoDatum === isoDag && !z.geannuleerd);
             let zaalBalkHtml = '';
             if (zalenOpDag.length > 0) {
@@ -204,7 +203,7 @@ window.laadDashboardData = function() {
             weekHtml += `
                 <div style="flex: 1; min-width: 130px; background: ${cardBg}; border: 2px solid ${borderCol}; border-radius: 6px; display: flex; flex-direction: column; overflow: hidden; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
                     <div style="background: ${headerBg}; color: white; text-align: center; padding: 8px 0; font-weight: bold; border-bottom: 1px solid ${borderCol};">
-                        ${dagenLijst[i]} <span style="font-size:1.2rem; display:block; color: ${isVandaag ? 'white' : nummerKleur};">${loopDag.getDate()}</span>
+                        ${dagenLijst[i]} <span style="font-size:1.2rem; display:block; color: white;">${loopDag.getDate()}</span>
                     </div>
                     <div style="padding: 8px; flex: 1; display:flex; flex-direction:column; background: transparent;">
                         ${itemsHtml}
