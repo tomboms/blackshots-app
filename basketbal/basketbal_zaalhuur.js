@@ -1,4 +1,4 @@
-// --- BASKETBAL_ZAALHUUR.JS: ALERT, TYPE, DELETE & KOGELVRIJE MAIL SCANNER ---
+// --- BASKETBAL_ZAALHUUR.JS: KOGELVRIJE PLAKBOX & SMART MERGE ---
 
 window.zaalhuurData = JSON.parse(localStorage.getItem('blackshots_zaalhuur_data')) || [];
 
@@ -74,55 +74,108 @@ function berekenVerschilInUren(start, eind) {
 }
 
 // ============================================================================
-// MAGIC MAIL SCANNER (KOGELVRIJE ISO-DATUM VERGELIJKER)
+// MAGIC MAIL SCANNER MET 2 ACTIES (VOEG TOE / ANNULEER)
 // ============================================================================
-window.verwerkMailTekst = function() {
+window.verwerkMailTekst = function(actie) {
     let tekst = document.getElementById('mail-plakbox').value;
     if(!tekst.trim()) return alert("Plak eerst de tekst uit je mail in het vakje!");
 
-    let isAnnulering = tekst.toLowerCase().includes('geannuleerd') || tekst.toLowerCase().includes('annulering');
+    let isAnnulering = (actie === 'annuleer');
     let nieuweStatus = isAnnulering ? "Geannuleerd" : "Geboekt";
     
-    // Extreem flexibele regex: pakt ook "27,8126 juni" feilloos op!
-    let regex = /(\d{1,2})\s+([a-zA-Z]+)\s+(\d{4})\s+van\s+(\d{2}[:.]\d{2})(?:\s*uur)?\s*tot\s+(\d{2}[:.]\d{2})(?:\s*uur)?/gi;
-    let match;
-    let gevondenDatums = [];
+    let lines = tekst.split('\n');
     let matchCount = 0;
+    let nieuwCount = 0;
+    let updateCount = 0;
 
-    while ((match = regex.exec(tekst)) !== null) {
-        let dag = match[1];
-        let maand = match[2];
-        let jaar = match[3];
-        let startTijd = match[4].replace('.', ':');
-        let eindTijd = match[5].replace('.', ':');
+    for(let i=0; i<lines.length; i++) {
+        let line = lines[i].trim();
         
-        let mailDatumStr = `${dag} ${maand} ${jaar}`;
-        let mailIsoDatum = converteerNaarISODatum(mailDatumStr);
+        // De magische Regex: Snapt dat "€299,9113 september" betekent: bedrag=299,91 dag=13 maand=september
+        let regex = /(?:€\s*(\d+[,.]\d{2}))?\s*(\d{1,2})\s+([a-zA-Z]+)\s+(\d{4})\s+van\s+(\d{2}[:.]\d{2})(?:\s*uur)?\s*tot\s+(\d{2}[:.]\d{2})/i;
+        let match = regex.exec(line);
 
-        // Zoek op basis van de waterdichte ISO datum!
-        window.zaalhuurData.forEach(z => {
-            if(z.isoDatum === mailIsoDatum && z.startTijd === startTijd) {
-                z.status = nieuweStatus;
-                z.geannuleerd = isAnnulering;
-                z.uren = isAnnulering ? 0 : berekenVerschilInUren(z.startTijd, z.eindTijd);
-                if(!gevondenDatums.includes(mailDatumStr)) gevondenDatums.push(mailDatumStr);
-                matchCount++;
+        if(match) {
+            matchCount++;
+            let bedragStr = match[1] || "0,00";
+            let dag = match[2];
+            let maand = match[3];
+            let jaar = match[4];
+            let startTijd = match[5].replace('.', ':');
+            let eindTijd = match[6].replace('.', ':');
+
+            let mailDatumStr = `${dag} ${maand} ${jaar}`;
+            let mailIsoDatum = converteerNaarISODatum(mailDatumStr);
+            let bedrag = parseFloat(bedragStr.replace(',', '.'));
+
+            // Zoek de zaalnaam in de regels boven de boeking
+            let zaalRaw = "Zaal Onbekend";
+            if (i > 0 && lines[i-1].length > 5 && !lines[i-1].includes('€')) zaalRaw = lines[i-1].trim();
+            else if (i > 1 && lines[i-2].length > 5 && !lines[i-2].includes('€')) zaalRaw = lines[i-2].trim();
+
+            let zaalNaam = zaalRaw;
+            let zaaldeel = "Zaaldeel onbekend";
+            
+            // Raden of het VEKA of iets anders is
+            if(zaalRaw.toLowerCase().includes('veka')) {
+                zaalNaam = "Sporthal VEKA";
+                if(zaalRaw.toLowerCase().includes('hele zaal')) zaaldeel = "hele zaal";
+                else if(zaalRaw.toLowerCase().includes('zaaldeel a')) zaaldeel = "zaaldeel A";
+                else if(zaalRaw.toLowerCase().includes('zaaldeel b')) zaaldeel = "zaaldeel B";
             }
-        });
+
+            let gevondenInSysteem = false;
+            window.zaalhuurData.forEach(z => {
+                if(z.isoDatum === mailIsoDatum && z.startTijd === startTijd) {
+                    z.status = nieuweStatus;
+                    z.geannuleerd = isAnnulering;
+                    z.uren = isAnnulering ? 0 : berekenVerschilInUren(z.startTijd, z.eindTijd);
+                    gevondenInSysteem = true;
+                    updateCount++;
+                }
+            });
+
+            // Alleen toevoegen als we aan het 'Boeken' zijn en hij NIET in het systeem staat
+            if(!gevondenInSysteem && !isAnnulering) {
+                let id = genereerZaalID(mailDatumStr, startTijd, zaalNaam, zaaldeel);
+                window.zaalhuurData.push({
+                    id: id,
+                    datum: mailDatumStr,
+                    isoDatum: mailIsoDatum,
+                    startTijd: startTijd,
+                    eindTijd: eindTijd,
+                    zaaldeel: zaaldeel,
+                    zaal: zaalNaam,
+                    bedrag: bedrag,
+                    opmerking: "Via mail toegevoegd",
+                    status: "Geboekt",
+                    geannuleerd: false,
+                    uren: berekenVerschilInUren(startTijd, eindTijd),
+                    type: "Overig" 
+                });
+                nieuwCount++;
+            }
+        }
     }
 
     if(matchCount > 0) {
         localStorage.setItem('blackshots_zaalhuur_data', JSON.stringify(window.zaalhuurData));
         document.getElementById('mail-plakbox').value = ""; 
-        alert(`✅ Gelukt! Planning voor ${matchCount} zaal-reserveringen op ${gevondenDatums.length} datums geüpdatet naar: ${nieuweStatus}.`);
+        
+        let msg = `✅ Er zijn ${matchCount} tijden in je tekst gevonden.\n\n`;
+        if(isAnnulering) msg += `👉 Er zijn ${updateCount} tijden op 'Geannuleerd' gezet.`;
+        else msg += `👉 ${nieuwCount} nieuwe reserveringen toegevoegd.\n👉 ${updateCount} bestaande boekingen geüpdatet.`;
+        
+        alert(msg);
+        updateZaalDropdown();
         tekenZaalhuurResultaten();
     } else {
-        alert("Geen matchende datums/tijden gevonden in het systeem. Zorg dat je de Excel eerst hebt geüpload!");
+        alert("❌ Er zijn geen geldige datums of tijden in deze tekst gevonden. Zorg dat je de letterlijke tekst 'van .. tot ..' kopieert.");
     }
 };
 
 // ============================================================================
-// EXCEL BEREKENING (SMART MERGE)
+// EXCEL BEREKENING
 // ============================================================================
 window.verwerkZaalhuurBestand = function(e) {
     const file = e.target.files[0]; if (!file) return;
@@ -135,8 +188,6 @@ window.verwerkZaalhuurBestand = function(e) {
         
         let dataMap = {};
         window.zaalhuurData.forEach(item => { dataMap[item.id] = item; });
-
-        let updateCount = 0; let nieuwCount = 0;
 
         ruweData.forEach((row, idx) => {
             if (!row || row.length < 5 || idx === 0) return; 
@@ -173,12 +224,10 @@ window.verwerkZaalhuurBestand = function(e) {
             let id = genereerZaalID(datum, startTijd, zaal, zaaldeel);
 
             if(dataMap[id]) {
-                updateCount++;
                 dataMap[id].status = status;
                 dataMap[id].geannuleerd = isGeannuleerd;
                 dataMap[id].bedrag = bedrag;
             } else {
-                nieuwCount++;
                 dataMap[id] = {
                     id: id, datum: datum, isoDatum: converteerNaarISODatum(datum), startTijd: startTijd, 
                     eindTijd: eindTijd, zaaldeel: zaaldeel, zaal: zaal, bedrag: bedrag, opmerking: opmerking, 
@@ -200,7 +249,7 @@ window.verwerkZaalhuurBestand = function(e) {
 // ============================================================================
 window.updateGroepStatus = function(idsString, nieuweStatus) {
     if(nieuweStatus === 'Geannuleerd') {
-        let akkoord = confirm("⚠️ LET OP: Heb je deze zaal ook ECHT geannuleerd in het portaal van de gemeente? Dit systeem meldt het niet automatisch af bij de gemeente.");
+        let akkoord = confirm("⚠️ LET OP: Heb je deze zaal ook ECHT geannuleerd in het portaal van de gemeente?");
         if(!akkoord) { tekenZaalhuurResultaten(); return; }
     }
 
