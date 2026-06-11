@@ -1,4 +1,4 @@
-// --- BASKETBAL_ZAALHUUR.JS: ALERT, TYPE, DELETE & MAGIC MAIL SCANNER ---
+// --- BASKETBAL_ZAALHUUR.JS: ALERT, TYPE, DELETE & KOGELVRIJE MAIL SCANNER ---
 
 window.zaalhuurData = JSON.parse(localStorage.getItem('blackshots_zaalhuur_data')) || [];
 
@@ -74,40 +74,47 @@ function berekenVerschilInUren(start, eind) {
 }
 
 // ============================================================================
-// MAGIC MAIL SCANNER (Plak tekst, het script zoekt de datums!)
+// MAGIC MAIL SCANNER (KOGELVRIJE ISO-DATUM VERGELIJKER)
 // ============================================================================
 window.verwerkMailTekst = function() {
     let tekst = document.getElementById('mail-plakbox').value;
     if(!tekst.trim()) return alert("Plak eerst de tekst uit je mail in het vakje!");
 
-    let isAnnulering = tekst.toLowerCase().includes('geannuleerd');
+    let isAnnulering = tekst.toLowerCase().includes('geannuleerd') || tekst.toLowerCase().includes('annulering');
     let nieuweStatus = isAnnulering ? "Geannuleerd" : "Geboekt";
     
-    // Zoekt naar: "13 september 2026 van 09:45 uur tot 15:15 uur"
-    let regex = /(\d{1,2}\s+[a-zA-Z]+\s+\d{4})\s+van\s+(\d{2}:\d{2})\s+uur\s+tot\s+(\d{2}:\d{2})\s+uur/gi;
+    // Extreem flexibele regex: pakt ook "27,8126 juni" feilloos op!
+    let regex = /(\d{1,2})\s+([a-zA-Z]+)\s+(\d{4})\s+van\s+(\d{2}[:.]\d{2})(?:\s*uur)?\s*tot\s+(\d{2}[:.]\d{2})(?:\s*uur)?/gi;
     let match;
     let gevondenDatums = [];
+    let matchCount = 0;
 
     while ((match = regex.exec(tekst)) !== null) {
-        let datum = match[1];
-        let startTijd = match[2];
-        let eindTijd = match[3];
+        let dag = match[1];
+        let maand = match[2];
+        let jaar = match[3];
+        let startTijd = match[4].replace('.', ':');
+        let eindTijd = match[5].replace('.', ':');
+        
+        let mailDatumStr = `${dag} ${maand} ${jaar}`;
+        let mailIsoDatum = converteerNaarISODatum(mailDatumStr);
 
-        // Zoek in ons systeem of we iets hebben op deze datum met DEZELFDE tijden (of bijna)
+        // Zoek op basis van de waterdichte ISO datum!
         window.zaalhuurData.forEach(z => {
-            if(z.datum.toLowerCase() === datum.toLowerCase() && z.startTijd === startTijd) {
+            if(z.isoDatum === mailIsoDatum && z.startTijd === startTijd) {
                 z.status = nieuweStatus;
                 z.geannuleerd = isAnnulering;
                 z.uren = isAnnulering ? 0 : berekenVerschilInUren(z.startTijd, z.eindTijd);
-                if(!gevondenDatums.includes(datum)) gevondenDatums.push(datum);
+                if(!gevondenDatums.includes(mailDatumStr)) gevondenDatums.push(mailDatumStr);
+                matchCount++;
             }
         });
     }
 
-    if(gevondenDatums.length > 0) {
+    if(matchCount > 0) {
         localStorage.setItem('blackshots_zaalhuur_data', JSON.stringify(window.zaalhuurData));
-        document.getElementById('mail-plakbox').value = ""; // Maak leeg
-        alert(`✅ Gelukt! Planning voor ${gevondenDatums.length} datums geüpdatet naar: ${nieuweStatus}.`);
+        document.getElementById('mail-plakbox').value = ""; 
+        alert(`✅ Gelukt! Planning voor ${matchCount} zaal-reserveringen op ${gevondenDatums.length} datums geüpdatet naar: ${nieuweStatus}.`);
         tekenZaalhuurResultaten();
     } else {
         alert("Geen matchende datums/tijden gevonden in het systeem. Zorg dat je de Excel eerst hebt geüpload!");
@@ -167,7 +174,6 @@ window.verwerkZaalhuurBestand = function(e) {
 
             if(dataMap[id]) {
                 updateCount++;
-                // Behoud het eigen gekozen "Type" als we updaten!
                 dataMap[id].status = status;
                 dataMap[id].geannuleerd = isGeannuleerd;
                 dataMap[id].bedrag = bedrag;
@@ -176,7 +182,7 @@ window.verwerkZaalhuurBestand = function(e) {
                 dataMap[id] = {
                     id: id, datum: datum, isoDatum: converteerNaarISODatum(datum), startTijd: startTijd, 
                     eindTijd: eindTijd, zaaldeel: zaaldeel, zaal: zaal, bedrag: bedrag, opmerking: opmerking, 
-                    status: status, geannuleerd: isGeannuleerd, uren: uren, type: "Overig" // Standaard type
+                    status: status, geannuleerd: isGeannuleerd, uren: uren, type: "Overig"
                 };
             }
         });
@@ -193,10 +199,9 @@ window.verwerkZaalhuurBestand = function(e) {
 // HANDMATIGE UPDATES (STATUS, TYPE, DELETE)
 // ============================================================================
 window.updateGroepStatus = function(idsString, nieuweStatus) {
-    // 1. DE BELANGRIJKE WAARSCHUWING!
     if(nieuweStatus === 'Geannuleerd') {
         let akkoord = confirm("⚠️ LET OP: Heb je deze zaal ook ECHT geannuleerd in het portaal van de gemeente? Dit systeem meldt het niet automatisch af bij de gemeente.");
-        if(!akkoord) { tekenZaalhuurResultaten(); return; } // Reset als ze annuleren
+        if(!akkoord) { tekenZaalhuurResultaten(); return; }
     }
 
     let ids = idsString.split(',');
@@ -218,7 +223,7 @@ window.updateGroepType = function(idsString, nieuwType) {
 };
 
 window.verwijderGroep = function(idsString) {
-    if(!confirm("Weet je zeker dat je deze reservering definitief wilt verwijderen uit de app?")) return;
+    if(!confirm("Weet je zeker dat je deze reservering definitief wilt verwijderen uit de app? (Je gebruikt dit bijv. bij een tijdverschuiving)")) return;
     
     let ids = idsString.split(',');
     window.zaalhuurData = window.zaalhuurData.filter(z => !ids.includes(z.id));
@@ -326,7 +331,6 @@ window.tekenZaalhuurResultaten = function() {
             let rowStyle = zaal.geannuleerd ? 'background:#fef2f2; color:#b91c1c; opacity:0.8;' : '';
             let textDeco = zaal.geannuleerd ? 'text-decoration:line-through;' : '';
             
-            // HET NIEUWE "TYPE" DROPDOWN MENU
             let typeDropdown = `
                 <select onchange="updateGroepType('${zaal.idLijst.join(',')}', this.value)" class="type-select">
                     <option value="Overig" ${zaal.type === 'Overig' ? 'selected' : ''}>Overig</option>
