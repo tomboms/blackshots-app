@@ -4,9 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Black Shots - Master Jaarplanning</title>
-    <link rel="stylesheet" href="basketbal.css?v=16">
+    <link rel="stylesheet" href="basketbal.css?v=17">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <style id="dynamic-category-styles"></style> </head>
+    <style id="dynamic-category-styles"></style>
+</head>
 <body>
     <div id="cloud-status-indicator" style="position: fixed; bottom: 20px; right: 20px; background: #27ae60; color: white; padding: 10px 20px; border-radius: 30px; font-weight: bold; font-size: 0.9rem; z-index: 99999; opacity: 0; pointer-events: none;">☁️ Cloud Actief</div>
 
@@ -48,12 +49,13 @@
 
     <div id="dag-modal" class="modal-overlay">
         <div class="modal-content" style="max-width: 600px;">
+            <button class="modal-close-btn" onclick="sluitDagModal()">&times;</button>
             <h2 id="modal-datum-titel" style="margin-top:0; color:#2c3e50;">Beheer Dag(en)</h2>
             
             <div style="display:flex; gap:15px; margin-bottom:15px;">
                 <div style="flex:1;">
                     <label style="font-weight:bold; font-size:0.9rem; color:#7f8c8d; display:block; margin-bottom:5px;">Categorie:</label>
-                    <select id="item-type" style="width:100%; padding:10px; border-radius:4px; border:1px solid #bdc3c7;"></select>
+                    <select id="item-type" style="width:100%; padding:10px; border-radius:4px; border:1px solid #bdc3c7; font-weight:bold;"></select>
                 </div>
                 <div style="flex:1;">
                     <label style="font-weight:bold; font-size:0.9rem; color:#7f8c8d; display:block; margin-bottom:5px;">Einddatum (Optioneel):</label>
@@ -72,19 +74,19 @@
             </div>
 
             <div style="display:flex; gap:10px;">
-                <button onclick="slaItemOp()" style="flex:1; background:#2ecc71; color:white; border:none; padding:10px; border-radius:4px; font-weight:bold; cursor:pointer;">💾 Opslaan</button>
-                <button onclick="sluitDagModal()" style="background:#95a5a6; color:white; border:none; padding:10px; border-radius:4px; font-weight:bold; cursor:pointer;">Annuleren</button>
+                <button id="btn-opslaan" onclick="slaItemOp()" style="flex:1; background:#2ecc71; color:white; border:none; padding:10px; border-radius:4px; font-weight:bold; cursor:pointer;">💾 Opslaan</button>
             </div>
 
-            <h4 style="margin: 20px 0 10px 0; color:#34495e; border-top:1px solid #eee; padding-top:10px;">Reeds gepland in dit tijdvak:</h4>
+            <h4 style="margin: 20px 0 10px 0; color:#34495e; border-top:1px solid #eee; padding-top:10px;">Gedetailleerde planning van deze dag(en):</h4>
             <div id="modal-huidige-items"></div>
         </div>
     </div>
 
     <div id="categorie-modal" class="modal-overlay">
         <div class="modal-content" style="max-width: 600px;">
+            <button class="modal-close-btn" onclick="sluitCategorieInstellingen()">&times;</button>
             <h2 style="margin-top:0; color:#2c3e50;">⚙️ Eigen Categorieën & Kleuren</h2>
-            <p style="font-size:0.9rem; color:#7f8c8d; margin-bottom:15px;">Voeg je eigen labels toe of pas de kleuren aan. Categorieën met 'vakantie' kleuren de hele dag rood.</p>
+            <p style="font-size:0.9rem; color:#7f8c8d; margin-bottom:15px;">Voeg je eigen labels toe, verwijder ze, of pas de kleuren aan. Let op: Categorieën met 'vakantie' in de ID kleuren de hele dag automatisch rood.</p>
             
             <div id="categorie-lijst" style="margin-bottom:20px; max-height:40vh; overflow-y:auto; padding-right:10px;"></div>
 
@@ -93,19 +95,16 @@
                 <div style="display:flex; gap:10px;">
                     <input type="text" id="nieuwe-cat-naam" placeholder="Naam (bijv: Toernooi)" style="flex:2; padding:8px; border-radius:4px; border:1px solid #bdc3c7;">
                     <input type="color" id="nieuwe-cat-kleur" value="#3498db" style="flex:1; height:35px; border:none; cursor:pointer;">
-                    <button onclick="voegCategorieToe()" style="background:#3498db; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">➕</button>
+                    <button onclick="voegCategorieToe()" style="background:#3498db; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">➕ Toevoegen</button>
                 </div>
             </div>
 
-            <div style="display:flex; justify-content:flex-end;">
-                <button onclick="sluitCategorieInstellingen()" style="background:#2ecc71; color:white; border:none; padding:10px 20px; border-radius:4px; font-weight:bold; cursor:pointer;">Klaar & Opslaan</button>
-            </div>
         </div>
     </div>
 
     <script src="basketbal_auth.js"></script>
     <script src="basketbal_data.js"></script>
     <script type="module" src="firebase_motor.js"></script>
-    <script src="basketbal_jaarplanning.js?v=18"></script>
+    <script src="basketbal_jaarplanning.js?v=19"></script>
 </body>
 </html>
