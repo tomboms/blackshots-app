@@ -1,4 +1,4 @@
-// --- BASKETBAL_JAARPLANNING.JS: BULK TOEVOEGEN & VAKANTIE MARKERING ---
+// --- BASKETBAL_JAARPLANNING.JS: GOOGLE CALENDAR STIJL & TIJDZONE FIX ---
 
 window.jaarplanningData = JSON.parse(localStorage.getItem('blackshots_jaarplanning_data')) || [];
 window.zaalhuurData = JSON.parse(localStorage.getItem('blackshots_zaalhuur_data')) || [];
@@ -68,31 +68,51 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
 
     for (let i = 0; i < startVakje; i++) html += `<div class="kalender-dag leeg"></div>`;
 
-    let vandaagStr = new Date().toISOString().split('T')[0];
+    // Trucje om tijdzone fouten te voorkomen voor 'Vandaag'
+    let dNu = new Date();
+    let vandaagStr = `${dNu.getFullYear()}-${String(dNu.getMonth()+1).padStart(2,'0')}-${String(dNu.getDate()).padStart(2,'0')}`;
 
     for (let dag = 1; dag <= aantalDagen; dag++) {
-        let isoDatum = `${jaar}-${(maand+1).toString().padStart(2, '0')}-${dag.toString().padStart(2, '0')}`;
+        let isoDatum = `${jaar}-${String(maand+1).padStart(2, '0')}-${String(dag).padStart(2, '0')}`;
         let dagClasses = [];
         if (isoDatum === vandaagStr) dagClasses.push('vandaag');
         
-        let dagItems = window.jaarplanningData.filter(i => i.isoDatum === isoDatum);
+        // 1. Haal items op die OP of OVER deze datum vallen (Meerdaags!)
+        let dagItems = window.jaarplanningData.filter(i => {
+            let eind = i.eindDatum || i.isoDatum;
+            return isoDatum >= i.isoDatum && isoDatum <= eind;
+        });
         
-        // CHECK VOOR RODE VAKANTIE ACHTERGROND
-        if (dagItems.some(i => i.type === "Vakantie")) {
-            dagClasses.push('vakantie-dag');
-        }
+        if (dagItems.some(i => i.type === "Vakantie")) dagClasses.push('vakantie-dag');
 
         let itemsHtml = '';
         dagItems.forEach(item => {
             let badgeClass = `k-${item.type.toLowerCase()}`;
+            let eind = item.eindDatum || item.isoDatum;
+            let extraClass = '';
+            
+            // Logica voor de Google Calendar "Doorloop Balken"
+            if (item.isoDatum !== eind) {
+                extraClass += ' k-multiday';
+                if (isoDatum === item.isoDatum) extraClass += ' k-start';
+                if (isoDatum === eind) extraClass += ' k-end';
+            }
+
+            // Toon de tekst (en prullenbak) alleen op de eerste dag, OF op maandagen om het leesbaar te houden
+            let dObj = new Date(isoDatum);
+            let isStartOfSpan = (isoDatum === item.isoDatum || dObj.getDay() === 1);
+            let weergaveTekst = isStartOfSpan ? item.tekst : '&nbsp;';
+            let deleteKnop = isStartOfSpan ? `<span onclick="event.stopPropagation(); verwijderItem('${item.id}')" style="cursor:pointer; opacity:0.7; margin-left:5px;" title="Verwijder Reeks">✖</span>` : '';
+
             itemsHtml += `
-                <div class="k-item ${badgeClass}" title="${item.tekst}">
-                    <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:80%;">${item.tekst}</span>
-                    <span onclick="event.stopPropagation(); verwijderItem('${item.id}')" style="cursor:pointer; opacity:0.7;" title="Verwijder">✖</span>
+                <div class="k-item ${badgeClass} ${extraClass}" title="${item.tekst}">
+                    <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:85%; display:inline-block;">${weergaveTekst}</span>
+                    ${deleteKnop}
                 </div>
             `;
         });
 
+        // 2. ZAALHUUR SYNC
         let zalenOpDag = window.zaalhuurData.filter(z => z.isoDatum === isoDatum && !z.geannuleerd);
         let uniekeZalen = [...new Set(zalenOpDag.map(z => z.zaal))];
         let zaalBalkHtml = '';
@@ -119,7 +139,7 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
 }
 
 // ============================================================================
-// INTERACTIEF DAG-BEHEER MET BULK TOEVOEGING
+// INTERACTIEF DAG-BEHEER (Nu met Kogelvrije Datums!)
 // ============================================================================
 let actieveModalDatum = null;
 
@@ -128,9 +148,7 @@ window.openDagModal = function(isoDatum, dag, maand, jaar) {
     document.getElementById('modal-datum-titel').innerText = `Planning: ${dag} ${maandNamen[maand]} ${jaar}`;
     document.getElementById('modal-start-label').innerText = `${dag} ${maandNamen[maand]}`;
     document.getElementById('item-tekst').value = '';
-    document.getElementById('item-einddatum').value = ''; // Reset einddatum
-    
-    // Zet de einddatum min-waarde op de geselecteerde startdatum
+    document.getElementById('item-einddatum').value = ''; 
     document.getElementById('item-einddatum').min = isoDatum;
     
     verversModalLijst();
@@ -149,28 +167,21 @@ window.slaItemOp = function() {
     
     if(!tekst) return alert("Vul een omschrijving in!");
 
-    let startDatumObj = new Date(actieveModalDatum);
-    let eindDatumObj = eindDatumInput ? new Date(eindDatumInput) : new Date(actieveModalDatum);
+    let eindDatum = eindDatumInput ? eindDatumInput : actieveModalDatum;
 
-    if (eindDatumObj < startDatumObj) {
+    // String vergelijking (YYYY-MM-DD) is 100% veilig en immuun voor tijdzone-verschuivingen!
+    if (eindDatum < actieveModalDatum) {
         return alert("De einddatum kan niet vóór de startdatum liggen!");
     }
 
-    // Doorloop de datums en voeg voor élke dag in de reeks het item toe
-    let huidigeDatum = new Date(startDatumObj);
-    while (huidigeDatum <= eindDatumObj) {
-        let isoFormaat = huidigeDatum.toISOString().split('T')[0];
-        
-        window.jaarplanningData.push({
-            id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
-            isoDatum: isoFormaat,
-            type: type,
-            tekst: tekst
-        });
-        
-        // Ga 1 dag vooruit
-        huidigeDatum.setDate(huidigeDatum.getDate() + 1);
-    }
+    // Voeg 1 slim item toe die de datums overspant!
+    window.jaarplanningData.push({
+        id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+        isoDatum: actieveModalDatum,
+        eindDatum: eindDatum,
+        type: type,
+        tekst: tekst
+    });
 
     localStorage.setItem('blackshots_jaarplanning_data', JSON.stringify(window.jaarplanningData));
     tekenKalender();
@@ -178,28 +189,34 @@ window.slaItemOp = function() {
 };
 
 window.verwijderItem = function(id) {
-    if(!confirm("Weet je zeker dat je dit item wilt verwijderen?")) return;
+    if(!confirm("Weet je zeker dat je dit item (en eventuele reeks) wilt verwijderen?")) return;
     window.jaarplanningData = window.jaarplanningData.filter(i => i.id !== id);
     localStorage.setItem('blackshots_jaarplanning_data', JSON.stringify(window.jaarplanningData));
-    verversModalLijst(); // Mocht je toevallig in de modal zitten
+    verversModalLijst();
     tekenKalender();
 };
 
 function verversModalLijst() {
     let lijst = document.getElementById('modal-huidige-items');
-    let itemsOpDag = window.jaarplanningData.filter(i => i.isoDatum === actieveModalDatum);
+    
+    // Pak items die OVER deze dag heen vallen
+    let itemsOpDag = window.jaarplanningData.filter(i => {
+        let eind = i.eindDatum || i.isoDatum;
+        return actieveModalDatum >= i.isoDatum && actieveModalDatum <= eind;
+    });
     
     if(itemsOpDag.length === 0) {
-        lijst.innerHTML = '<p style="color:#7f8c8d; font-size:0.9rem; margin:0;">Geen items gepland op deze startdatum.</p>';
+        lijst.innerHTML = '<p style="color:#7f8c8d; font-size:0.9rem; margin:0;">Geen items gepland op deze datum.</p>';
         return;
     }
 
     let html = '';
     itemsOpDag.forEach(item => {
         let badgeClass = `k-${item.type.toLowerCase()}`;
+        let extraInfo = (item.isoDatum !== item.eindDatum) ? ` <small style="color:#7f8c8d;">(Reeks t/m ${item.eindDatum})</small>` : '';
         html += `
             <div style="display:flex; justify-content:space-between; align-items:center; background:#f8f9fa; padding:8px; border:1px solid #eee; border-radius:4px; margin-bottom:5px;">
-                <div><span class="k-item ${badgeClass}" style="margin-right:10px;">${item.type}</span> ${item.tekst}</div>
+                <div><span class="k-item ${badgeClass}" style="margin-right:10px;">${item.type}</span> ${item.tekst} ${extraInfo}</div>
                 <button onclick="verwijderItem('${item.id}')" style="background:transparent; border:none; color:#e74c3c; cursor:pointer; font-size:1.2rem;">🗑️</button>
             </div>
         `;
@@ -207,7 +224,6 @@ function verversModalLijst() {
     lijst.innerHTML = html;
 }
 
-// Oude Excel Bulk Upload
 window.verwerkPlanningBestand = function(e) {
     alert(`Functie momenteel omgeleid: Klik in de visuele kalender op een datum om direct items in bulk (t/m datum) toe te voegen! Dit is veel sneller en overzichtelijker dan Excel.`);
 };
