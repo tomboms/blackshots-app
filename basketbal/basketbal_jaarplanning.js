@@ -1,4 +1,4 @@
-// --- BASKETBAL_JAARPLANNING.JS: KLIK-EN-BEWERK, SLUITKNOPPEN & KLEUR-PREVIEWS ---
+// --- BASKETBAL_JAARPLANNING.JS: ESCAPE-KEY, KLIK & LEES EN STRAKKE DROPDOWNS ---
 
 window.jaarplanningData = JSON.parse(localStorage.getItem('blackshots_jaarplanning_data')) || [];
 window.zaalhuurData = JSON.parse(localStorage.getItem('blackshots_zaalhuur_data')) || [];
@@ -35,6 +35,21 @@ document.addEventListener('DOMContentLoaded', () => {
     tekenKalender();
 });
 
+// ============================================================================
+// ESCAPE TOETS LUISTERAAR (Sluit alle pop-ups)
+// ============================================================================
+document.addEventListener('keydown', function(event) {
+    if (event.key === "Escape") {
+        let dagModal = document.getElementById('dag-modal');
+        let catModal = document.getElementById('categorie-modal');
+        if (dagModal && dagModal.style.display === 'flex') sluitDagModal();
+        if (catModal && catModal.style.display === 'flex') sluitCategorieInstellingen();
+    }
+});
+
+// ============================================================================
+// DYNAMISCHE KLEUREN & INSTELLINGEN
+// ============================================================================
 function laadDynamischeKleuren() {
     let styleTag = document.getElementById('dynamic-category-styles');
     let cssText = '';
@@ -47,26 +62,14 @@ function laadDynamischeKleuren() {
     styleTag.innerHTML = cssText;
 }
 
-// Zorgt dat de dropdown direct de kleur aanneemt van de gekozen optie
-function updateDropdownKleur() {
-    let select = document.getElementById('item-type');
-    if(!select) return;
-    let cat = window.kalenderCategorieen.find(c => c.id === select.value);
-    if(cat) {
-        select.style.backgroundColor = cat.kleur;
-        select.style.color = cat.tekstKleur || '#ffffff';
-    }
-}
-
 function vulDropdown() {
     let select = document.getElementById('item-type');
     if(!select) return;
     select.innerHTML = '';
+    // Simpele, schone dropdown zonder kleuren!
     window.kalenderCategorieen.forEach(cat => {
-        let tKleur = cat.tekstKleur || '#ffffff';
-        select.innerHTML += `<option value="${cat.id}" style="background-color:${cat.kleur}; color:${tKleur};">${cat.naam}</option>`;
+        select.innerHTML += `<option value="${cat.id}">${cat.naam}</option>`;
     });
-    select.onchange = updateDropdownKleur;
 }
 
 window.openCategorieInstellingen = function() {
@@ -85,10 +88,11 @@ function tekenCategorieLijst() {
     let lijst = document.getElementById('categorie-lijst');
     lijst.innerHTML = '';
     window.kalenderCategorieen.forEach((cat, index) => {
+        let isStandaard = standaardCategorieen.some(s => s.id === cat.id);
         lijst.innerHTML += `
             <div style="display:flex; align-items:center; justify-content:space-between; padding:10px; border-bottom:1px solid #eee;">
                 <div style="display:flex; align-items:center; gap:10px; flex:1;">
-                    <input type="color" value="${cat.kleur}" onchange="updateCatKleur(${index}, this.value)" style="width:30px; height:30px; border:none; cursor:pointer;" title="Kies kleur">
+                    <input type="color" value="${cat.kleur}" onchange="updateCatKleur(${index}, this.value)" style="width:30px; height:30px; border:none; cursor:pointer;" title="Klik om kleur te wijzigen">
                     <input type="text" value="${cat.naam}" onchange="updateCatNaam(${index}, this.value)" style="padding:5px; border:1px solid #cbd5e1; border-radius:4px; flex:1; font-weight:bold;">
                 </div>
                 <button onclick="verwijderCategorie(${index})" style="background:transparent; border:none; color:#e74c3c; cursor:pointer; font-size:1.2rem; margin-left:10px;" title="Verwijder Categorie">🗑️</button>
@@ -114,14 +118,15 @@ window.voegCategorieToe = function() {
 window.updateCatKleur = function(index, nieuweKleur) { window.kalenderCategorieen[index].kleur = nieuweKleur; localStorage.setItem('blackshots_categorieen', JSON.stringify(window.kalenderCategorieen)); };
 window.updateCatNaam = function(index, nieuweNaam) { window.kalenderCategorieen[index].naam = nieuweNaam; localStorage.setItem('blackshots_categorieen', JSON.stringify(window.kalenderCategorieen)); };
 window.verwijderCategorie = function(index) { 
-    if(!confirm("Weet je zeker dat je deze categorie wilt verwijderen? Bestaande items worden niet verwijderd, ze verliezen alleen hun speciale kleur.")) return;
+    if(!confirm("Weet je zeker dat je deze categorie wilt verwijderen? (Geplande items behouden hun tekst, maar verliezen hun kleur).")) return;
     window.kalenderCategorieen.splice(index, 1); 
     localStorage.setItem('blackshots_categorieen', JSON.stringify(window.kalenderCategorieen)); 
     tekenCategorieLijst(); 
 };
 
+
 // ============================================================================
-// DYNAMISCHE HUB (NBB)
+// DYNAMISCHE HUB (Data uit NBB module overpakken)
 // ============================================================================
 function stripTeamNaam(langeNaam) { return langeNaam ? langeNaam.replace(/Black Shots/ig, '').trim() : "?"; }
 
@@ -142,7 +147,7 @@ function haalDynamischeItemsOp(isoDatum) {
 }
 
 // ============================================================================
-// KALENDER ENGINE
+// KALENDER TEKENEN
 // ============================================================================
 window.tekenKalender = function() {
     let container = document.getElementById('kalender-container');
@@ -228,14 +233,24 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
             let weergaveTitel = item.titel || "Naamloos Item";
             let weergaveTekst = isStartOfSpan ? weergaveTitel : '&nbsp;';
             
-            // KLIK INTERCEPTIE: Als we op het item zelf klikken, open de pop-up in 'Bewerk Modus'!
+            // HIER IS DE KLIK-LOGICA AANGEPAST
+            // Dynamisch = open modal leeg (info staat onderin)
+            // Handmatig = open modal direct in bewerk-modus!
             let clickAction = item.isDynamisch
-                ? `onclick="event.stopPropagation(); openDagModal('${isoDatum}', ${dag}, ${maand}, ${jaar})"`
-                : `onclick="event.stopPropagation(); openDagModalEnBewerk('${isoDatum}', ${dag}, ${maand}, ${jaar}, '${item.id}')"`;
+                ? `onclick="event.stopPropagation(); openDagModal('${isoDatum}', ${dag}, ${maand}, ${jaar}, null)"`
+                : `onclick="event.stopPropagation(); openDagModal('${isoDatum}', ${dag}, ${maand}, ${jaar}, '${item.id}')"`;
+
+            let deleteKnop = '';
+            if(!item.isDynamisch && isStartOfSpan) {
+                deleteKnop = `<span onclick="event.stopPropagation(); verwijderItem('${item.id}')" style="cursor:pointer; opacity:0.7; margin-left:5px;" title="Verwijder Reeks">✖</span>`;
+            } else if (item.isDynamisch && isStartOfSpan) {
+                deleteKnop = `<span style="opacity:0.5; margin-left:5px; font-size:0.6rem;" title="Gekoppeld via ${item.bron}">🔗</span>`;
+            }
 
             itemsHtml += `
-                <div class="k-item ${badgeClass} ${extraClass}" title="Klik om te bekijken/bewerken" ${clickAction} style="cursor:pointer;">
+                <div class="k-item ${badgeClass} ${extraClass}" title="Klik om te bekijken of te bewerken" ${clickAction} style="cursor:pointer;">
                     <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:85%; display:inline-block;">${weergaveTekst}</span>
+                    ${deleteKnop}
                 </div>
             `;
         });
@@ -269,28 +284,32 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
 // INTERACTIEF DAG-BEHEER (Met Lezen/Bewerken Modus!)
 // ============================================================================
 let actieveModalDatum = null;
-let actieveEditId = null; // Onthoudt of we een item aan het bewerken zijn
+let actieveEditId = null;
 
-window.openDagModal = function(isoDatum, dag, maand, jaar) {
+// Open modal met optionele Edit ID als we op een specifiek item hebben geklikt
+window.openDagModal = function(isoDatum, dag, maand, jaar, editId = null) {
     actieveModalDatum = isoDatum;
-    actieveEditId = null;
+    actieveEditId = editId; 
     
     document.getElementById('modal-datum-titel').innerText = `Planning: ${dag} ${maandNamen[maand]} ${jaar}`;
-    document.getElementById('item-titel').value = '';
-    document.getElementById('item-omschrijving').value = '';
-    document.getElementById('btn-opslaan').innerText = '💾 Opslaan';
-    
     let eindVeld = document.getElementById('item-einddatum');
-    if(eindVeld) { eindVeld.value = ''; eindVeld.min = isoDatum; }
+    if(eindVeld) eindVeld.min = isoDatum;
+
+    if (editId) {
+        bewerkItem(editId); // Hergebruik bewerk functie om de velden te vullen
+    } else {
+        // Leegmaken voor een nieuw item
+        document.getElementById('item-titel').value = '';
+        document.getElementById('item-omschrijving').value = '';
+        if(eindVeld) eindVeld.value = '';
+        document.getElementById('btn-opslaan').innerText = '💾 Opslaan';
+    }
     
     verversModalLijst();
     document.getElementById('dag-modal').style.display = 'flex';
-    updateDropdownKleur();
-};
-
-window.openDagModalEnBewerk = function(isoDatum, dag, maand, jaar, itemId) {
-    openDagModal(isoDatum, dag, maand, jaar);
-    setTimeout(() => bewerkItem(itemId), 50); // Klein beetje vertraging zodat modal zeker open is
+    
+    // Als we geen item bewerken, focus direct op de titelbox
+    if(!editId) setTimeout(() => document.getElementById('item-titel').focus(), 50);
 };
 
 window.bewerkItem = function(id) {
@@ -299,10 +318,7 @@ window.bewerkItem = function(id) {
     
     actieveEditId = id;
     let typeSelect = document.getElementById('item-type');
-    if(typeSelect) {
-        typeSelect.value = item.type;
-        updateDropdownKleur();
-    }
+    if(typeSelect) typeSelect.value = item.type || 'memo';
     
     document.getElementById('item-titel').value = item.titel || '';
     document.getElementById('item-omschrijving').value = item.omschrijving || '';
@@ -326,7 +342,6 @@ window.slaItemOp = function() {
     if (eindDatum < actieveModalDatum) return alert("De einddatum kan niet vóór de startdatum liggen!");
 
     if(actieveEditId) {
-        // We zijn een bestaand item aan het updaten!
         let item = window.jaarplanningData.find(i => i.id === actieveEditId);
         if(item) {
             item.type = type;
@@ -336,7 +351,6 @@ window.slaItemOp = function() {
         }
         actieveEditId = null;
     } else {
-        // Nieuw item
         window.jaarplanningData.push({
             id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
             isoDatum: actieveModalDatum,
@@ -357,7 +371,6 @@ window.verwijderItem = function(id) {
     window.jaarplanningData = window.jaarplanningData.filter(i => i.id !== id);
     localStorage.setItem('blackshots_jaarplanning_data', JSON.stringify(window.jaarplanningData));
     
-    // Als we het item verwijderen dat we net bewerken, reset dan de tekstvakken
     if(actieveEditId === id) {
         actieveEditId = null;
         document.getElementById('item-titel').value = '';
@@ -396,7 +409,6 @@ function verversModalLijst() {
         if(item.isDynamisch) extraInfo = ` <small style="color:#3498db; font-weight:bold;">(Gekoppeld via ${item.bron})</small>`;
         else if (item.isoDatum !== item.eindDatum) extraInfo = ` <small style="color:#7f8c8d;">(Reeks t/m ${item.eindDatum})</small>`;
         
-        // HIER IS DE NIEUWE BEWERK-KNOP (✏️) TOEGEVOEGD!
         let actieKnoppen = item.isDynamisch ? '' : `
             <button onclick="bewerkItem('${item.id}')" style="background:transparent; border:none; color:#3498db; cursor:pointer; font-size:1.2rem; margin-right:10px;" title="Bewerken">✏️</button>
             <button onclick="verwijderItem('${item.id}')" style="background:transparent; border:none; color:#e74c3c; cursor:pointer; font-size:1.2rem;" title="Verwijderen">🗑️</button>
@@ -420,4 +432,57 @@ function verversModalLijst() {
     lijst.innerHTML = html;
 }
 
-// ... Bulk upload logic remains untouched
+// Bulk import logic (ongewijzigd gehouden voor beknoptheid)
+window.downloadSjabloon = function() {
+    const wb = XLSX.utils.book_new();
+    const sjabloonData = [
+        ["Datum (DD-MM-YYYY)", "Omschrijving", "Type (Memo, Financieel, Thuis, Uit, Vakantie, Training, Vergadering)", "Einddatum (Optioneel)"],
+        ["20-12-2026", "Kerstvakantie", "Vakantie", "04-01-2027"]
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(sjabloonData);
+    XLSX.utils.book_append_sheet(wb, ws, "Bulk_Import");
+    XLSX.writeFile(wb, "BlackShots_Planning_Sjabloon.xlsx");
+};
+
+window.verwerkPlanningBestand = function(e) {
+    const file = e.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, {type: 'array'});
+        let ruweData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {defval:""});
+        let teller = 0;
+        ruweData.forEach(row => {
+            let keys = Object.keys(row);
+            let datumKey = keys.find(k => k.toLowerCase().includes('datum'));
+            let omsKey = keys.find(k => k.toLowerCase().includes('omschrijving'));
+            let typeKey = keys.find(k => k.toLowerCase().includes('type'));
+            let eindKey = keys.find(k => k.toLowerCase().includes('eind'));
+            
+            if (datumKey && omsKey && row[datumKey] && row[omsKey]) {
+                let isoDatum = row[datumKey].toString().match(/(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})/) ? row[datumKey].toString().replace(/(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})/, (m,d,mo,y)=>`${y.length===2?'20'+y:y}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`) : "";
+                if(!isoDatum) return;
+                let isoEind = eindKey && row[eindKey] ? row[eindKey].toString().replace(/(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})/, (m,d,mo,y)=>`${y.length===2?'20'+y:y}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`) : isoDatum;
+
+                window.jaarplanningData.push({
+                    id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+                    isoDatum: isoDatum, eindDatum: isoEind,
+                    type: (typeKey && row[typeKey]) ? row[typeKey].toString().trim() : "memo",
+                    titel: row[omsKey].toString().trim()
+                });
+                teller++;
+            }
+        });
+        localStorage.setItem('blackshots_jaarplanning_data', JSON.stringify(window.jaarplanningData));
+        alert(`✅ Bulk Upload Succesvol! Er zijn ${teller} items toegevoegd.`);
+        tekenKalender();
+    };
+    reader.readAsArrayBuffer(file);
+};
+
+window.wisJaarplanning = function() {
+    if(confirm("Weet je zeker dat je de hele jaarplanning leeg wilt gooien?")) {
+        localStorage.removeItem('blackshots_jaarplanning_data');
+        location.reload();
+    }
+};
