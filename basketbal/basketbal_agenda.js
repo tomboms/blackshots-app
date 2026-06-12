@@ -235,7 +235,6 @@ window.renderWeekAgenda = function() {
     let zaalhuurData = JSON.parse(localStorage.getItem('blackshots_zaalhuur_data')) || [];
     let afgelasteTrainingenLijst = JSON.parse(localStorage.getItem('blackshots_afgelaste_trainingen')) || [];
     
-    // --- STAP 4: HAAL JAARPLANNING OP VOOR VAKANTIES ---
     let jaarplanningData = JSON.parse(localStorage.getItem('blackshots_jaarplanning_data')) || [];
     let kalenderCategorieen = JSON.parse(localStorage.getItem('blackshots_jaarplanning_categorieen')) || [];
 
@@ -244,7 +243,6 @@ window.renderWeekAgenda = function() {
         let isoDatum = window.getIsoDatumS(datumVoorKolom);
         let isVandaag = isoDatum === window.getIsoDatumS(new Date());
 
-        // --- CHECK OF HET VAKANTIE IS ---
         let dagItems = jaarplanningData.filter(item => {
             if(!item.isoDatum) return false;
             let start = item.isoDatum;
@@ -260,10 +258,11 @@ window.renderWeekAgenda = function() {
             if (cat && cat.isVakantie) { isVakantie = true; vakantieTitel = item.titel; }
         });
 
-        // --- STYLING OP BASIS VAN VAKANTIE ---
-        let borderStijl = isVandaag ? 'border: 2px solid var(--primary-color);' : (isVakantie ? 'border: 2px solid #e74c3c;' : 'border: 1px solid var(--border-color);');
+        // --- ZACHTERE STYLING VOOR VAKANTIES ---
+        // HeaderBg blijft altijd de donkerblauwe secondary-color. De rode rand wordt transparanter.
+        let borderStijl = isVandaag ? 'border: 2px solid var(--primary-color);' : (isVakantie ? 'border: 2px solid rgba(231, 76, 60, 0.4);' : 'border: 1px solid var(--border-color);');
         let bgClass = isVakantie ? "background: rgba(231, 76, 60, 0.05);" : "background: transparent;";
-        let headerBg = isVakantie ? "background: #e74c3c;" : "background: var(--secondary-color);";
+        let headerBg = "background: var(--secondary-color);";
 
         const kolom = document.createElement('div');
         kolom.className = 'dag-kolom';
@@ -273,7 +272,6 @@ window.renderWeekAgenda = function() {
         let gehuurdeZalen = [...new Set(zalenOpDag.map(z => z.zaal.replace('Sporthal', '').replace('Sportzaal', '').trim()))];
         let zaalTekst = gehuurdeZalen.length > 0 ? gehuurdeZalen.join(' & ') : "Geen zaalhuur bekend";
 
-        // De Kop (Datum + Zaalhuur)
         let kolomTopHtml = `
             <div class="dag-titel" style="${headerBg} color:white; padding:10px; text-align:center; border-bottom:1px solid var(--border-color);">
                 <div style="font-weight:bold; font-size:1.1rem; margin-bottom:4px;">
@@ -285,10 +283,10 @@ window.renderWeekAgenda = function() {
             </div>
         `;
 
-        // --- HET KLIKBARE VAKANTIE BALKJE ---
+        // Een zachtere kleur rood (#e57373) voor het klikbare balkje
         if (isVakantie) {
             kolomTopHtml += `
-                <div onclick="window.annuleerDagVolledig('${isoDatum}', '${vakantieTitel}')" style="background:#c0392b; color:white; font-size:0.85rem; font-weight:bold; text-align:center; padding:8px; cursor:pointer; border-bottom:1px solid #a93226; transition:0.2s;" title="Klik om alle trainingen vandaag af te lassen">
+                <div onclick="window.annuleerDagVolledig('${isoDatum}', '${vakantieTitel}')" style="background:#e57373; color:white; font-size:0.85rem; font-weight:bold; text-align:center; padding:8px; cursor:pointer; border-bottom:1px solid #ef5350; transition:0.2s;" title="Klik om alle trainingen vandaag af te lassen">
                     🏖️ ${vakantieTitel}<br>
                     <span style="font-size:0.7rem; font-weight:normal; opacity:0.9;">(Klik om alles af te lassen)</span>
                 </div>
@@ -374,7 +372,7 @@ window.renderWeekAgenda = function() {
         inhoud += `</div>`;
 
         // Het Alarm Balkje (Alleen als er training is en géén zaal)
-        if (heeftActieveTraining && gehuurdeZalen.length === 0) {
+        if (heeftActieveTraining && gehuurdeZalen.length === 0 && !isVakantie) {
             inhoud += `<div style="background:#e74c3c; color:white; font-size:0.85rem; font-weight:bold; text-align:center; padding:10px; margin-top:auto; border-top: 1px solid #c0392b;">⚠️ PAS OP: GEEN ZAAL GEHUURD!</div>`;
         }
 
