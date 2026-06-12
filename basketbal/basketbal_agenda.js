@@ -211,6 +211,9 @@ window.renderWeekAgenda = function() {
     let titelEl = document.getElementById('week-titel');
     if (titelEl) titelEl.innerText = `Week van ${actieveWeekStart.getDate()}-${actieveWeekStart.getMonth()+1} t/m ${eindVanWeek.getDate()}-${eindVanWeek.getMonth()+1}`;
 
+    // --- STAP 2: HAAL DE ZAALHUUR DATA OP ---
+    let zaalhuurData = JSON.parse(localStorage.getItem('blackshots_zaalhuur_data')) || [];
+
     for (let i = 0; i < 5; i++) {
         let datumVoorKolom = new Date(actieveWeekStart); datumVoorKolom.setDate(datumVoorKolom.getDate() + i);
         let isoDatum = window.getIsoDatumS(datumVoorKolom);
@@ -220,7 +223,21 @@ window.renderWeekAgenda = function() {
         const kolom = document.createElement('div');
         kolom.className = 'dag-kolom';
         kolom.style.cssText += borderStijl;
-        kolom.innerHTML = `<div class="dag-titel" style="background:var(--secondary-color); color:white; padding:10px; text-align:center; font-weight:bold;">${dagenNamen[i]} <br><span style="font-size:0.8rem; font-weight:normal;">${datumVoorKolom.getDate()}-${datumVoorKolom.getMonth()+1}</span></div>`;
+        
+        // Bouw eerst de kop van de dag op
+        let kolomTopHtml = `<div class="dag-titel" style="background:var(--secondary-color); color:white; padding:10px; text-align:center; font-weight:bold;">${dagenNamen[i]} <br><span style="font-size:0.8rem; font-weight:normal;">${datumVoorKolom.getDate()}-${datumVoorKolom.getMonth()+1}</span></div>`;
+
+        // --- STAP 2: TEKEN DE ZAALHUUR BALK ---
+        let zalenOpDag = zaalhuurData.filter(z => z.isoDatum === isoDatum && !z.geannuleerd);
+        let gehuurdeZalen = [...new Set(zalenOpDag.map(z => z.zaal.replace('Sporthal', '').replace('Sportzaal', '').trim()))];
+
+        if (gehuurdeZalen.length > 0) {
+            kolomTopHtml += `<div style="background:var(--primary-color); color:white; font-size:0.75rem; text-align:center; padding:6px; font-weight:bold; text-transform:uppercase; letter-spacing:1px; border-bottom: 1px solid var(--border-color);">🏢 ${gehuurdeZalen.join(' & ')}</div>`;
+        } else {
+            kolomTopHtml += `<div style="background:var(--border-dark); color:white; font-size:0.7rem; text-align:center; padding:4px; font-weight:bold; text-transform:uppercase; border-bottom: 1px solid var(--border-color);">GEEN ZAALHUUR BEKEND</div>`;
+        }
+
+        kolom.innerHTML = kolomTopHtml;
 
         let trainingenVandaag = [];
         if (Array.isArray(window.teamsDB)) {
@@ -244,7 +261,7 @@ window.renderWeekAgenda = function() {
             inhoud += `<p style="text-align:center; color:#bdc3c7; font-size:0.9rem; margin-top:20px;">Geen trainingen</p>`;
         } else {
             
-            // --- NIEUW: SLIM GROEPEREN OP ZAAL ---
+            // STAP 1 LOGICA: SLIM GROEPEREN OP ZAAL VOOR DE GRID
             let zaalGroepen = {};
             trainingenVandaag.forEach(tr => {
                 let locatie = tr.zaal ? String(tr.zaal) : "Onbekend";
@@ -290,7 +307,6 @@ window.renderWeekAgenda = function() {
                 
                 inhoud += `</div>`;
             });
-            // --- EINDE NIEUWE LOGICA ---
         }
         
         inhoud += `</div>`;
