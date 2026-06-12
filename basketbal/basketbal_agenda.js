@@ -287,7 +287,7 @@ window.renderWeekAgenda = function() {
         if (isVakantie) {
             kolomTopHtml += `
                 <div onclick="window.annuleerDagVolledig('${isoDatum}', '${vakantieTitel}')" style="background:#e57373; color:white; font-size:0.85rem; font-weight:bold; text-align:center; padding:8px; cursor:pointer; border-bottom:1px solid #ef5350; transition:0.2s;" title="Klik om alle trainingen vandaag af te lassen">
-                    🏖️ ${vakantieTitel}<br>
+                     ${vakantieTitel}<br>
                     <span style="font-size:0.7rem; font-weight:normal; opacity:0.9;">(Klik om alles af te lassen)</span>
                 </div>
             `;
