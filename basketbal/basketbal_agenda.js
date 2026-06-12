@@ -1,10 +1,16 @@
-// --- BASKETBAL_AGENDA.JS: KOGELVRIJE AGENDA MET GRID, ZAALHUUR & WAARSCHUWINGEN ---
+// --- BASKETBAL_AGENDA.JS: VOLLEDIG HERSTELD & KOGELVRIJ ---
 
 let actieveTraining = null;
 let actieveTijdlijn = [];
 let actieveWeekStart = new Date();
 
-// DATA REPARATEUR
+// 1. LAAD ALLE DATABASES BOVENAAN IN (Dit miste in de vorige versie!)
+window.teamsDB = JSON.parse(localStorage.getItem('blackshots_teams')) || [];
+window.oefeningenDB = JSON.parse(localStorage.getItem('blackshots_oefeningen')) || [];
+window.geplandeTrainingenDB = JSON.parse(localStorage.getItem('blackshots_trainingen')) || {};
+window.afgelasteTrainingen = JSON.parse(localStorage.getItem('blackshots_afgelaste_trainingen')) || [];
+
+// 2. DATA REPARATEUR
 if (Array.isArray(window.geplandeTrainingenDB)) {
     let oudeArray = window.geplandeTrainingenDB;
     window.geplandeTrainingenDB = {};
@@ -29,6 +35,7 @@ if (Array.isArray(window.geplandeTrainingenDB)) {
     localStorage.setItem('blackshots_trainingen', JSON.stringify(window.geplandeTrainingenDB));
 }
 
+// 3. MOOIE MODALS & HULPFUNCTIES
 function injecteerMooieModals() {
     if (document.getElementById('custom-prompt-modal')) return;
     const style = document.createElement('style');
@@ -96,15 +103,15 @@ window.toonCustomConfirm = function(titel, tekst, knopTekst, callback) {
     document.getElementById('custom-confirm-modal').style.display = 'flex';
 };
 
-// --- WHATSAPP & AFLASSEN LOGICA ---
+// 4. WHATSAPP & AFLASSEN LOGICA
 window.toggleAflassen = function(key) {
-    let afgelasteTrainingen = JSON.parse(localStorage.getItem('blackshots_afgelaste_trainingen')) || [];
+    window.afgelasteTrainingen = JSON.parse(localStorage.getItem('blackshots_afgelaste_trainingen')) || [];
     if(confirm("Wil je deze specifieke training aflassen/herstellen?")) {
-        let idx = afgelasteTrainingen.indexOf(key);
-        if(idx > -1) afgelasteTrainingen.splice(idx, 1);
-        else afgelasteTrainingen.push(key);
+        let idx = window.afgelasteTrainingen.indexOf(key);
+        if(idx > -1) window.afgelasteTrainingen.splice(idx, 1);
+        else window.afgelasteTrainingen.push(key);
         
-        localStorage.setItem('blackshots_afgelaste_trainingen', JSON.stringify(afgelasteTrainingen));
+        localStorage.setItem('blackshots_afgelaste_trainingen', JSON.stringify(window.afgelasteTrainingen));
         window.renderWeekAgenda();
     }
 };
@@ -119,7 +126,7 @@ window.stuurWhatsApp = function(teamNaam, weergaveDatum, tijd, isAfgelast) {
     window.open(url, '_blank');
 };
 
-// --- VIEW CONTROLS ---
+// 5. VIEW CONTROLS (Week of Team)
 window.wisselAgendaView = function(view) {
     const btnWeek = document.getElementById('btn-view-week'); const btnTeam = document.getElementById('btn-view-team');
     if (!btnWeek || !btnTeam) return;
@@ -222,6 +229,7 @@ window.renderTeamAgenda = function() {
 window.wijzigWeek = function(dagen) { actieveWeekStart.setDate(actieveWeekStart.getDate() + (dagen * 7)); window.renderWeekAgenda(); };
 window.gaNaarHuidigeWeek = function() { actieveWeekStart = zetOpMaandag(new Date()); window.renderWeekAgenda(); };
 
+// 6. DE AGENDA TEKENEN (Kogelvrij + Grid + Zaalhuur)
 window.renderWeekAgenda = function() {
     let grid = document.getElementById('agenda-grid');
     let label = document.getElementById('week-label');
@@ -242,6 +250,7 @@ window.renderWeekAgenda = function() {
         let zaalhuurData = JSON.parse(localStorage.getItem('blackshots_zaalhuur_data')) || [];
         let jaarplanningData = JSON.parse(localStorage.getItem('blackshots_jaarplanning_data')) || [];
         let kalenderCategorieen = JSON.parse(localStorage.getItem('blackshots_jaarplanning_categorieen')) || [];
+        window.afgelasteTrainingen = JSON.parse(localStorage.getItem('blackshots_afgelaste_trainingen')) || [];
 
         for (let i = 0; i < 5; i++) {
             let loopDag = new Date(startDatum);
@@ -419,6 +428,7 @@ window.renderWeekAgenda = function() {
     }
 };
 
+// 7. DE MODALS LOGICA VOOR BEWERKEN / TOEVOEGEN
 window.openTeamKiezer = function(isoDatum) {
     let uDB = JSON.parse(localStorage.getItem('bs_actieve_gebruiker')) || {};
     let isTrainer = (uDB.rol === 'trainer');
@@ -496,9 +506,7 @@ window.voerBulkAnnuleringUit = function() {
     }
 };
 
-// ============================================================================
-// OEFENINGEN & TIJDLIJN BEHEER
-// ============================================================================
+// 8. OEFENINGEN & TIJDLIJN BEHEER IN MODAL
 window.tekenOefeningenKiezer = function() {
     let container = document.getElementById('oefeningen-kiezer');
     let catSelect = document.getElementById('filter-categorie');
@@ -598,7 +606,7 @@ window.tekenTijdlijn = function() {
     container.innerHTML = html;
 };
 
-// Start de module zachtjes
+// 9. START DE APPLICATIE
 document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => { if (window.renderWeekAgenda) window.renderWeekAgenda(); }, 200);
 });
