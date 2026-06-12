@@ -197,111 +197,81 @@ window.veranderWeek = function(dagen) { actieveWeekStart.setDate(actieveWeekStar
 window.gaNaarHuidigeWeek = function() { actieveWeekStart = zetOpMaandag(new Date()); window.renderWeekAgenda(); };
 
 window.renderWeekAgenda = function() {
-    let grid = document.getElementById('agenda-grid');
-    let label = document.getElementById('week-label');
-    if (!grid) return;
-
-    let startDatum = new Date(actieveWeekStart);
-    let eindDatum = new Date(actieveWeekStart);
-    eindDatum.setDate(startDatum.getDate() + 4); 
+    const container = document.getElementById('week-overzicht') || document.getElementById('week-agenda-container');
+    if (!container) return; 
     
-    let sMnd = startDatum.toLocaleString('nl-NL', { month: 'short' });
-    let eMnd = eindDatum.toLocaleString('nl-NL', { month: 'short' });
-    if (label) label.innerText = `Week van ma ${startDatum.getDate()} ${sMnd} t/m vr ${eindDatum.getDate()} ${eMnd} ${startDatum.getFullYear()}`;
+    container.innerHTML = '';
+    container.className = 'week-grid'; 
+    container.style.display = 'grid';
 
-    let agendaHtml = '';
-    let dagNamen = ['Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag'];
+    let actieveGebruiker = JSON.parse(localStorage.getItem('bs_actieve_gebruiker')) || {teams:['all']};
+    const dagenNamen = ["Maandag", "Dinsdag", "Woensdag", "Donderdag", "Vrijdag"];
+    
+    let eindVanWeek = new Date(actieveWeekStart); eindVanWeek.setDate(eindVanWeek.getDate() + 4); 
+    let titelEl = document.getElementById('week-titel');
+    if (titelEl) titelEl.innerText = `Week van ${actieveWeekStart.getDate()}-${actieveWeekStart.getMonth()+1} t/m ${eindVanWeek.getDate()}-${eindVanWeek.getMonth()+1}`;
 
     for (let i = 0; i < 5; i++) {
-        let loopDag = new Date(startDatum);
-        loopDag.setDate(startDatum.getDate() + i);
-        let isoDatum = `${loopDag.getFullYear()}-${String(loopDag.getMonth()+1).padStart(2,'0')}-${String(loopDag.getDate()).padStart(2,'0')}`;
-        let displayDatum = `${loopDag.getDate()}-${loopDag.getMonth()+1}`;
+        let datumVoorKolom = new Date(actieveWeekStart); datumVoorKolom.setDate(datumVoorKolom.getDate() + i);
+        let isoDatum = window.getIsoDatumS(datumVoorKolom);
+        let isVandaag = isoDatum === window.getIsoDatumS(new Date());
+        let borderStijl = isVandaag ? 'border: 2px solid var(--primary-color);' : 'border: 1px solid var(--border-color);';
 
-        let actieveKeys = Object.keys(window.geplandeTrainingenDB).filter(k => k.startsWith(isoDatum) && window.geplandeTrainingenDB[k].length > 0);
+        const kolom = document.createElement('div'); 
+        kolom.className = 'dag-kolom'; 
+        kolom.style.cssText += borderStijl;
+        kolom.innerHTML = `<div class="dag-titel" style="background:var(--secondary-color); color:white; padding:10px; text-align:center; font-weight:bold;">${dagenNamen[i]} <br><span style="font-size:0.8rem; font-weight:normal;">${datumVoorKolom.getDate()}-${datumVoorKolom.getMonth()+1}</span></div>`;
+        
+        let trainingenVandaag = [];
+        if (Array.isArray(window.teamsDB)) {
+            window.teamsDB.forEach(team => {
+                // CHECK RECHTEN: Mag deze ingelogde persoon dit team zien?
+                if(!actieveGebruiker.teams.includes('all') && !actieveGebruiker.teams.includes(team.id)) return;
 
-        agendaHtml += `
-            <div class="dag-kolom">
-                <div class="dag-header">
-                    ${dagNamen[i]} <span style="font-size:0.8rem; font-weight:normal;">(${displayDatum})</span>
-                </div>
-                <div style="flex:1; padding:10px; display: flex; flex-direction: column;">
-        `;
-
-        if (actieveKeys.length > 0) {
-            
-            // STAP 1: GROEPEER TRAININGEN PER ZAAL
-            let zaalGroepen = {};
-            
-            actieveKeys.forEach(k => {
-                let teamId = k.split('_')[1];
-                let team = window.teamsDB.find(t => t.id === teamId);
-                let locatie = (team && team.trainingLocatie) ? team.trainingLocatie : "Onbekend";
-                
-                // Splits bij een '-' zodat "De Veste - Veld A" gewoon "de veste" wordt
-                let basisZaal = locatie.split('-')[0].trim().toLowerCase(); 
-                
-                if (!zaalGroepen[basisZaal]) zaalGroepen[basisZaal] = [];
-                zaalGroepen[basisZaal].push(k);
+                if (team.trainingen) {
+                    team.trainingen.forEach(tr => { 
+                        if (parseInt(tr.dag) === (i + 1)) {
+                            trainingenVandaag.push({ teamNaam: team.naam, start: tr.start, eind: tr.eind, zaal: tr.zaal, veld: tr.veld || '', duur: tr.duur || 90, teamId: team.id }); 
+                        }
+                    });
+                }
             });
-
-            // Loop door de zalen heen en teken ze
-            Object.keys(zaalGroepen).forEach(zaal => {
-                let keysInZaal = zaalGroepen[zaal];
-                
-                // Als er meerdere in 1 zaal zijn, zet ze in een grid (naast elkaar)
-                let gridStyle = keysInZaal.length > 1 ? 'display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; margin-bottom: 10px;' : 'margin-bottom: 10px;';
-                
-                agendaHtml += `<div style="${gridStyle}">`;
-
-                keysInZaal.forEach(k => {
-                    let teamId = k.split('_')[1];
-                    let team = window.teamsDB.find(t => t.id === teamId);
-                    let teamNaam = team ? team.naam : "Onbekend";
-                    let tijd = team && team.trainingTijd ? team.trainingTijd : "";
-                    let veldInfo = team && team.trainingLocatie ? team.trainingLocatie : "";
-
-                    let uDB = JSON.parse(localStorage.getItem('bs_actieve_gebruiker')) || {};
-                    let isTrainer = (uDB.rol === 'trainer');
-                    let magBewerken = !isTrainer || (uDB.teams && (uDB.teams.includes('all') || uDB.teams.includes(teamId)));
-                    let clickAction = magBewerken ? `window.openDagDetail('${isoDatum}', '${teamId}')` : `alert('Je hebt geen rechten om deze training te bewerken.')`;
-                    
-                    let opacityStyle = magBewerken ? '' : 'opacity:0.6; cursor:not-allowed;';
-                    let itemMargin = keysInZaal.length > 1 ? 'margin: 0;' : ''; // Reset margin als ze in een grid staan
-
-                    agendaHtml += `
-                        <div class="training-item" onclick="${clickAction}" style="${opacityStyle} ${itemMargin}">
-                            <strong style="display:block; color:var(--primary-color); font-size:1.1rem; margin-bottom:5px;">${teamNaam}</strong>
-                            <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:10px;">
-                                ${tijd ? `<div>⏰ ${tijd}</div>` : ''}
-                                ${veldInfo ? `<div>📍 ${veldInfo}</div>` : ''}
-                                <div style="margin-top:5px; font-weight:bold; color:var(--secondary-color);">
-                                    📝 ${window.geplandeTrainingenDB[k].length} Oef.
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                });
-
-                agendaHtml += `</div>`; // Sluit het zaal-groep vakje af
-            });
-
-        } else {
-            agendaHtml += `<p style="text-align:center; color:var(--text-muted); font-size:0.9rem; font-style:italic; margin-top:20px;">Geen trainingen ingepland.</p>`;
         }
+        
+        trainingenVandaag.sort((a, b) => (a.start || '').localeCompare(b.start || ''));
 
-        agendaHtml += `
-                </div>
-                <div style="padding:10px; border-top:1px solid var(--border-color); background:var(--card-bg);">
-                    <button class="admin-only" onclick="window.openTeamKiezer('${isoDatum}')" style="width:100%; background:transparent; border:2px dashed var(--border-dark); color:var(--text-color); padding:8px; border-radius:4px; cursor:pointer; font-weight:bold;">
-                        + Team Toevoegen
-                    </button>
-                    ${actieveKeys.length > 0 ? `<button class="admin-only" onclick="window.wisDag('${isoDatum}')" style="width:100%; background:transparent; border:none; color:#e74c3c; font-size:0.8rem; cursor:pointer; margin-top:5px;">Wis alle trainingen</button>` : ''}
-                </div>
-            </div>
-        `;
+        let inhoud = `<div style="padding:10px;">`;
+        if (trainingenVandaag.length === 0) {
+            inhoud += `<p style="text-align:center; color:#bdc3c7; font-size:0.9rem; margin-top:20px;">Geen trainingen</p>`;
+        } else {
+            trainingenVandaag.forEach(tr => {
+                let opslagSleutel = `${isoDatum}_${tr.teamId}`;
+                let isGepland = '';
+                
+                if (window.geplandeTrainingenDB && window.geplandeTrainingenDB[opslagSleutel]) {
+                    let dbTr = window.geplandeTrainingenDB[opslagSleutel];
+                    if(Array.isArray(dbTr) && dbTr.length === 1 && dbTr[0].type === 'geannuleerd') {
+                        isGepland = `<span style="background:#e74c3c; color:white; padding:2px 4px; border-radius:4px; font-size:0.7rem; float:right;">❌ Afgelast</span>`;
+                    } else {
+                        isGepland = `<span style="background:#27ae60; color:white; padding:2px 4px; border-radius:4px; font-size:0.7rem; float:right;">✅ Gepland</span>`;
+                    }
+                }
+
+                let veldDisplay = tr.veld ? ` - Veld ${tr.veld}` : '';
+
+                inhoud += `
+                    <div style="background:white; margin-bottom:10px; padding:10px; border-radius:4px; border-left:4px solid var(--primary-color); box-shadow:0 2px 4px rgba(0,0,0,0.05); cursor:pointer; transition:0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onclick="window.openTrainingsPlanner('${tr.teamId}', '${tr.start}', ${tr.duur}, '${isoDatum}')">
+                        <strong style="display:block; font-size:1.1rem; color:var(--secondary-color);">${tr.teamNaam} ${isGepland}</strong>
+                        <div style="color:#e67e22; font-weight:bold; font-size:0.9rem; margin:3px 0;">🕒 ${tr.start} - ${tr.eind}</div>
+                        <div style="font-size:0.8rem; color:#7f8c8d;">📍 ${tr.zaal}${veldDisplay} (${tr.duur} min)</div>
+                    </div>
+                `;
+            });
+        }
+        inhoud += `</div>`;
+        kolom.innerHTML += inhoud;
+        container.appendChild(kolom);
     }
-    grid.innerHTML = agendaHtml;
 };
 
 window.openTrainingsPlanner = function(teamId, startTijd, duur, datumStr) {
