@@ -193,8 +193,30 @@ window.renderTeamAgenda = function() {
     });
 };
 
+
+window.annuleerDagVolledig = function(isoDatum, reden) {
+    if(confirm(`Wil je alle trainingen op ${isoDatum} aflassen vanwege: ${reden}?`)) {
+        let d = new Date(isoDatum);
+        let dagNummer = d.getDay() || 7;
+        
+        window.teamsDB.forEach(team => {
+            if(team.trainingen) {
+                team.trainingen.forEach(tr => {
+                    if(parseInt(tr.dag) === parseInt(dagNummer)) {
+                        let sleutel = `${isoDatum}_${team.id}`;
+                        window.geplandeTrainingenDB[sleutel] = [{ type: 'geannuleerd', reden: reden, duur: tr.duur || 90 }];
+                    }
+                });
+            }
+        });
+        localStorage.setItem('blackshots_trainingen', JSON.stringify(window.geplandeTrainingenDB));
+        window.renderWeekAgenda();
+    }
+};
+
 window.veranderWeek = function(dagen) { actieveWeekStart.setDate(actieveWeekStart.getDate() + dagen); window.renderWeekAgenda(); };
 window.gaNaarHuidigeWeek = function() { actieveWeekStart = zetOpMaandag(new Date()); window.renderWeekAgenda(); };
+
 window.renderWeekAgenda = function() {
     const container = document.getElementById('week-overzicht') || document.getElementById('week-agenda-container');
     if (!container) return;
@@ -212,24 +234,48 @@ window.renderWeekAgenda = function() {
 
     let zaalhuurData = JSON.parse(localStorage.getItem('blackshots_zaalhuur_data')) || [];
     let afgelasteTrainingenLijst = JSON.parse(localStorage.getItem('blackshots_afgelaste_trainingen')) || [];
+    
+    // --- STAP 4: HAAL JAARPLANNING OP VOOR VAKANTIES ---
+    let jaarplanningData = JSON.parse(localStorage.getItem('blackshots_jaarplanning_data')) || [];
+    let kalenderCategorieen = JSON.parse(localStorage.getItem('blackshots_jaarplanning_categorieen')) || [];
 
     for (let i = 0; i < 5; i++) {
         let datumVoorKolom = new Date(actieveWeekStart); datumVoorKolom.setDate(datumVoorKolom.getDate() + i);
         let isoDatum = window.getIsoDatumS(datumVoorKolom);
         let isVandaag = isoDatum === window.getIsoDatumS(new Date());
-        let borderStijl = isVandaag ? 'border: 2px solid var(--primary-color);' : 'border: 1px solid var(--border-color);';
+
+        // --- CHECK OF HET VAKANTIE IS ---
+        let dagItems = jaarplanningData.filter(item => {
+            if(!item.isoDatum) return false;
+            let start = item.isoDatum;
+            let eind = item.eindDatum || item.isoDatum;
+            return (start <= isoDatum && eind >= isoDatum);
+        });
+        
+        let isVakantie = false;
+        let vakantieTitel = "";
+        dagItems.forEach(item => {
+            let catId = (item.type || 'memo').toLowerCase();
+            let cat = kalenderCategorieen.find(c => c.id === catId);
+            if (cat && cat.isVakantie) { isVakantie = true; vakantieTitel = item.titel; }
+        });
+
+        // --- STYLING OP BASIS VAN VAKANTIE ---
+        let borderStijl = isVandaag ? 'border: 2px solid var(--primary-color);' : (isVakantie ? 'border: 2px solid #e74c3c;' : 'border: 1px solid var(--border-color);');
+        let bgClass = isVakantie ? "background: rgba(231, 76, 60, 0.05);" : "background: transparent;";
+        let headerBg = isVakantie ? "background: #e74c3c;" : "background: var(--secondary-color);";
 
         const kolom = document.createElement('div');
         kolom.className = 'dag-kolom';
-        // Door 'flex' toe te voegen, kunnen we de waarschuwing straks perfect naar de bodem duwen
-        kolom.style.cssText += borderStijl + ' display: flex; flex-direction: column; overflow: hidden;';
+        kolom.style.cssText += borderStijl + bgClass + ' display: flex; flex-direction: column; overflow: hidden;';
         
         let zalenOpDag = zaalhuurData.filter(z => z.isoDatum === isoDatum && !z.geannuleerd);
         let gehuurdeZalen = [...new Set(zalenOpDag.map(z => z.zaal.replace('Sporthal', '').replace('Sportzaal', '').trim()))];
         let zaalTekst = gehuurdeZalen.length > 0 ? gehuurdeZalen.join(' & ') : "Geen zaalhuur bekend";
 
+        // De Kop (Datum + Zaalhuur)
         let kolomTopHtml = `
-            <div class="dag-titel" style="background:var(--secondary-color); color:white; padding:10px; text-align:center; border-bottom:1px solid var(--border-color);">
+            <div class="dag-titel" style="${headerBg} color:white; padding:10px; text-align:center; border-bottom:1px solid var(--border-color);">
                 <div style="font-weight:bold; font-size:1.1rem; margin-bottom:4px;">
                     ${dagenNamen[i]} <span style="font-size:0.85rem; font-weight:normal;">(${datumVoorKolom.getDate()}-${datumVoorKolom.getMonth()+1})</span>
                 </div>
@@ -238,6 +284,16 @@ window.renderWeekAgenda = function() {
                 </div>
             </div>
         `;
+
+        // --- HET KLIKBARE VAKANTIE BALKJE ---
+        if (isVakantie) {
+            kolomTopHtml += `
+                <div onclick="window.annuleerDagVolledig('${isoDatum}', '${vakantieTitel}')" style="background:#c0392b; color:white; font-size:0.85rem; font-weight:bold; text-align:center; padding:8px; cursor:pointer; border-bottom:1px solid #a93226; transition:0.2s;" title="Klik om alle trainingen vandaag af te lassen">
+                    🏖️ ${vakantieTitel}<br>
+                    <span style="font-size:0.7rem; font-weight:normal; opacity:0.9;">(Klik om alles af te lassen)</span>
+                </div>
+            `;
+        }
 
         kolom.innerHTML = kolomTopHtml;
 
@@ -257,10 +313,7 @@ window.renderWeekAgenda = function() {
         }
 
         trainingenVandaag.sort((a, b) => (a.start || '').localeCompare(b.start || ''));
-
-        let heeftActieveTraining = false; // We houden bij of er vandaag minimaal 1 actieve training is
-        
-        // flex: 1 zorgt ervoor dat dit blok alle ruimte pakt, waardoor een eventuele waarschuwing naar de bodem wordt gedrukt
+        let heeftActieveTraining = false; 
         let inhoud = `<div style="padding:10px; flex: 1;">`; 
 
         if (trainingenVandaag.length === 0) {
@@ -299,14 +352,11 @@ window.renderWeekAgenda = function() {
                     if (isAfgelast) {
                         isGepland = `<span style="background:#e74c3c; color:white; padding:2px 4px; border-radius:4px; font-size:0.7rem; float:right;">❌ Afgelast</span>`;
                     } else {
-                        // Jaa! We hebben een training gevonden die doorgaat. 
                         heeftActieveTraining = true;
                     }
 
                     let veldDisplay = tr.veld ? ` - Veld ${tr.veld}` : '';
                     let itemMargin = trInZaal.length > 1 ? 'margin: 0;' : 'margin-bottom: 10px;';
-                    
-                    // We maken het kaartje iets vager als hij is afgelast
                     let kaartOpmaak = isAfgelast ? "opacity: 0.6; background: #fdf2f2; border-left: 4px solid #e74c3c;" : "background: white; border-left: 4px solid var(--primary-color);";
 
                     inhoud += `
@@ -323,7 +373,7 @@ window.renderWeekAgenda = function() {
         }
         inhoud += `</div>`;
 
-        // --- STAP 3: HET ALARM BALKJE ONDERAAN ---
+        // Het Alarm Balkje (Alleen als er training is en géén zaal)
         if (heeftActieveTraining && gehuurdeZalen.length === 0) {
             inhoud += `<div style="background:#e74c3c; color:white; font-size:0.85rem; font-weight:bold; text-align:center; padding:10px; margin-top:auto; border-top: 1px solid #c0392b;">⚠️ PAS OP: GEEN ZAAL GEHUURD!</div>`;
         }
@@ -332,7 +382,6 @@ window.renderWeekAgenda = function() {
         container.appendChild(kolom);
     }
 };
-
 window.openTrainingsPlanner = function(teamId, startTijd, duur, datumStr) {
     const team = window.teamsDB.find(t => t.id === teamId);
     actieveTraining = { teamId, startTijd, duur, datum: datumStr, opslagSleutel: `${datumStr}_${teamId}` };
