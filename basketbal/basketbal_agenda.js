@@ -229,40 +229,63 @@ window.renderWeekAgenda = function() {
         `;
 
         if (actieveKeys.length > 0) {
-            // STAP 1: HIER BEGINT DE GRID-CONTAINER (Naast elkaar plaatsen)
-            agendaHtml += `<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; margin-bottom: 10px;">`;
-
+            
+            // STAP 1: GROEPEER TRAININGEN PER ZAAL
+            let zaalGroepen = {};
+            
             actieveKeys.forEach(k => {
                 let teamId = k.split('_')[1];
                 let team = window.teamsDB.find(t => t.id === teamId);
-                let teamNaam = team ? team.naam : "Onbekend";
-                let tijd = team && team.trainingTijd ? team.trainingTijd : "";
-                let veldInfo = team && team.trainingLocatie ? team.trainingLocatie : "";
+                let locatie = (team && team.trainingLocatie) ? team.trainingLocatie : "Onbekend";
+                
+                // Splits bij een '-' zodat "De Veste - Veld A" gewoon "de veste" wordt
+                let basisZaal = locatie.split('-')[0].trim().toLowerCase(); 
+                
+                if (!zaalGroepen[basisZaal]) zaalGroepen[basisZaal] = [];
+                zaalGroepen[basisZaal].push(k);
+            });
 
-                let uDB = JSON.parse(localStorage.getItem('bs_actieve_gebruiker')) || {};
-                let isTrainer = (uDB.rol === 'trainer');
-                let magBewerken = !isTrainer || (uDB.teams && (uDB.teams.includes('all') || uDB.teams.includes(teamId)));
-                let clickAction = magBewerken ? `window.openDagDetail('${isoDatum}', '${teamId}')` : `alert('Je hebt geen rechten om deze training te bewerken.')`;
-                let opacityStyle = magBewerken ? '' : 'opacity:0.6; cursor:not-allowed;';
+            // Loop door de zalen heen en teken ze
+            Object.keys(zaalGroepen).forEach(zaal => {
+                let keysInZaal = zaalGroepen[zaal];
+                
+                // Als er meerdere in 1 zaal zijn, zet ze in een grid (naast elkaar)
+                let gridStyle = keysInZaal.length > 1 ? 'display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; margin-bottom: 10px;' : 'margin-bottom: 10px;';
+                
+                agendaHtml += `<div style="${gridStyle}">`;
 
-                // De margin: 0; zorgt ervoor dat de Grid netjes werkt zonder uit te steken
-                agendaHtml += `
-                    <div class="training-item" onclick="${clickAction}" style="margin: 0; ${opacityStyle}">
-                        <strong style="display:block; color:var(--primary-color); font-size:1.1rem; margin-bottom:5px;">${teamNaam}</strong>
-                        <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:10px;">
-                            ${tijd ? `<div>⏰ ${tijd}</div>` : ''}
-                            ${veldInfo ? `<div>📍 Veld ${veldInfo}</div>` : ''}
-                            <div style="margin-top:5px; font-weight:bold; color:var(--secondary-color);">
-                                📝 ${window.geplandeTrainingenDB[k].length} Oef.
+                keysInZaal.forEach(k => {
+                    let teamId = k.split('_')[1];
+                    let team = window.teamsDB.find(t => t.id === teamId);
+                    let teamNaam = team ? team.naam : "Onbekend";
+                    let tijd = team && team.trainingTijd ? team.trainingTijd : "";
+                    let veldInfo = team && team.trainingLocatie ? team.trainingLocatie : "";
+
+                    let uDB = JSON.parse(localStorage.getItem('bs_actieve_gebruiker')) || {};
+                    let isTrainer = (uDB.rol === 'trainer');
+                    let magBewerken = !isTrainer || (uDB.teams && (uDB.teams.includes('all') || uDB.teams.includes(teamId)));
+                    let clickAction = magBewerken ? `window.openDagDetail('${isoDatum}', '${teamId}')` : `alert('Je hebt geen rechten om deze training te bewerken.')`;
+                    
+                    let opacityStyle = magBewerken ? '' : 'opacity:0.6; cursor:not-allowed;';
+                    let itemMargin = keysInZaal.length > 1 ? 'margin: 0;' : ''; // Reset margin als ze in een grid staan
+
+                    agendaHtml += `
+                        <div class="training-item" onclick="${clickAction}" style="${opacityStyle} ${itemMargin}">
+                            <strong style="display:block; color:var(--primary-color); font-size:1.1rem; margin-bottom:5px;">${teamNaam}</strong>
+                            <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:10px;">
+                                ${tijd ? `<div>⏰ ${tijd}</div>` : ''}
+                                ${veldInfo ? `<div>📍 ${veldInfo}</div>` : ''}
+                                <div style="margin-top:5px; font-weight:bold; color:var(--secondary-color);">
+                                    📝 ${window.geplandeTrainingenDB[k].length} Oef.
+                                </div>
                             </div>
                         </div>
-                    </div>
-                `;
+                    `;
+                });
+
+                agendaHtml += `</div>`; // Sluit het zaal-groep vakje af
             });
-            
-            // STAP 1: EINDE VAN DE GRID-CONTAINER
-            agendaHtml += `</div>`;
-            
+
         } else {
             agendaHtml += `<p style="text-align:center; color:var(--text-muted); font-size:0.9rem; font-style:italic; margin-top:20px;">Geen trainingen ingepland.</p>`;
         }
