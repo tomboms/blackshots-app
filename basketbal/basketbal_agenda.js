@@ -229,7 +229,6 @@ window.renderTeamAgenda = function() {
 window.wijzigWeek = function(dagen) { actieveWeekStart.setDate(actieveWeekStart.getDate() + (dagen * 7)); window.renderWeekAgenda(); };
 window.gaNaarHuidigeWeek = function() { actieveWeekStart = zetOpMaandag(new Date()); window.renderWeekAgenda(); };
 
-// 6. DE AGENDA TEKENEN (Kogelvrij + Grid + Zaalhuur)
 window.renderWeekAgenda = function() {
     let grid = document.getElementById('agenda-grid');
     let label = document.getElementById('week-label');
@@ -250,7 +249,7 @@ window.renderWeekAgenda = function() {
         let zaalhuurData = JSON.parse(localStorage.getItem('blackshots_zaalhuur_data')) || [];
         let jaarplanningData = JSON.parse(localStorage.getItem('blackshots_jaarplanning_data')) || [];
         let kalenderCategorieen = JSON.parse(localStorage.getItem('blackshots_jaarplanning_categorieen')) || [];
-        window.afgelasteTrainingen = JSON.parse(localStorage.getItem('blackshots_afgelaste_trainingen')) || [];
+        let afgelasteTrainingen = JSON.parse(localStorage.getItem('blackshots_afgelaste_trainingen')) || [];
 
         for (let i = 0; i < 5; i++) {
             let loopDag = new Date(startDatum);
@@ -259,19 +258,8 @@ window.renderWeekAgenda = function() {
             let displayDatum = `${loopDag.getDate()}-${loopDag.getMonth()+1}`;
             let nlDatum = `${dagNamen[i]} ${loopDag.getDate()} ${loopDag.toLocaleString('nl-NL', {month:'short'})}`;
 
-            let dagNummer = loopDag.getDay() || 7;
-
-            // Haal vaste trainingen op uit teamsDB
-            let dagTrainingen = [];
-            (window.teamsDB || []).forEach(team => {
-                if (team && team.trainingen && Array.isArray(team.trainingen)) {
-                    team.trainingen.forEach(tr => {
-                        if (parseInt(tr.dag) === parseInt(dagNummer)) {
-                            dagTrainingen.push({ team: team, training: tr, sleutel: `${isoDatum}_${team.id}` });
-                        }
-                    });
-                }
-            });
+            // HIER WAS DE FOUT! We gebruiken nu weer jouw originele code om trainingen te vinden:
+            let actieveKeys = Object.keys(window.geplandeTrainingenDB || {}).filter(k => k.startsWith(isoDatum) && window.geplandeTrainingenDB[k].length > 0);
 
             // VAKANTIE CHECK
             let dagItems = jaarplanningData.filter(item => {
@@ -301,7 +289,7 @@ window.renderWeekAgenda = function() {
             if (isVakantie) {
                 bgClass = "background: rgba(231, 76, 60, 0.05); border: 2px solid #e74c3c;";
                 headerClass = "background: #e74c3c;";
-            } else if (dagTrainingen.length > 0 && gehuurdeZalen.length === 0) {
+            } else if (actieveKeys.length > 0 && gehuurdeZalen.length === 0) {
                 bgClass = "background: rgba(231, 76, 60, 0.05); border: 2px solid #e74c3c;";
                 headerClass = "background: #e74c3c;";
                 waarschuwingHtml = `<div style="background:#e74c3c; color:white; padding:10px; text-align:center; font-weight:bold; font-size:0.9rem; border-radius:0 0 6px 6px; margin-top:auto;">⚠️ PAS OP: GEEN ZAAL GEHUURD!</div>`;
@@ -333,13 +321,17 @@ window.renderWeekAgenda = function() {
                 continue;
             }
 
-            if (dagTrainingen.length > 0) {
+            if (actieveKeys.length > 0) {
                 let zaalGroepen = {};
-                dagTrainingen.forEach(item => {
-                    let zName = item.training.zaal ? item.training.zaal.trim().toLowerCase() : "onbekend";
-                    let basisZaal = zName.split('-')[0].trim();
+                actieveKeys.forEach(k => {
+                    let teamId = k.split('_')[1];
+                    let team = (window.teamsDB || []).find(t => t.id === teamId);
+                    let locatie = (team && team.trainingLocatie) ? String(team.trainingLocatie) : "onbekend";
+                    let basisZaal = locatie.split('-')[0].trim().toLowerCase(); 
+                    if (!basisZaal) basisZaal = "onbekend";
+                    
                     if (!zaalGroepen[basisZaal]) zaalGroepen[basisZaal] = [];
-                    zaalGroepen[basisZaal].push(item);
+                    zaalGroepen[basisZaal].push(k);
                 });
 
                 Object.keys(zaalGroepen).forEach(zaal => {
@@ -348,20 +340,22 @@ window.renderWeekAgenda = function() {
                     
                     agendaHtml += `<div style="${gridStyle}">`;
 
-                    keysInZaal.forEach(item => {
-                        let team = item.team;
-                        let tr = item.training;
-                        let sleutel = item.sleutel;
-
-                        let dbTr = window.geplandeTrainingenDB[sleutel] || [];
-                        let isAfgelast = window.afgelasteTrainingen.includes(sleutel) || (dbTr.length === 1 && dbTr[0].type === 'geannuleerd');
+                    keysInZaal.forEach(k => {
+                        let teamId = k.split('_')[1];
+                        let team = (window.teamsDB || []).find(t => t.id === teamId);
+                        let teamNaam = team ? team.naam : "Onbekend";
+                        let tijd = team && team.trainingTijd ? team.trainingTijd : "";
+                        let veldInfo = team && team.trainingLocatie ? team.trainingLocatie : "";
+                        
+                        let dbTr = window.geplandeTrainingenDB[k] || [];
+                        let isAfgelast = afgelasteTrainingen.includes(k) || (dbTr.length === 1 && dbTr[0].type === 'geannuleerd');
                         let oefeningenCount = (dbTr.length === 1 && dbTr[0].type === 'geannuleerd') ? 0 : dbTr.length;
 
                         let uDB = JSON.parse(localStorage.getItem('bs_actieve_gebruiker')) || {};
                         let isTrainer = (uDB.rol === 'trainer');
-                        let magBewerken = !isTrainer || (uDB.teams && (uDB.teams.includes('all') || uDB.teams.includes(team.id)));
+                        let magBewerken = !isTrainer || (uDB.teams && (uDB.teams.includes('all') || uDB.teams.includes(teamId)));
                         
-                        let openFunctie = typeof window.openTrainingsPlanner === 'function' ? `window.openTrainingsPlanner('${team.id}', '${tr.start}', ${tr.duur || 90}, '${isoDatum}')` : `window.openDagDetail('${isoDatum}', '${team.id}')`;
+                        let openFunctie = typeof window.openTrainingsPlanner === 'function' ? `window.openTrainingsPlanner('${teamId}', '${tijd}', 90, '${isoDatum}')` : `window.openDagDetail('${isoDatum}', '${teamId}')`;
                         let clickAction = magBewerken ? openFunctie : `alert('Je hebt geen rechten om deze training te bewerken.')`;
                         
                         let cardBorder = isAfgelast ? "border-left: 5px solid #e74c3c !important;" : "border-left: 5px solid var(--primary-color) !important;";
@@ -371,25 +365,24 @@ window.renderWeekAgenda = function() {
 
                         let opacityStyle = magBewerken ? '' : 'opacity:0.6; cursor:not-allowed;';
                         let itemMargin = keysInZaal.length > 1 ? 'margin: 0;' : ''; 
-                        let veldDisplay = tr.veld ? ` - Veld ${tr.veld}` : '';
 
                         agendaHtml += `
                             <div class="training-item" onclick="${clickAction}" style="${opacityStyle} ${itemMargin} ${cardBg} ${cardBorder} padding:12px; border-radius:6px; border: 1px solid var(--border-color); box-shadow: 0 2px 4px rgba(0,0,0,0.05); position:relative; min-height: 130px; display: flex; flex-direction: column; justify-content: space-between;">
                                 ${isAfgelast ? `<div style="position:absolute; top:10px; right:10px; font-size:0.7rem; background:#e74c3c; color:white; font-weight:bold; padding:2px 6px; border-radius:4px;">AFGELAST</div>` : ''}
                                 
-                                <strong style="display:block; font-size:1.1rem; ${textDeco} margin-bottom:5px;">${team.naam}</strong>
+                                <strong style="display:block; font-size:1.1rem; ${textDeco} margin-bottom:5px;">${teamNaam}</strong>
                                 
                                 <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:10px;">
-                                    ${tr.start ? `<div>⏰ ${tr.start}</div>` : ''}
-                                    <div>📍 ${tr.zaal}${veldDisplay}</div>
+                                    ${tijd ? `<div>⏰ ${tijd}</div>` : ''}
+                                    ${veldInfo ? `<div>📍 ${veldInfo}</div>` : ''}
                                     <div style="margin-top:5px; font-weight:bold; color:var(--secondary-color);">
                                         📝 ${oefeningenCount} Oef.
                                     </div>
                                 </div>
 
                                 <div style="display:flex; gap:5px; border-top:1px solid var(--border-color); padding-top:10px; margin-top:auto;">
-                                    ${magBewerken ? `<button onclick="event.stopPropagation(); window.toggleAflassen('${sleutel}')" title="Aflassen / Herstellen" style="background:rgba(231, 76, 60, 0.1); border:none; color:#e74c3c; padding:4px; border-radius:4px; cursor:pointer; flex:1;">❌</button>` : ''}
-                                    <button onclick="event.stopPropagation(); window.stuurWhatsApp('${team.naam}', '${nlDatum}', '${tr.start}', ${isAfgelast})" title="Stuur WhatsApp" style="background:rgba(39, 174, 96, 0.1); border:none; color:#27ae60; padding:4px; border-radius:4px; cursor:pointer; flex:1;">💬</button>
+                                    ${magBewerken ? `<button onclick="event.stopPropagation(); window.toggleAflassen('${k}')" title="Aflassen / Herstellen" style="background:rgba(231, 76, 60, 0.1); border:none; color:#e74c3c; padding:4px; border-radius:4px; cursor:pointer; flex:1;">❌</button>` : ''}
+                                    <button onclick="event.stopPropagation(); window.stuurWhatsApp('${teamNaam}', '${nlDatum}', '${tijd}', ${isAfgelast})" title="Stuur WhatsApp" style="background:rgba(39, 174, 96, 0.1); border:none; color:#27ae60; padding:4px; border-radius:4px; cursor:pointer; flex:1;">💬</button>
                                 </div>
                             </div>
                         `;
@@ -401,7 +394,6 @@ window.renderWeekAgenda = function() {
                 agendaHtml += `<div style="text-align:center; margin-top:20px; color:var(--text-muted); font-size:0.9rem; font-style:italic;">Nog geen trainingen.</div>`;
             }
 
-            let heeftTrainingen = dagTrainingen.length > 0;
             if (!isVakantie) {
                 agendaHtml += `
                     </div>
@@ -409,7 +401,7 @@ window.renderWeekAgenda = function() {
                         <button class="admin-only" onclick="window.openTeamKiezer('${isoDatum}')" style="width:100%; background:transparent; border:2px dashed var(--border-dark); color:var(--text-color); padding:8px; border-radius:4px; cursor:pointer; font-weight:bold;">
                             + Team Toevoegen
                         </button>
-                        ${heeftTrainingen ? `<button class="admin-only" onclick="window.wisDag('${isoDatum}')" style="width:100%; background:transparent; border:none; color:#e74c3c; font-size:0.8rem; cursor:pointer; margin-top:5px;">Wis alle trainingen</button>` : ''}
+                        ${actieveKeys.length > 0 ? `<button class="admin-only" onclick="window.wisDag('${isoDatum}')" style="width:100%; background:transparent; border:none; color:#e74c3c; font-size:0.8rem; cursor:pointer; margin-top:5px;">Wis alle trainingen</button>` : ''}
                     </div>
                 `;
             }
@@ -424,7 +416,6 @@ window.renderWeekAgenda = function() {
                 🚨 Fout in agenda tekenen:<br><pre>${error.message}\n${error.stack}</pre>
             </div>
         `;
-        console.error("Fout in renderWeekAgenda:", error);
     }
 };
 
