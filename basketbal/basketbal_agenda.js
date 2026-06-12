@@ -264,7 +264,7 @@ window.renderWeekAgenda = function() {
                     let uDB = JSON.parse(localStorage.getItem('bs_actieve_gebruiker')) || {};
                     let isTrainer = (uDB.rol === 'trainer');
                     let magBewerken = !isTrainer || (uDB.teams && (uDB.teams.includes('all') || uDB.teams.includes(teamId)));
-                    let clickAction = magBewerken ? `window.openDagDetail('${isoDatum}', '${teamId}')` : `alert('Je hebt geen rechten om deze training te bewerken.')`;
+                    let clickAction = magBewerken ? `window.openTrainingsPlanner('${teamId}', '${tijd}', 90, '${isoDatum}')` : `alert('Je hebt geen rechten om deze training te bewerken.')`;
                     
                     let opacityStyle = magBewerken ? '' : 'opacity:0.6; cursor:not-allowed;';
                     let itemMargin = keysInZaal.length > 1 ? 'margin: 0;' : ''; // Reset margin als ze in een grid staan
