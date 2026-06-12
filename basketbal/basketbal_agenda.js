@@ -201,107 +201,120 @@ window.renderWeekAgenda = function() {
     let label = document.getElementById('week-label');
     if (!grid) return;
 
-    let startDatum = new Date(actieveWeekStart);
-    let eindDatum = new Date(actieveWeekStart);
-    eindDatum.setDate(startDatum.getDate() + 4); 
-    
-    let sMnd = startDatum.toLocaleString('nl-NL', { month: 'short' });
-    let eMnd = eindDatum.toLocaleString('nl-NL', { month: 'short' });
-    if (label) label.innerText = `Week van ma ${startDatum.getDate()} ${sMnd} t/m vr ${eindDatum.getDate()} ${eMnd} ${startDatum.getFullYear()}`;
+    try {
+        let startDatum = new Date(actieveWeekStart);
+        let eindDatum = new Date(actieveWeekStart);
+        eindDatum.setDate(startDatum.getDate() + 4); 
+        
+        let sMnd = startDatum.toLocaleString('nl-NL', { month: 'short' });
+        let eMnd = eindDatum.toLocaleString('nl-NL', { month: 'short' });
+        if (label) label.innerText = `Week van ma ${startDatum.getDate()} ${sMnd} t/m vr ${eindDatum.getDate()} ${eMnd} ${startDatum.getFullYear()}`;
 
-    let agendaHtml = '';
-    let dagNamen = ['Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag'];
+        let agendaHtml = '';
+        let dagNamen = ['Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag'];
 
-    for (let i = 0; i < 5; i++) {
-        let loopDag = new Date(startDatum);
-        loopDag.setDate(startDatum.getDate() + i);
-        let isoDatum = `${loopDag.getFullYear()}-${String(loopDag.getMonth()+1).padStart(2,'0')}-${String(loopDag.getDate()).padStart(2,'0')}`;
-        let displayDatum = `${loopDag.getDate()}-${loopDag.getMonth()+1}`;
+        for (let i = 0; i < 5; i++) {
+            let loopDag = new Date(startDatum);
+            loopDag.setDate(startDatum.getDate() + i);
+            let isoDatum = `${loopDag.getFullYear()}-${String(loopDag.getMonth()+1).padStart(2,'0')}-${String(loopDag.getDate()).padStart(2,'0')}`;
+            let displayDatum = `${loopDag.getDate()}-${loopDag.getMonth()+1}`;
 
-        let actieveKeys = Object.keys(window.geplandeTrainingenDB).filter(k => k.startsWith(isoDatum) && window.geplandeTrainingenDB[k].length > 0);
+            // Kogelvrije check op de database
+            let actieveKeys = Object.keys(window.geplandeTrainingenDB || {}).filter(k => k.startsWith(isoDatum) && Array.isArray(window.geplandeTrainingenDB[k]) && window.geplandeTrainingenDB[k].length > 0);
 
-        agendaHtml += `
-            <div class="dag-kolom">
-                <div class="dag-header">
-                    ${dagNamen[i]} <span style="font-size:0.8rem; font-weight:normal;">(${displayDatum})</span>
-                </div>
-                <div style="flex:1; padding:10px; display: flex; flex-direction: column;">
-        `;
+            agendaHtml += `
+                <div class="dag-kolom">
+                    <div class="dag-header">
+                        ${dagNamen[i]} <span style="font-size:0.8rem; font-weight:normal;">(${displayDatum})</span>
+                    </div>
+                    <div style="flex:1; padding:10px; display: flex; flex-direction: column;">
+            `;
 
-        if (actieveKeys.length > 0) {
-            
-            // STAP 1: GROEPEER TRAININGEN PER ZAAL
-            let zaalGroepen = {};
-            
-            actieveKeys.forEach(k => {
-                let teamId = k.split('_')[1];
-                let team = window.teamsDB.find(t => t.id === teamId);
-                let locatie = (team && team.trainingLocatie) ? team.trainingLocatie : "Onbekend";
+            if (actieveKeys.length > 0) {
+                let zaalGroepen = {};
                 
-                // Splits bij een '-' zodat "De Veste - Veld A" gewoon "de veste" wordt
-                let basisZaal = locatie.split('-')[0].trim().toLowerCase(); 
-                
-                if (!zaalGroepen[basisZaal]) zaalGroepen[basisZaal] = [];
-                zaalGroepen[basisZaal].push(k);
-            });
-
-            // Loop door de zalen heen en teken ze
-            Object.keys(zaalGroepen).forEach(zaal => {
-                let keysInZaal = zaalGroepen[zaal];
-                
-                // Als er meerdere in 1 zaal zijn, zet ze in een grid (naast elkaar)
-                let gridStyle = keysInZaal.length > 1 ? 'display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; margin-bottom: 10px;' : 'margin-bottom: 10px;';
-                
-                agendaHtml += `<div style="${gridStyle}">`;
-
-                keysInZaal.forEach(k => {
+                actieveKeys.forEach(k => {
                     let teamId = k.split('_')[1];
-                    let team = window.teamsDB.find(t => t.id === teamId);
-                    let teamNaam = team ? team.naam : "Onbekend";
-                    let tijd = team && team.trainingTijd ? team.trainingTijd : "";
-                    let veldInfo = team && team.trainingLocatie ? team.trainingLocatie : "";
-
-                    let uDB = JSON.parse(localStorage.getItem('bs_actieve_gebruiker')) || {};
-                    let isTrainer = (uDB.rol === 'trainer');
-                    let magBewerken = !isTrainer || (uDB.teams && (uDB.teams.includes('all') || uDB.teams.includes(teamId)));
-                    let clickAction = magBewerken ? `window.openTrainingsPlanner('${teamId}', '${tijd}', 90, '${isoDatum}')` : `alert('Je hebt geen rechten om deze training te bewerken.')`;
+                    let team = (window.teamsDB || []).find(t => t.id === teamId);
                     
-                    let opacityStyle = magBewerken ? '' : 'opacity:0.6; cursor:not-allowed;';
-                    let itemMargin = keysInZaal.length > 1 ? 'margin: 0;' : ''; // Reset margin als ze in een grid staan
-
-                    agendaHtml += `
-                        <div class="training-item" onclick="${clickAction}" style="${opacityStyle} ${itemMargin}">
-                            <strong style="display:block; color:var(--primary-color); font-size:1.1rem; margin-bottom:5px;">${teamNaam}</strong>
-                            <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:10px;">
-                                ${tijd ? `<div>⏰ ${tijd}</div>` : ''}
-                                ${veldInfo ? `<div>📍 ${veldInfo}</div>` : ''}
-                                <div style="margin-top:5px; font-weight:bold; color:var(--secondary-color);">
-                                    📝 ${window.geplandeTrainingenDB[k].length} Oef.
-                                </div>
-                            </div>
-                        </div>
-                    `;
+                    // Forceer de locatie naar een String (Tekst) om crashes bij de split('-') te voorkomen!
+                    let locatie = (team && team.trainingLocatie) ? String(team.trainingLocatie) : "Onbekend";
+                    let basisZaal = locatie.split('-')[0].trim().toLowerCase(); 
+                    if (!basisZaal) basisZaal = "onbekend";
+                    
+                    if (!zaalGroepen[basisZaal]) zaalGroepen[basisZaal] = [];
+                    zaalGroepen[basisZaal].push(k);
                 });
 
-                agendaHtml += `</div>`; // Sluit het zaal-groep vakje af
-            });
+                Object.keys(zaalGroepen).forEach(zaal => {
+                    let keysInZaal = zaalGroepen[zaal];
+                    // CSS Grid om ze netjes naast elkaar te zetten als het er meer dan 1 zijn
+                    let gridStyle = keysInZaal.length > 1 ? 'display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; margin-bottom: 10px;' : 'margin-bottom: 10px;';
+                    
+                    agendaHtml += `<div style="${gridStyle}">`;
 
-        } else {
-            agendaHtml += `<p style="text-align:center; color:var(--text-muted); font-size:0.9rem; font-style:italic; margin-top:20px;">Geen trainingen ingepland.</p>`;
+                    keysInZaal.forEach(k => {
+                        let teamId = k.split('_')[1];
+                        let team = (window.teamsDB || []).find(t => t.id === teamId);
+                        let teamNaam = team ? team.naam : "Onbekend";
+                        let tijd = team && team.trainingTijd ? team.trainingTijd : "";
+                        let veldInfo = team && team.trainingLocatie ? team.trainingLocatie : "";
+
+                        let uDB = JSON.parse(localStorage.getItem('bs_actieve_gebruiker')) || {};
+                        let isTrainer = (uDB.rol === 'trainer');
+                        let magBewerken = !isTrainer || (uDB.teams && (uDB.teams.includes('all') || uDB.teams.includes(teamId)));
+                        
+                        // Dynamische fallback: Hij controleert zelf of de pop-up 'openTrainingsPlanner' of 'openDagDetail' heet.
+                        let openFunctie = typeof window.openTrainingsPlanner === 'function' ? `window.openTrainingsPlanner('${teamId}', '${tijd}', 90, '${isoDatum}')` : `window.openDagDetail('${isoDatum}', '${teamId}')`;
+                        let clickAction = magBewerken ? openFunctie : `alert('Je hebt geen rechten om deze training te bewerken.')`;
+                        
+                        let opacityStyle = magBewerken ? '' : 'opacity:0.6; cursor:not-allowed;';
+                        let itemMargin = keysInZaal.length > 1 ? 'margin: 0;' : ''; 
+
+                        agendaHtml += `
+                            <div class="training-item" onclick="${clickAction}" style="${opacityStyle} ${itemMargin}">
+                                <strong style="display:block; color:var(--primary-color); font-size:1.1rem; margin-bottom:5px;">${teamNaam}</strong>
+                                <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:10px;">
+                                    ${tijd ? `<div>⏰ ${tijd}</div>` : ''}
+                                    ${veldInfo ? `<div>📍 ${veldInfo}</div>` : ''}
+                                    <div style="margin-top:5px; font-weight:bold; color:var(--secondary-color);">
+                                        📝 ${(window.geplandeTrainingenDB[k] || []).length} Oef.
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+
+                    agendaHtml += `</div>`; 
+                });
+
+            } else {
+                agendaHtml += `<p style="text-align:center; color:var(--text-muted); font-size:0.9rem; font-style:italic; margin-top:20px;">Geen trainingen ingepland.</p>`;
+            }
+
+            agendaHtml += `
+                    </div>
+                    <div style="padding:10px; border-top:1px solid var(--border-color); background:var(--card-bg);">
+                        <button class="admin-only" onclick="window.openTeamKiezer('${isoDatum}')" style="width:100%; background:transparent; border:2px dashed var(--border-dark); color:var(--text-color); padding:8px; border-radius:4px; cursor:pointer; font-weight:bold;">
+                            + Team Toevoegen
+                        </button>
+                        ${actieveKeys.length > 0 ? `<button class="admin-only" onclick="window.wisDag('${isoDatum}')" style="width:100%; background:transparent; border:none; color:#e74c3c; font-size:0.8rem; cursor:pointer; margin-top:5px;">Wis alle trainingen</button>` : ''}
+                    </div>
+                </div>
+            `;
         }
+        grid.innerHTML = agendaHtml;
 
-        agendaHtml += `
-                </div>
-                <div style="padding:10px; border-top:1px solid var(--border-color); background:var(--card-bg);">
-                    <button class="admin-only" onclick="window.openTeamKiezer('${isoDatum}')" style="width:100%; background:transparent; border:2px dashed var(--border-dark); color:var(--text-color); padding:8px; border-radius:4px; cursor:pointer; font-weight:bold;">
-                        + Team Toevoegen
-                    </button>
-                    ${actieveKeys.length > 0 ? `<button class="admin-only" onclick="window.wisDag('${isoDatum}')" style="width:100%; background:transparent; border:none; color:#e74c3c; font-size:0.8rem; cursor:pointer; margin-top:5px;">Wis alle trainingen</button>` : ''}
-                </div>
+    } catch (error) {
+        // Als de code crasht, tekenen we de exacte foutmelding op het scherm in een groot rood blok!
+        grid.innerHTML = `
+            <div style="grid-column: 1 / -1; background: #e74c3c; color: white; padding: 20px; border-radius: 8px; font-weight: bold; margin: 20px;">
+                🚨 Oeps! Er is een fout opgetreden in het tekenen van de agenda:<br><br>
+                <pre style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 4px; overflow-x: auto; white-space: pre-wrap;">${error.message}\n\n${error.stack}</pre>
             </div>
         `;
+        console.error("Fout in renderWeekAgenda:", error);
     }
-    grid.innerHTML = agendaHtml;
 };
 
 window.openTrainingsPlanner = function(teamId, startTijd, duur, datumStr) {
