@@ -211,7 +211,6 @@ window.renderWeekAgenda = function() {
     let titelEl = document.getElementById('week-titel');
     if (titelEl) titelEl.innerText = `Week van ${actieveWeekStart.getDate()}-${actieveWeekStart.getMonth()+1} t/m ${eindVanWeek.getDate()}-${eindVanWeek.getMonth()+1}`;
 
-    // --- STAP 2: HAAL DE ZAALHUUR DATA OP ---
     let zaalhuurData = JSON.parse(localStorage.getItem('blackshots_zaalhuur_data')) || [];
 
     for (let i = 0; i < 5; i++) {
@@ -224,18 +223,22 @@ window.renderWeekAgenda = function() {
         kolom.className = 'dag-kolom';
         kolom.style.cssText += borderStijl;
         
-        // Bouw eerst de kop van de dag op
-        let kolomTopHtml = `<div class="dag-titel" style="background:var(--secondary-color); color:white; padding:10px; text-align:center; font-weight:bold;">${dagenNamen[i]} <br><span style="font-size:0.8rem; font-weight:normal;">${datumVoorKolom.getDate()}-${datumVoorKolom.getMonth()+1}</span></div>`;
-
-        // --- STAP 2: TEKEN DE ZAALHUUR BALK ---
+        // --- STAP 2 FIX: ZAALHUUR BEREKENEN ---
         let zalenOpDag = zaalhuurData.filter(z => z.isoDatum === isoDatum && !z.geannuleerd);
         let gehuurdeZalen = [...new Set(zalenOpDag.map(z => z.zaal.replace('Sporthal', '').replace('Sportzaal', '').trim()))];
+        let zaalTekst = gehuurdeZalen.length > 0 ? gehuurdeZalen.join(' & ') : "Geen zaalhuur bekend";
 
-        if (gehuurdeZalen.length > 0) {
-            kolomTopHtml += `<div style="background:var(--primary-color); color:white; font-size:0.75rem; text-align:center; padding:6px; font-weight:bold; text-transform:uppercase; letter-spacing:1px; border-bottom: 1px solid var(--border-color);">🏢 ${gehuurdeZalen.join(' & ')}</div>`;
-        } else {
-            kolomTopHtml += `<div style="background:var(--border-dark); color:white; font-size:0.7rem; text-align:center; padding:4px; font-weight:bold; text-transform:uppercase; border-bottom: 1px solid var(--border-color);">GEEN ZAALHUUR BEKEND</div>`;
-        }
+        // --- HETZELFDE BLOK: Datum en Zaal in één strakke header, zonder emoji ---
+        let kolomTopHtml = `
+            <div class="dag-titel" style="background:var(--secondary-color); color:white; padding:10px; text-align:center; border-bottom:1px solid var(--border-color);">
+                <div style="font-weight:bold; font-size:1.1rem; margin-bottom:4px;">
+                    ${dagenNamen[i]} <span style="font-size:0.85rem; font-weight:normal;">(${datumVoorKolom.getDate()}-${datumVoorKolom.getMonth()+1})</span>
+                </div>
+                <div style="font-size:0.75rem; font-weight:bold; color:rgba(255,255,255,0.7); text-transform:uppercase; letter-spacing:1px;">
+                    ${zaalTekst}
+                </div>
+            </div>
+        `;
 
         kolom.innerHTML = kolomTopHtml;
 
@@ -261,7 +264,6 @@ window.renderWeekAgenda = function() {
             inhoud += `<p style="text-align:center; color:#bdc3c7; font-size:0.9rem; margin-top:20px;">Geen trainingen</p>`;
         } else {
             
-            // STAP 1 LOGICA: SLIM GROEPEREN OP ZAAL VOOR DE GRID
             let zaalGroepen = {};
             trainingenVandaag.forEach(tr => {
                 let locatie = tr.zaal ? String(tr.zaal) : "Onbekend";
@@ -275,7 +277,6 @@ window.renderWeekAgenda = function() {
             Object.keys(zaalGroepen).forEach(zaal => {
                 let trInZaal = zaalGroepen[zaal];
                 
-                // Als er meer dan 1 team in dezelfde zaal is, activeer de CSS-grid!
                 let gridStyle = trInZaal.length > 1 ? 'display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; margin-bottom: 10px;' : 'margin-bottom: 10px;';
 
                 inhoud += `<div style="${gridStyle}">`;
