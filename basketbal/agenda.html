@@ -53,17 +53,18 @@
     </main>
 
     <div id="planner-modal" class="modal-overlay">
-        <div class="modal-content">
+        <div class="modal-content" style="max-width: 1200px; width: 95%; padding: 30px;">
             <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid var(--border-color); padding-bottom:10px; margin-bottom:15px;">
                 <div>
                     <h2 id="planner-titel" style="margin:0; color:var(--secondary-color);">Training Plannen</h2>
                     <span id="planner-datum-weergave" style="color:var(--primary-color); font-weight:bold;"></span>
                 </div>
-                <button onclick="window.sluitPlanner()" class="sluit-knop">X</button>
+                <button onclick="window.sluitPlanner()" class="sluit-knop" style="font-size: 1.5rem; padding: 5px 15px;">X</button>
             </div>
             
-            <div class="planner-layout">
-                <div class="planner-kolom" style="max-height: 70vh; overflow-y: auto; padding-right: 15px;">
+            <div class="planner-layout" style="display: flex; gap: 40px;">
+                
+                <div class="planner-kolom" style="flex: 1; max-height: 80vh; overflow-y: auto; padding-right: 10px;">
                     <h3>⏱️ Tijdlijn (<span id="planner-tijd-over">0</span> min vrij)</h3>
                     <p style="font-size:0.85rem; color:#7f8c8d; margin-top:-10px;">Dit is het draaiboek voor je training.</p>
                     <div id="planner-tijdlijn"></div>
@@ -74,7 +75,7 @@
                     </div>
                 </div>
                 
-                <div class="planner-kolom" style="max-height: 70vh; overflow-y: auto; padding-right: 15px;">
+                <div class="planner-kolom" style="flex: 1.2; max-height: 80vh; overflow-y: auto; padding-left: 30px; border-left: 2px solid var(--border-color);">
                     <h3>📋 Voeg oefening toe</h3>
                     <div style="background:var(--bg-color); padding:12px; border-radius:6px; border:1px solid var(--border-color); margin-bottom:15px;">
                         <h4 style="margin-top:0; margin-bottom:8px;">✍️ Los Vrij Blok Toevoegen</h4>
