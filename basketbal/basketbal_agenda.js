@@ -733,25 +733,29 @@ window.verwijderUitTraining = function(index) {
     if(window.filterPlannerOefeningen) window.filterPlannerOefeningen(); 
 };
 window.filterPlannerOefeningen = function() {
-    let term = (document.getElementById('planner-zoek') ? document.getElementById('planner-zoek').value.toLowerCase().trim() : '');
+    let termEl = document.getElementById('planner-zoek');
+    let term = termEl ? termEl.value.toLowerCase().trim() : '';
+    
     let catEl = document.getElementById('planner-cat-filter');
     let cat = catEl ? catEl.value.toLowerCase() : '';
-    let spelerCount = (document.getElementById('planner-spelers') ? document.getElementById('planner-spelers').value.trim() : '');
+    
+    let spelerEl = document.getElementById('planner-spelers');
+    let spelerCount = spelerEl ? spelerEl.value.trim() : '';
     
     const lijst = document.getElementById('planner-oefeningen-lijst');
     const progLijst = document.getElementById('planner-progressie-lijst');
     const progSectie = document.getElementById('planner-progressie-sectie');
     
-    // FIX 1: Zorg dat de categorie dropdown altijd netjes gevuld wordt!
+    // ZORG DAT DE DROPDOWN MET CATEGORIEËN ALTIJD KLOPT
     if (catEl && catEl.options.length <= 1) {
         catEl.innerHTML = '<option value="">-- Alle Categorieën --</option>';
         let uniekeCats = [];
         (window.oefeningenDB || []).forEach(o => {
-            if (o.categorie) uniekeCats.push(o.categorie);
+            if (o.categorie) uniekeCats.push(String(o.categorie));
             if (o.categorieen && Array.isArray(o.categorieen)) uniekeCats.push(...o.categorieen);
         });
         uniekeCats = [...new Set(uniekeCats)].filter(Boolean).sort();
-        uniekeCats.forEach(c => catEl.innerHTML += `<option value="${c}">${c}</option>`);
+        uniekeCats.forEach(c => catEl.innerHTML += `<option value="${c.toLowerCase()}">${c}</option>`);
     }
 
     if(!lijst) return;
@@ -760,39 +764,58 @@ window.filterPlannerOefeningen = function() {
     let hasProgressie = false;
 
     let gefilterd = (window.oefeningenDB || []).filter(o => {
-        // FIX 2: Controleer zowel 'categorie' als 'categorieen' (oud en nieuw database formaat)
-        let catText = "";
-        if (o.categorie) catText += o.categorie.toLowerCase() + " ";
-        if (o.categorieen && Array.isArray(o.categorieen)) catText += o.categorieen.join(' ').toLowerCase();
-        
-        let matchTerm = (o.naam || '').toLowerCase().includes(term) || catText.includes(term);
-        let matchCat = (!cat || cat === 'all') ? true : catText.includes(cat);
-        
-        // FIX 3: Repareer het Team Filter (Zorg dat oefeningen voor 'all' of lege doelgroepen altijd tonen)
-        let matchTeam = true;
-        if (o.doelgroepen && o.doelgroepen.length > 0 && !o.doelgroepen.includes("all") && !o.doelgroepen.includes("Alle")) {
-            if (actieveTraining && actieveTraining.teamId) {
-                matchTeam = o.doelgroepen.includes(actieveTraining.teamId);
+        try {
+            // 1. ZOEKEN OP TEKST EN CATEGORIE (Kogelvrij)
+            let catText = "";
+            if (o.categorie) catText += String(o.categorie).toLowerCase() + " ";
+            if (o.categorieen && Array.isArray(o.categorieen)) catText += o.categorieen.join(' ').toLowerCase();
+            
+            let matchTerm = String(o.naam || '').toLowerCase().includes(term) || catText.includes(term);
+            let matchCat = (!cat || cat === 'all') ? true : catText.includes(cat);
+            
+            // 2. KOGELVRIJE TEAM CHECK (Verberg hem alleen als hij ECHT expliciet voor een ánder team is)
+            let matchTeam = true;
+            if (o.doelgroepen) {
+                let doelStr = Array.isArray(o.doelgroepen) ? o.doelgroepen.join(' ').toLowerCase() : String(o.doelgroepen).toLowerCase();
+                if (doelStr.trim() !== "" && !doelStr.includes('all') && !doelStr.includes('alle')) {
+                    if (actieveTraining && actieveTraining.teamId) {
+                        let aTeam = window.teamsDB.find(t => t.id === actieveTraining.teamId) || {};
+                        let tNaam = String(aTeam.naam || "").toLowerCase();
+                        let tId = String(actieveTraining.teamId).toLowerCase();
+                        
+                        // Check of de teamnaam OF het ID erin staat
+                        if (!doelStr.includes(tId) && !doelStr.includes(tNaam)) {
+                            matchTeam = false;
+                        }
+                    }
+                }
             }
-        }
 
-        let matchSpelers = true;
-        if (spelerCount !== "") {
-            let oefSpelers = (o.aantalSpelers || "").toLowerCase();
-            if (oefSpelers !== "" && oefSpelers !== "alle" && !oefSpelers.includes("elk")) {
-                matchSpelers = oefSpelers.includes(spelerCount);
+            // 3. KOGELVRIJE SPELERS CHECK (Converteer getallen altijd veilig naar String!)
+            let matchSpelers = true;
+            if (spelerCount !== "") {
+                let oefSpelers = String(o.aantalSpelers || "").toLowerCase();
+                if (oefSpelers !== "" && oefSpelers !== "alle" && !oefSpelers.includes("elk")) {
+                    matchSpelers = oefSpelers.includes(spelerCount);
+                }
             }
+            
+            return matchTerm && matchCat && matchTeam && matchSpelers;
+            
+        } catch (error) {
+            // Als er ooit nog 1 oefening is met een rare fout erin, crasht hij niet meer, maar toont hij hem gewoon!
+            console.error("Kleine fout bij oefening genegeerd:", o.naam);
+            return true; 
         }
-        
-        return matchTerm && matchCat && matchTeam && matchSpelers;
     });
 
     if (gefilterd.length === 0) {
-        lijst.innerHTML = '<p style="color:#7f8c8d; font-style:italic;">Geen oefeningen gevonden met deze filters...</p>';
+        lijst.innerHTML = '<p style="color:#7f8c8d; font-style:italic;">Geen oefeningen gevonden...</p>';
         if(progSectie) progSectie.style.display = 'none'; 
         return;
     }
 
+    // --- TEKEN DE KAARTJES ---
     gefilterd.forEach((oef, idx) => {
         let historieAantal = window.berekenHistorie(oef.naam);
         let aantalInTijdlijnNu = actieveTijdlijn.filter(i => i.naam === oef.naam).length;
