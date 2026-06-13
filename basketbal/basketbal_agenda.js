@@ -382,6 +382,7 @@ window.renderWeekAgenda = function() {
         container.appendChild(kolom);
     }
 };
+
 window.openTrainingsPlanner = function(teamId, startTijd, duur, datumStr) {
     const team = window.teamsDB.find(t => t.id === teamId);
     actieveTraining = { teamId, startTijd, duur, datum: datumStr, opslagSleutel: `${datumStr}_${teamId}` };
@@ -396,7 +397,12 @@ window.openTrainingsPlanner = function(teamId, startTijd, duur, datumStr) {
     if (window.geplandeTrainingenDB[actieveTraining.opslagSleutel]) {
         actieveTijdlijn = window.geplandeTrainingenDB[actieveTraining.opslagSleutel];
     } else {
-        actieveTijdlijn = [{ naam: 'Warming-up (Standaard)', duur: 10, kleur: '#e67e22' }, { naam: 'Partijvorm (Standaard)', duur: 15, kleur: '#3498db' }];
+        // --- NIEUW: SLIMME CHECK VOOR RECREANTEN ---
+        if (team.naam.toLowerCase().includes('recreanten')) {
+            actieveTijdlijn = [{ naam: 'Partijtje (Recreanten)', duur: 90, kleur: '#9b59b6' }];
+        } else {
+            actieveTijdlijn = [{ naam: 'Warming-up (Standaard)', duur: 10, kleur: '#e67e22' }, { naam: 'Partijvorm (Standaard)', duur: 15, kleur: '#3498db' }];
+        }
     }
 
     let pSpelers = document.getElementById('planner-spelers');
@@ -413,7 +419,6 @@ window.openTrainingsPlanner = function(teamId, startTijd, duur, datumStr) {
     let modal = document.getElementById('planner-modal');
     if(modal) modal.style.display = 'flex';
 };
-
 window.sluitPlanner = function() { 
     let modal = document.getElementById('planner-modal');
     if(modal) modal.style.display = 'none'; 
