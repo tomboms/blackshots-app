@@ -876,6 +876,28 @@ window.filterPlannerOefeningen = function() {
     if(progSectie) progSectie.style.display = hasProgressie ? 'block' : 'none';
 };
 
+// ============================================================================
+// ESCAPE TOETS OM SNEL OP TE SLAAN & SLUITEN
+// ============================================================================
+document.addEventListener('keydown', function(event) {
+    if (event.key === "Escape") {
+        let plannerModal = document.getElementById('planner-modal');
+        let promptModal = document.getElementById('custom-prompt-modal');
+        let confirmModal = document.getElementById('custom-confirm-modal');
+        let bulkModal = document.getElementById('bulk-cancel-modal');
+
+        // Veiligheid: Sluit eerst de kleine waarschuwingen zonder direct de training op te slaan
+        if (promptModal && promptModal.style.display === 'flex') { promptModal.style.display = 'none'; return; }
+        if (confirmModal && confirmModal.style.display === 'flex') { confirmModal.style.display = 'none'; return; }
+        if (bulkModal && bulkModal.style.display === 'flex') { bulkModal.style.display = 'none'; return; }
+
+        // Als alleen de grote planner open staat: Sla op en sluit af!
+        if (plannerModal && plannerModal.style.display === 'flex') {
+            window.slaTrainingOp();
+        }
+    }
+});
+
 document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => { if (window.renderWeekAgenda) window.renderWeekAgenda(); }, 500);
 });
