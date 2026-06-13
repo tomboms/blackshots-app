@@ -216,7 +216,6 @@ window.annuleerDagVolledig = function(isoDatum, reden) {
 
 window.veranderWeek = function(dagen) { actieveWeekStart.setDate(actieveWeekStart.getDate() + dagen); window.renderWeekAgenda(); };
 window.gaNaarHuidigeWeek = function() { actieveWeekStart = zetOpMaandag(new Date()); window.renderWeekAgenda(); };
-
 window.renderWeekAgenda = function() {
     const container = document.getElementById('week-overzicht') || document.getElementById('week-agenda-container');
     if (!container) return;
@@ -258,8 +257,6 @@ window.renderWeekAgenda = function() {
             if (cat && cat.isVakantie) { isVakantie = true; vakantieTitel = item.titel; }
         });
 
-        // --- ZACHTERE STYLING VOOR VAKANTIES ---
-        // HeaderBg blijft altijd de donkerblauwe secondary-color. De rode rand wordt transparanter.
         let borderStijl = isVandaag ? 'border: 2px solid var(--primary-color);' : (isVakantie ? 'border: 2px solid rgba(231, 76, 60, 0.4);' : 'border: 1px solid var(--border-color);');
         let bgClass = isVakantie ? "background: rgba(231, 76, 60, 0.05);" : "background: transparent;";
         let headerBg = "background: var(--secondary-color);";
@@ -283,11 +280,10 @@ window.renderWeekAgenda = function() {
             </div>
         `;
 
-        // Een zachtere kleur rood (#e57373) voor het klikbare balkje
         if (isVakantie) {
             kolomTopHtml += `
                 <div onclick="window.annuleerDagVolledig('${isoDatum}', '${vakantieTitel}')" style="background:#e57373; color:white; font-size:0.85rem; font-weight:bold; text-align:center; padding:8px; cursor:pointer; border-bottom:1px solid #ef5350; transition:0.2s;" title="Klik om alle trainingen vandaag af te lassen">
-                     ${vakantieTitel}<br>
+                    🏖️ ${vakantieTitel}<br>
                     <span style="font-size:0.7rem; font-weight:normal; opacity:0.9;">(Klik om alles af te lassen)</span>
                 </div>
             `;
@@ -371,9 +367,15 @@ window.renderWeekAgenda = function() {
         }
         inhoud += `</div>`;
 
-        // Het Alarm Balkje (Alleen als er training is en géén zaal)
-        if (heeftActieveTraining && gehuurdeZalen.length === 0 && !isVakantie) {
-            inhoud += `<div style="background:#e74c3c; color:white; font-size:0.85rem; font-weight:bold; text-align:center; padding:10px; margin-top:auto; border-top: 1px solid #c0392b;">⚠️ PAS OP: GEEN ZAAL GEHUURD!</div>`;
+        // --- DE SLIMME ALARM BALKJES ---
+        if (!isVakantie) {
+            if (heeftActieveTraining && gehuurdeZalen.length === 0) {
+                // Wel trainingen, géén zaalhuur
+                inhoud += `<div style="background:#e74c3c; color:white; font-size:0.85rem; font-weight:bold; text-align:center; padding:10px; margin-top:auto; border-top: 1px solid #c0392b;">⚠️ PAS OP: GEEN ZAAL GEHUURD!</div>`;
+            } else if (!heeftActieveTraining && gehuurdeZalen.length > 0) {
+                // Wél zaalhuur, géén (actieve) trainingen
+                inhoud += `<div style="background:#f39c12; color:white; font-size:0.85rem; font-weight:bold; text-align:center; padding:10px; margin-top:auto; border-top: 1px solid #d68910;">⚠️ ZAAL GEHUURD, GEEN TRAINING!</div>`;
+            }
         }
 
         kolom.innerHTML += inhoud;
