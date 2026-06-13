@@ -60,8 +60,21 @@ window.renderTeamBeheer = function() {
                 trainingenHtml = '<span style="color:#bdc3c7; font-style:italic; font-size:0.85rem;">Geen vaste tijden ingepland.</span>';
             }
 
-            let kaderBadge = team.isVrijwilliger ? '<span style="background:#9b59b6; color:white; padding:4px 8px; border-radius:4px; font-size:0.8rem; margin-left:10px; vertical-align:middle;">KADER / VRIJWILLIGERS</span>' : '';
+           // Nieuwe Badges en Aliassen
+            let kaderBadge = team.isVrijwilliger ? '<span style="background:#9b59b6; color:white; padding:4px 8px; border-radius:4px; font-size:0.8rem; margin-left:10px; vertical-align:middle;">KADER</span>' : '';
+            let recreantBadge = team.isRecreant ? '<span style="background:#f39c12; color:white; padding:4px 8px; border-radius:4px; font-size:0.8rem; margin-left:10px; vertical-align:middle;">RECREANTEN</span>' : '';
             let ringColor = team.isVrijwilliger ? '#9b59b6' : 'var(--primary-color)';
+            let aliasTekst = team.aliassen ? ` &nbsp;|&nbsp; 🔗 Aliassen: <strong>${team.aliassen}</strong>` : '';
+
+            lijstHTML += `
+                <li style="background:white; border-radius:8px; border:1px solid var(--border-color); border-top: 4px solid ${ringColor}; overflow:hidden; box-shadow:0 2px 4px rgba(0,0,0,0.05); margin-bottom: 20px;">
+                    <div style="background:#fafafa; padding:15px 20px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                        <div>
+                            <h3 style="margin:0; color:${ringColor}; font-size:1.4rem; display:inline-block;">${team.naam || 'Groep'}</h3>${kaderBadge}${recreantBadge}
+                            <div style="font-size:0.95rem; color:#34495e; margin-top:5px;">
+                                👨‍💼 Coach: <strong>${team.coach || 'N.n.b.'}</strong> &nbsp;|&nbsp; 🏃‍♂️ Trainer: <strong>${team.trainer || 'N.n.b.'}</strong>${aliasTekst}
+                            </div>
+                        </div>
 
             lijstHTML += `
                 <li style="background:white; border-radius:8px; border:1px solid var(--border-color); border-top: 4px solid ${ringColor}; overflow:hidden; box-shadow:0 2px 4px rgba(0,0,0,0.05); margin-bottom: 20px;">
@@ -147,31 +160,57 @@ window.snelleTrainingToevoegen = function(teamIndex) {
     window.renderTeamBeheer();
 };
 
+// --- VERVANG DE OUDE 'bewerkTeam' FUNCTIE DOOR DIT BLOK ---
+
 window.bewerkTeam = function(index) {
     let team = window.teamsDB[index];
     if (!team) return;
     
-    let nieuweNaam = prompt("Pas de team/groepsnaam aan:", team.naam);
-    if (nieuweNaam === null) return; 
-    nieuweNaam = nieuweNaam.trim();
+    // Vul de Modal met de huidige gegevens
+    document.getElementById('edit-team-index').value = index;
+    document.getElementById('edit-team-naam').value = team.naam || '';
+    document.getElementById('edit-team-aliassen').value = team.aliassen || '';
+    document.getElementById('edit-team-coach').value = team.coach || '';
+    document.getElementById('edit-team-trainer').value = team.trainer || '';
+    
+    document.getElementById('edit-team-vrijwilliger').checked = team.isVrijwilliger || false;
+    document.getElementById('edit-team-recreant').checked = team.isRecreant || false;
+
+    // Toon de Modal
+    document.getElementById('team-edit-modal').style.display = 'flex';
+};
+
+window.sluitTeamModal = function() {
+    document.getElementById('team-edit-modal').style.display = 'none';
+};
+
+window.slaTeamBewerkingOp = function() {
+    let index = document.getElementById('edit-team-index').value;
+    let team = window.teamsDB[index];
+    if (!team) return;
+
+    let nieuweNaam = document.getElementById('edit-team-naam').value.trim();
     if (!nieuweNaam) return alert("Naam mag niet leeg zijn.");
 
-    let nieuweCoach = prompt("Pas de coach/leider aan:", team.coach || "");
-    if (nieuweCoach === null) return;
-
-    let nieuweTrainer = prompt("Pas de trainer aan:", team.trainer || "");
-    if (nieuweTrainer === null) return;
-
-    let isVrijwilligerToggle = confirm("Is deze groep een Kader/Vrijwilligersgroep? (OK = Ja, Annuleren = Nee)");
-
     team.naam = nieuweNaam;
-    team.coach = nieuweCoach.trim();
-    team.trainer = nieuweTrainer.trim();
-    team.isVrijwilliger = isVrijwilligerToggle;
+    team.aliassen = document.getElementById('edit-team-aliassen').value.trim();
+    team.coach = document.getElementById('edit-team-coach').value.trim();
+    team.trainer = document.getElementById('edit-team-trainer').value.trim();
+    team.isVrijwilliger = document.getElementById('edit-team-vrijwilliger').checked;
+    team.isRecreant = document.getElementById('edit-team-recreant').checked;
 
     localStorage.setItem('blackshots_teams', JSON.stringify(window.teamsDB));
     window.renderTeamBeheer();
+    window.sluitTeamModal();
 };
+
+// Esc-knop om modal af te sluiten (als je toch niks wilt opslaan)
+document.addEventListener('keydown', function(event) {
+    if (event.key === "Escape") {
+        let modal = document.getElementById('team-edit-modal');
+        if (modal && modal.style.display === 'flex') window.sluitTeamModal();
+    }
+});
 
 window.voegTeamToe = function() {
     const naamEl = document.getElementById('nieuw-team-naam');
