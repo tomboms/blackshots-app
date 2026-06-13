@@ -732,42 +732,63 @@ window.verwijderUitTraining = function(index) {
     if(window.renderTijdlijn) window.renderTijdlijn(); 
     if(window.filterPlannerOefeningen) window.filterPlannerOefeningen(); 
 };
-
 window.filterPlannerOefeningen = function() {
-    let zoekEl = document.getElementById('planner-zoek');
+    let term = (document.getElementById('planner-zoek') ? document.getElementById('planner-zoek').value.toLowerCase().trim() : '');
     let catEl = document.getElementById('planner-cat-filter');
-    let spelersEl = document.getElementById('planner-spelers');
-    
-    const term = zoekEl ? zoekEl.value.toLowerCase().trim() : '';
-    const cat = catEl ? catEl.value.toLowerCase() : '';
-    const spelerCount = spelersEl ? spelersEl.value.trim() : '';
+    let cat = catEl ? catEl.value.toLowerCase() : '';
+    let spelerCount = (document.getElementById('planner-spelers') ? document.getElementById('planner-spelers').value.trim() : '');
     
     const lijst = document.getElementById('planner-oefeningen-lijst');
     const progLijst = document.getElementById('planner-progressie-lijst');
     const progSectie = document.getElementById('planner-progressie-sectie');
     
+    // FIX 1: Zorg dat de categorie dropdown altijd netjes gevuld wordt!
+    if (catEl && catEl.options.length <= 1) {
+        catEl.innerHTML = '<option value="">-- Alle Categorieën --</option>';
+        let uniekeCats = [];
+        (window.oefeningenDB || []).forEach(o => {
+            if (o.categorie) uniekeCats.push(o.categorie);
+            if (o.categorieen && Array.isArray(o.categorieen)) uniekeCats.push(...o.categorieen);
+        });
+        uniekeCats = [...new Set(uniekeCats)].filter(Boolean).sort();
+        uniekeCats.forEach(c => catEl.innerHTML += `<option value="${c}">${c}</option>`);
+    }
+
     if(!lijst) return;
     lijst.innerHTML = ''; 
     if(progLijst) progLijst.innerHTML = ''; 
     let hasProgressie = false;
 
-    let actieveGebruiker = JSON.parse(localStorage.getItem('bs_actieve_gebruiker')) || {teams:['all']};
-
     let gefilterd = (window.oefeningenDB || []).filter(o => {
-        let catText = o.categorieen ? o.categorieen.join(' ').toLowerCase() : '';
+        // FIX 2: Controleer zowel 'categorie' als 'categorieen' (oud en nieuw database formaat)
+        let catText = "";
+        if (o.categorie) catText += o.categorie.toLowerCase() + " ";
+        if (o.categorieen && Array.isArray(o.categorieen)) catText += o.categorieen.join(' ').toLowerCase();
+        
         let matchTerm = (o.naam || '').toLowerCase().includes(term) || catText.includes(term);
-        let matchCat = !cat || catText.includes(cat);
-        let matchTeam = (!o.doelgroepen || o.doelgroepen.length === 0) || o.doelgroepen.includes(actieveTraining.teamId);
+        let matchCat = (!cat || cat === 'all') ? true : catText.includes(cat);
+        
+        // FIX 3: Repareer het Team Filter (Zorg dat oefeningen voor 'all' of lege doelgroepen altijd tonen)
+        let matchTeam = true;
+        if (o.doelgroepen && o.doelgroepen.length > 0 && !o.doelgroepen.includes("all") && !o.doelgroepen.includes("Alle")) {
+            if (actieveTraining && actieveTraining.teamId) {
+                matchTeam = o.doelgroepen.includes(actieveTraining.teamId);
+            }
+        }
+
         let matchSpelers = true;
         if (spelerCount !== "") {
             let oefSpelers = (o.aantalSpelers || "").toLowerCase();
-            if (oefSpelers !== "" && oefSpelers !== "alle" && !oefSpelers.includes("elk")) matchSpelers = oefSpelers.includes(spelerCount);
+            if (oefSpelers !== "" && oefSpelers !== "alle" && !oefSpelers.includes("elk")) {
+                matchSpelers = oefSpelers.includes(spelerCount);
+            }
         }
+        
         return matchTerm && matchCat && matchTeam && matchSpelers;
     });
 
     if (gefilterd.length === 0) {
-        lijst.innerHTML = '<p style="color:#7f8c8d; font-style:italic;">Geen geschikte oefeningen...</p>';
+        lijst.innerHTML = '<p style="color:#7f8c8d; font-style:italic;">Geen oefeningen gevonden met deze filters...</p>';
         if(progSectie) progSectie.style.display = 'none'; 
         return;
     }
@@ -785,7 +806,7 @@ window.filterPlannerOefeningen = function() {
         let tellerBadge = isProgressie ? `<span style="background:#e74c3c; color:white; font-size:0.8rem; padding:2px 6px; border-radius:4px; float:right;">Week ${actueelWeekIndex + 1} / ${doel}</span>` : '';
         let achtergrond = isProgressie ? 'background:white; border-color:#f39c12;' : 'background:var(--card-bg); border-color:var(--border-color);';
 
-        let teamVar = oef.teamVariaties ? oef.teamVariaties[actieveTraining.teamId] : null;
+        let teamVar = (oef.teamVariaties && actieveTraining) ? oef.teamVariaties[actieveTraining.teamId] : null;
         let teamTxt = teamVar ? (typeof teamVar === 'string' ? teamVar : teamVar.tekst) : null;
         let teamImg = teamVar ? (typeof teamVar === 'object' ? teamVar.tekening : null) : null;
 
@@ -797,7 +818,7 @@ window.filterPlannerOefeningen = function() {
         let imgHtml = finalImg ? `<div style="text-align:center; margin-bottom:10px; background:white; padding:10px; border-radius:6px; border:2px solid #34495e;"><img src="${finalImg}" style="max-width:100%; border-radius:4px;"></div>` : '';
         let visueelTekenImg = finalImg ? '<span style="margin-left:8px;" title="Bevat een Tactiekbord tekening!">🖼️</span>' : '';
 
-        let teamSpecifiek = teamTxt ? `<div style="background:#e8f8f5; border-left:4px solid #1abc9c; padding:8px; margin-bottom:8px; border-radius:4px;"><strong style="color:#16a085;">🏀 Specifiek voor jullie:</strong> ${teamTxt}</div>` : '';
+        let teamSpecifiek = teamTxt ? `<div style="background:#e8f8f5; border-left:4px solid #1abc9c; padding:8px; margin-bottom:8px; border-radius:4px;"><strong style="color:#16a085;">🏀 Specifiek voor dit team:</strong> ${teamTxt}</div>` : '';
         let weekInfo = weekTxt ? `<div style="background:#fdf2e9; border-left:4px solid #f39c12; padding:8px; margin-bottom:8px; border-radius:4px;"><strong style="color:#d35400;">📈 Actuele Focus (Week ${actueelWeekIndex + 1}):</strong> ${weekTxt}</div>` : '';
 
         let htmlKaartje = `
