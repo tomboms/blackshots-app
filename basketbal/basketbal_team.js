@@ -1,4 +1,4 @@
-// --- BASKETBAL_TEAM.JS: KOGELVRIJE LOGICA VOOR TEAM BEHEER MET DUUR & VELD ---
+// --- BASKETBAL_TEAM.JS: COMPLEET & KOGELVRIJ ---
 
 window.renderTeamBeheer = function() {
     try {
@@ -60,7 +60,7 @@ window.renderTeamBeheer = function() {
                 trainingenHtml = '<span style="color:#bdc3c7; font-style:italic; font-size:0.85rem;">Geen vaste tijden ingepland.</span>';
             }
 
-           // Nieuwe Badges en Aliassen
+            // HIER ZAT DE FOUT: Nu is het blokje perfect afgesloten!
             let kaderBadge = team.isVrijwilliger ? '<span style="background:#9b59b6; color:white; padding:4px 8px; border-radius:4px; font-size:0.8rem; margin-left:10px; vertical-align:middle;">KADER</span>' : '';
             let recreantBadge = team.isRecreant ? '<span style="background:#f39c12; color:white; padding:4px 8px; border-radius:4px; font-size:0.8rem; margin-left:10px; vertical-align:middle;">RECREANTEN</span>' : '';
             let ringColor = team.isVrijwilliger ? '#9b59b6' : 'var(--primary-color)';
@@ -72,17 +72,7 @@ window.renderTeamBeheer = function() {
                         <div>
                             <h3 style="margin:0; color:${ringColor}; font-size:1.4rem; display:inline-block;">${team.naam || 'Groep'}</h3>${kaderBadge}${recreantBadge}
                             <div style="font-size:0.95rem; color:#34495e; margin-top:5px;">
-                                👨‍💼 Coach: <strong>${team.coach || 'N.n.b.'}</strong> &nbsp;|&nbsp; 🏃‍♂️ Trainer: <strong>${team.trainer || 'N.n.b.'}</strong>${aliasTekst}
-                            </div>
-                        </div>
-
-            lijstHTML += `
-                <li style="background:white; border-radius:8px; border:1px solid var(--border-color); border-top: 4px solid ${ringColor}; overflow:hidden; box-shadow:0 2px 4px rgba(0,0,0,0.05); margin-bottom: 20px;">
-                    <div style="background:#fafafa; padding:15px 20px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-                        <div>
-                            <h3 style="margin:0; color:${ringColor}; font-size:1.4rem; display:inline-block;">${team.naam || 'Groep'}</h3>${kaderBadge}
-                            <div style="font-size:0.95rem; color:#34495e; margin-top:5px;">
-                                👨‍💼 Coach/Leider: <strong>${team.coach || 'N.n.b.'}</strong> &nbsp;|&nbsp; 🏃‍♂️ Trainer: <strong>${team.trainer || 'N.n.b.'}</strong>
+                                👨‍💼 Coach/Leider: <strong>${team.coach || 'N.n.b.'}</strong> &nbsp;|&nbsp; 🏃‍♂️ Trainer: <strong>${team.trainer || 'N.n.b.'}</strong>${aliasTekst}
                             </div>
                         </div>
                         <div>
@@ -160,8 +150,6 @@ window.snelleTrainingToevoegen = function(teamIndex) {
     window.renderTeamBeheer();
 };
 
-// --- VERVANG DE OUDE 'bewerkTeam' FUNCTIE DOOR DIT BLOK ---
-
 window.bewerkTeam = function(index) {
     let team = window.teamsDB[index];
     if (!team) return;
@@ -203,14 +191,6 @@ window.slaTeamBewerkingOp = function() {
     window.renderTeamBeheer();
     window.sluitTeamModal();
 };
-
-// Esc-knop om modal af te sluiten (als je toch niks wilt opslaan)
-document.addEventListener('keydown', function(event) {
-    if (event.key === "Escape") {
-        let modal = document.getElementById('team-edit-modal');
-        if (modal && modal.style.display === 'flex') window.sluitTeamModal();
-    }
-});
 
 window.voegTeamToe = function() {
     const naamEl = document.getElementById('nieuw-team-naam');
@@ -283,3 +263,10 @@ window.verwijderVasteTraining = function(teamIndex, trIndex) {
     localStorage.setItem('blackshots_teams', JSON.stringify(window.teamsDB));
     window.renderTeamBeheer();
 };
+
+document.addEventListener('keydown', function(event) {
+    if (event.key === "Escape") {
+        let modal = document.getElementById('team-edit-modal');
+        if (modal && modal.style.display === 'flex') window.sluitTeamModal();
+    }
+});
