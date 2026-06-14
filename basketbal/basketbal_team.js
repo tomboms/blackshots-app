@@ -150,7 +150,7 @@ window.renderTeamBeheer = function() {
                 evenementenHtml = '<span style="color:#bdc3c7; font-style:italic; font-size:0.85rem;">Geen speciale team-taken gepland in deze periode.</span>';
             }
 
-            // --- OPMAAK VAN DE KAART ---
+           // --- OPMAAK VAN DE KAART ---
             let kaderBadge = team.isVrijwilliger ? '<span style="background:#9b59b6; color:white; padding:4px 8px; border-radius:4px; font-size:0.8rem; margin-left:10px; vertical-align:middle;">KADER</span>' : '';
             let recreantBadge = team.isRecreant ? '<span style="background:#f39c12; color:white; padding:4px 8px; border-radius:4px; font-size:0.8rem; margin-left:10px; vertical-align:middle;">RECREANTEN</span>' : '';
             let ringColor = team.kleur || (team.isVrijwilliger ? '#9b59b6' : 'var(--primary-color)');
@@ -172,11 +172,9 @@ window.renderTeamBeheer = function() {
                     </div>
 
                     <div style="padding:20px; display:flex; gap:20px; flex-wrap:wrap;">
+                        
                         <div style="flex:1.5; min-width:250px;">
-                            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #eee; padding-bottom:5px; margin-bottom:10px;">
-                                <h4 style="margin:0; color:var(--secondary-color);">📌 Komende Team-taken</h4>
-                                <button onclick="window.openSnelEventModal('${team.id}')" style="background:#27ae60; color:white; border:none; width:24px; height:24px; border-radius:50%; cursor:pointer; font-weight:bold; display:flex; align-items:center; justify-content:center; font-size:1.1rem; box-shadow:0 2px 4px rgba(0,0,0,0.1);" title="Nieuwe taak/event voor dit team">+</button>
-                            </div>
+                            <h4 style="margin-top:0; color:var(--secondary-color); border-bottom:2px solid #eee; padding-bottom:5px;">👥 Ledenpool (${teamSpelers.length})</h4>
                             <div style="margin-bottom:15px; display:flex; flex-wrap:wrap;">${spelersHtml}</div>
                             <button onclick="window.location.href='spelers.html'" style="background:#3498db; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.85rem;">+ Beheer via Spelers-pagina</button>
                         </div>
@@ -201,11 +199,15 @@ window.renderTeamBeheer = function() {
                         </div>
 
                         <div style="flex:1; min-width:220px; border-left:1px dashed #eee; padding-left:20px;">
-                            <h4 style="margin-top:0; color:var(--secondary-color); border-bottom:2px solid #eee; padding-bottom:5px;">📌 Komende Team-taken</h4>
+                            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #eee; padding-bottom:5px; margin-bottom:10px;">
+                                <h4 style="margin:0; color:var(--secondary-color);">📌 Komende Team-taken</h4>
+                                <button onclick="window.openSnelEventModal('${team.id}')" style="background:#27ae60; color:white; border:none; width:24px; height:24px; border-radius:50%; cursor:pointer; font-weight:bold; display:flex; align-items:center; justify-content:center; font-size:1.1rem; box-shadow:0 2px 4px rgba(0,0,0,0.1);" title="Nieuwe taak/event voor dit team">+</button>
+                            </div>
                             <div style="display:flex; flex-direction:column; gap:4px;">
                                 ${evenementenHtml}
                             </div>
                         </div>
+
                     </div>
                 </li>
             `;
