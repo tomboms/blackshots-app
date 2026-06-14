@@ -26,7 +26,6 @@ window.getCanonicalTeam = function(identifier) {
         return false;
     });
 };
-
 // ============================================================================
 // TEAM BEHEER RENDEREN
 // ============================================================================
@@ -41,23 +40,27 @@ window.renderTeamBeheer = function() {
         if (!Array.isArray(window.teamsDB)) window.teamsDB = [];
         if (!Array.isArray(window.spelersDB)) window.spelersDB = [];
         
-        // --- NIEUW: Bereken de datum-horizon op basis van de dropdown ---
         let jaarplanningData = JSON.parse(localStorage.getItem('blackshots_jaarplanning_data')) || [];
-        
-        let horizonSelect = document.getElementById('team-event-horizon');
-        let dagenVooruit = horizonSelect ? parseInt(horizonSelect.value) : 60;
         
         let vandaag = new Date();
         let vandaagIso = vandaag.toISOString().split('T')[0];
         
-        let maxDatum = new Date();
-        maxDatum.setDate(vandaag.getDate() + dagenVooruit);
-        let maxDatumIso = maxDatum.toISOString().split('T')[0];
+        // --- NIEUW: Lees de datumprikker uit ---
+        let horizonInput = document.getElementById('team-event-horizon-date');
+        let maxDatumIso = horizonInput ? horizonInput.value : '';
+
+        // Als het veld nog leeg is (bij de eerste keer inladen), zet hem op +60 dagen
+        if (!maxDatumIso) {
+            let standaardMax = new Date();
+            standaardMax.setDate(vandaag.getDate() + 60);
+            maxDatumIso = standaardMax.toISOString().split('T')[0];
+            if (horizonInput) horizonInput.value = maxDatumIso; // Vul de kalender visueel in
+        }
 
         window.teamsDB.forEach((team, index) => {
             if (!team) return;
 
-            // --- SPELERS LADEN (Met alias vertaler!) ---
+            // --- SPELERS LADEN ---
             let teamSpelers = window.spelersDB.filter(s => {
                 if (!s || !s.teamId) return false;
                 let gevondenTeam = window.getCanonicalTeam(s.teamId);
@@ -106,22 +109,21 @@ window.renderTeamBeheer = function() {
                 trainingenHtml = '<span style="color:#bdc3c7; font-style:italic; font-size:0.85rem;">Geen vaste tijden ingepland.</span>';
             }
 
-            // --- NIEUW: AANKOMENDE EVENEMENTEN BINNEN HORIZON ---
+            // --- AANKOMENDE EVENEMENTEN FILTEREN ---
             let aankomendeEvenementen = jaarplanningData.filter(item => {
                 let start = item.isoDatum;
                 let eind = item.eindDatum || item.isoDatum;
                 
-                // 1. Oude evenementen negeren
+                // 1. Verleden negeren
                 if (!eind || eind < vandaagIso) return false; 
                 
-                // 2. Valt het buiten onze gekozen grens (bijv. 60 dagen)?
-                if (dagenVooruit < 9999 && start > maxDatumIso) return false;
+                // 2. Valt het na onze gekozen datum in de kalender?
+                if (start > maxDatumIso) return false;
                 
-                // 3. Toon ALLEEN als dit specifieke team is aangevinkt (Club-brede dingen slaan we hier over!)
+                // 3. Toon ALLEEN als dit team is aangevinkt
                 return item.teams && item.teams.includes(team.id);
             });
 
-            // Sorteer op datum en pak maximaal de eerste 5
             aankomendeEvenementen.sort((a, b) => (a.isoDatum > b.isoDatum) ? 1 : -1);
             aankomendeEvenementen = aankomendeEvenementen.slice(0, 5); 
 
