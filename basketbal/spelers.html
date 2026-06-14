@@ -37,8 +37,8 @@
                     <input type="text" id="nw-speler-naam" placeholder="Bijv. Semih Kaan" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;">
                 </div>
                 <div style="flex:1; min-width:80px;">
-                    <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">Leeftijd:</label>
-                    <input type="number" id="nw-speler-leeftijd" placeholder="12" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;">
+                    <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">Geb. Jaar:</label>
+                    <input type="number" id="nw-speler-gebjaar" placeholder="2014" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;">
                 </div>
                 <div style="flex:1; min-width:80px;">
                     <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">Rugnr:</label>
@@ -47,6 +47,10 @@
                 <div style="flex:2; min-width:150px;">
                     <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">Koppel aan Team:</label>
                     <select id="nw-speler-team" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px; font-weight:bold;"></select>
+                </div>
+                <div style="flex:2; min-width:150px;">
+                    <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">Kader/Rol (Optioneel):</label>
+                    <input type="text" id="nw-speler-rol" placeholder="Bijv. Coach X10-1" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;">
                 </div>
                 <div style="display:flex; align-items:center; gap:5px; margin-bottom:10px;">
                     <input type="checkbox" id="nw-speler-rec" style="width:18px; height:18px;">
@@ -57,11 +61,9 @@
         </div>
 
         <div style="display:flex; gap:10px; margin-bottom:15px; flex-wrap:wrap; background:#eef2f5; padding:10px; border-radius:8px; border:1px solid var(--border-color);">
-            <input type="text" id="zoek-speler" placeholder="🔎 Zoek op naam of bondsnummer..." onkeyup="window.renderSpelers()" style="flex:2; padding:10px; border:1px solid #bdc3c7; border-radius:4px; min-width:200px;">
+            <input type="text" id="zoek-speler" placeholder="🔍 Zoek op naam of bondsnummer..." onkeyup="window.renderSpelers()" style="flex:2; padding:10px; border:1px solid #bdc3c7; border-radius:4px; min-width:200px;">
             <select id="filter-team" onchange="window.renderSpelers()" style="flex:1; padding:10px; border:1px solid #bdc3c7; border-radius:4px; min-width:150px; font-weight:bold;">
-                <option value="all">-- Alle Teams --</option>
-                <option value="vrij">Vrije Spelers (Zonder team)</option>
-            </select>
+                </select>
             <select id="filter-type" onchange="window.renderSpelers()" style="flex:1; padding:10px; border:1px solid #bdc3c7; border-radius:4px; min-width:150px; font-weight:bold;">
                 <option value="all">-- Alle Spelers --</option>
                 <option value="wedstrijd">Alleen Wedstrijdspelend</option>
@@ -75,7 +77,7 @@
                     <tr>
                         <th style="padding:12px;">Bondsnummer</th>
                         <th style="padding:12px;">Naam</th>
-                        <th style="padding:12px;">Leeftijd</th>
+                        <th style="padding:12px;">Geb. Jaar</th>
                         <th style="padding:12px;">Rugnr</th>
                         <th style="padding:12px;">Gekoppeld Team</th>
                         <th style="padding:12px;">Lid Sinds</th>

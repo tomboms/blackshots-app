@@ -1,4 +1,36 @@
-// --- BASKETBAL_SPELERS.JS: LEDENBESTAND MET AUTOMATISCHE REC-SORTERING ONDERAAN ---
+// --- BASKETBAL_SPELERS.JS: MET NBB CHECKER, KLEUREN & DISPENSATIES ---
+
+// 1. Slimme vertaler (Kopie van Teampagina, zodat we hem hier ook kunnen gebruiken)
+window.getCanonicalTeam = function(identifier) {
+    if (!identifier) return null;
+    let zoekTerm = String(identifier).toLowerCase().trim();
+    if (!Array.isArray(window.teamsDB)) return null;
+
+    return window.teamsDB.find(team => {
+        let tId = String(team.id || '').toLowerCase().trim();
+        let tNaam = String(team.naam || '').toLowerCase().trim();
+        if (zoekTerm === tId || zoekTerm === tNaam) return true;
+        if (team.aliassen) {
+            let aliasArray = team.aliassen.toLowerCase().split(',').map(a => a.trim()).filter(Boolean);
+            if (aliasArray.includes(zoekTerm)) return true;
+        }
+        return false;
+    });
+};
+
+// 2. De NBB Leeftijdschecker (Seizoen 26/27)
+window.checkNBBTeOud = function(geboorteJaar, teamNaam) {
+    if (!geboorteJaar || !teamNaam || geboorteJaar === "-") return false; 
+    let match = teamNaam.match(/(?:U|X|M|V|J)(\d{2})/i); // Zoekt naar 10, 12, 14 etc.
+    if (!match) return false; // Geen jeugdteam (bijv Heren 1 of Recreanten)
+    
+    let categorie = parseInt(match[1]); // Bijv: 12
+    let minGeboorteJaar = 2027 - categorie; // Bij U12 in 26/27 is dit: 2027 - 12 = 2015
+    
+    // NBB Regel: Spelers in U12 moeten in 2015 of 2016 geboren zijn. 
+    // Geboren in 2014 (of eerder)? Dan ben je te oud!
+    return parseInt(geboorteJaar) < minGeboorteJaar;
+};
 
 window.renderSpelers = function() {
     const tbody = document.getElementById('spelers-tabel-body');
@@ -7,10 +39,9 @@ window.renderSpelers = function() {
 
     if (!tbody) return;
 
-    // Vul de dropdowns als ze nog leeg zijn
     if(teamSelect && teamSelect.options.length <= 1) {
         teamSelect.innerHTML = '<option value="">-- Geen (Vrije Speler) --</option>';
-        if(filterTeam) filterTeam.innerHTML = '<option value="all">-- Alle Teams --</option><option value="vrij">Vrije Spelers (Geen team)</option>';
+        if(filterTeam) filterTeam.innerHTML = '<option value="all">-- Toon Alle Spelers --</option><option value="vrij">Zonder Team (Zwervers)</option><option value="aliasfout">⚠️ Alias Fouten (Onbekende Code)</option>';
         
         if (Array.isArray(window.teamsDB)) {
             window.teamsDB.forEach(t => {
@@ -25,61 +56,79 @@ window.renderSpelers = function() {
     let selType = document.getElementById('filter-type') ? document.getElementById('filter-type').value : 'all';
 
     let html = '';
-
-    // Maak een tijdelijke kopie inclusief de originele index voor acties (bewerken/verwijderen)
     let gesorteerdeSpelers = window.spelersDB.map((speler, index) => ({ ...speler, origineleIndex: index }));
 
-    // AUTOMATISCHE SORTERING: Wedstrijdspelers eerst, Recreanten ALTIJD onderaan!
     gesorteerdeSpelers.sort((a, b) => {
         let aRec = a.isRecreant === true || (a.clubLidmaatschap && a.clubLidmaatschap.toLowerCase().includes('rec'));
         let bRec = b.isRecreant === true || (b.clubLidmaatschap && b.clubLidmaatschap.toLowerCase().includes('rec'));
-        if (aRec && !bRec) return 1;   // a is recreant, dus moet onder b
-        if (!aRec && bRec) return -1;  // b is recreant, dus a moet boven b
-        return a.naam.localeCompare(b.naam); // Als type gelijk is, sorteer alfabetisch op naam
+        if (aRec && !bRec) return 1;   
+        if (!aRec && bRec) return -1;  
+        return (a.naam || '').localeCompare(b.naam || ''); 
     });
 
     gesorteerdeSpelers.forEach((speler) => {
         let isRec = speler.isRecreant === true || (speler.clubLidmaatschap && speler.clubLidmaatschap.toLowerCase().includes('rec'));
 
         let teamNaam = "Vrije Speler";
-        let teamBadge = "background:#bdc3c7;";
+        let teamBadge = "background:#bdc3c7; color:white;";
         let matchTeamId = "vrij";
+        let isAliasFout = false;
         
         if(speler.teamId) {
-            let tObj = window.teamsDB.find(t => t.id === speler.teamId || t.naam.toLowerCase() === speler.teamId.toLowerCase());
+            let tObj = window.getCanonicalTeam(speler.teamId);
             if(tObj) {
                 teamNaam = tObj.naam;
-                teamBadge = "background:var(--primary-color);";
+                teamBadge = `background:${tObj.kleur || 'var(--primary-color)'}; color:white; border: 1px solid rgba(0,0,0,0.1);`;
                 matchTeamId = tObj.id;
             } else {
                 teamNaam = speler.teamId; 
-                teamBadge = "background:#e67e22;";
-                matchTeamId = speler.teamId;
+                teamBadge = "background:#e74c3c; color:white; font-weight:bold;"; // Rood wegens alias fout
+                matchTeamId = "aliasfout";
+                isAliasFout = true;
             }
         }
 
         // --- FILTER MATCHING ---
-        let passTeam = (selTeam === 'all') || (selTeam === matchTeamId);
+        let passTeam = false;
+        if (selTeam === 'all') passTeam = true;
+        else if (selTeam === 'vrij' && matchTeamId === 'vrij') passTeam = true;
+        else if (selTeam === 'aliasfout' && isAliasFout) passTeam = true;
+        else if (selTeam === matchTeamId) passTeam = true;
+
         let passType = (selType === 'all') || (selType === 'recreant' && isRec) || (selType === 'wedstrijd' && !isRec);
-        let matchText = `${speler.naam} ${speler.bondsnummer || ''} ${teamNaam} ${speler.clubLidmaatschap || ''} ${speler.bondLidmaatschap || ''}`.toLowerCase();
+        let matchText = `${speler.naam} ${speler.bondsnummer || ''} ${teamNaam} ${speler.clubLidmaatschap || ''} ${speler.kaderRol || ''}`.toLowerCase();
         let passSearch = matchText.includes(zoekterm);
 
         if (passTeam && passType && passSearch) {
             let recBadge = isRec ? `<span style="background:#f1c40f; color:#2c3e50; padding:2px 6px; border-radius:4px; font-size:0.7rem; font-weight:bold; margin-left:5px; border:1px solid #e67e22;">REC</span>` : '';
+            
+            // --- NBB LEEFTIJD CHECKER ---
+            let leeftijdWaarschuwing = '';
+            if (window.checkNBBTeOud(speler.geboorteJaar, teamNaam)) {
+                if (speler.dispensatie) {
+                    leeftijdWaarschuwing = `<button onclick="window.toggleDispensatie('${speler.id}')" title="Dispensatie OK. Klik om in te trekken." style="background:none; border:none; cursor:pointer; padding:0; margin-left:5px;">✅</button>`;
+                } else {
+                    leeftijdWaarschuwing = `<button onclick="window.toggleDispensatie('${speler.id}')" title="Let op: Speler is NBB te oud voor ${teamNaam}! Klik om dispensatie te geven." style="background:none; border:none; cursor:pointer; padding:0; margin-left:5px; font-size:1.2rem; filter: drop-shadow(0 0 2px red);">⚠️</button>`;
+                }
+            }
+
+            let kaderBadge = speler.kaderRol ? `<div style="color:#8e44ad; font-size:0.8rem; font-weight:bold; margin-top:2px;">⭐ ${speler.kaderRol}</div>` : '';
 
             html += `
                 <tr style="border-bottom:1px solid #eee; font-size:0.95rem;">
                     <td style="padding:12px; color:#7f8c8d; font-family:monospace;">${speler.bondsnummer || 'Handmatig'}</td>
-                    <td style="padding:12px; font-weight:bold; color:var(--secondary-color);">${speler.naam}</td>
-                    <td style="padding:12px;">${speler.leeftijd || '-'} jr</td>
+                    <td style="padding:12px; font-weight:bold; color:var(--secondary-color);">
+                        ${speler.naam}
+                        ${kaderBadge}
+                    </td>
+                    <td style="padding:12px;">${speler.geboorteJaar || '-'}</td>
                     <td style="padding:12px; font-weight:bold; color:#d35400;">${speler.rugnummer ? `#${speler.rugnummer}` : '-'}</td>
-                    <td style="padding:12px;">
-                        <span style="${teamBadge} color:white; padding:4px 8px; border-radius:4px; font-size:0.85rem; font-weight:bold;">${teamNaam}</span>${recBadge}
+                    <td style="padding:12px; white-space:nowrap;">
+                        <span style="${teamBadge} padding:4px 8px; border-radius:4px; font-size:0.85rem;">${teamNaam}</span>${leeftijdWaarschuwing}${recBadge}
                     </td>
                     <td style="padding:12px; color:#7f8c8d; font-size:0.85rem;">${speler.lidSinds || '-'}</td>
-                    <td style="padding:12px; font-size:0.85rem; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                    <td style="padding:12px; font-size:0.85rem; max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
                         <div style="font-weight:bold; color:#2c3e50;">${speler.clubLidmaatschap || '-'}</div>
-                        <div style="color:#7f8c8d; font-style:italic;">${speler.bondLidmaatschap || '-'}</div>
                     </td>
                     <td style="padding:12px;">
                         <button onclick="window.bewerkSpeler(${speler.origineleIndex})" style="background:#f39c12; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:0.8rem; margin-right:5px;">✏️</button>
@@ -94,6 +143,16 @@ window.renderSpelers = function() {
     tbody.innerHTML = html;
 };
 
+// --- NIEUW: DISPENSATIE SCHAKELAAR ---
+window.toggleDispensatie = function(spelerId) {
+    let speler = window.spelersDB.find(s => s.id === spelerId);
+    if (speler) {
+        speler.dispensatie = !speler.dispensatie; // Zet aan als uit stond, en andersom
+        localStorage.setItem('blackshots_spelers', JSON.stringify(window.spelersDB));
+        window.renderSpelers();
+    }
+};
+
 // --- BEWERK SPELER ---
 window.bewerkSpeler = function(index) {
     let speler = window.spelersDB[index];
@@ -102,11 +161,14 @@ window.bewerkSpeler = function(index) {
     let nwNaam = prompt("Pas de naam aan:", speler.naam);
     if (nwNaam === null) return;
     
-    let nwLeeftijd = prompt("Pas de leeftijd aan:", speler.leeftijd || "");
-    if (nwLeeftijd === null) return;
+    let nwGebJaar = prompt("Pas het geboortejaar aan (bijv 2014):", speler.geboorteJaar || "");
+    if (nwGebJaar === null) return;
     
     let nwRugnr = prompt("Pas het rugnummer aan:", speler.rugnummer || "");
     if (nwRugnr === null) return;
+
+    let nwRol = prompt("Heeft deze persoon een rol? (bijv Coach X10-1). Laat leeg voor geen:", speler.kaderRol || "");
+    if (nwRol === null) return;
 
     let teamOpties = window.teamsDB.map(t => t.naam).join(", ");
     let nwTeam = prompt(`Koppel aan een team (Kies uit: ${teamOpties})\nLaat leeg voor 'Vrije Speler':`, speler.teamId);
@@ -114,12 +176,13 @@ window.bewerkSpeler = function(index) {
 
     let isRecPrompt = confirm("Is deze speler een Recreant (speelt geen wedstrijden)?\nKlik 'OK' voor JA, 'Annuleren' voor NEE.");
 
-    let matchedTeam = window.teamsDB.find(t => t.naam.toLowerCase() === nwTeam.trim().toLowerCase());
+    let matchedTeam = window.getCanonicalTeam(nwTeam);
     let finalTeamId = matchedTeam ? matchedTeam.id : nwTeam.trim();
 
     speler.naam = nwNaam.trim() || speler.naam;
-    speler.leeftijd = nwLeeftijd.trim();
+    speler.geboorteJaar = nwGebJaar.trim();
     speler.rugnummer = nwRugnr.trim();
+    speler.kaderRol = nwRol.trim();
     speler.teamId = finalTeamId;
     speler.isRecreant = isRecPrompt;
 
@@ -130,8 +193,9 @@ window.bewerkSpeler = function(index) {
 // --- HANDMATIG TOEVOEGEN ---
 window.voegSpelerToe = function() {
     let naam = document.getElementById('nw-speler-naam').value.trim();
-    let leeftijd = document.getElementById('nw-speler-leeftijd').value;
+    let gebJaar = document.getElementById('nw-speler-gebjaar').value;
     let rugnr = document.getElementById('nw-speler-rugnr').value;
+    let rol = document.getElementById('nw-speler-rol').value.trim();
     let teamId = document.getElementById('nw-speler-team').value;
     let isRec = document.getElementById('nw-speler-rec').checked;
 
@@ -140,10 +204,12 @@ window.voegSpelerToe = function() {
             id: 'p_' + Date.now(),
             bondsnummer: '',
             naam: naam,
-            leeftijd: leeftijd,
+            geboorteJaar: gebJaar,
             rugnummer: rugnr,
+            kaderRol: rol,
             teamId: teamId,
             isRecreant: isRec,
+            dispensatie: false,
             lidSinds: new Date().toLocaleDateString('nl-NL'),
             clubLidmaatschap: isRec ? 'Recreant (Handmatig)' : 'Spelend lid (Handmatig)',
             bondLidmaatschap: isRec ? 'Niet-spelend' : 'Wedstrijdspelend'
@@ -151,8 +217,9 @@ window.voegSpelerToe = function() {
         localStorage.setItem('blackshots_spelers', JSON.stringify(window.spelersDB));
         
         document.getElementById('nw-speler-naam').value = '';
-        document.getElementById('nw-speler-leeftijd').value = '';
+        document.getElementById('nw-speler-gebjaar').value = '';
         document.getElementById('nw-speler-rugnr').value = '';
+        document.getElementById('nw-speler-rol').value = '';
         document.getElementById('nw-speler-rec').checked = false;
         window.renderSpelers();
     } else {
@@ -210,17 +277,12 @@ window.importeerBondCSV = function(event) {
 
             let bondsnummer = row[idxBondsnummer] ? row[idxBondsnummer].trim() : "";
             
-            let berekendeLeeftijd = "-";
-            let gebDatumStr = row[idxGeboorte] ? row[idxGeboorte].trim() : "";
-            if (gebDatumStr) {
-                let parts = gebDatumStr.split('-');
-                if (parts.length === 3) {
-                    let gebDate = new Date(parts[2], parts[1] - 1, parts[0]);
-                    let vandaag = new Date();
-                    berekendeLeeftijd = vandaag.getFullYear() - gebDate.getFullYear();
-                    let m = vandaag.getMonth() - gebDate.getMonth();
-                    if (m < 0 || (m === 0 && vandaag.getDate() < gebDate.getDate())) berekendeLeeftijd--;
-                }
+            // Haal geboortejaar uit CSV (Datum is DD-MM-YYYY)
+            let gebJaarStr = "-";
+            let gebDatumRuweStr = row[idxGeboorte] ? row[idxGeboorte].trim() : "";
+            if (gebDatumRuweStr) {
+                let parts = gebDatumRuweStr.split('-');
+                if (parts.length === 3) gebJaarStr = parts[2]; // Pak het jaar
             }
 
             let ruwTeam = idxTeam !== -1 && row[idxTeam] ? row[idxTeam].trim() : "";
@@ -231,10 +293,7 @@ window.importeerBondCSV = function(event) {
             let isRec = nwClubLid.toLowerCase().includes('rec') || ruwTeam.toLowerCase().includes('rec');
             let opgeschoondTeam = ruwTeam.replace(/rec\s*-?\s*/i, '').replace(/recreanten\s*-?\s*/i, '').trim();
 
-            let matchTeamObj = window.teamsDB.find(t => 
-                t.id.toLowerCase() === opgeschoondTeam.toLowerCase() || 
-                t.naam.toLowerCase().includes(opgeschoondTeam.toLowerCase())
-            );
+            let matchTeamObj = window.getCanonicalTeam(opgeschoondTeam);
             let finalTeamId = matchTeamObj ? matchTeamObj.id : opgeschoondTeam;
 
             let bestaandeSpeler = window.spelersDB.find(s => 
@@ -244,8 +303,9 @@ window.importeerBondCSV = function(event) {
 
             if (bestaandeSpeler) {
                 let wijzigingen = [];
-                if (berekendeLeeftijd !== "-" && bestaandeSpeler.leeftijd !== berekendeLeeftijd) {
-                    bestaandeSpeler.leeftijd = berekendeLeeftijd; wijzigingen.push("leeftijd");
+                // UPDATE: Controleer nu geboortejaar i.p.v. leeftijd
+                if (gebJaarStr !== "-" && bestaandeSpeler.geboorteJaar !== gebJaarStr) {
+                    bestaandeSpeler.geboorteJaar = gebJaarStr; wijzigingen.push("geboortejaar");
                 }
                 if (finalTeamId !== "" && bestaandeSpeler.teamId !== finalTeamId) {
                     bestaandeSpeler.teamId = finalTeamId; wijzigingen.push(`team (${finalTeamId})`);
@@ -272,10 +332,12 @@ window.importeerBondCSV = function(event) {
                     id: 'p_bond_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
                     bondsnummer: bondsnummer,
                     naam: volledigeNaam,
-                    leeftijd: berekendeLeeftijd,
+                    geboorteJaar: gebJaarStr,
                     rugnummer: nwRugnummer,
                     teamId: finalTeamId,
                     isRecreant: isRec,
+                    dispensatie: false, 
+                    kaderRol: "", 
                     lidSinds: idxLidSinds !== -1 && row[idxLidSinds] ? row[idxLidSinds].trim() : "",
                     clubLidmaatschap: nwClubLid,
                     bondLidmaatschap: nwBondLid
