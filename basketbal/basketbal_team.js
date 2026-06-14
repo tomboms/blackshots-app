@@ -182,6 +182,53 @@ window.snelleTrainingToevoegen = function(teamIndex) {
     window.renderTeamBeheer();
 };
 
+window.kiesTeamKleur = function(kleurCode) {
+    document.getElementById('edit-team-kleur').value = kleurCode;
+    
+    // Reset alle bolletjes
+    let swatches = document.querySelectorAll('.kleur-swatch');
+    swatches.forEach(s => { 
+        if (s.id !== 'custom-kleur-knop') {
+            s.style.border = '2px solid transparent'; 
+            s.style.transform = 'scale(1)'; 
+        }
+    });
+    
+    // Zet een randje om de geselecteerde
+    let actieveSwatch = document.querySelector(`.kleur-swatch[data-kleur="${kleurCode}"]`);
+    if (actieveSwatch) {
+        actieveSwatch.style.border = '2px solid #2c3e50';
+        actieveSwatch.style.transform = 'scale(1.1)';
+    }
+
+    // Reset de plus-knop visueel
+    let customKnop = document.getElementById('custom-kleur-knop');
+    if (customKnop) {
+        customKnop.style.backgroundColor = '#fff';
+        customKnop.style.border = '2px dashed #bdc3c7';
+        customKnop.style.color = '#7f8c8d';
+    }
+};
+
+window.kiesEigenKleur = function(kleurCode) {
+    document.getElementById('edit-team-kleur').value = kleurCode;
+    
+    // Reset vaste bolletjes
+    let swatches = document.querySelectorAll('.kleur-swatch');
+    swatches.forEach(s => { 
+        s.style.border = '2px solid transparent'; 
+        s.style.transform = 'scale(1)'; 
+    });
+    
+    // Geef de plus-knop de gekozen kleur en haal het plusje tijdelijk weg
+    let customKnop = document.getElementById('custom-kleur-knop');
+    if (customKnop) {
+        customKnop.style.backgroundColor = kleurCode;
+        customKnop.style.border = '2px solid #2c3e50';
+        customKnop.style.color = 'transparent'; 
+    }
+};
+
 window.bewerkTeam = function(index) {
     let team = window.teamsDB[index];
     if (!team) return;
@@ -191,10 +238,21 @@ window.bewerkTeam = function(index) {
     document.getElementById('edit-team-aliassen').value = team.aliassen || '';
     document.getElementById('edit-team-coach').value = team.coach || '';
     document.getElementById('edit-team-trainer').value = team.trainer || '';
-    document.getElementById('edit-team-kleur').value = team.kleur || '#3498db'; // Nieuw!
     
     document.getElementById('edit-team-vrijwilliger').checked = team.isVrijwilliger || false;
     document.getElementById('edit-team-recreant').checked = team.isRecreant || false;
+
+    // Slim inladen van de kleuren
+    let opgeslagenKleur = team.kleur || '#3498db';
+    let standaardKleuren = ['#f1c40f', '#e67e22', '#e74c3c', '#9b59b6', '#3498db', '#2980b9', '#1abc9c', '#2ecc71', '#34495e'];
+    
+    if (standaardKleuren.includes(opgeslagenKleur)) {
+        window.kiesTeamKleur(opgeslagenKleur);
+    } else {
+        // Hij was custom, zet hem op de plus-knop!
+        window.kiesEigenKleur(opgeslagenKleur);
+        document.getElementById('edit-team-custom-kleur').value = opgeslagenKleur; 
+    }
 
     document.getElementById('team-edit-modal').style.display = 'flex';
 };

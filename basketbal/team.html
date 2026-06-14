@@ -70,9 +70,30 @@
                 <p style="font-size:0.75rem; color:#95a5a6; margin:3px 0 0 0;">Helpt het systeem begrijpen dat X14-1 en M14 hetzelfde team is.</p>
             </div>
 
+            <style>
+            /* Styling voor de ronde kleur-bolletjes */
+            .kleur-swatch { width: 32px; height: 32px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: 0.2s; box-sizing: border-box; display: inline-block; }
+            .kleur-swatch:hover { transform: scale(1.1); }
+            </style>
+
             <div style="margin-bottom:15px;">
-                <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">🎨 Team Kleur (Kies bij voorkeur een pastel/lichte tint):</label>
-                <input type="color" id="edit-team-kleur" value="#3498db" style="width:100%; height:40px; border:1px solid #bdc3c7; border-radius:4px; cursor:pointer;">
+                <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">🎨 Team Kleur:</label>
+                <div id="kleur-kiezers" style="display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap;">
+                    <div class="kleur-swatch" data-kleur="#f1c40f" style="background-color: #f1c40f;" onclick="window.kiesTeamKleur('#f1c40f')" title="Geel"></div>
+                    <div class="kleur-swatch" data-kleur="#e67e22" style="background-color: #e67e22;" onclick="window.kiesTeamKleur('#e67e22')" title="Oranje"></div>
+                    <div class="kleur-swatch" data-kleur="#e74c3c" style="background-color: #e74c3c;" onclick="window.kiesTeamKleur('#e74c3c')" title="Rood"></div>
+                    <div class="kleur-swatch" data-kleur="#9b59b6" style="background-color: #9b59b6;" onclick="window.kiesTeamKleur('#9b59b6')" title="Paars"></div>
+                    <div class="kleur-swatch" data-kleur="#3498db" style="background-color: #3498db;" onclick="window.kiesTeamKleur('#3498db')" title="Lichtblauw"></div>
+                    <div class="kleur-swatch" data-kleur="#2980b9" style="background-color: #2980b9;" onclick="window.kiesTeamKleur('#2980b9')" title="Donkerblauw"></div>
+                    <div class="kleur-swatch" data-kleur="#1abc9c" style="background-color: #1abc9c;" onclick="window.kiesTeamKleur('#1abc9c')" title="Turquoise"></div>
+                    <div class="kleur-swatch" data-kleur="#2ecc71" style="background-color: #2ecc71;" onclick="window.kiesTeamKleur('#2ecc71')" title="Groen"></div>
+                    <div class="kleur-swatch" data-kleur="#34495e" style="background-color: #34495e;" onclick="window.kiesTeamKleur('#34495e')" title="Donkergrijs"></div>
+                    
+                    <div class="kleur-swatch" id="custom-kleur-knop" style="background-color: #fff; border: 2px dashed #bdc3c7; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #7f8c8d; font-size: 1.2rem;" onclick="document.getElementById('edit-team-custom-kleur').click()" title="Eigen kleur kiezen">+</div>
+                </div>
+                
+                <input type="hidden" id="edit-team-kleur" value="#3498db">
+                <input type="color" id="edit-team-custom-kleur" style="display:none;" onchange="window.kiesEigenKleur(this.value)">
             </div>
 
             <div style="display:flex; gap:15px; margin-bottom:15px;">
