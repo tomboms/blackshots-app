@@ -241,28 +241,28 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
 
             // --- NIEUW: De Magische Team Kleur Rand ---
             // --- GEREPAREERD: Multi-team Kleurenrand zonder tekst-badges ---
+            // --- GEREPAREERD: Multi-team Kleurenrand met extra hoogte ---
             let borderOpmaak = '';
-            let extraIcon = ''; // Bewust leeg gelaten: we willen geen +1 of +2 meer tonen!
+            let extraIcon = ''; 
             
             if (item.teams && item.teams.length > 0) {
                 let lokaleTeams = JSON.parse(localStorage.getItem('blackshots_teams')) || [];
                 let kleurStukken = [];
                 
-                // Haal van alle gekoppelde teams de kleur op
+                // Haal kleuren op (en geef een standaardkleur als je het team nog geen kleur hebt gegeven!)
                 item.teams.forEach(tId => {
                     let t = lokaleTeams.find(team => team.id === tId);
-                    if (t && t.kleur) {
-                        kleurStukken.push(t.kleur);
-                    }
+                    let tKleur = (t && t.kleur) ? t.kleur : '#3498db'; // Fallback naar Black Shots blauw
+                    kleurStukken.push(tKleur);
                 });
                 
-                if (kleurStukken.length === 0) kleurStukken.push('#34495e'); // Terugvaloptie
+                // We maken de rand lekker dik (6px)
+                let randDikte = '6px';
                 
                 if (kleurStukken.length === 1) {
-                    // Gewoon een strakke effen rand voor 1 team
-                    borderOpmaak = `border-left: 8px solid ${kleurStukken[0]}; padding-left: 6px;`;
+                    // !important zorgt ervoor dat je oude CSS hem niet meer mag onzichtbaar maken
+                    borderOpmaak = `border-left: ${randDikte} solid ${kleurStukken[0]} !important; padding-left: 8px;`;
                 } else {
-                    // Magische multi-color rand verdeeld over de hoogte van het kalender-item!
                     let gradientSteps = [];
                     let part = 100 / kleurStukken.length;
                     
@@ -270,10 +270,16 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
                         gradientSteps.push(`${kleur} ${idx * part}% ${(idx + 1) * part}%`);
                     });
                     
-                    // We gebruiken een flinterdunne achtergrond-gradient op de linker 4 pixels
-                    borderOpmaak = `background-image: linear-gradient(to bottom, ${gradientSteps.join(', ')}); background-size: 8px 100%; background-repeat: no-repeat; background-position: left; padding-left: 10px; border-left: none;`;
+                    // Bij meerdere kleuren gebruiken we de dikke 6px gradient
+                    borderOpmaak = `background-image: linear-gradient(to bottom, ${gradientSteps.join(', ')}); background-size: ${randDikte} 100%; background-repeat: no-repeat; background-position: left; padding-left: 10px; border-left: none !important;`;
                 }
             }
+
+            // --- NIEUW: Maak het blokje iets hoger met extra padding ---
+            let extraHoogte = "padding-top: 6px; padding-bottom: 6px; min-height: 28px;";
+
+            // Teken het kaartje met de border, extra padding en hoogte!
+            itemsHtml += `<div class="k-item ${badgeClass} ${extraClass}" title="Klik om te bewerken" ${clickAction} style="cursor:pointer; display:flex; justify-content:space-between; align-items:center; ${borderOpmaak} ${extraHoogte}"><div style="display:flex; align-items:center; overflow:hidden; white-space:nowrap; flex:1; min-width:0;">${metaHtml}<span style="overflow:hidden; text-overflow:ellipsis;">${isStartOfSpan ? (item.titel || "Naamloos") : '&nbsp;'}</span>${isStartOfSpan ? extraIcon : ''}</div>${deleteKnop}</div>`;
 
             itemsHtml += `<div class="k-item ${badgeClass} ${extraClass}" title="Klik om te bewerken" ${clickAction} style="cursor:pointer; display:flex; justify-content:space-between; align-items:center; ${borderOpmaak}"><div style="display:flex; align-items:center; overflow:hidden; white-space:nowrap; flex:1; min-width:0;">${metaHtml}<span style="overflow:hidden; text-overflow:ellipsis;">${isStartOfSpan ? (item.titel || "Naamloos") : '&nbsp;'}</span>${isStartOfSpan ? extraIcon : ''}</div>${deleteKnop}</div>`;
         });
