@@ -1,5 +1,35 @@
-// --- BASKETBAL_TEAM.JS: COMPLEET & KOGELVRIJ ---
+// --- BASKETBAL_TEAM.JS: MET STRENGE UNIVERSELE ALIAS-VERTALER ---
 
+// ============================================================================
+// 🌐 DE UNIVERSELE VERTALER (Overal in de app herbruikbaar!)
+// ============================================================================
+// Stop hier een teamnaam, ID of alias in (bijv. "M10-1"), 
+// en je krijgt EXACT het bijbehorende team terug, zonder gokwerk.
+window.getCanonicalTeam = function(identifier) {
+    if (!identifier) return null;
+    let zoekTerm = String(identifier).toLowerCase().trim();
+    if (!Array.isArray(window.teamsDB)) return null;
+
+    return window.teamsDB.find(team => {
+        let tId = String(team.id || '').toLowerCase().trim();
+        let tNaam = String(team.naam || '').toLowerCase().trim();
+        
+        // 1. 100% EXACTE match op ID of officiële naam
+        if (zoekTerm === tId || zoekTerm === tNaam) return true;
+        
+        // 2. 100% EXACTE match op 1 van de aliassen
+        if (team.aliassen) {
+            let aliasArray = team.aliassen.toLowerCase().split(',').map(a => a.trim()).filter(Boolean);
+            if (aliasArray.includes(zoekTerm)) return true;
+        }
+        
+        return false;
+    });
+};
+
+// ============================================================================
+// TEAM BEHEER RENDEREN
+// ============================================================================
 window.renderTeamBeheer = function() {
     try {
         const lijst = document.getElementById('team-beheer-lijst');
@@ -14,9 +44,11 @@ window.renderTeamBeheer = function() {
         window.teamsDB.forEach((team, index) => {
             if (!team) return;
 
+            // KOPPELING: We vragen de strenge vertaler of de speler hier hoort
             let teamSpelers = window.spelersDB.filter(s => {
-                if (!s) return false;
-                return s.teamId === team.id || (team.naam && s.teamId === team.naam);
+                if (!s || !s.teamId) return false;
+                let gevondenTeam = window.getCanonicalTeam(s.teamId);
+                return gevondenTeam && gevondenTeam.id === team.id;
             });
 
             teamSpelers.sort((a, b) => {
@@ -60,7 +92,6 @@ window.renderTeamBeheer = function() {
                 trainingenHtml = '<span style="color:#bdc3c7; font-style:italic; font-size:0.85rem;">Geen vaste tijden ingepland.</span>';
             }
 
-            // HIER ZAT DE FOUT: Nu is het blokje perfect afgesloten!
             let kaderBadge = team.isVrijwilliger ? '<span style="background:#9b59b6; color:white; padding:4px 8px; border-radius:4px; font-size:0.8rem; margin-left:10px; vertical-align:middle;">KADER</span>' : '';
             let recreantBadge = team.isRecreant ? '<span style="background:#f39c12; color:white; padding:4px 8px; border-radius:4px; font-size:0.8rem; margin-left:10px; vertical-align:middle;">RECREANTEN</span>' : '';
             let ringColor = team.isVrijwilliger ? '#9b59b6' : 'var(--primary-color)';
@@ -154,7 +185,6 @@ window.bewerkTeam = function(index) {
     let team = window.teamsDB[index];
     if (!team) return;
     
-    // Vul de Modal met de huidige gegevens
     document.getElementById('edit-team-index').value = index;
     document.getElementById('edit-team-naam').value = team.naam || '';
     document.getElementById('edit-team-aliassen').value = team.aliassen || '';
@@ -164,7 +194,6 @@ window.bewerkTeam = function(index) {
     document.getElementById('edit-team-vrijwilliger').checked = team.isVrijwilliger || false;
     document.getElementById('edit-team-recreant').checked = team.isRecreant || false;
 
-    // Toon de Modal
     document.getElementById('team-edit-modal').style.display = 'flex';
 };
 
