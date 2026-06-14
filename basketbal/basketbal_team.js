@@ -110,6 +110,10 @@ window.renderTeamBeheer = function() {
             }
 
             // --- AANKOMENDE EVENEMENTEN FILTEREN ---
+            // --- AANKOMENDE EVENEMENTEN FILTEREN ---
+            // Haal de categorieën uit de database zodat we de échte naam kunnen tonen
+            let kalenderCategorieen = JSON.parse(localStorage.getItem('blackshots_jaarplanning_categorieen')) || [];
+
             let aankomendeEvenementen = jaarplanningData.filter(item => {
                 let start = item.isoDatum;
                 let eind = item.eindDatum || item.isoDatum;
@@ -134,13 +138,25 @@ window.renderTeamBeheer = function() {
                     let mooieDatum = `${dParts[2]}-${dParts[1]}`; 
                     let badgeKleur = team.kleur || '#3498db';
                     
+                    // --- NIEUW: Dynamische subtitel (Categorie | Tijd | Locatie) ---
+                    // Zoek de juiste categorienaam op (of gebruik 'Taak' als fallback)
+                    let catObj = kalenderCategorieen.find(c => c.id === ev.type);
+                    let catNaam = catObj ? catObj.naam : 'Taak/Event';
+                    
+                    // Bouw het slimme zinnetje op
+                    let metaInfo = [`📌 ${catNaam}`];
+                    if (ev.tijd) metaInfo.push(`⏰ ${ev.tijd}`);
+                    if (ev.locatie) metaInfo.push(`📍 ${ev.locatie}`);
+                    
+                    let subtitelTekst = metaInfo.join(' | ');
+                    
                     evenementenHtml += `
                         <div style="background:#fff; border:1px solid #eee; border-left:4px solid ${badgeKleur}; padding:8px; border-radius:4px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
-                            <div>
-                                <strong style="color:var(--secondary-color); display:block; font-size:0.9rem;">${ev.titel || "Activiteit"}</strong>
-                                <span style="font-size:0.75rem; color:#7f8c8d;">📌 Team-taak ${ev.tijd ? `| ⏰ ${ev.tijd}` : ''}</span>
+                            <div style="flex:1; overflow:hidden; margin-right:10px;">
+                                <strong style="color:var(--secondary-color); display:block; font-size:0.9rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${ev.titel || "Activiteit"}</strong>
+                                <span style="font-size:0.75rem; color:#7f8c8d; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${subtitelTekst}">${subtitelTekst}</span>
                             </div>
-                            <div style="background:#f8f9fa; padding:4px 6px; border-radius:4px; font-weight:bold; color:#2c3e50; font-size:0.8rem; border:1px solid #e2e8f0;">
+                            <div style="background:#f8f9fa; padding:4px 6px; border-radius:4px; font-weight:bold; color:#2c3e50; font-size:0.8rem; border:1px solid #e2e8f0; white-space:nowrap;">
                                 📅 ${mooieDatum}
                             </div>
                         </div>
@@ -149,7 +165,6 @@ window.renderTeamBeheer = function() {
             } else {
                 evenementenHtml = '<span style="color:#bdc3c7; font-style:italic; font-size:0.85rem;">Geen speciale team-taken gepland in deze periode.</span>';
             }
-
            // --- OPMAAK VAN DE KAART ---
             let kaderBadge = team.isVrijwilliger ? '<span style="background:#9b59b6; color:white; padding:4px 8px; border-radius:4px; font-size:0.8rem; margin-left:10px; vertical-align:middle;">KADER</span>' : '';
             let recreantBadge = team.isRecreant ? '<span style="background:#f39c12; color:white; padding:4px 8px; border-radius:4px; font-size:0.8rem; margin-left:10px; vertical-align:middle;">RECREANTEN</span>' : '';
