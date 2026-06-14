@@ -94,7 +94,8 @@ window.renderTeamBeheer = function() {
 
             let kaderBadge = team.isVrijwilliger ? '<span style="background:#9b59b6; color:white; padding:4px 8px; border-radius:4px; font-size:0.8rem; margin-left:10px; vertical-align:middle;">KADER</span>' : '';
             let recreantBadge = team.isRecreant ? '<span style="background:#f39c12; color:white; padding:4px 8px; border-radius:4px; font-size:0.8rem; margin-left:10px; vertical-align:middle;">RECREANTEN</span>' : '';
-            let ringColor = team.isVrijwilliger ? '#9b59b6' : 'var(--primary-color)';
+           // Als er een teamkleur is gekozen gebruiken we die, anders valt hij terug op de standaardwaarde
+            let ringColor = team.kleur || (team.isVrijwilliger ? '#9b59b6' : 'var(--primary-color)');
             let aliasTekst = team.aliassen ? ` &nbsp;|&nbsp; 🔗 Aliassen: <strong>${team.aliassen}</strong>` : '';
 
             lijstHTML += `
@@ -190,6 +191,7 @@ window.bewerkTeam = function(index) {
     document.getElementById('edit-team-aliassen').value = team.aliassen || '';
     document.getElementById('edit-team-coach').value = team.coach || '';
     document.getElementById('edit-team-trainer').value = team.trainer || '';
+    document.getElementById('edit-team-kleur').value = team.kleur || '#3498db'; // Nieuw!
     
     document.getElementById('edit-team-vrijwilliger').checked = team.isVrijwilliger || false;
     document.getElementById('edit-team-recreant').checked = team.isRecreant || false;
@@ -200,7 +202,6 @@ window.bewerkTeam = function(index) {
 window.sluitTeamModal = function() {
     document.getElementById('team-edit-modal').style.display = 'none';
 };
-
 window.slaTeamBewerkingOp = function() {
     let index = document.getElementById('edit-team-index').value;
     let team = window.teamsDB[index];
@@ -213,6 +214,7 @@ window.slaTeamBewerkingOp = function() {
     team.aliassen = document.getElementById('edit-team-aliassen').value.trim();
     team.coach = document.getElementById('edit-team-coach').value.trim();
     team.trainer = document.getElementById('edit-team-trainer').value.trim();
+    team.kleur = document.getElementById('edit-team-kleur').value; // Nieuw!
     team.isVrijwilliger = document.getElementById('edit-team-vrijwilliger').checked;
     team.isRecreant = document.getElementById('edit-team-recreant').checked;
 
