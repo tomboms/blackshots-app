@@ -240,16 +240,39 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
             let deleteKnop = (!item.isDynamisch && isStartOfSpan) ? `<span onclick="event.stopPropagation(); verwijderItem('${item.id}')" style="cursor:pointer; opacity:0.7; margin-left:5px; flex-shrink:0;">✖</span>` : (item.isDynamisch && isStartOfSpan ? `<span style="opacity:0.5; margin-left:5px; font-size:0.6rem; flex-shrink:0;">🔗</span>` : '');
 
             // --- NIEUW: De Magische Team Kleur Rand ---
+            // --- GEREPAREERD: Multi-team Kleurenrand zonder tekst-badges ---
             let borderOpmaak = '';
-            let extraIcon = '';
+            let extraIcon = ''; // Bewust leeg gelaten: we willen geen +1 of +2 meer tonen!
+            
             if (item.teams && item.teams.length > 0) {
                 let lokaleTeams = JSON.parse(localStorage.getItem('blackshots_teams')) || [];
-                let eersteTeam = lokaleTeams.find(t => t.id === item.teams[0]);
-                let randKleur = (eersteTeam && eersteTeam.kleur) ? eersteTeam.kleur : '#34495e'; // Pak teamkleur of donkergrijs
+                let kleurStukken = [];
                 
-                borderOpmaak = `border-left: 4px solid ${randKleur}; padding-left: 5px;`;
-                // Als er meer dan 1 team geselecteerd is, tonen we een handig '+1' icoontje
-                if (item.teams.length > 1) extraIcon = `<span style="font-size:0.65rem; opacity:0.9; margin-left:4px; font-weight:bold;">+${item.teams.length - 1}</span>`;
+                // Haal van alle gekoppelde teams de kleur op
+                item.teams.forEach(tId => {
+                    let t = lokaleTeams.find(team => team.id === tId);
+                    if (t && t.kleur) {
+                        kleurStukken.push(t.kleur);
+                    }
+                });
+                
+                if (kleurStukken.length === 0) kleurStukken.push('#34495e'); // Terugvaloptie
+                
+                if (kleurStukken.length === 1) {
+                    // Gewoon een strakke effen rand voor 1 team
+                    borderOpmaak = `border-left: 4px solid ${kleurStukken[0]}; padding-left: 6px;`;
+                } else {
+                    // Magische multi-color rand verdeeld over de hoogte van het kalender-item!
+                    let gradientSteps = [];
+                    let part = 100 / kleurStukken.length;
+                    
+                    kleurStukken.forEach((kleur, idx) => {
+                        gradientSteps.push(`${kleur} ${idx * part}% ${(idx + 1) * part}%`);
+                    });
+                    
+                    // We gebruiken een flinterdunne achtergrond-gradient op de linker 4 pixels
+                    borderOpmaak = `background-image: linear-gradient(to bottom, ${gradientSteps.join(', ')}); background-size: 4px 100%; background-repeat: no-repeat; background-position: left; padding-left: 10px; border-left: none;`;
+                }
             }
 
             itemsHtml += `<div class="k-item ${badgeClass} ${extraClass}" title="Klik om te bewerken" ${clickAction} style="cursor:pointer; display:flex; justify-content:space-between; align-items:center; ${borderOpmaak}"><div style="display:flex; align-items:center; overflow:hidden; white-space:nowrap; flex:1; min-width:0;">${metaHtml}<span style="overflow:hidden; text-overflow:ellipsis;">${isStartOfSpan ? (item.titel || "Naamloos") : '&nbsp;'}</span>${isStartOfSpan ? extraIcon : ''}</div>${deleteKnop}</div>`;
