@@ -239,7 +239,20 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
             let clickAction = item.isDynamisch ? `onclick="event.stopPropagation(); openDagModal('${isoDatum}', ${echteDatum.getDate()}, ${echteDatum.getMonth()}, ${echteDatum.getFullYear()}, null)"` : `onclick="event.stopPropagation(); openDagModal('${isoDatum}', ${echteDatum.getDate()}, ${echteDatum.getMonth()}, ${echteDatum.getFullYear()}, '${item.id}')"`;
             let deleteKnop = (!item.isDynamisch && isStartOfSpan) ? `<span onclick="event.stopPropagation(); verwijderItem('${item.id}')" style="cursor:pointer; opacity:0.7; margin-left:5px; flex-shrink:0;">✖</span>` : (item.isDynamisch && isStartOfSpan ? `<span style="opacity:0.5; margin-left:5px; font-size:0.6rem; flex-shrink:0;">🔗</span>` : '');
 
-            itemsHtml += `<div class="k-item ${badgeClass} ${extraClass}" title="Klik om te bewerken" ${clickAction} style="cursor:pointer; display:flex; justify-content:space-between; align-items:center;"><div style="display:flex; align-items:center; overflow:hidden; white-space:nowrap; flex:1; min-width:0;">${metaHtml}<span style="overflow:hidden; text-overflow:ellipsis;">${isStartOfSpan ? (item.titel || "Naamloos") : '&nbsp;'}</span></div>${deleteKnop}</div>`;
+            // --- NIEUW: De Magische Team Kleur Rand ---
+            let borderOpmaak = '';
+            let extraIcon = '';
+            if (item.teams && item.teams.length > 0) {
+                let lokaleTeams = JSON.parse(localStorage.getItem('blackshots_teams')) || [];
+                let eersteTeam = lokaleTeams.find(t => t.id === item.teams[0]);
+                let randKleur = (eersteTeam && eersteTeam.kleur) ? eersteTeam.kleur : '#34495e'; // Pak teamkleur of donkergrijs
+                
+                borderOpmaak = `border-left: 4px solid ${randKleur}; padding-left: 5px;`;
+                // Als er meer dan 1 team geselecteerd is, tonen we een handig '+1' icoontje
+                if (item.teams.length > 1) extraIcon = `<span style="font-size:0.65rem; opacity:0.9; margin-left:4px; font-weight:bold;">+${item.teams.length - 1}</span>`;
+            }
+
+            itemsHtml += `<div class="k-item ${badgeClass} ${extraClass}" title="Klik om te bewerken" ${clickAction} style="cursor:pointer; display:flex; justify-content:space-between; align-items:center; ${borderOpmaak}"><div style="display:flex; align-items:center; overflow:hidden; white-space:nowrap; flex:1; min-width:0;">${metaHtml}<span style="overflow:hidden; text-overflow:ellipsis;">${isStartOfSpan ? (item.titel || "Naamloos") : '&nbsp;'}</span>${isStartOfSpan ? extraIcon : ''}</div>${deleteKnop}</div>`;
         });
 
         let zalenOpDag = window.zaalhuurData.filter(z => z.isoDatum === isoDatum && !z.geannuleerd);
@@ -253,6 +266,9 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
 // ============================================================================
 // MODAL BEHEER
 // ============================================================================
+// ============================================================================
+// MODAL BEHEER (Met Team Selectie)
+// ============================================================================
 let actieveModalDatum = null; let actieveEditId = null;
 
 window.openDagModal = function(isoDatum, dag, maand, jaar, editId = null) {
@@ -260,12 +276,27 @@ window.openDagModal = function(isoDatum, dag, maand, jaar, editId = null) {
     document.getElementById('modal-datum-titel').innerText = `Planning: ${dag} ${maandNamen[maand]} ${jaar}`;
     let eindVeld = document.getElementById('item-einddatum'); if(eindVeld) eindVeld.min = isoDatum;
 
+    // --- NIEUW: Laad alle teams dynamisch in als vinkjes ---
+    let lokaleTeams = JSON.parse(localStorage.getItem('blackshots_teams')) || [];
+    let teamsContainer = document.getElementById('item-teams-container');
+    if (teamsContainer) {
+        let teamsHtml = '';
+        lokaleTeams.forEach(t => {
+            let badgeKleur = t.kleur || '#3498db';
+            teamsHtml += `<label style="display:flex; align-items:center; gap:5px; background:white; padding:4px 8px; border:1px solid #ddd; border-left:4px solid ${badgeKleur}; border-radius:4px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" class="item-team-checkbox" value="${t.id}"> ${t.naam}</label>`;
+        });
+        teamsContainer.innerHTML = teamsHtml || '<span style="font-size:0.8rem; color:#7f8c8d;">Geen teams gevonden in database.</span>';
+    }
+
     if (editId) bewerkItem(editId);
     else {
         let select = document.getElementById('item-type'); if(select && select.options.length > 0) select.selectedIndex = 0;
         document.getElementById('item-tijd').value = ''; document.getElementById('item-locatie').value = '';
         document.getElementById('item-titel').value = ''; document.getElementById('item-omschrijving').value = '';
         if(eindVeld) eindVeld.value = ''; document.getElementById('btn-opslaan').innerText = '💾 Opslaan'; updateDropdownKleur();
+        
+        // Zorg dat bij een nieuw item alle vinkjes leeg zijn
+        document.querySelectorAll('.item-team-checkbox').forEach(cb => cb.checked = false);
     }
     verversModalLijst(); document.getElementById('dag-modal').style.display = 'flex';
     if(!editId) setTimeout(() => document.getElementById('item-titel').focus(), 50);
@@ -279,6 +310,12 @@ window.bewerkItem = function(id) {
     document.getElementById('item-titel').value = item.titel || ''; document.getElementById('item-omschrijving').value = item.omschrijving || '';
     document.getElementById('item-einddatum').value = (item.eindDatum && item.eindDatum !== item.isoDatum) ? item.eindDatum : '';
     document.getElementById('btn-opslaan').innerText = '💾 Wijzigingen Opslaan';
+    
+    // --- NIEUW: Vink de opgeslagen teams weer netjes aan ---
+    let actieveTeams = item.teams || [];
+    document.querySelectorAll('.item-team-checkbox').forEach(cb => {
+        cb.checked = actieveTeams.includes(cb.value);
+    });
 };
 
 window.sluitDagModal = function() { document.getElementById('dag-modal').style.display = 'none'; };
@@ -289,12 +326,15 @@ window.slaItemOp = function() {
     if(!titel) return alert("Vul op z'n minst een korte titel in!");
     let eindDatum = (eindEl && eindEl.value) ? eindEl.value : actieveModalDatum; if (eindDatum < actieveModalDatum) return alert("De einddatum kan niet vóór de startdatum liggen!");
 
+    // --- NIEUW: Sla de aangevinkte teams op in een lijstje ---
+    let geselecteerdeTeams = Array.from(document.querySelectorAll('.item-team-checkbox:checked')).map(cb => cb.value);
+
     if(actieveEditId) {
         let item = window.jaarplanningData.find(i => i.id === actieveEditId);
-        if(item) { item.type = type; item.tijd = tijd; item.locatie = locatie; item.titel = titel; item.omschrijving = omschrijving; item.eindDatum = eindDatum; }
+        if(item) { item.type = type; item.tijd = tijd; item.locatie = locatie; item.titel = titel; item.omschrijving = omschrijving; item.eindDatum = eindDatum; item.teams = geselecteerdeTeams; }
         actieveEditId = null;
     } else {
-        window.jaarplanningData.push({ id: Date.now().toString() + Math.random().toString(36).substr(2, 5), isoDatum: actieveModalDatum, eindDatum: eindDatum, type: type, tijd: tijd, locatie: locatie, titel: titel, omschrijving: omschrijving });
+        window.jaarplanningData.push({ id: Date.now().toString() + Math.random().toString(36).substr(2, 5), isoDatum: actieveModalDatum, eindDatum: eindDatum, type: type, tijd: tijd, locatie: locatie, titel: titel, omschrijving: omschrijving, teams: geselecteerdeTeams });
     }
     localStorage.setItem('blackshots_jaarplanning_data', JSON.stringify(window.jaarplanningData)); tekenKalender(); sluitDagModal();
 };
