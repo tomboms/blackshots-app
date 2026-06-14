@@ -271,7 +271,7 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
                     });
                     
                     // We gebruiken een flinterdunne achtergrond-gradient op de linker 4 pixels
-                    borderOpmaak = `background-image: linear-gradient(to bottom, ${gradientSteps.join(', ')}); background-size: 4px 100%; background-repeat: no-repeat; background-position: left; padding-left: 10px; border-left: none;`;
+                    borderOpmaak = `background-image: linear-gradient(to bottom, ${gradientSteps.join(', ')}); background-size: 8px 100%; background-repeat: no-repeat; background-position: left; padding-left: 10px; border-left: none;`;
                 }
             }
 
