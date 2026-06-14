@@ -40,11 +40,24 @@ window.renderTeamBeheer = function() {
 
         if (!Array.isArray(window.teamsDB)) window.teamsDB = [];
         if (!Array.isArray(window.spelersDB)) window.spelersDB = [];
+        
+        // --- NIEUW: Bereken de datum-horizon op basis van de dropdown ---
+        let jaarplanningData = JSON.parse(localStorage.getItem('blackshots_jaarplanning_data')) || [];
+        
+        let horizonSelect = document.getElementById('team-event-horizon');
+        let dagenVooruit = horizonSelect ? parseInt(horizonSelect.value) : 60;
+        
+        let vandaag = new Date();
+        let vandaagIso = vandaag.toISOString().split('T')[0];
+        
+        let maxDatum = new Date();
+        maxDatum.setDate(vandaag.getDate() + dagenVooruit);
+        let maxDatumIso = maxDatum.toISOString().split('T')[0];
 
         window.teamsDB.forEach((team, index) => {
             if (!team) return;
 
-            // KOPPELING: We vragen de strenge vertaler of de speler hier hoort
+            // --- SPELERS LADEN (Met alias vertaler!) ---
             let teamSpelers = window.spelersDB.filter(s => {
                 if (!s || !s.teamId) return false;
                 let gevondenTeam = window.getCanonicalTeam(s.teamId);
@@ -76,6 +89,7 @@ window.renderTeamBeheer = function() {
                 spelersHtml = '<span style="color:#bdc3c7; font-style:italic; font-size:0.9rem;">Geen leden in deze groep gekoppeld.</span>';
             }
 
+            // --- VASTE TRAININGEN LADEN ---
             let trainingenHtml = '';
             if (Array.isArray(team.trainingen) && team.trainingen.length > 0) {
                 team.trainingen.forEach((tr, trIndex) => {
@@ -92,9 +106,51 @@ window.renderTeamBeheer = function() {
                 trainingenHtml = '<span style="color:#bdc3c7; font-style:italic; font-size:0.85rem;">Geen vaste tijden ingepland.</span>';
             }
 
+            // --- NIEUW: AANKOMENDE EVENEMENTEN BINNEN HORIZON ---
+            let aankomendeEvenementen = jaarplanningData.filter(item => {
+                let start = item.isoDatum;
+                let eind = item.eindDatum || item.isoDatum;
+                
+                // 1. Oude evenementen negeren
+                if (!eind || eind < vandaagIso) return false; 
+                
+                // 2. Valt het buiten onze gekozen grens (bijv. 60 dagen)?
+                if (dagenVooruit < 9999 && start > maxDatumIso) return false;
+                
+                // 3. Toon ALLEEN als dit specifieke team is aangevinkt (Club-brede dingen slaan we hier over!)
+                return item.teams && item.teams.includes(team.id);
+            });
+
+            // Sorteer op datum en pak maximaal de eerste 5
+            aankomendeEvenementen.sort((a, b) => (a.isoDatum > b.isoDatum) ? 1 : -1);
+            aankomendeEvenementen = aankomendeEvenementen.slice(0, 5); 
+
+            let evenementenHtml = '';
+            if (aankomendeEvenementen.length > 0) {
+                aankomendeEvenementen.forEach(ev => {
+                    let dParts = ev.isoDatum.split('-');
+                    let mooieDatum = `${dParts[2]}-${dParts[1]}`; 
+                    let badgeKleur = team.kleur || '#3498db';
+                    
+                    evenementenHtml += `
+                        <div style="background:#fff; border:1px solid #eee; border-left:4px solid ${badgeKleur}; padding:8px; border-radius:4px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
+                            <div>
+                                <strong style="color:var(--secondary-color); display:block; font-size:0.9rem;">${ev.titel || "Activiteit"}</strong>
+                                <span style="font-size:0.75rem; color:#7f8c8d;">📌 Team-taak ${ev.tijd ? `| ⏰ ${ev.tijd}` : ''}</span>
+                            </div>
+                            <div style="background:#f8f9fa; padding:4px 6px; border-radius:4px; font-weight:bold; color:#2c3e50; font-size:0.8rem; border:1px solid #e2e8f0;">
+                                📅 ${mooieDatum}
+                            </div>
+                        </div>
+                    `;
+                });
+            } else {
+                evenementenHtml = '<span style="color:#bdc3c7; font-style:italic; font-size:0.85rem;">Geen speciale team-taken gepland in deze periode.</span>';
+            }
+
+            // --- OPMAAK VAN DE KAART ---
             let kaderBadge = team.isVrijwilliger ? '<span style="background:#9b59b6; color:white; padding:4px 8px; border-radius:4px; font-size:0.8rem; margin-left:10px; vertical-align:middle;">KADER</span>' : '';
             let recreantBadge = team.isRecreant ? '<span style="background:#f39c12; color:white; padding:4px 8px; border-radius:4px; font-size:0.8rem; margin-left:10px; vertical-align:middle;">RECREANTEN</span>' : '';
-           // Als er een teamkleur is gekozen gebruiken we die, anders valt hij terug op de standaardwaarde
             let ringColor = team.kleur || (team.isVrijwilliger ? '#9b59b6' : 'var(--primary-color)');
             let aliasTekst = team.aliassen ? ` &nbsp;|&nbsp; 🔗 Aliassen: <strong>${team.aliassen}</strong>` : '';
 
@@ -104,7 +160,7 @@ window.renderTeamBeheer = function() {
                         <div>
                             <h3 style="margin:0; color:${ringColor}; font-size:1.4rem; display:inline-block;">${team.naam || 'Groep'}</h3>${kaderBadge}${recreantBadge}
                             <div style="font-size:0.95rem; color:#34495e; margin-top:5px;">
-                                👨‍💼 Coach/Leider: <strong>${team.coach || 'N.n.b.'}</strong> &nbsp;|&nbsp; 🏃‍♂️ Trainer: <strong>${team.trainer || 'N.n.b.'}</strong>${aliasTekst}
+                                👨‍💼 Coach: <strong>${team.coach || 'N.n.b.'}</strong> &nbsp;|&nbsp; 🏃‍♂️ Trainer: <strong>${team.trainer || 'N.n.b.'}</strong>${aliasTekst}
                             </div>
                         </div>
                         <div>
@@ -114,13 +170,13 @@ window.renderTeamBeheer = function() {
                     </div>
 
                     <div style="padding:20px; display:flex; gap:20px; flex-wrap:wrap;">
-                        <div style="flex:2; min-width:250px;">
+                        <div style="flex:1.5; min-width:250px;">
                             <h4 style="margin-top:0; color:var(--secondary-color); border-bottom:2px solid #eee; padding-bottom:5px;">👥 Ledenpool (${teamSpelers.length})</h4>
                             <div style="margin-bottom:15px; display:flex; flex-wrap:wrap;">${spelersHtml}</div>
                             <button onclick="window.location.href='spelers.html'" style="background:#3498db; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.85rem;">+ Beheer via Spelers-pagina</button>
                         </div>
 
-                        <div style="flex:1; min-width:250px; border-left:1px dashed #eee; padding-left:20px;">
+                        <div style="flex:1; min-width:220px; border-left:1px dashed #eee; padding-left:20px;">
                             <h4 style="margin-top:0; color:var(--secondary-color); border-bottom:2px solid #eee; padding-bottom:5px;">🗓️ Planning</h4>
                             <div style="margin-bottom:15px;">${trainingenHtml}</div>
 
@@ -136,6 +192,13 @@ window.renderTeamBeheer = function() {
                                     <input type="text" id="tr-veld-${index}" placeholder="Veld..." style="padding:6px; width:70px; font-size:0.8rem;">
                                     <button onclick="window.snelleTrainingToevoegen(${index})" style="background:#27ae60; color:white; border:none; padding:6px; flex:1; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.8rem;">Vastzetten</button>
                                 </div>
+                            </div>
+                        </div>
+
+                        <div style="flex:1; min-width:220px; border-left:1px dashed #eee; padding-left:20px;">
+                            <h4 style="margin-top:0; color:var(--secondary-color); border-bottom:2px solid #eee; padding-bottom:5px;">📌 Komende Team-taken</h4>
+                            <div style="display:flex; flex-direction:column; gap:4px;">
+                                ${evenementenHtml}
                             </div>
                         </div>
                     </div>
