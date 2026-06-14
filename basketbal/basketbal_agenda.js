@@ -393,9 +393,10 @@ window.renderWeekAgenda = function() {
         container.appendChild(kolom);
     }
 };
-
 window.openTrainingsPlanner = function(teamId, startTijd, duur, datumStr) {
     const team = window.teamsDB.find(t => t.id === teamId);
+    if(!team) return alert("Team niet gevonden!");
+    
     actieveTraining = { teamId, startTijd, duur, datum: datumStr, opslagSleutel: `${datumStr}_${teamId}` };
     
     let d = new Date(datumStr);
@@ -408,8 +409,8 @@ window.openTrainingsPlanner = function(teamId, startTijd, duur, datumStr) {
     if (window.geplandeTrainingenDB[actieveTraining.opslagSleutel]) {
         actieveTijdlijn = window.geplandeTrainingenDB[actieveTraining.opslagSleutel];
     } else {
-        // --- NIEUW: SLIMME CHECK VOOR RECREANTEN ---
-        if (team.naam.toLowerCase().includes('recreanten')) {
+        // --- DE FIX: We kijken nu naar het database-vinkje 'isRecreant' in plaats van de naam! ---
+        if (team.isRecreant === true) {
             actieveTijdlijn = [{ naam: 'Partijtje (Recreanten)', duur: 90, kleur: '#9b59b6' }];
         } else {
             actieveTijdlijn = [{ naam: 'Warming-up (Standaard)', duur: 10, kleur: '#e67e22' }, { naam: 'Partijvorm (Standaard)', duur: 15, kleur: '#3498db' }];
