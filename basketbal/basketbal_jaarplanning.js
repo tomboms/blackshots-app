@@ -280,7 +280,7 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
 
             // Teken het kaartje met de border, extra padding en hoogte!
             // --- NIEUW: Maak het blokje iets hoger met extra padding ---
-            let extraHoogte = "padding-top: 6px; padding-bottom: 6px; min-height: 45;";
+            let extraHoogte = "padding-top: 12px; padding-bottom: 12px; min-height: 56px;";
 
             // Teken het kaartje met de border, extra padding en hoogte! (Nu nog maar 1 keer)
             itemsHtml += `<div class="k-item ${badgeClass} ${extraClass}" title="Klik om te bewerken" ${clickAction} style="cursor:pointer; display:flex; justify-content:space-between; align-items:center; ${borderOpmaak} ${extraHoogte}"><div style="display:flex; align-items:center; overflow:hidden; white-space:nowrap; flex:1; min-width:0;">${metaHtml}<span style="overflow:hidden; text-overflow:ellipsis;">${isStartOfSpan ? (item.titel || "Naamloos") : '&nbsp;'}</span>${isStartOfSpan ? extraIcon : ''}</div>${deleteKnop}</div>`;
