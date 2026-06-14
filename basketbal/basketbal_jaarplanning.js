@@ -283,7 +283,7 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
             let extraHoogte = "padding-top: 8px; padding-bottom: 8px; min-height: 56px;";
 
             // Teken het kaartje met de border, extra padding en hoogte! (Nu nog maar 1 keer)
-            itemsHtml += `<div class="k-item ${badgeClass} ${extraClass}" title="Klik om te bewerken" ${clickAction} style="cursor:pointer; display:flex; justify-content:space-between; align-items:center; ${borderOpmaak} ${extraHoogte}"><div style="display:flex; align-items:center; overflow:hidden; white-space:nowrap; flex:1; min-width:0;">${metaHtml}<span style="overflow:hidden; text-overflow:ellipsis; font-size: 1.05rem; font-weight: 500;">${isStartOfSpan ? (item.titel || "Naamloos") : '&nbsp;'}</span>${isStartOfSpan ? extraIcon : ''}</div>${deleteKnop}</div>`;
+            itemsHtml += `<div class="k-item ${badgeClass} ${extraClass}" title="Klik om te bewerken" ${clickAction} style="cursor:pointer; display:flex; justify-content:space-between; align-items:center; ${borderOpmaak} ${extraHoogte}"><div style="display:flex; align-items:center; overflow:hidden; white-space:nowrap; flex:1; min-width:0;">${metaHtml}<span style="overflow:hidden; text-overflow:ellipsis;">${isStartOfSpan ? (item.titel || "Naamloos") : '&nbsp;'}</span>${isStartOfSpan ? extraIcon : ''}</div>${deleteKnop}</div>`;
         });
 
         let zalenOpDag = window.zaalhuurData.filter(z => z.isoDatum === isoDatum && !z.geannuleerd);
