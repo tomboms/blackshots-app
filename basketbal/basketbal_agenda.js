@@ -299,7 +299,17 @@ window.renderWeekAgenda = function() {
                 if (team.trainingen) {
                     team.trainingen.forEach(tr => {
                         if (parseInt(tr.dag) === (i + 1)) {
-                            trainingenVandaag.push({ teamNaam: team.naam, start: tr.start, eind: tr.eind, zaal: tr.zaal, veld: tr.veld || '', duur: tr.duur || 90, teamId: team.id });
+                            // HIER GEVEN WE DE TEAMKLEUR MEE AAN DE TRAINING!
+                            trainingenVandaag.push({ 
+                                teamNaam: team.naam, 
+                                start: tr.start, 
+                                eind: tr.eind, 
+                                zaal: tr.zaal, 
+                                veld: tr.veld || '', 
+                                duur: tr.duur || 90, 
+                                teamId: team.id,
+                                teamKleur: team.kleur || 'var(--primary-color)' 
+                            });
                         }
                     });
                 }
@@ -351,7 +361,11 @@ window.renderWeekAgenda = function() {
 
                     let veldDisplay = tr.veld ? ` - Veld ${tr.veld}` : '';
                     let itemMargin = trInZaal.length > 1 ? 'margin: 0;' : 'margin-bottom: 10px;';
-                    let kaartOpmaak = isAfgelast ? "opacity: 0.6; background: #fdf2f2; border-left: 4px solid #e74c3c;" : "background: white; border-left: 4px solid var(--primary-color);";
+                    
+                    // DE MAGIE: Hier passen we de gekozen teamkleur toe op de border-left!
+                    let kaartOpmaak = isAfgelast 
+                        ? `opacity: 0.6; background: #fdf2f2; border-left: 5px solid #e74c3c;` 
+                        : `background: #ffffff; border-left: 6px solid ${tr.teamKleur};`;
 
                     inhoud += `
                         <div style="${kaartOpmaak} ${itemMargin} padding:10px; border-radius:4px; box-shadow:0 2px 4px rgba(0,0,0,0.05); cursor:pointer; transition:0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onclick="window.openTrainingsPlanner('${tr.teamId}', '${tr.start}', ${tr.duur}, '${isoDatum}')">
@@ -367,13 +381,10 @@ window.renderWeekAgenda = function() {
         }
         inhoud += `</div>`;
 
-        // --- DE SLIMME ALARM BALKJES ---
         if (!isVakantie) {
             if (heeftActieveTraining && gehuurdeZalen.length === 0) {
-                // Wel trainingen, géén zaalhuur
                 inhoud += `<div style="background:#e74c3c; color:white; font-size:0.85rem; font-weight:bold; text-align:center; padding:10px; margin-top:auto; border-top: 1px solid #c0392b;">⚠️ PAS OP: GEEN ZAAL GEHUURD!</div>`;
             } else if (!heeftActieveTraining && gehuurdeZalen.length > 0) {
-                // Wél zaalhuur, géén (actieve) trainingen
                 inhoud += `<div style="background:#f39c12; color:white; font-size:0.85rem; font-weight:bold; text-align:center; padding:10px; margin-top:auto; border-top: 1px solid #d68910;">⚠️ ZAAL GEHUURD, GEEN TRAINING!</div>`;
             }
         }
