@@ -135,5 +135,51 @@
             if(window.renderTeamBeheer) window.renderTeamBeheer();
         });
     </script>
+
+    <div id="snel-event-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:2000; justify-content:center; align-items:center; font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+    <div style="background:white; width:90%; max-width:500px; border-radius:12px; overflow:hidden; box-shadow:0 15px 30px rgba(0,0,0,0.3); position:relative; animation: modalSlideDown 0.3s ease-out;">
+        <div id="snel-event-header" style="background:var(--secondary-color); color:white; padding:15px 20px; display:flex; justify-content:space-between; align-items:center;">
+            <h3 style="margin:0; font-size:1.2rem;">📅 Taak toevoegen aan Jaarplanning</h3>
+            <button onclick="window.sluitSnelEventModal()" style="background:none; border:none; color:white; font-size:1.5rem; cursor:pointer;">&times;</button>
+        </div>
+        <div style="padding:20px;">
+            <input type="hidden" id="snel-event-team-id">
+            
+            <div style="margin-bottom:15px;">
+                <label style="display:block; font-weight:bold; font-size:0.85rem; color:#7f8c8d; margin-bottom:5px;">Wat gaan we doen? (Titel):</label>
+                <input type="text" id="snel-event-titel" placeholder="Bijv: Oefenwedstrijd vs. BC Blue" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px; font-weight:bold;">
+            </div>
+
+            <div style="display:flex; gap:10px; margin-bottom:15px;">
+                <div style="flex:1;">
+                    <label style="display:block; font-weight:bold; font-size:0.85rem; color:#7f8c8d; margin-bottom:5px;">Datum:</label>
+                    <input type="date" id="snel-event-datum" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;">
+                </div>
+                <div style="flex:1;">
+                    <label style="display:block; font-weight:bold; font-size:0.85rem; color:#7f8c8d; margin-bottom:5px;">Type Activiteit:</label>
+                    <select id="snel-event-type" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px; cursor:pointer;">
+                        </select>
+                </div>
+            </div>
+
+            <div style="display:flex; gap:10px; margin-bottom:15px;">
+                <div style="flex:1;">
+                    <label style="display:block; font-weight:bold; font-size:0.85rem; color:#7f8c8d; margin-bottom:5px;">Tijd (Optioneel):</label>
+                    <input type="time" id="snel-event-tijd" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;">
+                </div>
+                <div style="flex:1;">
+                    <label style="display:block; font-weight:bold; font-size:0.85rem; color:#7f8c8d; margin-bottom:5px;">Locatie (Optioneel):</label>
+                    <input type="text" id="snel-event-locatie" placeholder="Bijv: Hal A" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;">
+                </div>
+            </div>
+
+            <div style="display:flex; gap:10px; margin-top:20px;">
+                <button onclick="window.sluitSnelEventModal()" style="flex:1; padding:12px; border:1px solid #bdc3c7; background:#f8f9fa; border-radius:6px; cursor:pointer; font-weight:bold;">Annuleren</button>
+                <button onclick="window.slaSnelEventOp()" style="flex:2; padding:12px; background:#27ae60; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold; font-size:1rem;">💾 In Jaarplanning zetten</button>
+            </div>
+        </div>
+    </div>
+</div>
+    
 </body>
 </html>

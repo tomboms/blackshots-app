@@ -173,7 +173,10 @@ window.renderTeamBeheer = function() {
 
                     <div style="padding:20px; display:flex; gap:20px; flex-wrap:wrap;">
                         <div style="flex:1.5; min-width:250px;">
-                            <h4 style="margin-top:0; color:var(--secondary-color); border-bottom:2px solid #eee; padding-bottom:5px;">👥 Ledenpool (${teamSpelers.length})</h4>
+                            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #eee; padding-bottom:5px; margin-bottom:10px;">
+                                <h4 style="margin:0; color:var(--secondary-color);">📌 Komende Team-taken</h4>
+                                <button onclick="window.openSnelEventModal('${team.id}')" style="background:#27ae60; color:white; border:none; width:24px; height:24px; border-radius:50%; cursor:pointer; font-weight:bold; display:flex; align-items:center; justify-content:center; font-size:1.1rem; box-shadow:0 2px 4px rgba(0,0,0,0.1);" title="Nieuwe taak/event voor dit team">+</button>
+                            </div>
                             <div style="margin-bottom:15px; display:flex; flex-wrap:wrap;">${spelersHtml}</div>
                             <button onclick="window.location.href='spelers.html'" style="background:#3498db; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.85rem;">+ Beheer via Spelers-pagina</button>
                         </div>
@@ -412,6 +415,76 @@ window.haalSpelerUitTeam = function(spelerId) {
     }
 };
 
+
+// ============================================================================
+// JAARPLANNING SNEL-TOEVOEGEN FUNCTIES
+// ============================================================================
+
+window.openSnelEventModal = function(teamId) {
+    const team = window.teamsDB.find(t => t.id === teamId);
+    if(!team) return;
+
+    document.getElementById('snel-event-team-id').value = teamId;
+    document.getElementById('snel-event-header').style.background = team.kleur || '#2c3e50';
+    document.getElementById('snel-event-titel').value = '';
+    document.getElementById('snel-event-tijd').value = '';
+    document.getElementById('snel-event-locatie').value = '';
+    
+    // Zet de datum standaard op vandaag
+    document.getElementById('snel-event-datum').value = new Date().toISOString().split('T')[0];
+
+    // Laad de categorieën uit de jaarplanning dynamisch in
+    let cats = JSON.parse(localStorage.getItem('blackshots_jaarplanning_categorieen')) || [];
+    let typeSelect = document.getElementById('snel-event-type');
+    if (typeSelect) {
+        typeSelect.innerHTML = cats.map(c => `<option value="${c.id}">${c.naam}</option>`).join('');
+    }
+
+    document.getElementById('snel-event-modal').style.display = 'flex';
+};
+
+window.sluitSnelEventModal = function() {
+    document.getElementById('snel-event-modal').style.display = 'none';
+};
+
+window.slaSnelEventOp = function() {
+    let teamId = document.getElementById('snel-event-team-id').value;
+    let titel = document.getElementById('snel-event-titel').value.trim();
+    let datum = document.getElementById('snel-event-datum').value;
+    let type = document.getElementById('snel-event-type').value;
+    let tijd = document.getElementById('snel-event-tijd').value;
+    let locatie = document.getElementById('snel-event-locatie').value.trim();
+
+    if(!titel || !datum) return alert("Vul op z'n minst een titel en datum in.");
+
+    // Pak de bestaande data uit de jaarplanning
+    let jaarplanningData = JSON.parse(localStorage.getItem('blackshots_jaarplanning_data')) || [];
+
+    // Maak het nieuwe item aan
+    let nieuwItem = {
+        id: "snel_" + Date.now(),
+        isoDatum: datum,
+        eindDatum: datum,
+        type: type,
+        tijd: tijd,
+        locatie: locatie,
+        titel: titel,
+        omschrijving: "Toegevoegd via Teampagina",
+        teams: [teamId] // Koppel hem DIRECT aan dit team!
+    };
+
+    // Opslaan
+    jaarplanningData.push(nieuwItem);
+    localStorage.setItem('blackshots_jaarplanning_data', JSON.stringify(jaarplanningData));
+
+    // UI verversen
+    window.sluitSnelEventModal();
+    window.renderTeamBeheer();
+    
+    // Kleine visuele bevestiging
+    console.log("Item succesvol toegevoegd aan Jaarplanning voor team: " + teamId);
+};
+
 window.verwijderVasteTraining = function(teamIndex, trIndex) {
     window.teamsDB[teamIndex].trainingen.splice(trIndex, 1);
     localStorage.setItem('blackshots_teams', JSON.stringify(window.teamsDB));
@@ -424,3 +497,4 @@ document.addEventListener('keydown', function(event) {
         if (modal && modal.style.display === 'flex') window.sluitTeamModal();
     }
 });
+
