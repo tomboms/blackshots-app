@@ -1,4 +1,4 @@
-// --- BASKETBAL_SPELERS.JS: MET NBB CHECKER, KLEUREN & MOOIE MODALS ---
+// --- BASKETBAL_SPELERS.JS: MET NBB CHECKER, KLEUREN & BEIDE CONTRIBUTIES ---
 
 window.getCanonicalTeam = function(identifier) {
     if (!identifier) return null;
@@ -20,7 +20,7 @@ window.getCanonicalTeam = function(identifier) {
 // De NBB Leeftijdschecker (Kijkt alleen naar het geboorteJAAR)
 window.checkNBBTeOud = function(geboorteDatum, teamNaam) {
     if (!geboorteDatum || !teamNaam || geboorteDatum === "-") return false; 
-    let gebJaar = parseInt(geboorteDatum.split('-')[0]); // Haal YYYY uit YYYY-MM-DD
+    let gebJaar = parseInt(geboorteDatum.split('-')[0]); 
     let match = teamNaam.match(/(?:U|X|M|V|J)(\d{2})/i); 
     if (!match) return false; 
     
@@ -93,7 +93,7 @@ window.renderSpelers = function() {
         else if (selTeam === matchTeamId) passTeam = true;
 
         let passType = (selType === 'all') || (selType === 'recreant' && isRec) || (selType === 'wedstrijd' && !isRec);
-        let matchText = `${speler.naam} ${speler.bondsnummer || ''} ${teamNaam} ${speler.clubLidmaatschap || ''} ${speler.kaderRol || ''}`.toLowerCase();
+        let matchText = `${speler.naam} ${speler.bondsnummer || ''} ${teamNaam} ${speler.clubLidmaatschap || ''} ${speler.bondLidmaatschap || ''} ${speler.kaderRol || ''}`.toLowerCase();
         let passSearch = matchText.includes(zoekterm);
 
         if (passTeam && passType && passSearch) {
@@ -118,7 +118,7 @@ window.renderSpelers = function() {
                 let berekendeLeeftijd = vandaag.getFullYear() - gebDate.getFullYear();
                 let m = vandaag.getMonth() - gebDate.getMonth();
                 if (m < 0 || (m === 0 && vandaag.getDate() < gebDate.getDate())) {
-                    berekendeLeeftijd--; // Is dit jaar nog niet jarig geweest
+                    berekendeLeeftijd--; 
                 }
                 
                 let mooieDatum = gebDate.toLocaleDateString('nl-NL');
@@ -138,9 +138,12 @@ window.renderSpelers = function() {
                         <span style="${teamBadge} padding:4px 8px; border-radius:4px; font-size:0.85rem;">${teamNaam}</span>${leeftijdWaarschuwing}${recBadge}
                     </td>
                     <td style="padding:12px; color:#7f8c8d; font-size:0.85rem;">${speler.lidSinds || '-'}</td>
-                    <td style="padding:12px; font-size:0.85rem; max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-                        <div style="font-weight:bold; color:#2c3e50;">${speler.clubLidmaatschap || '-'}</div>
+                    
+                    <td style="padding:12px; font-size:0.85rem; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                        <div style="font-weight:bold; color:#2c3e50;" title="${speler.clubLidmaatschap || '-'}">🏠 ${speler.clubLidmaatschap || '-'}</div>
+                        <div style="color:#7f8c8d; font-style:italic;" title="${speler.bondLidmaatschap || '-'}">🏀 ${speler.bondLidmaatschap || '-'}</div>
                     </td>
+                    
                     <td style="padding:12px;">
                         <button onclick="window.openBewerkSpelerModal(${speler.origineleIndex})" style="background:#f39c12; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:0.8rem; margin-right:5px;">✏️</button>
                         <button onclick="window.verwijderSpeler(${speler.origineleIndex})" style="background:#e74c3c; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:0.8rem;">X</button>
@@ -163,7 +166,6 @@ window.toggleDispensatie = function(spelerId) {
     }
 };
 
-// --- NIEUWE MODAL FUNCTIES (Vervangt de lelijke prompts) ---
 window.openBewerkSpelerModal = function(index) {
     let speler = window.spelersDB[index];
     if(!speler) return;
@@ -174,6 +176,10 @@ window.openBewerkSpelerModal = function(index) {
     document.getElementById('bewerk-speler-rugnr').value = speler.rugnummer || "";
     document.getElementById('bewerk-speler-rol').value = speler.kaderRol || "";
     document.getElementById('bewerk-speler-rec').checked = speler.isRecreant === true;
+    
+    // Vul de nieuwe contributievelden in de modal
+    document.getElementById('bewerk-speler-clublid').value = speler.clubLidmaatschap || "";
+    document.getElementById('bewerk-speler-bondlid').value = speler.bondLidmaatschap || "";
 
     let teamSelect = document.getElementById('bewerk-speler-team');
     teamSelect.innerHTML = '<option value="">-- Geen (Vrije Speler) --</option>';
@@ -183,7 +189,6 @@ window.openBewerkSpelerModal = function(index) {
         });
     }
     
-    // Zet het huidige team goed (als het bestaat)
     let matchedTeam = window.getCanonicalTeam(speler.teamId);
     teamSelect.value = matchedTeam ? matchedTeam.id : "";
 
@@ -208,6 +213,10 @@ window.slaBewerkteSpelerOp = function() {
     speler.kaderRol = document.getElementById('bewerk-speler-rol').value.trim();
     speler.teamId = document.getElementById('bewerk-speler-team').value;
     speler.isRecreant = document.getElementById('bewerk-speler-rec').checked;
+    
+    // Sla de gewijzigde contributiegegevens op
+    speler.clubLidmaatschap = document.getElementById('bewerk-speler-clublid').value.trim() || "-";
+    speler.bondLidmaatschap = document.getElementById('bewerk-speler-bondlid').value.trim() || "-";
 
     localStorage.setItem('blackshots_spelers', JSON.stringify(window.spelersDB));
     window.sluitBewerkSpelerModal();
@@ -299,13 +308,11 @@ window.importeerBondCSV = function(event) {
 
             let bondsnummer = row[idxBondsnummer] ? row[idxBondsnummer].trim() : "";
             
-            // Haal geboortedatum uit CSV (Sportlink formaat is vaak DD-MM-YYYY)
             let gebDatumStr = "-";
             let gebDatumRuweStr = row[idxGeboorte] ? row[idxGeboorte].trim() : "";
             if (gebDatumRuweStr) {
                 let parts = gebDatumRuweStr.split('-');
                 if (parts.length === 3) {
-                    // Zet om naar YYYY-MM-DD voor onze database en datum-pickers
                     gebDatumStr = `${parts[2]}-${parts[1]}-${parts[0]}`; 
                 }
             }
@@ -329,7 +336,6 @@ window.importeerBondCSV = function(event) {
             if (bestaandeSpeler) {
                 let wijzigingen = [];
                 
-                // Mocht de speler nog een oud 'jaartal' hebben, dan wordt dat hier overschreven door de volle datum
                 if (gebDatumStr !== "-" && bestaandeSpeler.geboorteDatum !== gebDatumStr) {
                     bestaandeSpeler.geboorteDatum = gebDatumStr; wijzigingen.push("geboortedatum");
                 }
@@ -340,10 +346,10 @@ window.importeerBondCSV = function(event) {
                     bestaandeSpeler.isRecreant = isRec; wijzigingen.push("recreant-status");
                 }
                 if (nwClubLid !== "" && bestaandeSpeler.clubLidmaatschap !== nwClubLid) {
-                    bestaandeSpeler.clubLidmaatschap = nwClubLid;
+                    bestaandeSpeler.clubLidmaatschap = nwClubLid; wijzigingen.push("clubcontributie");
                 }
                 if (nwBondLid !== "" && bestaandeSpeler.bondLidmaatschap !== nwBondLid) {
-                    bestaandeSpeler.bondLidmaatschap = nwBondLid;
+                    bestaandeSpeler.bondLidmaatschap = nwBondLid; wijzigingen.push("bondcontributie");
                 }
                 if (nwRugnummer !== "" && bestaandeSpeler.rugnummer !== nwRugnummer) {
                     bestaandeSpeler.rugnummer = nwRugnummer; wijzigingen.push(`rugnummer (#${nwRugnummer})`);
@@ -372,7 +378,7 @@ window.importeerBondCSV = function(event) {
             }
         }
 
-        if (rapportToegevoegd.length > 0 || rapportAangepast.length > 0) {
+        if (rapportToegevoegd.length > 0 || reportAangepast.length > 0) {
             localStorage.setItem('blackshots_spelers', JSON.stringify(window.spelersDB));
             window.renderSpelers();
 
@@ -387,4 +393,4 @@ window.importeerBondCSV = function(event) {
         event.target.value = ''; 
     };
     reader.readAsText(file);
-};
+};v
