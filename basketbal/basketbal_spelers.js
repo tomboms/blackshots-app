@@ -1,3 +1,5 @@
+// --- BASKETBAL_SPELERS.JS: MET CUSTOM TEAM REGELS ---
+
 window.getCanonicalTeam = function(identifier) {
     if (!identifier) return null;
     let zoekTerm = String(identifier).toLowerCase().trim();
@@ -15,19 +17,39 @@ window.getCanonicalTeam = function(identifier) {
     });
 };
 
-// NIEUW: De checker leest nu het Peiljaar uit de instellingen!
-window.checkNBBTeOud = function(geboorteDatum, teamNaam) {
+// DE VERNIEUWDE SLIMME CHECKER
+window.checkNBBTeOud = function(geboorteDatum, teamNaam, teamObj) {
     if (!geboorteDatum || !teamNaam || geboorteDatum === "-") return false; 
     let gebJaar = parseInt(geboorteDatum.split('-')[0]); 
+    
+    // 1. Controleer of het team een AANGEPASTE regel heeft ingesteld
+    if (teamObj && teamObj.leeftijdRegel && teamObj.leeftijdRegel.trim() !== "") {
+        let regel = teamObj.leeftijdRegel.trim().replace(/\s+/g, ''); // Verwijder spaties
+        
+        if (regel.startsWith('-')) {
+            // Bijv: -2019 (Iedereen jonger, dus geboren in 2019, 2020, 2021 etc)
+            let grens = parseInt(regel.substring(1));
+            return gebJaar < grens; // Als je geboren bent in 2018 (dus < 2019), vlag je als TE OUD (true)
+            
+        } else if (regel.startsWith('+')) {
+            // Bijv: +2004 (Iedereen ouder, dus geboren in 2004, 2003, 1999 etc)
+            let grens = parseInt(regel.substring(1));
+            return gebJaar > grens; // Als je geboren bent in 2005 (dus > 2004), vlag je als TE JONG (true)
+            
+        } else {
+            // Bijv: 2013,2014 (Specifieke lijst)
+            let toegestaan = regel.split(',').map(y => parseInt(y));
+            return !toegestaan.includes(gebJaar); // Als het jaar er niet in staat, vlaggen (true)
+        }
+    }
+    
+    // 2. Geen aangepaste regel? Gebruik de standaard NBB Formule
     let match = teamNaam.match(/(?:U|X|M|V|J)(\d{2})/i); 
     if (!match) return false; 
     
     let categorie = parseInt(match[1]); 
-    
-    // Haal het actieve seizoen op (standaard 2027 voor 26/27)
     let selectEl = document.getElementById('instelling-seizoen');
     let peilJaar = selectEl ? parseInt(selectEl.value) : 2027; 
-    
     let minGeboorteJaar = peilJaar - categorie; 
     
     return gebJaar < minGeboorteJaar;
@@ -60,7 +82,6 @@ window.renderSpelers = function() {
     let gesorteerdeSpelers = window.spelersDB.map((speler, index) => ({ ...speler, origineleIndex: index }));
 
     gesorteerdeSpelers.sort((a, b) => {
-        // Proefleden bovenaan hun groep
         if (a.isProeflid && !b.isProeflid) return -1;
         if (!a.isProeflid && b.isProeflid) return 1;
         
@@ -79,13 +100,14 @@ window.renderSpelers = function() {
         let teamBadge = "background:#bdc3c7; color:white;";
         let matchTeamId = "vrij";
         let isAliasFout = false;
+        let actueelTeamObj = null;
         
         if(speler.teamId) {
-            let tObj = window.getCanonicalTeam(speler.teamId);
-            if(tObj) {
-                teamNaam = tObj.naam;
-                teamBadge = `background:${tObj.kleur || 'var(--primary-color)'}; color:white; border: 1px solid rgba(0,0,0,0.1);`;
-                matchTeamId = tObj.id;
+            actueelTeamObj = window.getCanonicalTeam(speler.teamId);
+            if(actueelTeamObj) {
+                teamNaam = actueelTeamObj.naam;
+                teamBadge = `background:${actueelTeamObj.kleur || 'var(--primary-color)'}; color:white; border: 1px solid rgba(0,0,0,0.1);`;
+                matchTeamId = actueelTeamObj.id;
             } else {
                 teamNaam = speler.teamId; 
                 teamBadge = "background:#e74c3c; color:white; font-weight:bold;";
@@ -114,11 +136,12 @@ window.renderSpelers = function() {
             let proefBadge = isProef ? `<span style="background:#2ecc71; color:white; padding:2px 6px; border-radius:4px; font-size:0.7rem; font-weight:bold; margin-left:5px;">🟢 PROEF</span>` : '';
             
             let leeftijdWaarschuwing = '';
-            if (window.checkNBBTeOud(speler.geboorteDatum, teamNaam)) {
+            // GEEF HET TEAM OBJECT MEE AAN DE CHECKER!
+            if (window.checkNBBTeOud(speler.geboorteDatum, teamNaam, actueelTeamObj)) {
                 if (speler.dispensatie) {
                     leeftijdWaarschuwing = `<button onclick="window.toggleDispensatie('${speler.id}')" title="Dispensatie OK. Klik om in te trekken." style="background:none; border:none; cursor:pointer; padding:0; margin-left:5px;">✅</button>`;
                 } else {
-                    leeftijdWaarschuwing = `<button onclick="window.toggleDispensatie('${speler.id}')" title="Let op: Speler is NBB te oud voor ${teamNaam}! Klik om dispensatie te geven." style="background:none; border:none; cursor:pointer; padding:0; margin-left:5px; font-size:1.2rem;">⚠️</button>`;
+                    leeftijdWaarschuwing = `<button onclick="window.toggleDispensatie('${speler.id}')" title="Let op: Speler voldoet niet aan de leeftijdsregel voor ${teamNaam}! Klik om dispensatie te geven." style="background:none; border:none; cursor:pointer; padding:0; margin-left:5px; font-size:1.2rem;">⚠️</button>`;
                 }
             }
 
@@ -138,7 +161,6 @@ window.renderSpelers = function() {
                 weergaveLeeftijd = `<strong>${berekendeLeeftijd} jr</strong> <span style="font-size:0.75rem; color:#7f8c8d; display:block;">(${mooieDatum})</span>`;
             }
 
-            // De "Maak Officieel Lid" knop (alleen voor proefleden)
             let maakLidKnop = isProef ? `<button onclick="window.maakOfficieelLid(${speler.origineleIndex})" style="background:#27ae60; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:0.8rem; margin-right:5px;" title="Zet om naar officieel lid">✔️ Lid Maken</button>` : '';
 
             html += `
@@ -172,7 +194,57 @@ window.renderSpelers = function() {
     tbody.innerHTML = html;
 };
 
-// NIEUW: Knop om proeflid om te zetten naar een echt lid
+// --- NIEUWE FUNCTIES VOOR TEAM LEEFTIJD REGELS MODAL ---
+window.openLeeftijdRegelsModal = function() {
+    let lijstDiv = document.getElementById('leeftijd-regels-lijst');
+    lijstDiv.innerHTML = '';
+
+    if (!window.teamsDB || window.teamsDB.length === 0) {
+        lijstDiv.innerHTML = '<div style="color:#7f8c8d; font-style:italic;">Geen teams gevonden. Maak eerst teams aan op de Teampagina.</div>';
+    } else {
+        window.teamsDB.forEach(team => {
+            let badgeKleur = team.kleur || '#3498db';
+            let huidigeRegel = team.leeftijdRegel || "";
+            
+            lijstDiv.innerHTML += `
+                <div style="display:flex; justify-content:space-between; align-items:center; background:#f8f9fa; padding:10px 15px; border-radius:6px; border:1px solid #ddd; border-left:4px solid ${badgeKleur};">
+                    <div style="font-weight:bold; color:#2c3e50; min-width:120px;">${team.naam}</div>
+                    <input type="text" class="team-regel-input" data-teamid="${team.id}" value="${huidigeRegel}" placeholder="Standaard NBB (Laat leeg)" style="flex:1; padding:8px; border:1px solid #bdc3c7; border-radius:4px; font-family:monospace; margin-left:10px; max-width:250px;">
+                </div>
+            `;
+        });
+    }
+
+    document.getElementById('leeftijd-regels-modal').style.display = 'flex';
+};
+
+window.sluitLeeftijdRegelsModal = function() {
+    document.getElementById('leeftijd-regels-modal').style.display = 'none';
+};
+
+window.slaLeeftijdRegelsOp = function() {
+    let inputs = document.querySelectorAll('.team-regel-input');
+    inputs.forEach(input => {
+        let tId = input.getAttribute('data-teamid');
+        let regel = input.value.trim();
+        
+        // Zoek het team in de database en update het
+        let team = window.teamsDB.find(t => t.id === tId);
+        if (team) {
+            team.leeftijdRegel = regel;
+        }
+    });
+
+    // Opslaan in localstorage
+    localStorage.setItem('blackshots_teams', JSON.stringify(window.teamsDB));
+    
+    window.sluitLeeftijdRegelsModal();
+    window.renderSpelers(); // Tabel herladen om de nieuwe regels toe te passen
+    
+    alert("✅ Teamregels opgeslagen! De waarschuwingsicoontjes (⚠️) zijn direct bijgewerkt.");
+};
+
+// --- BESTAANDE MODAL / ACTIE FUNCTIES ---
 window.maakOfficieelLid = function(index) {
     let speler = window.spelersDB[index];
     if(!speler) return;
@@ -184,16 +256,7 @@ window.maakOfficieelLid = function(index) {
         
         localStorage.setItem('blackshots_spelers', JSON.stringify(window.spelersDB));
         window.renderSpelers();
-        alert(`${speler.naam} is nu een officieel lid! Zodra je hem/haar in Sportlink zet en de nieuwe CSV inlaadt, wordt het bondsnummer automatisch gekoppeld.`);
-    }
-};
-
-window.toggleDispensatie = function(spelerId) {
-    let speler = window.spelersDB.find(s => s.id === spelerId);
-    if (speler) {
-        speler.dispensatie = !speler.dispensatie; 
-        localStorage.setItem('blackshots_spelers', JSON.stringify(window.spelersDB));
-        window.renderSpelers();
+        alert(`${speler.naam} is nu een officieel lid!`);
     }
 };
 
@@ -262,6 +325,7 @@ window.voegSpelerToe = function() {
     let naam = document.getElementById('nw-speler-naam').value.trim();
     let gebDatum = document.getElementById('nw-speler-gebdatum').value;
     let rugnr = document.getElementById('nw-speler-rugnr').value;
+    let rol = document.getElementById('nw-speler-rol').value.trim();
     let teamId = document.getElementById('nw-speler-team').value;
     
     let isRec = document.getElementById('nw-speler-rec') ? document.getElementById('nw-speler-rec').checked : false;
@@ -274,7 +338,7 @@ window.voegSpelerToe = function() {
             naam: naam,
             geboorteDatum: gebDatum || '-',
             rugnummer: rugnr,
-            kaderRol: "",
+            kaderRol: rol,
             teamId: teamId,
             isRecreant: isRec,
             isProeflid: isProef,
@@ -288,8 +352,9 @@ window.voegSpelerToe = function() {
         document.getElementById('nw-speler-naam').value = '';
         document.getElementById('nw-speler-gebdatum').value = '';
         document.getElementById('nw-speler-rugnr').value = '';
+        document.getElementById('nw-speler-rol').value = '';
         if(document.getElementById('nw-speler-rec')) document.getElementById('nw-speler-rec').checked = false;
-        if(document.getElementById('nw-speler-proef')) document.getElementById('nw-speler-proef').checked = true; // Zet standaard weer op proef
+        if(document.getElementById('nw-speler-proef')) document.getElementById('nw-speler-proef').checked = true;
         window.renderSpelers();
     } else {
         alert("Vul minimaal een naam in!");
@@ -373,7 +438,6 @@ window.importeerBondCSV = function(event) {
             if (bestaandeSpeler) {
                 let wijzigingen = [];
                 
-                // Als iemand in de Sportlink CSV staat, is het per definitie geen proeflid meer
                 if (bestaandeSpeler.isProeflid) {
                     bestaandeSpeler.isProeflid = false;
                     wijzigingen.push("status naar officieel lid");
@@ -411,7 +475,7 @@ window.importeerBondCSV = function(event) {
                     rugnummer: nwRugnummer,
                     teamId: finalTeamId,
                     isRecreant: isRec,
-                    isProeflid: false, // Vanuit Sportlink is nooit proef
+                    isProeflid: false, 
                     dispensatie: false, 
                     kaderRol: "", 
                     lidSinds: idxLidSinds !== -1 && row[idxLidSinds] ? row[idxLidSinds].trim() : "",
