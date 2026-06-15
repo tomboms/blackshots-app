@@ -20,17 +20,26 @@
     <main class="content-sectie active">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; margin-bottom:15px; border-bottom:2px solid var(--border-color); padding-bottom:10px;">
             <div>
-                <h2 style="margin:0;">👤 Spelers Database</h2>
-                <p style="color: #7f8c8d; margin-top:5px;">Beheer handmatig spelers, gebruik filters of importeer de CSV-export.</p>
+                <h2 style="margin:0;">👥 Spelers Database</h2>
+                <p style="color: #7f8c8d; margin-top:5px;">Beheer handmatig spelers, proefleden, gebruik filters of importeer de CSV-export.</p>
             </div>
-            <div>
+            <div style="display:flex; gap:15px; align-items:center;">
+                <div style="background:#f8f9fa; padding:5px 10px; border-radius:6px; border:1px solid #ddd;">
+                    <label style="font-size:0.8rem; font-weight:bold; color:#2c3e50; margin-right:5px;">Peiljaar Seizoen:</label>
+                    <select id="instelling-seizoen" onchange="window.renderSpelers()" style="padding:5px; border-radius:4px; font-weight:bold; color:var(--primary-color);">
+                        <option value="2026">2025-2026</option>
+                        <option value="2027" selected>2026-2027</option>
+                        <option value="2028">2027-2028</option>
+                        <option value="2029">2028-2029</option>
+                    </select>
+                </div>
                 <button onclick="document.getElementById('import-bond-file').click()" style="background:#8e44ad; color:white; border:none; padding:10px 20px; border-radius:4px; font-weight:bold; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.1);">📥 Importeer Bondsexport (CSV)</button>
                 <input type="file" id="import-bond-file" accept=".csv" style="display:none;" onchange="window.importeerBondCSV(event)">
             </div>
         </div>
 
         <div style="background:white; padding:20px; border-radius:8px; border:1px solid var(--border-color); border-top:4px solid #3498db; margin-bottom:20px; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
-            <h3 style="margin-top:0; color:var(--secondary-color);">+ Handmatig een Speler Toevoegen</h3>
+            <h3 style="margin-top:0; color:var(--secondary-color);">+ Handmatig Speler / Proeflid Toevoegen</h3>
             <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
                 <div style="flex:2; min-width:150px;">
                     <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">Volledige Naam:</label>
@@ -48,15 +57,18 @@
                     <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">Koppel aan Team:</label>
                     <select id="nw-speler-team" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px; font-weight:bold;"></select>
                 </div>
-                <div style="flex:2; min-width:150px;">
-                    <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">Kader/Rol (Optioneel):</label>
-                    <input type="text" id="nw-speler-rol" placeholder="Bijv. Coach X10-1" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;">
+                
+                <div style="display:flex; flex-direction:column; gap:5px; margin-bottom:5px;">
+                    <div style="display:flex; align-items:center; gap:5px;">
+                        <input type="checkbox" id="nw-speler-proef" style="width:18px; height:18px;" checked>
+                        <label style="font-weight:bold; font-size:0.85rem; color:#27ae60;">Is Proeflid</label>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:5px;">
+                        <input type="checkbox" id="nw-speler-rec" style="width:18px; height:18px;">
+                        <label style="font-weight:bold; font-size:0.85rem; color:#e67e22;">Is Recreant</label>
+                    </div>
                 </div>
-                <div style="display:flex; align-items:center; gap:5px; margin-bottom:10px;">
-                    <input type="checkbox" id="nw-speler-rec" style="width:18px; height:18px;">
-                    <label style="font-weight:bold; font-size:0.85rem; color:#e67e22;">Is Recreant</label>
-                </div>
-                <button onclick="window.voegSpelerToe()" style="background:#3498db; color:white; border:none; padding:10px 20px; border-radius:4px; font-weight:bold; cursor:pointer; height:41px;">Inschrijven</button>
+                <button onclick="window.voegSpelerToe()" style="background:#3498db; color:white; border:none; padding:10px 20px; border-radius:4px; font-weight:bold; cursor:pointer; height:41px;">Toevoegen</button>
             </div>
         </div>
 
@@ -68,6 +80,7 @@
                 <option value="all">-- Alle Spelers --</option>
                 <option value="wedstrijd">Alleen Wedstrijdspelend</option>
                 <option value="recreant">Alleen Recreanten</option>
+                <option value="proef">🟢 Alleen Proefleden</option>
             </select>
         </div>
         
@@ -147,7 +160,10 @@
                     <input type="checkbox" id="bewerk-speler-rec" style="width:18px; height:18px;">
                     <label style="font-weight:bold; font-size:0.85rem; color:#e67e22;">Is Recreant (Geen competitie)</label>
                 </div>
-
+                <div style="display:flex; align-items:center; gap:5px; margin-bottom:20px;">
+                    <input type="checkbox" id="bewerk-speler-proef" style="width:18px; height:18px;">
+                    <label style="font-weight:bold; font-size:0.85rem; color:#27ae60;">Is Proeflid (Tijdelijk)</label>
+                </div>
                 <div style="display:flex; gap:10px;">
                     <button onclick="window.sluitBewerkSpelerModal()" style="flex:1; padding:12px; border:1px solid #bdc3c7; background:#f8f9fa; border-radius:6px; cursor:pointer; font-weight:bold;">Annuleren</button>
                     <button onclick="window.slaBewerkteSpelerOp()" style="flex:2; padding:12px; background:#f39c12; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold; font-size:1rem;">💾 Wijzigingen Opslaan</button>
