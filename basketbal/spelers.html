@@ -36,9 +36,9 @@
                     <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">Volledige Naam:</label>
                     <input type="text" id="nw-speler-naam" placeholder="Bijv. Semih Kaan" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;">
                 </div>
-                <div style="flex:1; min-width:80px;">
-                    <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">Geb. Jaar:</label>
-                    <input type="number" id="nw-speler-gebjaar" placeholder="2014" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;">
+                <div style="flex:1; min-width:130px;">
+                    <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">Geboortedatum:</label>
+                    <input type="date" id="nw-speler-gebdatum" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;">
                 </div>
                 <div style="flex:1; min-width:80px;">
                     <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">Rugnr:</label>
@@ -95,5 +95,55 @@
     <script src="basketbal_spelers.js"></script>
     <script type="module" src="firebase_motor.js"></script>
     <script>document.addEventListener('DOMContentLoaded', () => { if(window.renderSpelers) window.renderSpelers(); });</script>
+
+<div id="bewerk-speler-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:2000; justify-content:center; align-items:center; font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+        <div style="background:white; width:90%; max-width:500px; border-radius:12px; overflow:hidden; box-shadow:0 15px 30px rgba(0,0,0,0.3); position:relative; animation: modalSlideDown 0.3s ease-out;">
+            <div style="background:#f39c12; color:white; padding:15px 20px; display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="margin:0; font-size:1.2rem;">✏️ Speler Bewerken</h3>
+                <button onclick="window.sluitBewerkSpelerModal()" style="background:none; border:none; color:white; font-size:1.5rem; cursor:pointer;">&times;</button>
+            </div>
+            <div style="padding:20px;">
+                <input type="hidden" id="bewerk-speler-index">
+                
+                <div style="margin-bottom:15px;">
+                    <label style="display:block; font-weight:bold; font-size:0.85rem; color:#7f8c8d; margin-bottom:5px;">Volledige Naam:</label>
+                    <input type="text" id="bewerk-speler-naam" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px; font-weight:bold;">
+                </div>
+
+                <div style="display:flex; gap:10px; margin-bottom:15px;">
+                    <div style="flex:1;">
+                        <label style="display:block; font-weight:bold; font-size:0.85rem; color:#7f8c8d; margin-bottom:5px;">Geboortedatum:</label>
+                        <input type="date" id="bewerk-speler-gebdatum" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;">
+                    </div>
+                    <div style="flex:1;">
+                        <label style="display:block; font-weight:bold; font-size:0.85rem; color:#7f8c8d; margin-bottom:5px;">Rugnummer:</label>
+                        <input type="number" id="bewerk-speler-rugnr" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;">
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:10px; margin-bottom:15px;">
+                    <div style="flex:1;">
+                        <label style="display:block; font-weight:bold; font-size:0.85rem; color:#7f8c8d; margin-bottom:5px;">Team:</label>
+                        <select id="bewerk-speler-team" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;"></select>
+                    </div>
+                    <div style="flex:1;">
+                        <label style="display:block; font-weight:bold; font-size:0.85rem; color:#7f8c8d; margin-bottom:5px;">Kader/Rol (Optioneel):</label>
+                        <input type="text" id="bewerk-speler-rol" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;">
+                    </div>
+                </div>
+                
+                <div style="display:flex; align-items:center; gap:5px; margin-bottom:20px;">
+                    <input type="checkbox" id="bewerk-speler-rec" style="width:18px; height:18px;">
+                    <label style="font-weight:bold; font-size:0.85rem; color:#e67e22;">Is Recreant (Geen competitie)</label>
+                </div>
+
+                <div style="display:flex; gap:10px;">
+                    <button onclick="window.sluitBewerkSpelerModal()" style="flex:1; padding:12px; border:1px solid #bdc3c7; background:#f8f9fa; border-radius:6px; cursor:pointer; font-weight:bold;">Annuleren</button>
+                    <button onclick="window.slaBewerkteSpelerOp()" style="flex:2; padding:12px; background:#f39c12; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold; font-size:1rem;">💾 Wijzigingen Opslaan</button>
+                </div>
+            </div>
+        </div>
+    </div>    
+
 </body>
 </html>
