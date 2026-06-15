@@ -114,6 +114,14 @@ window.renderSpelers = function() {
 
             let kaderBadge = speler.kaderRol ? `<div style="color:#8e44ad; font-size:0.8rem; font-weight:bold; margin-top:2px;">⭐ ${speler.kaderRol}</div>` : '';
 
+            // --- BEREKEN ACTUELE LEEFTIJD VOOR WEERGAVE ---
+            let weergaveLeeftijd = '-';
+            if (speler.geboorteJaar && speler.geboorteJaar !== '-') {
+                let huidigJaar = new Date().getFullYear();
+                let berekendeLeeftijd = huidigJaar - parseInt(speler.geboorteJaar);
+                weergaveLeeftijd = `<strong>${berekendeLeeftijd} jr</strong> <span style="font-size:0.8rem; color:#7f8c8d;">(${speler.geboorteJaar})</span>`;
+            }
+
             html += `
                 <tr style="border-bottom:1px solid #eee; font-size:0.95rem;">
                     <td style="padding:12px; color:#7f8c8d; font-family:monospace;">${speler.bondsnummer || 'Handmatig'}</td>
@@ -121,7 +129,7 @@ window.renderSpelers = function() {
                         ${speler.naam}
                         ${kaderBadge}
                     </td>
-                    <td style="padding:12px;">${speler.geboorteJaar || '-'}</td>
+                    <td style="padding:12px;">${weergaveLeeftijd}</td>
                     <td style="padding:12px; font-weight:bold; color:#d35400;">${speler.rugnummer ? `#${speler.rugnummer}` : '-'}</td>
                     <td style="padding:12px; white-space:nowrap;">
                         <span style="${teamBadge} padding:4px 8px; border-radius:4px; font-size:0.85rem;">${teamNaam}</span>${leeftijdWaarschuwing}${recBadge}
