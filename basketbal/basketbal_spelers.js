@@ -48,8 +48,15 @@ window.checkNBBTeOud = function(geboorteDatum, teamNaam, teamObj) {
     if (!match) return false; 
     
     let categorie = parseInt(match[1]); 
-    let selectEl = document.getElementById('instelling-seizoen');
-    let peilJaar = selectEl ? parseInt(selectEl.value) : 2027; 
+    
+    // --- NIEUW: Lees het NBB Peiljaar uit de centrale instellingen ---
+    let instellingen = JSON.parse(localStorage.getItem('blackshots_instellingen')) || {};
+    let actiefSeizoen = instellingen.seizoen || "2025-2026"; 
+    let startJaarNBB = parseInt(actiefSeizoen.split('-')[0]); 
+    
+    // NBB Peiljaar is altijd het tweede jaar van het seizoen (bijv. 2026 voor seizoen 2025-2026)
+    let peilJaar = startJaarNBB + 1; 
+    
     let minGeboorteJaar = peilJaar - categorie; 
     
     return gebJaar < minGeboorteJaar;

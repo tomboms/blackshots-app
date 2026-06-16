@@ -18,22 +18,17 @@
     
 
     <main class="content-sectie active">
-        <div style="display:flex; gap:15px; align-items:center;">
-                <div style="background:#f8f9fa; padding:5px 10px; border-radius:6px; border:1px solid #ddd; display:flex; align-items:center; gap:10px;">
-                    <div>
-                        <label style="font-size:0.8rem; font-weight:bold; color:#2c3e50; margin-right:5px;">Peiljaar NBB:</label>
-                        <select id="instelling-seizoen" onchange="window.renderSpelers()" style="padding:5px; border-radius:4px; font-weight:bold; color:var(--primary-color);">
-                            <option value="2026">2025-2026</option>
-                            <option value="2027" selected>2026-2027</option>
-                            <option value="2028">2027-2028</option>
-                            <option value="2029">2028-2029</option>
-                        </select>
-                    </div>
-                    <button onclick="window.openLeeftijdRegelsModal()" style="background:#e67e22; color:white; border:none; padding:6px 12px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.85rem;">⚙️ Team Regels</button>
-                </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
+            <div style="background:#f8f9fa; padding:5px 10px; border-radius:6px; border:1px solid #ddd; display:flex; align-items:center; gap:10px;">
+                <span style="font-size:0.8rem; font-weight:bold; color:#7f8c8d;">NBB Peiljaar is gekoppeld aan de systeeminstellingen</span>
+                <button onclick="window.openLeeftijdRegelsModal()" style="background:#e67e22; color:white; border:none; padding:6px 12px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.85rem;">⚙️ Team Regels</button>
+            </div>
+            
+            <div>
                 <button onclick="document.getElementById('import-bond-file').click()" style="background:#8e44ad; color:white; border:none; padding:10px 20px; border-radius:4px; font-weight:bold; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.1);">📥 Importeer Bondsexport (CSV)</button>
                 <input type="file" id="import-bond-file" accept=".csv" style="display:none;" onchange="window.importeerBondCSV(event)">
             </div>
+        </div>
 
         <div style="background:white; padding:20px; border-radius:8px; border:1px solid var(--border-color); border-top:4px solid #3498db; margin-bottom:20px; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
             <h3 style="margin-top:0; color:var(--secondary-color);">+ Handmatig Speler / Proeflid Toevoegen</h3>
