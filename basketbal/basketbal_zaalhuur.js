@@ -1,8 +1,5 @@
 // --- BASKETBAL_ZAALHUUR.JS ---
 
-// ============================================================================
-// CLOUD ONTVANGER
-// ============================================================================
 window.ontvangCloudDataZaalhuur = function(sleutel, data) {
     if (sleutel === 'blackshots_zaalhuur_data' && data) {
         window.zaalhuurData = data;
@@ -16,6 +13,8 @@ window.ontvangCloudDataZaalhuur = function(sleutel, data) {
 };
 
 window.zaalhuurData = JSON.parse(localStorage.getItem('blackshots_zaalhuur_data')) || [];
+// Haal ook de Jaarplanning op voor de Scanner
+window.activiteitenDB = JSON.parse(localStorage.getItem('blackshots_activiteiten')) || [];
 
 document.addEventListener('DOMContentLoaded', () => {
     if (window.zaalhuurData.length > 0) {
@@ -152,19 +151,10 @@ window.verwerkMailTekst = function(actie) {
             if(!gevondenInSysteem && !isAnnulering) {
                 let id = genereerZaalID(mailDatumStr, startTijd, zaalNaam, zaaldeel);
                 window.zaalhuurData.push({
-                    id: id,
-                    datum: mailDatumStr,
-                    isoDatum: mailIsoDatum,
-                    startTijd: startTijd,
-                    eindTijd: eindTijd,
-                    zaaldeel: zaaldeel,
-                    zaal: zaalNaam,
-                    bedrag: bedrag,
-                    opmerking: "Via mail toegevoegd",
-                    status: "Geboekt",
-                    geannuleerd: false,
-                    uren: berekenVerschilInUren(startTijd, eindTijd),
-                    type: "Overig" 
+                    id: id, datum: mailDatumStr, isoDatum: mailIsoDatum, startTijd: startTijd, eindTijd: eindTijd, 
+                    zaaldeel: zaaldeel, zaal: zaalNaam, bedrag: bedrag, opmerking: "Via mail toegevoegd", 
+                    status: "Geboekt", geannuleerd: false, uren: berekenVerschilInUren(startTijd, eindTijd), 
+                    type: "Overig", legitiemZonderAgenda: false, legitiemReden: "" 
                 });
                 nieuwCount++;
             }
@@ -174,16 +164,11 @@ window.verwerkMailTekst = function(actie) {
     if(matchCount > 0) {
         localStorage.setItem('blackshots_zaalhuur_data', JSON.stringify(window.zaalhuurData));
         document.getElementById('mail-plakbox').value = ""; 
-        
-        let msg = `✅ Er zijn ${matchCount} tijden in je tekst gevonden.\n\n`;
-        if(isAnnulering) msg += `👉 Er zijn ${updateCount} tijden op 'Geannuleerd' gezet.`;
-        else msg += `👉 ${nieuwCount} nieuwe reserveringen toegevoegd.\n👉 ${updateCount} bestaande boekingen geüpdatet.`;
-        
-        alert(msg);
+        alert(`✅ Er zijn ${matchCount} tijden verwerkt.\nNieuw: ${nieuwCount}\nUpdate: ${updateCount}`);
         updateZaalDropdown();
         tekenZaalhuurResultaten();
     } else {
-        alert("❌ Er zijn geen geldige datums of tijden in deze tekst gevonden. Zorg dat je de letterlijke tekst 'van .. tot ..' kopieert.");
+        alert("❌ Er zijn geen geldige datums/tijden gevonden in de tekst.");
     }
 };
 
@@ -241,7 +226,8 @@ window.verwerkZaalhuurBestand = function(e) {
                 dataMap[id] = {
                     id: id, datum: datum, isoDatum: converteerNaarISODatum(datum), startTijd: startTijd, 
                     eindTijd: eindTijd, zaaldeel: zaaldeel, zaal: zaal, bedrag: bedrag, opmerking: opmerking, 
-                    status: status, geannuleerd: isGeannuleerd, uren: uren, type: "Overig"
+                    status: status, geannuleerd: isGeannuleerd, uren: uren, type: "Overig",
+                    legitiemZonderAgenda: false, legitiemReden: ""
                 };
             }
         });
@@ -260,10 +246,10 @@ window.verwerkZaalhuurBestand = function(e) {
 // ============================================================================
 window.updateGroepStatus = function(idsString, nieuweStatus) {
     if(nieuweStatus === 'Geannuleerd') {
-        let akkoord = confirm("⚠️ LET OP: Heb je deze zaal ook ECHT geannuleerd in het portaal van de gemeente?");
-        if(!akkoord) { tekenZaalhuurResultaten(); return; }
+        if(!confirm("⚠️ LET OP: Heb je deze zaal ook ECHT geannuleerd in het portaal van de gemeente?")) { 
+            tekenZaalhuurResultaten(); return; 
+        }
     }
-
     let ids = idsString.split(',');
     window.zaalhuurData.forEach(z => {
         if(ids.includes(z.id)) {
@@ -284,16 +270,17 @@ window.updateGroepType = function(idsString, nieuwType) {
 
 window.verwijderGroep = function(idsString) {
     if(!confirm("Weet je zeker dat je deze reservering definitief wilt verwijderen uit de app?")) return;
-    
     let ids = idsString.split(',');
     window.zaalhuurData = window.zaalhuurData.filter(z => !ids.includes(z.id));
     localStorage.setItem('blackshots_zaalhuur_data', JSON.stringify(window.zaalhuurData));
     tekenZaalhuurResultaten();
+    window.runZaalScanner(); // Update de scanner
 };
 
 function updateZaalDropdown() {
     let zalen = [...new Set(window.zaalhuurData.map(z => z.zaal))];
     let select = document.getElementById('filter-zaal');
+    if(!select) return;
     select.innerHTML = '<option value="">-- Alle Zalen --</option>';
     zalen.forEach(z => { if(z) select.innerHTML += `<option value="${z}">${z}</option>`; });
 }
@@ -307,14 +294,134 @@ window.wisFilters = function() {
 };
 
 // ============================================================================
+// DE SLIMME CROSS-CHECK SCANNER 🤖
+// ============================================================================
+window.runZaalScanner = function() {
+    let lekkenContainer = document.getElementById('scanner-lekken-lijst');
+    let tekortContainer = document.getElementById('scanner-tekort-lijst');
+    if(!lekkenContainer || !tekortContainer) return;
+
+    let huidigeDatum = new Date().toISOString().split('T')[0];
+
+    // 1. Zoek naar GELDLEKKEN (Zaalhuur gevonden, maar geen Activiteit in de agenda)
+    let actieveHuur = window.zaalhuurData.filter(z => !z.geannuleerd && z.isoDatum >= huidigeDatum);
+    let lekken = [];
+
+    // Combineer huur per dag/tijdvak om te voorkomen dat 'zaaldeel A' en 'B' als twee lekken tellen
+    let huurGroepen = {};
+    actieveHuur.forEach(z => {
+        let key = `${z.isoDatum}|${z.startTijd}`;
+        if (!huurGroepen[key]) huurGroepen[key] = { datum: z.datum, isoDatum: z.isoDatum, startTijd: z.startTijd, ids: [z.id], legitiem: z.legitiemZonderAgenda, reden: z.legitiemReden };
+        else {
+            huurGroepen[key].ids.push(z.id);
+            // Als één zaaldeel legitiem was gemarkeerd, telt het hele vak als legitiem
+            if (z.legitiemZonderAgenda) huurGroepen[key].legitiem = true;
+        }
+    });
+
+    Object.values(huurGroepen).forEach(huur => {
+        // Kijk of er op deze dag een activiteit (Wedstrijd/Training) is die rond deze tijd start
+        let heeftActiviteit = window.activiteitenDB.some(act => {
+            if (act.datum !== huur.isoDatum) return false;
+            if (!act.tijd) return true; // Als activiteit geen tijd heeft, nemen we aan dat het de hele dag is
+            let actUur = parseInt(act.tijd.split(':')[0]);
+            let huurUur = parseInt(huur.startTijd.split(':')[0]);
+            return Math.abs(actUur - huurUur) <= 2; // Als het binnen 2 uur van elkaar start, is het ok
+        });
+
+        if (!heeftActiviteit) lekken.push(huur);
+    });
+
+    // Weergave Geldlekken
+    if (lekken.length === 0) {
+        lekkenContainer.innerHTML = `<div style="padding:10px; background:#f0fbf4; color:#27ae60; border-radius:4px; font-weight:bold;">✅ Geen geldlekken gevonden. Alle zalen zijn in gebruik!</div>`;
+    } else {
+        let lekHtml = '';
+        lekken.forEach(lek => {
+            if (lek.legitiem) {
+                lekHtml += `<div class="scanner-card conflict-lek" style="border-left-color:#27ae60; opacity:0.8;">
+                    <div class="scanner-card-header"><span>${lek.datum}</span> <span>${lek.startTijd}</span></div>
+                    <div style="font-size:0.85rem; color:#27ae60; font-weight:bold;">✓ Geaccepteerd: ${lek.reden}</div>
+                    <button onclick="window.markeerHuurLegitiem('${lek.ids.join(',')}', false)" style="margin-top:5px; background:none; border:none; color:#7f8c8d; text-decoration:underline; font-size:0.75rem; cursor:pointer;">Annuleer markering</button>
+                </div>`;
+            } else {
+                lekHtml += `<div class="scanner-card conflict-lek">
+                    <div class="scanner-card-header"><span>${lek.datum}</span> <span style="color:#e67e22;">${lek.startTijd}</span></div>
+                    <div style="font-size:0.85rem; color:#7f8c8d; margin-bottom:8px;">Wel betaald, geen agenda-item!</div>
+                    <div style="display:flex; gap:5px;">
+                        <input type="text" id="reden-${lek.ids[0]}" placeholder="Reden (bijv: Vrijspelen)" style="flex:1; padding:5px; border:1px solid #bdc3c7; border-radius:4px; font-size:0.8rem;">
+                        <button onclick="window.markeerHuurLegitiem('${lek.ids.join(',')}', true, '${lek.ids[0]}')" style="background:#e67e22; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:0.8rem; font-weight:bold;">OK</button>
+                    </div>
+                </div>`;
+            }
+        });
+        lekkenContainer.innerHTML = lekHtml;
+    }
+
+    // 2. Zoek naar ZAALTEKORTEN (Thuiswedstrijd of Training in de agenda, maar geen Zaalhuur)
+    let tekorten = [];
+    let relevanteActiviteiten = window.activiteitenDB.filter(act => {
+        let isThuisWedstrijd = (act.type === 'Thuiswedstrijd' || act.type === 'Oefenwedstrijd (Thuis)' || act.type === 'Training');
+        let isInDeVeste = (!act.locatie || act.locatie.toLowerCase().includes('veste') || act.locatie.toLowerCase().includes('veka'));
+        return isThuisWedstrijd && isInDeVeste && act.datum >= huidigeDatum;
+    });
+
+    relevanteActiviteiten.forEach(act => {
+        let heeftHuur = actieveHuur.some(z => {
+            if (z.isoDatum !== act.datum) return false;
+            if (!act.tijd) return true;
+            let actUur = parseInt(act.tijd.split(':')[0]);
+            let huurUur = parseInt(z.startTijd.split(':')[0]);
+            return Math.abs(actUur - huurUur) <= 2; 
+        });
+
+        if (!heeftHuur) tekorten.push(act);
+    });
+
+    // Weergave Zaaltekorten
+    if (tekorten.length === 0) {
+        tekortContainer.innerHTML = `<div style="padding:10px; background:#f0fbf4; color:#27ae60; border-radius:4px; font-weight:bold;">✅ Geen tekorten. Voor alle thuis-activiteiten is een zaal geboekt!</div>`;
+    } else {
+        let tekortHtml = '';
+        tekorten.forEach(tekort => {
+            tekortHtml += `<div class="scanner-card conflict-tekort">
+                <div class="scanner-card-header"><span style="color:#c0392b;">${tekort.type}</span> <span>${tekort.tijd || '?'}</span></div>
+                <div style="font-size:0.9rem; font-weight:bold;">${tekort.titel}</div>
+                <div style="font-size:0.8rem; color:#7f8c8d; margin-top:5px;">Datum: ${tekort.datum}</div>
+            </div>`;
+        });
+        tekortContainer.innerHTML = tekortHtml;
+    }
+};
+
+window.markeerHuurLegitiem = function(idsString, isLegitiem, inputId = null) {
+    let reden = "";
+    if (isLegitiem && inputId) {
+        reden = document.getElementById(`reden-${inputId}`).value.trim();
+        if (!reden) return alert("Vul even een korte reden in (zoals 'Scheidsrechterscursus' of 'Vrijspelen').");
+    }
+
+    let ids = idsString.split(',');
+    window.zaalhuurData.forEach(z => {
+        if (ids.includes(z.id)) {
+            z.legitiemZonderAgenda = isLegitiem;
+            z.legitiemReden = reden;
+        }
+    });
+
+    localStorage.setItem('blackshots_zaalhuur_data', JSON.stringify(window.zaalhuurData));
+    window.runZaalScanner(); // Update de lijstjes
+};
+
+// ============================================================================
 // UI TEKENEN
 // ============================================================================
 window.tekenZaalhuurResultaten = function() {
     let container = document.getElementById('zaalhuur-resultaten');
-    let fZaal = document.getElementById('filter-zaal').value.toLowerCase();
-    let fStatus = document.getElementById('filter-status').value.toLowerCase();
-    let fVan = document.getElementById('filter-datum-van').value;
-    let fTot = document.getElementById('filter-datum-tot').value;
+    let fZaal = document.getElementById('filter-zaal') ? document.getElementById('filter-zaal').value.toLowerCase() : "";
+    let fStatus = document.getElementById('filter-status') ? document.getElementById('filter-status').value.toLowerCase() : "";
+    let fVan = document.getElementById('filter-datum-van') ? document.getElementById('filter-datum-van').value : "";
+    let fTot = document.getElementById('filter-datum-tot') ? document.getElementById('filter-datum-tot').value : "";
 
     let gefilterdeData = window.zaalhuurData.filter(z => {
         return (!fZaal || z.zaal.toLowerCase().includes(fZaal)) && 
