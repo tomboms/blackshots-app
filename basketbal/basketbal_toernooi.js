@@ -64,9 +64,8 @@ window.toggleTeamCollapse = function(teamId) {
     else window.collapsedTeams.push(teamId);
     window.renderToernooi();
 };
-
 // ============================================================================
-// VERNIEUWDE SYNC NAAR JAARPLANNING (Met uitgebreide details)
+// VERNIEUWDE SYNC NAAR JAARPLANNING (Met uitgebreide details & juiste velden)
 // ============================================================================
 window.syncToernooiNaarJaarplanning = function() {
     if (!actieveCompId || !window.toernooiDB[actieveCompId]) return alert("Geen toernooi actief!");
@@ -120,21 +119,24 @@ window.syncToernooiNaarJaarplanning = function() {
         let uniekId = `toernooi_${actieveCompId}_${isoDatum}`;
         let bestaandeIndex = planningDB.findIndex(item => item.id === uniekId);
 
+        // OPLOSSING: We voegen hier alle velden toe die de Jaarplanning nodig heeft (zoals isoDatum, eindDatum, tekst en omschrijving)
         let act = {
             id: uniekId,
             type: 'training', // Wordt gezien als legitieme actie voor zaalhuur
             titel: `🏆 ${comp.naam}`,
+            tekst: `🏆 ${comp.naam}`,
             datum: isoDatum,
+            isoDatum: isoDatum,
+            eindDatum: isoDatum, 
             tijd: startTijd,
             locatie: "De Veste",
             kleur: "#16a085",
-            beschrijving: beschrijving
+            omschrijving: beschrijving
         };
 
         if (bestaandeIndex > -1) {
-            planningDB[bestaandeIndex].titel = act.titel;
-            planningDB[bestaandeIndex].tijd = act.tijd;
-            planningDB[bestaandeIndex].beschrijving = act.beschrijving;
+            // Overschrijf de spook-activiteit compleet met de juiste, nieuwe data
+            planningDB[bestaandeIndex] = act;
             geupdate++;
         } else {
             planningDB.push(act);
