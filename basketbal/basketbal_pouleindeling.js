@@ -10,7 +10,6 @@ window.slaDataOp = function(sleutel, data) {
     else document.dispatchEvent(new CustomEvent('cloudSync', { detail: { sleutel: sleutel, data: data } }));
 };
 
-// Luisteraar voor binnenkomende Cloud data!
 window.ontvangCloudDataPoule = function(sleutel, data) {
     if (!data) return;
     if (sleutel === 'blackshots_poule_teams') {
@@ -24,6 +23,8 @@ window.ontvangCloudDataPoule = function(sleutel, data) {
         window.nbbWedstrijden = data;
         let lbl = document.getElementById('label-json');
         if(lbl) lbl.innerText = `✅ JSON Definitief ingeladen vanuit Cloud!`;
+        let syncBtn = document.getElementById('btn-sync-planning');
+        if(syncBtn) syncBtn.style.display = 'inline-block';
     }
     tekenPouleResultaten();
 };
@@ -39,13 +40,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (window.nbbWedstrijden.length > 0) {
         document.getElementById('label-json').innerText = `✅ JSON Definitief ingeladen!`;
+        let syncBtn = document.getElementById('btn-sync-planning');
+        if(syncBtn) syncBtn.style.display = 'inline-block';
     }
     tekenPouleResultaten();
 });
 
-// ============================================================================
-// DE NEDERLANDSE DATUM VERTALERS 
-// ============================================================================
 function maakNetteConceptDatum(ruweTekst) {
     if (!ruweTekst) return "TBA / Datum onbekend";
     let val = ruweTekst.toString().trim();
@@ -76,9 +76,6 @@ function maakMooieDatum(datumStr, tijdStr, accommodatie) {
     } catch(e) { return datumStr; }
 }
 
-// ============================================================================
-// STAP 1: LEES DE POULE INDELING (CSV / Excel)
-// ============================================================================
 window.verwerkPouleBestand = function(e) {
     const file = e.target.files[0]; if (!file) return;
     document.getElementById('label-indeling').innerText = `⏳ Lade...`;
@@ -113,7 +110,6 @@ window.verwerkPouleBestand = function(e) {
             }
         });
 
-        // HIER IS HET AANGEPAST NAAR DE CLOUD OPSLAG
         window.slaDataOp('blackshots_poule_teams', window.bsTeams);
         
         document.getElementById('stap-2-box').style.opacity = '1';
@@ -124,9 +120,6 @@ window.verwerkPouleBestand = function(e) {
     reader.readAsArrayBuffer(file);
 };
 
-// ============================================================================
-// STAP 2: LEES DE PLANTOOL IN HET RAM GEHEUGEN
-// ============================================================================
 window.verwerkPlantoolBestand = function(e) {
     const file = e.target.files[0]; if (!file) return;
     document.getElementById('label-plantool').innerText = `⏳ Macro ontcijferen...`;
@@ -211,16 +204,12 @@ window.genereerSchemaVoorTeam = function(index) {
     if (berekendeWedstrijden.length === 0) return alert(`Geen wedstrijden gevonden op "${sheetNaam}". Verkeerd tabblad?`);
 
     window.bsTeams[index].conceptSchema = berekendeWedstrijden;
-    // HIER IS HET AANGEPAST NAAR DE CLOUD OPSLAG
     window.slaDataOp('blackshots_poule_teams', window.bsTeams);
     
     alert(`✅ Succes! ${berekendeWedstrijden.length} wedstrijden berekend voor ${bsData.teamNaam}.`);
     tekenPouleResultaten();
 };
 
-// ============================================================================
-// STAP 3: LEES DE DEFINITIEVE NBB JSON
-// ============================================================================
 window.verwerkNBBJson = function(e) {
     const file = e.target.files[0]; if (!file) return;
     document.getElementById('label-json').innerText = `⏳ Lade...`;
@@ -229,18 +218,17 @@ window.verwerkNBBJson = function(e) {
     reader.onload = function(e) {
         window.nbbWedstrijden = JSON.parse(e.target.result);
         
-        // HIER IS HET AANGEPAST NAAR DE CLOUD OPSLAG
         window.slaDataOp('blackshots_wedstrijden_json', window.nbbWedstrijden);
         
         document.getElementById('label-json').innerText = `✅ Ingeladen!`;
+        let syncBtn = document.getElementById('btn-sync-planning');
+        if(syncBtn) syncBtn.style.display = 'inline-block';
+
         tekenPouleResultaten(); 
     };
     reader.readAsText(file);
 };
 
-// ============================================================================
-// SCHERM OPBOUW (UI)
-// ============================================================================
 window.tekenPouleResultaten = function() {
     let container = document.getElementById('poule-resultaten');
     container.innerHTML = '';
@@ -406,4 +394,73 @@ window.wisAlleData = function() {
         window.slaDataOp('blackshots_wedstrijden_json', window.nbbWedstrijden);
         location.reload();
     }
+};
+
+// --- NIEUW: SLIMME SYNC NAAR JAARPLANNING ---
+window.syncNaarJaarplanning = function() {
+    if (!window.nbbWedstrijden || window.nbbWedstrijden.length === 0) {
+        return alert("Geen definitieve JSON data geladen om te synchroniseren!");
+    }
+
+    let planningDB = JSON.parse(localStorage.getItem('blackshots_activiteiten') || "[]");
+    let toegevoegd = 0;
+    let geupdate = 0;
+
+    window.nbbWedstrijden.forEach(match => {
+        let thuis = match.Thuisteam || match.thuisTeam || match.thuisteam || "Onbekend";
+        let uit = match.Uitteam || match.uitTeam || match.uitteam || "Onbekend";
+        
+        let isThuis = thuis.toLowerCase().includes('black shots') || thuis.toLowerCase().includes('blackshots');
+        let isUit = uit.toLowerCase().includes('black shots') || uit.toLowerCase().includes('blackshots');
+        
+        if (!isThuis && !isUit) return; 
+
+        let datumRuw = match.Datum || match.datum || ""; 
+        let tijd = match.Tijd || match.tijd || "";
+        let locatie = match.Accommodatie || match.accommodatie || "";
+        let wedNum = match.Wedstrijdnummer || match.WedstrijdNummer || match.wedstrijdnummer || match.wedstrijdNummer;
+
+        if (!datumRuw) return; 
+
+        let datumVeld = datumRuw;
+        if (datumRuw.includes('-')) {
+            let parts = datumRuw.split('-');
+            if (parts[0].length <= 2) {
+                datumVeld = `${parts[2]}-${parts[1]}-${parts[0]}`;
+            }
+        }
+
+        let typeKleur = isThuis ? '#27ae60' : '#e67e22';
+
+        let uniekId = wedNum ? 
+                      `match_${wedNum}` : 
+                      `match_${thuis.replace(/[^a-zA-Z0-9]/g, '')}_${uit.replace(/[^a-zA-Z0-9]/g, '')}_${datumVeld}`;
+
+        let activiteit = {
+            id: uniekId,
+            type: isThuis ? 'Thuiswedstrijd' : 'Uitwedstrijd',
+            titel: `${thuis} vs ${uit}`,
+            datum: datumVeld,
+            tijd: tijd,
+            locatie: locatie || (isThuis ? 'De Veste' : 'Uit'),
+            kleur: typeKleur,
+            beschrijving: `Wedstrijdnummer: ${wedNum || 'Onbekend'}\nStatus: ${match.Status || 'Onbekend'}\nAutomatisch gesynchroniseerd vanuit Poule JSON.`
+        };
+
+        let bestaandeIndex = planningDB.findIndex(item => item.id === uniekId);
+
+        if (bestaandeIndex > -1) {
+            planningDB[bestaandeIndex].datum = activiteit.datum;
+            planningDB[bestaandeIndex].tijd = activiteit.tijd;
+            planningDB[bestaandeIndex].locatie = activiteit.locatie;
+            planningDB[bestaandeIndex].beschrijving = activiteit.beschrijving;
+            geupdate++;
+        } else {
+            planningDB.push(activiteit);
+            toegevoegd++;
+        }
+    });
+
+    localStorage.setItem('blackshots_activiteiten', JSON.stringify(planningDB));
+    alert(`✅ Jaarplanning succesvol gesynchroniseerd!\n\nNieuwe wedstrijden toegevoegd: ${toegevoegd}\nBestaande wedstrijden geüpdatet: ${geupdate}\n\nKijk in het Jaarplanning tabblad om het resultaat te zien.`);
 };
