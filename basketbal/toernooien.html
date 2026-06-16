@@ -21,8 +21,6 @@
         <a href="../index.html" class="terug-knop">🏠 Terug</a>
     </nav>
 
-   
-
     <main class="content-sectie active">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; margin-bottom:20px; border-bottom:2px solid var(--border-color); padding-bottom:10px; gap: 10px;">
             <div style="display:flex; align-items:center; gap:15px; flex-wrap:wrap;">
@@ -30,7 +28,8 @@
                 <select id="toernooi-select" onchange="window.wisselToernooi()" style="padding:10px; border-radius:6px; border:2px solid var(--primary-color); font-weight:bold; font-size:1rem; min-width:200px;"></select>
                 <button class="hide-in-show-mode" onclick="window.maakNieuweCompetitie()" style="background:#2ecc71; color:white; border:none; padding:10px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">+ Nieuw</button>
             </div>
-            <div style="display:flex; gap:10px;">
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <button class="hide-in-show-mode" onclick="window.syncToernooiNaarJaarplanning()" style="background:#f39c12; color:white; border:none; padding:10px 15px; border-radius:6px; font-weight:bold; cursor:pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">📅 Sync naar Agenda</button>
                 <button class="hide-in-show-mode" onclick="window.genereerToernooiBericht()" style="background:#8e44ad; color:white; border:none; padding:10px 15px; border-radius:6px; font-weight:bold; cursor:pointer;">✉️ Stuur Bericht</button>
                 <button onclick="window.toggleShowMode()" style="background:#3498db; color:white; border:none; padding:10px 20px; border-radius:6px; font-weight:bold; cursor:pointer;">📺 Show Modus</button>
                 <button class="hide-in-show-mode" onclick="window.verwijderCompetitie()" style="background:#e74c3c; color:white; border:none; padding:10px 15px; border-radius:6px; font-weight:bold; cursor:pointer;">🗑️</button>
@@ -69,7 +68,7 @@
             </div>
 
             <div class="hide-in-show-mode" style="flex:1; min-width:300px; background:white; padding:20px; border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,0.05); border:1px solid #eee;">
-                <h3 style="margin-top:0; color:var(--secondary-color); font-size:1.1rem; border-bottom:1px solid #eee; padding-bottom:10px;">👥 Teamindeling <br><span style="font-size:0.8rem; color:#7f8c8d; font-weight:normal;">Voeg spelers toe of wissel ze van team.</span></h3>
+                <h3 style="margin-top:0; color:var(--secondary-color); font-size:1.1rem; border-bottom:1px solid #eee; padding-bottom:10px;">👥 Teamindeling <br><span style="font-size:0.8rem; color:#7f8c8d; font-weight:normal;">Voeg spelers toe of wissel ze snel van team.</span></h3>
                 
                 <div id="toernooi-teams" style="display:flex; flex-direction:column; gap:10px; margin-bottom:20px;"></div>
 

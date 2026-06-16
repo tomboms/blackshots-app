@@ -1,4 +1,4 @@
-// --- BASKETBAL_TOERNOOI.JS: PERFECTE LAYOUT, SPACING FIX & HTML MAIL PREVIEW ---
+// --- BASKETBAL_TOERNOOI.JS: PERFECTE LAYOUT, SYNC & SNEL WISSELEN ---
 
 window.toernooiDB = JSON.parse(localStorage.getItem('blackshots_toernooi')) || {};
 let actieveCompId = null;
@@ -63,6 +63,64 @@ window.toggleTeamCollapse = function(teamId) {
     if (window.collapsedTeams.includes(teamId)) window.collapsedTeams = window.collapsedTeams.filter(id => id !== teamId);
     else window.collapsedTeams.push(teamId);
     window.renderToernooi();
+};
+
+// ============================================================================
+// NIEUW: SYNC NAAR JAARPLANNING
+// ============================================================================
+window.syncToernooiNaarJaarplanning = function() {
+    if (!actieveCompId || !window.toernooiDB[actieveCompId]) return alert("Geen toernooi actief!");
+    
+    let planningDB = JSON.parse(localStorage.getItem('blackshots_activiteiten')) || [];
+    let comp = window.toernooiDB[actieveCompId];
+    
+    // Verzamel alle unieke datums en pak de vroegste tijd
+    let speeldagen = {};
+    comp.wedstrijden.forEach(w => {
+        if (!w.datum) return;
+        if (!speeldagen[w.datum]) speeldagen[w.datum] = w.tijd || "17:00";
+        else if (w.tijd && w.tijd < speeldagen[w.datum]) speeldagen[w.datum] = w.tijd; 
+    });
+
+    let toegevoegd = 0;
+    let geupdate = 0;
+
+    Object.keys(speeldagen).forEach(dStr => {
+        let isoDatum = dStr;
+        // Als de datum nog als "8-jun" staat, maken we er "YYYY-MM-DD" van voor de agenda
+        if (/^\d{1,2}-[a-z]{3}$/i.test(dStr)) {
+            let maanden = { 'jan':'01', 'feb':'02', 'mrt':'03', 'apr':'04', 'mei':'05', 'jun':'06', 'jul':'07', 'aug':'08', 'sep':'09', 'okt':'10', 'nov':'11', 'dec':'12' };
+            let delen = dStr.toLowerCase().split('-');
+            let jaar = new Date().getFullYear(); 
+            isoDatum = `${jaar}-${maanden[delen[1]]}-${delen[0].padStart(2, '0')}`;
+        }
+
+        let uniekId = `toernooi_${actieveCompId}_${isoDatum}`;
+        let bestaandeIndex = planningDB.findIndex(item => item.id === uniekId);
+
+        let act = {
+            id: uniekId,
+            type: 'training', // Zodat de zaalhuur-scanner hem snapt als legitieme actie!
+            titel: `🏆 ${comp.naam}`,
+            datum: isoDatum,
+            tijd: speeldagen[dStr],
+            locatie: "De Veste",
+            kleur: "#16a085",
+            beschrijving: "Speeldag Toernooi/Competitie. Automatisch gesynchroniseerd."
+        };
+
+        if (bestaandeIndex > -1) {
+            planningDB[bestaandeIndex].titel = act.titel;
+            planningDB[bestaandeIndex].tijd = act.tijd;
+            geupdate++;
+        } else {
+            planningDB.push(act);
+            toegevoegd++;
+        }
+    });
+
+    localStorage.setItem('blackshots_activiteiten', JSON.stringify(planningDB));
+    alert(`✅ Toernooi gesynchroniseerd met de Jaarplanning!\n\nNieuwe speeldagen in agenda: ${toegevoegd}\nBestaande geüpdatet: ${geupdate}`);
 };
 
 window.berekenStand = function(comp) {
@@ -186,13 +244,13 @@ window.genereerToernooiBericht = function() {
     let htmlContent = `
         <div style="font-family: Arial, sans-serif; font-size: 14px; color: #333; line-height: 1.6;">
             <p>Beste ouders,</p>
-            <p>Op maandag 8 juni gaat de interne competitie weer van start!<br>
-            De trainingen van maandag 8, 15, 22 en 29 juni zien er daarom anders uit. Op deze dagen houden we geen traditionele training, maar spelen we wedstrijden onderling. De teams zijn gemaakt van spelers die geboren zijn in 2014 of eerder.</p>
+            <p>Op maandag gaat de interne competitie weer van start!<br>
+            De trainingen zien er daarom anders uit. Op deze dagen houden we geen traditionele training, maar spelen we wedstrijden onderling.</p>
             
             ${teamTabelHTML}
             
-            <p>De wedstrijden beginnen om <strong>17:00</strong> met 10 minuten warming-up, met vervolgens 4 keer 10 minuten doorlopende speeltijd. Tussen de 1e & 2e en de 3e & 4e periode zit telkens 2 minuten pauze, en tussen de 2e & 3e periode zit 5 minuten pauze.</p>
-            <p>Het eerstgenoemde team is het thuisteam en speelt in het zwart, het tweede team speelt in een andere kleur. De wedstrijden worden gespeeld op de lage basket (2,60m) en met balmaat 5.</p>
+            <p>De wedstrijden beginnen op de geplande tijd met 10 minuten warming-up, met vervolgens 4 keer 10 minuten doorlopende speeltijd.</p>
+            <p>Het eerstgenoemde team is het thuisteam en speelt in het zwart, het tweede team speelt in een andere kleur.</p>
             
             ${schemaTabelHTML}
             
@@ -238,6 +296,29 @@ window.kopieerHTMLMail = function() {
     document.getElementById('mail-preview-modal').style.display = 'none';
     alert("✅ Gekopieerd! Je kunt het bericht (inclusief tabellen!) nu plakken in je e-mail.");
 };
+
+// ============================================================================
+// NIEUW: SNEL SPELERS VERPLAATSEN
+// ============================================================================
+window.verplaatsSpeler = function(vanTeamId, spelerId, naarTeamId) {
+    if (!naarTeamId) return; // Dropdown stond op lege optie
+    
+    let comp = window.toernooiDB[actieveCompId];
+    
+    // Verwijder uit het oude team
+    let vanTeam = comp.teams.find(t => t.id === vanTeamId);
+    if (vanTeam) vanTeam.spelers = vanTeam.spelers.filter(s => s !== spelerId);
+    
+    // Voeg toe aan het nieuwe team
+    let naarTeam = comp.teams.find(t => t.id === naarTeamId);
+    if (naarTeam && !naarTeam.spelers.includes(spelerId)) {
+        naarTeam.spelers.push(spelerId);
+    }
+    
+    localStorage.setItem('blackshots_toernooi', JSON.stringify(window.toernooiDB));
+    window.renderToernooi();
+};
+
 
 // --- HOOFD RENDERER ---
 window.renderToernooi = function() {
@@ -312,7 +393,6 @@ window.renderToernooi = function() {
                 let scT = w.scoreThuis !== null ? w.scoreThuis : '';
                 let scU = w.scoreUit !== null ? w.scoreUit : '';
 
-                // FIX: Score vakjes hebben nu width: 60px; en font-size: 1.1rem; voor betere ademruimte!
                 schemaHtml += `
                     <div style="display:flex; justify-content:space-between; align-items:center; background:white; padding:12px; border:1px solid #ddd; border-radius:4px; margin-top:8px; flex-wrap:wrap; gap:10px; border-left:4px solid ${tThuis.kleur}">
                         <div style="font-size:0.85rem; color:#7f8c8d; min-width:80px;">
@@ -337,7 +417,7 @@ window.renderToernooi = function() {
     }
     if(document.getElementById('toernooi-schema')) document.getElementById('toernooi-schema').innerHTML = schemaHtml;
 
-    // 3. TEAMS RENDERN
+    // 3. TEAMS RENDERN MET NIEUWE FUNCTIES
     let spelersLijstHtml = '<option value="">-- Voeg clublid toe --</option>';
     if (window.spelersDB && window.spelersDB.length > 0) {
         let gesorteerd = [...window.spelersDB].sort((a,b) => (a.naam || '').localeCompare(b.naam || ''));
@@ -349,6 +429,14 @@ window.renderToernooi = function() {
         let isCollapsed = window.collapsedTeams.includes(t.id);
         let pijl = isCollapsed ? '▶' : '▼';
         let bodyDisplay = isCollapsed ? 'none' : 'block';
+
+        // Genereer de verplaats-opties voor DIT specifieke team (toon alle andere teams)
+        let verplaatsOptiesHtml = '<option value="">🔄 Verplaats...</option>';
+        comp.teams.forEach(anderTeam => {
+            if (anderTeam.id !== t.id) {
+                verplaatsOptiesHtml += `<option value="${anderTeam.id}">${anderTeam.naam}</option>`;
+            }
+        });
 
         teamsHtml += `
             <div style="border-radius:6px; overflow:hidden; margin-bottom:10px; border:1px solid ${t.kleur};">
@@ -362,15 +450,28 @@ window.renderToernooi = function() {
         t.spelers.forEach((sId, pIdx) => {
             let sObj = (window.spelersDB || []).find(s => s.id === sId || s.naam === sId);
             let weergaveNaam = sObj ? sObj.naam : sId; 
-            teamsHtml += `<li style="display:flex; justify-content:space-between; border-bottom:1px dashed #eee; padding:6px 0; font-size:0.9rem;">
-                ${weergaveNaam} <button onclick="window.verwijderSpelerUitTeam('${t.id}', ${pIdx})" style="color:#e74c3c; background:none; border:none; cursor:pointer; font-weight:bold;">x</button>
+            
+            // Nieuwe layout voor elke speler met het Verplaats-dropdown menu
+            teamsHtml += `<li style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px dashed #eee; padding:6px 0; font-size:0.9rem;">
+                <span style="font-weight:bold;">${weergaveNaam}</span> 
+                <div style="display:flex; gap:5px;">
+                    <select onchange="window.verplaatsSpeler('${t.id}', '${sId}', this.value)" style="padding:2px 5px; font-size:0.8rem; border-radius:4px; border:1px solid #ccc; max-width:110px;">
+                        ${verplaatsOptiesHtml}
+                    </select>
+                    <button onclick="window.verwijderSpelerUitTeam('${t.id}', ${pIdx})" style="color:white; background:#e74c3c; border:none; border-radius:4px; cursor:pointer; font-weight:bold; padding:2px 6px;" title="Verwijder uit team">X</button>
+                </div>
             </li>`;
         });
 
+        // Twee manieren om toe te voegen: Lid via dropdown OF Vrije naam intypen
         teamsHtml += `</ul>
-                    <div style="display:flex; gap:5px;">
+                    <div style="display:flex; gap:5px; margin-bottom:8px;">
                         <select id="add_speler_${t.id}" style="flex:1; padding:8px; font-size:0.85rem; border:1px solid #ccc; border-radius:4px;">${spelersLijstHtml}</select>
-                        <button onclick="window.voegToernooiSpelerToe('${t.id}')" style="background:#27ae60; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">+</button>
+                        <button onclick="window.voegToernooiSpelerToe('${t.id}')" style="background:#27ae60; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;" title="Voeg clublid toe">Lid +</button>
+                    </div>
+                    <div style="display:flex; gap:5px;">
+                        <input type="text" id="add_custom_speler_${t.id}" placeholder="Of typ een vrije naam..." style="flex:1; padding:8px; font-size:0.85rem; border:1px solid #ccc; border-radius:4px;">
+                        <button onclick="window.voegCustomToernooiSpelerToe('${t.id}')" style="background:#3498db; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;" title="Voeg vrije naam/gast toe">Naam +</button>
                     </div>
                 </div>
             </div>`;
@@ -399,6 +500,21 @@ window.voegToernooiSpelerToe = function(teamId) {
     let team = window.toernooiDB[actieveCompId].teams.find(t => t.id === teamId);
     if (!team.spelers.includes(spelerId)) {
         team.spelers.push(spelerId);
+        localStorage.setItem('blackshots_toernooi', JSON.stringify(window.toernooiDB));
+        window.renderToernooi();
+    }
+};
+
+// NIEUW: SNEL VRIJE NAAM TOEVOEGEN
+window.voegCustomToernooiSpelerToe = function(teamId) {
+    let inputVeld = document.getElementById(`add_custom_speler_${teamId}`);
+    if (!inputVeld) return;
+    let naam = inputVeld.value.trim();
+    if (!naam) return;
+    
+    let team = window.toernooiDB[actieveCompId].teams.find(t => t.id === teamId);
+    if (!team.spelers.includes(naam)) {
+        team.spelers.push(naam);
         localStorage.setItem('blackshots_toernooi', JSON.stringify(window.toernooiDB));
         window.renderToernooi();
     }
@@ -545,7 +661,7 @@ window.addScore = function(zijde, punten) {
     }
 
     if (spelerId) {
-        let s = window.spelersDB.find(x => x.id === spelerId || x.naam === spelerId);
+        let s = (window.spelersDB || []).find(x => x.id === spelerId || x.naam === spelerId);
         let spelerNaam = s ? s.naam : spelerId;
         actieTekst = `+${punten} door ${spelerNaam}`;
         match.playerStats[spelerId] = (match.playerStats[spelerId] || 0) + punten;
