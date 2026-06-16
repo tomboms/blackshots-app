@@ -86,7 +86,6 @@ window.openNieuweVergaderingModal = function() {
     document.getElementById('am_datum').value = new Date().toISOString().split('T')[0];
     document.getElementById('aanmaak-modal').style.display = 'flex';
 };
-
 window.bevestigNieuweVergadering = function() {
     let ruweDatum = document.getElementById('am_datum').value;
     let type = document.getElementById('am_type').value;
@@ -119,7 +118,7 @@ window.bevestigNieuweVergadering = function() {
     document.getElementById('aanmaak-modal').style.display = 'none';
     
     window.actieveVergaderingId = nw.id; 
-    window.slaOpEnHerlaad(); 
+    window.slaOpEnHerlaad(); // FIX: Voert nu direct de cloud opslag én de jaarplanning sync uit!
     window.openVergadering(nw.id);
 };
 
@@ -145,6 +144,7 @@ window.openVergadering = function(id) {
 
     window.tekenAgendaPunten();
 
+    // TEKEN DE VASTZET KNOP OP DE JUISTE PLEK
     let lockBtnContainer = document.getElementById('lock-btn-container');
     if (lockBtnContainer) {
         if (v.vastgezet) {
@@ -154,6 +154,7 @@ window.openVergadering = function(id) {
         }
     }
 
+    // SCHAKEL VELDEN UIT ALS HIJ VASTZIT
     setTimeout(() => {
         let inputs = document.querySelectorAll('#editor-scherm input, #editor-scherm textarea, #editor-scherm select');
         inputs.forEach(input => {
@@ -205,7 +206,7 @@ window.dropPunt = function(event, index) {
     if (draggedItemIndex === null || draggedItemIndex === index) return;
     
     let v = window.bestuurDB.find(x => x.id === window.actieveVergaderingId);
-    if(v.vastgezet) return; 
+    if(v.vastgezet) return; // Niet slepen als hij vastzit
     
     let draggedPunt = v.punten.splice(draggedItemIndex, 1)[0]; 
     v.punten.splice(index, 0, draggedPunt); 
@@ -291,11 +292,43 @@ window.tekenAgendaPunten = function() {
 };
 
 // --- 5. EDIT & BEWAAR FUNCTIES ---
-window.slaOp = function() {
+window.slaOpEnHerlaad = function() {
+    // 1. Sla de bestuursvergadering op via de universele cloud motor
+    window.slaDataOp('blackshots_bestuur', window.bestuurDB);
+    
+    // 2. Voer de automatische achtergrond-sync naar de Jaarplanning uit
     let v = window.bestuurDB.find(x => x.id === window.actieveVergaderingId);
-    v.datum = document.getElementById('v_datum').value; v.tijd = document.getElementById('v_tijd').value;
-    v.adres = document.getElementById('v_adres').value; v.aanwezig = document.getElementById('v_aanwezig').value;
-    window.slaOpEnHerlaad();
+    if (v && v.isoDatum) {
+        let planningDB = JSON.parse(localStorage.getItem('blackshots_jaarplanning_data')) || [];
+        
+        // FIX: Uniek ID gewijzigd naar 'verg_' om conflicten met de toernooimodule te voorkomen
+        let uniekId = `verg_${v.id}`; 
+        let bestaandeIndex = planningDB.findIndex(item => item.id === uniekId);
+
+        let omschrijving = `Notulen & Agenda voor de ${v.type || 'Bestuur'}vergadering.\n`;
+        if (v.vastgezet) omschrijving += `🔒 Deze notulen zijn officieel vastgesteld.\n`;
+        omschrijving += `\n🔗 Open de notulen direct in het clubbeheer via de Bestuur pagina.`;
+
+        let act = {
+            id: uniekId,
+            type: 'vergadering', 
+            titel: `📅 ${v.type || 'Bestuur'} Vergadering`,
+            tekst: `📅 ${v.type || 'Bestuur'} Vergadering`,
+            datum: v.isoDatum,
+            isoDatum: v.isoDatum,
+            eindDatum: v.isoDatum, 
+            tijd: v.tijd || "20:00",
+            locatie: v.adres || "De Veste",
+            kleur: "#34495e", 
+            omschrijving: omschrijving
+        };
+
+        if (bestaandeIndex > -1) planningDB[bestaandeIndex] = act;
+        else planningDB.push(act);
+        
+        // FIX: Data wordt nu correct via de Firebase wrapper verzonden
+        window.slaDataOp('blackshots_jaarplanning_data', planningDB);
+    }
 };
 
 window.slaTitelOp = function(puntId, val) { window.bestuurDB.find(x => x.id === window.actieveVergaderingId).punten.find(p => p.id === puntId).titel = val; window.slaOpEnHerlaad(); };
@@ -340,7 +373,7 @@ window.slaOpEnHerlaad = function() {
     let v = window.bestuurDB.find(x => x.id === window.actieveVergaderingId);
     if (v && v.isoDatum) {
         let planningDB = JSON.parse(localStorage.getItem('blackshots_jaarplanning_data')) || [];
-        let uniekId = `verg_${v.id}`; 
+        let uniekId = `toernooi_${v.id}`; 
         let bestaandeIndex = planningDB.findIndex(item => item.id === uniekId);
 
         let omschrijving = `Notulen & Agenda voor de ${v.type || 'Bestuur'}vergadering.\n`;
@@ -364,11 +397,12 @@ window.slaOpEnHerlaad = function() {
         if (bestaandeIndex > -1) planningDB[bestaandeIndex] = act;
         else planningDB.push(act);
         
-        window.slaDataOp('blackshots_jaarplanning_data', planningDB);
+        localStorage.setItem('blackshots_jaarplanning_data', JSON.stringify(planningDB));
+        if (typeof window.opslaanInFirebase === 'function') window.opslaanInFirebase('blackshots_jaarplanning_data', planningDB);
     }
 }
 
-// --- 6. SJABLOON BEHEERDER ---
+// --- 6. SJABLOON BEHEERDER (MULTI-TYPE ONDERSTEUNING) ---
 window.tempSjabloon = [];
 window.actiefSjabloonType = "Bestuur";
 let dragSjabIndex = null;
@@ -412,11 +446,6 @@ window.maakNieuwSjabloonType = function() {
     window.actiefSjabloonType = nieuwType;
     window.vulSjabloonTypeSelect();
     window.laadSjabloonType(nieuwType);
-    
-    let dropdown = document.getElementById('am_type');
-    if(dropdown) {
-        dropdown.innerHTML += `<option value="${nieuwType}">${nieuwType}</option>`;
-    }
 };
 
 window.startDragSjab = function(index) { dragSjabIndex = index; };
@@ -441,7 +470,7 @@ window.tekenSjabloonLijst = function() {
                 <button onclick="window.tempSjabloon.splice(${idx}, 1); window.tekenSjabloonLijst()" style="background:#e74c3c; color:white; border:none; border-radius:4px; padding:6px 12px; font-weight:bold; cursor:pointer;">X</button>
             </div>`;
     });
-}
+};
 
 window.voegSjabloonPuntToe = function() { window.tempSjabloon.push('Nieuw agendapunt...'); window.tekenSjabloonLijst(); };
 
@@ -449,9 +478,8 @@ window.slaSjabloonOp = function() {
     window.bestuurSjablonen[window.actiefSjabloonType] = window.tempSjabloon.filter(x => x.trim() !== '');
     window.slaDataOp('blackshots_bestuur_sjablonen', window.bestuurSjablonen);
     window.sluitSjabloonInstellingen();
-    alert("✅ Sjabloon succesvol bijgewerkt!");
+    alert("✅ Sjablonen succesvol bijgewerkt!");
 };
-
 // --- 7. DE PDF EXPORT ---
 window.genereerDocument = function(soort) {
     let v = window.bestuurDB.find(x => x.id === window.actieveVergaderingId);
@@ -469,4 +497,54 @@ window.genereerDocument = function(soort) {
             .logo-box { text-align: center; margin-bottom: 30px; }
             .logo-box img { max-width: 180px; }
             h1 { text-align: left; font-size: 18px; margin-bottom: 20px; font-weight: bold; border-bottom: 2px solid #000; padding-bottom: 5px; }
-            .meta-tabel { width
+            .meta-tabel { width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 14px; }
+            .meta-tabel td { padding: 3px 0; vertical-align: top; }
+            .meta-tabel td:first-child { width: 100px; font-weight: bold; }
+            h2 { font-size: 16px; margin-top: 30px; margin-bottom: 15px; font-weight: bold; color: #333; }
+            
+            .agenda-lijst { list-style-type: decimal; padding-left: 20px; font-size: 14px; font-weight: bold; margin-top: 0; }
+            .sub-lijst { list-style-type: upper-alpha; padding-left: 25px; margin-top: 8px; margin-bottom: 15px; }
+            li { margin-bottom: 15px; }
+            
+            .tekst-blok { font-weight: normal; font-size: 13px; margin-top: 5px; display: block; color: #333; white-space: pre-wrap; margin-bottom: 15px; }
+            .prep-label { font-size: 11px; color: #d35400; text-transform: uppercase; font-weight: bold; margin-bottom: 3px; }
+            
+            @media print { .print-btn { display: none !important; } }
+        </style>
+    </head>
+    <body>
+        <button class="print-btn" onclick="window.print()" style="position:fixed; top:20px; right:20px; padding:12px 24px; background:#27ae60; color:white; border:none; border-radius:6px; font-size:16px; font-weight:bold; cursor:pointer; box-shadow:0 4px 10px rgba(0,0,0,0.3);">📥 Opslaan als PDF</button>
+
+        <div class="logo-box"><img src="Logo Zwart.png" alt="Black Shots Logo" onerror="this.style.display='none'"></div>
+        <h1>${hoofdtitel} Black Shots</h1>
+        
+        <table class="meta-tabel">
+            <tr><td>Datum:</td><td>${v.datum || '...'}</td></tr>
+            <tr><td>Tijd:</td><td>${v.tijd || '...'}</td></tr>
+            <tr><td>Adres:</td><td>${v.adres || '...'}</td></tr>
+            <tr><td>Aanwezig:</td><td>${v.aanwezig || '...'}</td></tr>
+        </table>
+
+        <h2>${subtitelDoc}</h2>
+        <ol class="agenda-lijst">
+    `;
+
+    let inSubLijst = false;
+    v.punten.forEach((punt) => {
+        if (punt.isSub && !inSubLijst) { htmlDoc += `<ol class="sub-lijst">`; inSubLijst = true; } 
+        else if (!punt.isSub && inSubLijst) { htmlDoc += `</ol>`; inSubLijst = false; }
+
+        htmlDoc += `<li>${punt.titel || 'Onbenoemd punt'}`;
+        if (soort === 'spiekbrief' && punt.prep) htmlDoc += `<div class="tekst-blok"><div class="prep-label">Jouw Voorbereiding:</div>${punt.prep}</div>`;
+        if (soort === 'notulen' && punt.verslag) htmlDoc += `<div class="tekst-blok">${punt.verslag}</div>`;
+        htmlDoc += `</li>`;
+    });
+
+    if (inSubLijst) htmlDoc += `</ol>`;
+    htmlDoc += `</ol></body></html>`;
+
+    let printTab = window.open('', '_blank'); printTab.document.write(htmlDoc); printTab.document.close();
+    setTimeout(() => { printTab.print(); }, 500);
+};
+
+setTimeout(window.tekenOverzicht, 200);
