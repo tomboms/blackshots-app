@@ -1,4 +1,4 @@
-// --- BASKETBAL_BESTUUR.JS: SLEPEN, 3-VAKKEN, A,B,C SUBPUNTEN & NOTULEN ---
+// --- BASKETBAL_BESTUUR.JS: COMPLETE VERSIE MET SYNC, SJABLONEN & VASTZETTEN ---
 
 window.bestuurDB = JSON.parse(localStorage.getItem('blackshots_bestuur')) || [];
 window.bestuurSjablonen = JSON.parse(localStorage.getItem('blackshots_bestuur_sjablonen')) || {
@@ -35,7 +35,24 @@ window.bestuurSjablonen = JSON.parse(localStorage.getItem('blackshots_bestuur_sj
 window.actieveVergaderingId = null;
 window.isLiveModus = false;
 
-// Het perfecte Sleep (Drag) Icoontje in SVG
+// --- CLOUD SYNC MOTOR ---
+window.slaDataOp = function(sleutel, data) {
+    localStorage.setItem(sleutel, JSON.stringify(data));
+    if (typeof window.opslaanInFirebase === 'function') window.opslaanInFirebase(sleutel, data);
+    else if (typeof window.bewaarNaarFirebase === 'function') window.bewaarNaarFirebase(sleutel, data);
+    else document.dispatchEvent(new CustomEvent('cloudSync', { detail: { sleutel: sleutel, data: data } }));
+};
+
+window.ontvangCloudDataBestuur = function(sleutel, data) {
+    if (sleutel === 'blackshots_bestuur' && data) {
+        window.bestuurDB = data;
+        if (!window.actieveVergaderingId) window.tekenOverzicht();
+    }
+    if (sleutel === 'blackshots_bestuur_sjablonen' && data) {
+        window.bestuurSjablonen = data;
+    }
+};
+
 const dragIcon = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="12" x2="20" y2="12"></line><line x1="4" y1="6" x2="20" y2="6"></line><line x1="4" y1="18" x2="20" y2="18"></line></svg>`;
 
 // --- 1. OVERZICHT ---
@@ -51,43 +68,21 @@ window.tekenOverzicht = function() {
 
     let gesorteerd = [...window.bestuurDB].reverse();
     gesorteerd.forEach(v => {
+        let typeIcoon = v.type === 'ALV' ? '👥' : (v.type === 'Commissie' ? '📋' : '💼');
         container.innerHTML += `
             <div class="card" style="display:flex; justify-content:space-between; align-items:center; transition:0.2s; border-left:6px solid #3498db; margin-bottom:10px;" onmouseover="this.style.transform='translateX(5px)'" onmouseout="this.style.transform='translateX(0)'">
-                <div style="flex:1; cursor:pointer;" onclick="openVergadering('${v.id}')">
-                    <strong style="font-size:1.2rem; color:var(--secondary-color);">📅 ${v.datum || 'Nieuwe Vergadering'}</strong>
+                <div style="flex:1; cursor:pointer;" onclick="window.openVergadering('${v.id}')">
+                    <strong style="font-size:1.2rem; color:var(--secondary-color);">${v.vastgezet ? '🔒' : '📅'} ${v.datum || 'Nieuwe Vergadering'} <span style="font-size:0.9rem; color:#7f8c8d;">(${typeIcoon} ${v.type || 'Bestuur'})</span></strong>
                     <div style="color:#7f8c8d; font-size:0.9rem; margin-top:5px;">🕒 ${v.tijd || '?'} | 📍 ${v.adres || '?'}</div>
                 </div>
-                <button onclick="verwijderVergadering('${v.id}')" style="background:#e74c3c; color:white; border:none; border-radius:6px; padding:10px 15px; font-weight:bold; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.1); transition:0.2s;" onmouseover="this.style.background='#c0392b'" onmouseout="this.style.background='#e74c3c'" title="Verwijder deze vergadering direct">🗑️</button>
+                <button onclick="window.verwijderVergadering('${v.id}')" style="background:#e74c3c; color:white; border:none; border-radius:6px; padding:10px 15px; font-weight:bold; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.1); transition:0.2s;" onmouseover="this.style.background='#c0392b'" onmouseout="this.style.background='#e74c3c'" title="Verwijder deze vergadering direct">🗑️</button>
             </div>
         `;
     });
-// Teken de dynamische Vastzet/Wijzig knop bovenaan de editor
-    let lockBtnContainer = document.getElementById('lock-btn-container');
-    if (lockBtnContainer) {
-        if (v.vastgezet) {
-            lockBtnContainer.innerHTML = `<button onclick="window.toggleVergaderingLock()" style="width:100%; background:#7f8c8d; color:white; border:none; padding:12px; border-radius:6px; font-weight:bold; font-size:1.1rem; cursor:pointer;">🔓 Wijzig Notulen (Vergadering is nu Vastgezet)</button>`;
-        } else {
-            lockBtnContainer.innerHTML = `<button onclick="window.toggleVergaderingLock()" style="width:100%; background:#2c3e50; color:white; border:none; padding:12px; border-radius:6px; font-weight:bold; font-size:1.1rem; cursor:pointer; box-shadow:0 4px 10px rgba(0,0,0,0.15);">🔒 Zet Vergadering Definitief Vast</button>`;
-        }
-    }
-
-    // Schakel alle invoervelden uit als de vergadering is vastgezet
-    setTimeout(() => {
-        let inputs = document.querySelectorAll('#editor-scherm input, #editor-scherm textarea, #editor-scherm select');
-        inputs.forEach(input => {
-            // De lock-knop zelf mag natuurlijk nooit disabled worden!
-            if (input.closest('#lock-btn-container') || input.matches('button') || input.onclick) return;
-            input.disabled = v.vastgezet;
-            if(v.vastgezet) input.style.background = "#f8f9fa";
-            else input.style.background = "transparent";
-        });
-    }, 50);
-
 };
 
 // --- 2. VERGADERING AANMAKEN & OPENEN ---
 window.openNieuweVergaderingModal = function() {
-    // Zet de datumzoeker standaard op de dag van vandaag
     document.getElementById('am_datum').value = new Date().toISOString().split('T')[0];
     document.getElementById('aanmaak-modal').style.display = 'flex';
 };
@@ -100,7 +95,6 @@ window.bevestigNieuweVergadering = function() {
     
     let dParts = ruweDatum.split('-');
     let maanden = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
-    // TYPEFOUT HERSTELD: Geen 'maandengebr =' meer, wat voor crashes zorgde
     let weergaveDatum = `${parseInt(dParts[2])} ${maanden[parseInt(dParts[1]) - 1]} ${dParts[0]}`;
 
     let geselecteerdSjabloon = window.bestuurSjablonen[type] || [];
@@ -124,13 +118,9 @@ window.bevestigNieuweVergadering = function() {
     window.bestuurDB.push(nw);
     document.getElementById('aanmaak-modal').style.display = 'none';
     
-    functionSlaOpEnHerlaadGeforceerd();
+    window.slaDataOp('blackshots_bestuur', window.bestuurDB);
     window.openVergadering(nw.id);
 };
-
-function functionSlaOpEnHerlaadGeforceerd() {
-    window.slaDataOp('blackshots_bestuur', window.bestuurDB);
-}
 
 window.openVergadering = function(id) {
     window.actieveVergaderingId = id;
@@ -152,15 +142,36 @@ window.openVergadering = function(id) {
     document.getElementById('v_adres').value = v.adres || '';
     document.getElementById('v_aanwezig').value = v.aanwezig || '';
 
-    tekenAgendaPunten();
+    window.tekenAgendaPunten();
+
+    // TEKEN DE VASTZET KNOP OP DE JUISTE PLEK
+    let lockBtnContainer = document.getElementById('lock-btn-container');
+    if (lockBtnContainer) {
+        if (v.vastgezet) {
+            lockBtnContainer.innerHTML = `<button onclick="window.toggleVergaderingLock()" style="width:100%; background:#7f8c8d; color:white; border:none; padding:12px; border-radius:6px; font-weight:bold; font-size:1.1rem; cursor:pointer;">🔓 Wijzig Notulen (Vergadering is nu Vastgezet)</button>`;
+        } else {
+            lockBtnContainer.innerHTML = `<button onclick="window.toggleVergaderingLock()" style="width:100%; background:#2c3e50; color:white; border:none; padding:12px; border-radius:6px; font-weight:bold; font-size:1.1rem; cursor:pointer; box-shadow:0 4px 10px rgba(0,0,0,0.15);">🔒 Zet Vergadering Definitief Vast</button>`;
+        }
+    }
+
+    // SCHAKEL VELDEN UIT ALS HIJ VASTZIT
+    setTimeout(() => {
+        let inputs = document.querySelectorAll('#editor-scherm input, #editor-scherm textarea, #editor-scherm select');
+        inputs.forEach(input => {
+            if (input.closest('#lock-btn-container') || input.matches('button') || input.onclick) return;
+            input.disabled = v.vastgezet;
+            if(v.vastgezet) input.style.background = "#f8f9fa";
+            else input.style.background = "transparent";
+        });
+    }, 50);
 };
 
 window.sluitEditor = function() {
     window.actieveVergaderingId = null;
     document.getElementById('editor-scherm').style.display = 'none';
     document.getElementById('overzicht-scherm').style.display = 'block';
-    if (window.isLiveModus) toggleLiveModus();
-    tekenOverzicht();
+    if (window.isLiveModus) window.toggleLiveModus();
+    window.tekenOverzicht();
 };
 
 window.toggleLiveModus = function() {
@@ -174,7 +185,15 @@ window.toggleLiveModus = function() {
         document.body.classList.remove('live-modus-actief');
         if (document.exitFullscreen) document.exitFullscreen().catch(e=>e);
     }
-    tekenAgendaPunten(); 
+    window.tekenAgendaPunten(); 
+};
+
+window.toggleVergaderingLock = function() {
+    let v = window.bestuurDB.find(x => x.id === window.actieveVergaderingId);
+    if (!v) return;
+    v.vastgezet = !v.vastgezet;
+    window.slaOpEnHerlaad();
+    window.openVergadering(v.id); 
 };
 
 // --- 3. SLEPEN (DRAG & DROP) LOGICA ---
@@ -187,10 +206,12 @@ window.dropPunt = function(event, index) {
     if (draggedItemIndex === null || draggedItemIndex === index) return;
     
     let v = window.bestuurDB.find(x => x.id === window.actieveVergaderingId);
+    if(v.vastgezet) return; // Niet slepen als hij vastzit
+    
     let draggedPunt = v.punten.splice(draggedItemIndex, 1)[0]; 
     v.punten.splice(index, 0, draggedPunt); 
     
-    slaOpEnHerlaad(); tekenAgendaPunten(); draggedItemIndex = null;
+    window.slaOpEnHerlaad(); window.tekenAgendaPunten(); draggedItemIndex = null;
 };
 
 // --- 4. AGENDAPUNTEN TEKENEN ---
@@ -227,7 +248,7 @@ window.tekenAgendaPunten = function() {
                     ${prepDisplay}
                 </div>
                 <div>
-                    <textarea class="notitie-veld klad-veld" style="min-height:150px; font-size:1.05rem;" placeholder="✍️ TYP HIER JE KLADNOTITIES TIJDENS DE VERGADERING..." onchange="slaVeldOp('${punt.id}', 'klad', this.value)">${punt.klad || ''}</textarea>
+                    <textarea class="notitie-veld klad-veld" style="min-height:150px; font-size:1.05rem;" placeholder="✍️ TYP HIER JE KLADNOTITIES TIJDENS DE VERGADERING..." onchange="window.slaVeldOp('${punt.id}', 'klad', this.value)" ${v.vastgezet ? 'disabled' : ''}>${punt.klad || ''}</textarea>
                 </div>
             </div>`;
         } else {
@@ -235,33 +256,33 @@ window.tekenAgendaPunten = function() {
             <div class="drie-vakken-grid">
                 <div>
                     <label class="veld-label label-prep">🤫 1. Tom's Versie</label>
-                    <textarea class="notitie-veld prep-veld" placeholder="Wat wil je bespreken?" onchange="slaVeldOp('${punt.id}', 'prep', this.value)">${punt.prep}</textarea>
+                    <textarea class="notitie-veld prep-veld" placeholder="Wat wil je bespreken?" onchange="window.slaVeldOp('${punt.id}', 'prep', this.value)" ${v.vastgezet ? 'disabled' : ''}>${punt.prep}</textarea>
                 </div>
                 <div>
                     <label class="veld-label label-klad">📝 2. Vergader Klad</label>
-                    <textarea class="notitie-veld klad-veld" placeholder="Je snelle krabbels (LIVE)..." onchange="slaVeldOp('${punt.id}', 'klad', this.value)">${punt.klad || ''}</textarea>
+                    <textarea class="notitie-veld klad-veld" placeholder="Je snelle krabbels (LIVE)..." onchange="window.slaVeldOp('${punt.id}', 'klad', this.value)" ${v.vastgezet ? 'disabled' : ''}>${punt.klad || ''}</textarea>
                 </div>
                 <div>
                     <label class="veld-label label-live">✍️ 3. Nette Notule</label>
-                    <textarea class="notitie-veld live-veld" placeholder="Definitieve tekst voor in de PDF..." onchange="slaVeldOp('${punt.id}', 'verslag', this.value)">${punt.verslag}</textarea>
+                    <textarea class="notitie-veld live-veld" placeholder="Definitieve tekst voor in de PDF..." onchange="window.slaVeldOp('${punt.id}', 'verslag', this.value)" ${v.vastgezet ? 'disabled' : ''}>${punt.verslag}</textarea>
                 </div>
             </div>`;
         }
 
-        let actieKnoppen = window.isLiveModus ? '' : `
+        let actieKnoppen = (window.isLiveModus || v.vastgezet) ? '' : `
             <div style="display:flex; align-items:center; gap:8px;">
-                <button onclick="toggleSubPunt('${punt.id}')" class="sub-btn" style="background:transparent; border:1px solid ${subBtnKleur}; color:${subBtnKleur}; border-radius:4px; padding:3px 8px; font-size:0.8rem; font-weight:bold; cursor:pointer;" title="Maak hier een A, B, C sub-punt van">⇥ Inspringen</button>
-                <button onclick="verwijderPunt('${punt.id}')" class="delete-btn" style="background:none; border:none; color:#e74c3c; font-weight:bold; cursor:pointer; font-size:1.2rem;" title="Verwijder dit blok">&times;</button>
+                <button onclick="window.toggleSubPunt('${punt.id}')" class="sub-btn" style="background:transparent; border:1px solid ${subBtnKleur}; color:${subBtnKleur}; border-radius:4px; padding:3px 8px; font-size:0.8rem; font-weight:bold; cursor:pointer;" title="Maak hier een A, B, C sub-punt van">⇥ Inspringen</button>
+                <button onclick="window.verwijderPunt('${punt.id}')" class="delete-btn" style="background:none; border:none; color:#e74c3c; font-weight:bold; cursor:pointer; font-size:1.2rem;" title="Verwijder dit blok">&times;</button>
             </div>
         `;
 
         container.innerHTML += `
-            <div class="agenda-punt ${isSubClass}" draggable="${!window.isLiveModus}" ondragstart="startDrag(${index})" ondragover="overDrag(event)" ondragleave="leaveDrag(event)" ondrop="dropPunt(event, ${index})">
+            <div class="agenda-punt ${isSubClass}" draggable="${!window.isLiveModus && !v.vastgezet}" ondragstart="window.startDrag(${index})" ondragover="window.overDrag(event)" ondragleave="window.leaveDrag(event)" ondrop="window.dropPunt(event, ${index})">
                 <div style="display:flex; justify-content:space-between; align-items:flex-start;">
                     <div style="display:flex; align-items:center; flex:1;">
-                        <span class="drag-handle" title="Sleep om te verplaatsen">${dragIcon}</span>
+                        ${v.vastgezet ? '' : `<span class="drag-handle" title="Sleep om te verplaatsen">${dragIcon}</span>`}
                         <span style="font-size:1.2rem; font-weight:bold; color:var(--secondary-color); margin-right:10px; width:30px; text-align:right;">${prefixStr}</span>
-                        <input type="text" class="agenda-titel-input" value="${punt.titel}" placeholder="Naam van dit agendapunt..." onchange="slaTitelOp('${punt.id}', this.value)">
+                        <input type="text" class="agenda-titel-input" value="${punt.titel}" placeholder="Naam van dit agendapunt..." onchange="window.slaTitelOp('${punt.id}', this.value)" ${v.vastgezet ? 'disabled' : ''}>
                     </div>
                     ${actieKnoppen}
                 </div>
@@ -275,22 +296,23 @@ window.slaOp = function() {
     let v = window.bestuurDB.find(x => x.id === window.actieveVergaderingId);
     v.datum = document.getElementById('v_datum').value; v.tijd = document.getElementById('v_tijd').value;
     v.adres = document.getElementById('v_adres').value; v.aanwezig = document.getElementById('v_aanwezig').value;
-    slaOpEnHerlaad();
+    window.slaOpEnHerlaad();
 };
 
-window.slaTitelOp = function(puntId, val) { window.bestuurDB.find(x => x.id === window.actieveVergaderingId).punten.find(p => p.id === puntId).titel = val; slaOpEnHerlaad(); };
-window.slaVeldOp = function(puntId, veldNaam, val) { window.bestuurDB.find(x => x.id === window.actieveVergaderingId).punten.find(p => p.id === puntId)[veldNaam] = val; slaOpEnHerlaad(); };
+window.slaTitelOp = function(puntId, val) { window.bestuurDB.find(x => x.id === window.actieveVergaderingId).punten.find(p => p.id === puntId).titel = val; window.slaOpEnHerlaad(); };
+window.slaVeldOp = function(puntId, veldNaam, val) { window.bestuurDB.find(x => x.id === window.actieveVergaderingId).punten.find(p => p.id === puntId)[veldNaam] = val; window.slaOpEnHerlaad(); };
 
 window.toggleSubPunt = function(puntId) {
     let p = window.bestuurDB.find(x => x.id === window.actieveVergaderingId).punten.find(p => p.id === puntId);
     p.isSub = !p.isSub;
-    slaOpEnHerlaad(); tekenAgendaPunten();
+    window.slaOpEnHerlaad(); window.tekenAgendaPunten();
 };
 
 window.voegPuntToe = function() {
     let v = window.bestuurDB.find(x => x.id === window.actieveVergaderingId);
+    if(v.vastgezet) return;
     v.punten.push({ id: 'p_' + Math.random().toString(36).substr(2, 9), titel: 'Nieuw Agendapunt', isSub: false, prep: '', klad: '', verslag: '' });
-    slaOpEnHerlaad(); tekenAgendaPunten();
+    window.slaOpEnHerlaad(); window.tekenAgendaPunten();
     setTimeout(() => { window.scrollTo({ left: 0, top: document.body.scrollHeight, behavior: "smooth" }); }, 100);
 };
 
@@ -298,66 +320,51 @@ window.verwijderPunt = function(puntId) {
     if(confirm("Weet je zeker dat je dit agendapunt wilt wissen?")) {
         let v = window.bestuurDB.find(x => x.id === window.actieveVergaderingId);
         v.punten = v.punten.filter(p => p.id !== puntId);
-        slaOpEnHerlaad(); tekenAgendaPunten();
+        window.slaOpEnHerlaad(); window.tekenAgendaPunten();
     }
 };
 
-// NIEUWE UNIVERSELE VERWIJDER FUNCTIE (Voor Binnen & Buiten)
 window.verwijderVergadering = function(idGeforceerd = null) {
     let doelId = idGeforceerd || window.actieveVergaderingId;
     if(confirm("Weet je zeker dat je deze hele vergadering inclusief alle notulen definitief wilt wissen? Dit kan niet ongedaan worden gemaakt.")) {
-        // Filter hem uit de database
         window.bestuurDB = window.bestuurDB.filter(x => x.id !== doelId);
-        localStorage.setItem('blackshots_bestuur', JSON.stringify(window.bestuurDB));
+        window.slaDataOp('blackshots_bestuur', window.bestuurDB);
         
-        // Controleer of we in de editor zaten of in het overzicht
-        if (window.actieveVergaderingId === doelId) {
-            window.sluitEditor(); 
-        } else {
-            window.tekenOverzicht();
-        }
+        if (window.actieveVergaderingId === doelId) window.sluitEditor(); 
+        else window.tekenOverzicht();
     }
 }
 
-function slaOpEnHerlaad() {
-    // 1. Sla de bestuursvergadering op in Firebase
+window.slaOpEnHerlaad = function() {
     window.slaDataOp('blackshots_bestuur', window.bestuurDB);
     
-    // 2. Voer direct de automatische achtergrond-sync naar de Jaarplanning uit
     let v = window.bestuurDB.find(x => x.id === window.actieveVergaderingId);
     if (v && v.isoDatum) {
         let planningDB = JSON.parse(localStorage.getItem('blackshots_jaarplanning_data')) || [];
-        
-        // Genereer een stabiel uniek ID gekoppeld aan deze specifieke vergadering
         let uniekId = `toernooi_${v.id}`; 
         let bestaandeIndex = planningDB.findIndex(item => item.id === uniekId);
 
-        // Bouw de notule-omschrijving op met een rechtstreekse doorklik-link!
-        let omschrijving = `Notulen & Agenda voor de ${v.type}vergadering.\n`;
+        let omschrijving = `Notulen & Agenda voor de ${v.type || 'Bestuur'}vergadering.\n`;
         if (v.vastgezet) omschrijving += `🔒 Deze notulen zijn officieel vastgesteld.\n`;
         omschrijving += `\n🔗 Open de notulen direct in het clubbeheer via de Bestuur pagina.`;
 
         let act = {
             id: uniekId,
             type: 'vergadering', 
-            titel: `📅 ${v.type} Vergadering`,
-            tekst: `📅 ${v.type} Vergadering`,
+            titel: `📅 ${v.type || 'Bestuur'} Vergadering`,
+            tekst: `📅 ${v.type || 'Bestuur'} Vergadering`,
             datum: v.isoDatum,
             isoDatum: v.isoDatum,
             eindDatum: v.isoDatum, 
             tijd: v.tijd || "20:00",
             locatie: v.adres || "De Veste",
-            kleur: "#34495e", // Vergaderkleur uit je Firebase
+            kleur: "#34495e", 
             omschrijving: omschrijving
         };
 
-        if (bestaandeIndex > -1) {
-            planningDB[bestaandeIndex] = act;
-        } else {
-            planningDB.push(act);
-        }
+        if (bestaandeIndex > -1) planningDB[bestaandeIndex] = act;
+        else planningDB.push(act);
         
-        // Push geruisloos door naar blackshots_jaarplanning_data
         localStorage.setItem('blackshots_jaarplanning_data', JSON.stringify(planningDB));
         if (typeof window.opslaanInFirebase === 'function') window.opslaanInFirebase('blackshots_jaarplanning_data', planningDB);
     }
@@ -368,8 +375,10 @@ window.tempSjabloon = [];
 let dragSjabIndex = null;
 
 window.openSjabloonInstellingen = function() {
-    window.tempSjabloon = [...window.standaardSjabloon];
-    tekenSjabloonLijst(); document.getElementById('sjabloon-modal').style.display = 'flex';
+    // We bewerken voor nu standaard het 'Bestuur' sjabloon
+    window.tempSjabloon = [...(window.bestuurSjablonen["Bestuur"] || [])];
+    window.tekenSjabloonLijst(); 
+    document.getElementById('sjabloon-modal').style.display = 'flex';
 };
 window.sluitSjabloonInstellingen = function() { document.getElementById('sjabloon-modal').style.display = 'none'; };
 
@@ -381,14 +390,14 @@ window.dropSjab = function(event, index) {
     if (dragSjabIndex === null || dragSjabIndex === index) return;
     let draggedItem = window.tempSjabloon.splice(dragSjabIndex, 1)[0];
     window.tempSjabloon.splice(index, 0, draggedItem);
-    tekenSjabloonLijst(); dragSjabIndex = null;
+    window.tekenSjabloonLijst(); dragSjabIndex = null;
 };
 
 window.tekenSjabloonLijst = function() {
     let c = document.getElementById('sjabloon-lijst'); c.innerHTML = '';
     window.tempSjabloon.forEach((punt, idx) => {
         c.innerHTML += `
-            <div class="sjabloon-rij" draggable="true" ondragstart="startDragSjab(${idx})" ondragover="overDragSjab(event)" ondragleave="leaveDragSjab(event)" ondrop="dropSjab(event, ${idx})">
+            <div class="sjabloon-rij" draggable="true" ondragstart="window.startDragSjab(${idx})" ondragover="window.overDragSjab(event)" ondragleave="window.leaveDragSjab(event)" ondrop="window.dropSjab(event, ${idx})">
                 <span style="cursor:grab; color:#bdc3c7;">${dragIcon}</span>
                 <span style="font-weight:bold; color:#7f8c8d; min-width:25px;">${idx+1}.</span>
                 <input type="text" value="${punt}" onchange="window.tempSjabloon[${idx}] = this.value" style="flex:1; padding:8px; border:1px solid #bdc3c7; border-radius:4px; font-family:inherit; background:transparent; color:inherit;">
@@ -396,11 +405,11 @@ window.tekenSjabloonLijst = function() {
             </div>`;
     });
 }
-window.voegSjabloonPuntToe = function() { window.tempSjabloon.push('Nieuw agendapunt...'); tekenSjabloonLijst(); };
+window.voegSjabloonPuntToe = function() { window.tempSjabloon.push('Nieuw agendapunt...'); window.tekenSjabloonLijst(); };
 window.slaSjabloonOp = function() {
-    window.standaardSjabloon = window.tempSjabloon.filter(x => x.trim() !== '');
-    localStorage.setItem('blackshots_bestuur_sjabloon', JSON.stringify(window.standaardSjabloon));
-    sluitSjabloonInstellingen();
+    window.bestuurSjablonen["Bestuur"] = window.tempSjabloon.filter(x => x.trim() !== '');
+    window.slaDataOp('blackshots_bestuur_sjablonen', window.bestuurSjablonen);
+    window.sluitSjabloonInstellingen();
     alert("✅ Sjabloon succesvol bijgewerkt!");
 };
 
@@ -469,17 +478,6 @@ window.genereerDocument = function(soort) {
 
     let printTab = window.open('', '_blank'); printTab.document.write(htmlDoc); printTab.document.close();
     setTimeout(() => { printTab.print(); }, 500);
-};
-
-window.toggleVergaderingLock = function() {
-    let v = window.bestuurDB.find(x => x.id === window.actieveVergaderingId);
-    if (!v) return;
-    
-    v.vastgezet = !v.vastgezet;
-    slaOpEnHerlaad();
-    
-    // Herteken de pagina zodat invoervelden op disabled of enabled springen
-    window.openVergadering(v.id); 
 };
 
 setTimeout(window.tekenOverzicht, 200);
