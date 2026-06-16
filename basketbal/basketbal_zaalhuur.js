@@ -396,18 +396,31 @@ window.runZaalScanner = function() {
 
     // 2. Zoek naar ZAALTEKORTEN (Thuiswedstrijd of Training in de agenda, maar geen Zaalhuur)
     let tekorten = [];
+    
     let relevanteActiviteiten = window.activiteitenDB.filter(act => {
-        let isThuisWedstrijd = (act.type === 'Thuiswedstrijd' || act.type === 'Oefenwedstrijd (Thuis)' || act.type === 'Training');
-        let isInDeVeste = (!act.locatie || act.locatie.toLowerCase().includes('veste') || act.locatie.toLowerCase().includes('veka'));
-        return isThuisWedstrijd && isInDeVeste && act.datum >= huidigeDatum;
+        if (!act.type || !act.datum) return false;
+        
+        let typeStr = act.type.toLowerCase();
+        let locStr = (act.locatie || "").toLowerCase();
+        
+        // Zodra het een thuiswedstrijd is, of een training, rekenen we het als "Zaal Nodig!"
+        // Zelfs als je per ongeluk het locatie-vakje leeg had gelaten.
+        let isThuisWedstrijd = typeStr.includes('thuis') || typeStr.includes('training') || locStr.includes('veste') || locStr.includes('veka') || locStr.includes('wijstwijzer');
+        
+        // Let op: Toon alleen tekorten voor VANDAAG of in de TOEKOMST
+        return isThuisWedstrijd && act.datum >= huidigeDatum;
     });
 
     relevanteActiviteiten.forEach(act => {
         let heeftHuur = actieveHuur.some(z => {
             if (z.isoDatum !== act.datum) return false;
-            if (!act.tijd) return true;
+            // Als we wél zaalhuur hebben op die dag, maar je was bij de wedstrijd de Tijd vergeten in te vullen, rekenen we hem voor de zekerheid toch goed.
+            if (!act.tijd || !z.startTijd) return true; 
+            
             let actUur = parseInt(act.tijd.split(':')[0]);
             let huurUur = parseInt(z.startTijd.split(':')[0]);
+            
+            // Check of de zaalhuur binnen 2 uur van de wedstrijd start
             return Math.abs(actUur - huurUur) <= 2; 
         });
 
@@ -421,7 +434,7 @@ window.runZaalScanner = function() {
         let tekortHtml = '';
         tekorten.forEach(tekort => {
             tekortHtml += `<div class="scanner-card conflict-tekort">
-                <div class="scanner-card-header"><span style="color:#c0392b;">${tekort.type}</span> <span>${tekort.tijd || '?'}</span></div>
+                <div class="scanner-card-header"><span style="color:#c0392b;">${tekort.type}</span> <span>${tekort.tijd || 'Tijd onbekend'}</span></div>
                 <div style="font-size:0.9rem; font-weight:bold;">${tekort.titel}</div>
                 <div style="font-size:0.8rem; color:#7f8c8d; margin-top:5px;">Datum: ${tekort.datum}</div>
             </div>`;
