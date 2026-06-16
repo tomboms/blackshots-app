@@ -1,6 +1,5 @@
-// --- BASKETBAL_OEFENINGEN.JS: OEFENINGEN TOEVOEGEN & BEHEREN ---
-
 let editOefeningId = null;
+let filterAlleenFavorieten = false;
 
 // --- TACTIEKBORD LOGICA ---
 let canvas, ctx;
@@ -111,7 +110,7 @@ function tekenLijn(e) {
 function stopTekenen() { isTekenen = false; }
 
 
-// --- NORMALE OEFENINGEN LOGICA ---
+// --- FORMULIER & DATA LOGICA ---
 window.vulDynamischeFormulieren = function() {
     const doelContainer = document.getElementById('doelgroep-container');
     if(doelContainer) {
@@ -122,11 +121,6 @@ window.vulDynamischeFormulieren = function() {
     if(catContainer) {
         catContainer.innerHTML = '';
         window.categorieenDB.forEach(cat => { catContainer.innerHTML += `<label><input type="checkbox" class="cat-cb" value="${cat}"> ${cat}</label>`; });
-    }
-    const plannerFilter = document.getElementById('planner-cat-filter');
-    if(plannerFilter) {
-        plannerFilter.innerHTML = '<option value="">Alle Thema\'s</option>';
-        window.categorieenDB.forEach(cat => { plannerFilter.innerHTML += `<option value="${cat}">${cat}</option>`; });
     }
 };
 
@@ -141,7 +135,7 @@ window.voegWeekToe = function(bestaandeTekst = "", bestaandeTekening = "") {
     div.style.display = 'flex'; div.style.gap = '10px'; div.style.alignItems = 'flex-start';
     div.innerHTML = `
         <strong style="color:#d35400; padding-top:8px; min-width:60px;">Week <span class="week-nummer">${weekNummer}</span>:</strong>
-        <textarea class="prog-week-text" rows="2" style="flex:1; border-color:#f39c12; margin:0;" placeholder="Wat is de focus / uitleg voor deze week?">${bestaandeTekst}</textarea>
+        <textarea class="prog-week-text" rows="2" style="flex:1; border:1px solid #f39c12; border-radius:4px; margin:0;" placeholder="Wat is de focus / uitleg voor deze week?">${bestaandeTekst}</textarea>
         <button type="button" class="btn-teken-week" onclick="window.openTactiekModal(this)" data-tekening="${safeImg || ''}" style="${btnStyle} color:white; border:none; padding:8px; border-radius:4px; cursor:pointer;" title="Teken voor deze week">🖍️</button>
         <button type="button" onclick="this.parentElement.remove(); window.hernummerWeken();" style="background:#e74c3c; color:white; border:none; padding:8px 12px; border-radius:4px; cursor:pointer;">X</button>
     `;
@@ -153,20 +147,27 @@ window.hernummerWeken = function() {
     Array.from(container.children).forEach((div, index) => { div.querySelector('.week-nummer').innerText = index + 1; });
 };
 
-window.voegTeamVariatieToe = function(teamId = "", tekst = "", tekening = "") {
+// NIEUW: Meerdere teams kunnen selecteren voor een variatie
+window.voegTeamVariatieToe = function(geselecteerdeTeams = [], tekst = "", tekening = "") {
     const container = document.getElementById('team-variaties-container');
-    let teamOpties = window.teamsDB.map(t => `<option value="${t.id}" ${t.id === teamId ? 'selected' : ''}>${t.naam}</option>`).join('');
     const div = document.createElement('div');
     
+    let teamCheckboxesHtml = window.teamsDB.map(t => {
+        let isChecked = geselecteerdeTeams.includes(t.id) ? 'checked' : '';
+        return `<label style="white-space:nowrap; margin-right:10px; font-size:0.85rem;"><input type="checkbox" class="var-team-cb" value="${t.id}" ${isChecked}> ${t.naam}</label>`;
+    }).join('');
+
     let safeImg = safeImage(tekening);
     let btnStyle = safeImg ? 'background:#27ae60;' : 'background:#1abc9c;';
     
-    div.style.display = 'flex'; div.style.gap = '10px'; div.style.alignItems = 'flex-start'; div.style.width = '100%';
+    div.style.background = "white"; div.style.padding = "10px"; div.style.borderRadius = "4px"; div.style.border = "1px dashed #1abc9c";
     div.innerHTML = `
-        <select class="var-team-select" style="width:150px; padding:8px; border:1px solid #1abc9c; border-radius:4px; margin:0;"><option value="">-- Kies Team --</option>${teamOpties}</select>
-        <textarea class="var-team-text" rows="2" style="flex:1; width:100%; min-width:150px; padding:8px; border:1px solid #1abc9c; border-radius:4px; margin:0;" placeholder="Specifieke regel voor dit team...">${tekst}</textarea>
-        <button type="button" class="btn-teken-team" onclick="window.openTactiekModal(this)" data-tekening="${safeImg || ''}" style="${btnStyle} color:white; border:none; padding:8px; border-radius:4px; cursor:pointer;" title="Teken voor dit team">🖍️</button>
-        <button type="button" onclick="this.parentElement.remove();" style="background:#e74c3c; color:white; border:none; padding:8px 12px; border-radius:4px; cursor:pointer;">X</button>
+        <div style="margin-bottom:8px;"><strong>Vink de teams aan:</strong><br><div style="display:flex; flex-wrap:wrap; background:#f9f9f9; padding:5px; border-radius:4px; border:1px solid #eee;">${teamCheckboxesHtml}</div></div>
+        <div style="display:flex; gap:10px; align-items:flex-start;">
+            <textarea class="var-team-text" rows="2" style="flex:1; border:1px solid #1abc9c; border-radius:4px; margin:0;" placeholder="Specifieke regel/aandachtspunt voor deze teams...">${tekst}</textarea>
+            <button type="button" class="btn-teken-team" onclick="window.openTactiekModal(this)" data-tekening="${safeImg || ''}" style="${btnStyle} color:white; border:none; padding:8px; border-radius:4px; cursor:pointer;" title="Teken voor deze teams">🖍️</button>
+            <button type="button" onclick="this.parentElement.parentElement.remove();" style="background:#e74c3c; color:white; border:none; padding:8px 12px; border-radius:4px; cursor:pointer;">X</button>
+        </div>
     `;
     container.appendChild(div);
 };
@@ -176,7 +177,9 @@ window.slaOefeningOp = function() {
     const duur = parseInt(document.getElementById('oef-duur').value);
     const aantalSpelers = document.getElementById('oef-spelers').value.trim(); 
     const spullen = document.getElementById('oef-spullen').value.trim();
+    const video = document.getElementById('oef-video').value.trim();
     const uitleg = document.getElementById('oef-uitleg').value.trim();
+    const aandacht = document.getElementById('oef-aandacht').value.trim();
     const makkelijker = document.getElementById('oef-makkelijker').value.trim();
     const moeilijker = document.getElementById('oef-moeilijker').value.trim();
 
@@ -192,20 +195,30 @@ window.slaOefeningOp = function() {
         if (txt || img) progressie.push({ tekst: txt, tekening: img }); 
     });
 
-    let teamVariaties = {};
+    // Uitlezen van de meervoudige team variaties
+    let teamVariaties = [];
     Array.from(document.getElementById('team-variaties-container').children).forEach(rij => {
-        let tId = rij.querySelector('.var-team-select').value; 
+        let geselecteerdeTeams = [];
+        rij.querySelectorAll('.var-team-cb:checked').forEach(cb => geselecteerdeTeams.push(cb.value));
         let txt = rij.querySelector('.var-team-text').value.trim();
         let img = safeImage(rij.querySelector('.btn-teken-team').dataset.tekening);
-        if (tId && (txt || img)) teamVariaties[tId] = { tekst: txt, tekening: img };
+        if (geselecteerdeTeams.length > 0 && (txt || img)) {
+            teamVariaties.push({ teams: geselecteerdeTeams, tekst: txt, tekening: img });
+        }
     });
 
     let doelgroepen = []; document.querySelectorAll('.doel-cb:checked').forEach(cb => doelgroepen.push(cb.value));
     let categorieen = []; document.querySelectorAll('.cat-cb:checked').forEach(cb => categorieen.push(cb.value));
 
+    // Bestaande favoriet status behouden
+    let bestaandeOef = editOefeningId ? window.oefeningenDB.find(o => o.id === editOefeningId) : null;
+    let isFav = bestaandeOef ? bestaandeOef.isFavoriet : false;
+
     const oefeningData = {
-        id: editOefeningId || 'oef_' + Date.now(),
-        naam, duur, aantalSpelers, spullen, uitleg, makkelijker, moeilijker, 
+        id: editOefeningId || 'oef_' + Date.now() + Math.floor(Math.random() * 1000),
+        isFavoriet: isFav,
+        naam, duur, aantalSpelers, spullen, videoLink: video, 
+        uitleg, aandachtspunten: aandacht, makkelijker, moeilijker, 
         progressie, teamVariaties, doelgroepen, categorieen,
         tekening: tekeningBasis 
     };
@@ -214,127 +227,217 @@ window.slaOefeningOp = function() {
     else window.oefeningenDB.push(oefeningData);
 
     localStorage.setItem('blackshots_oefeningen', JSON.stringify(window.oefeningenDB));
-    const countEl = document.getElementById('dash-oef-count'); if(countEl) countEl.innerText = window.oefeningenDB.length;
-
     window.resetOefeningFormulier();
     window.renderOefeningenLijst();
 };
+
+window.toggleFavorietenFilter = function() {
+    filterAlleenFavorieten = !filterAlleenFavorieten;
+    let btn = document.getElementById('btn-filter-fav');
+    if (filterAlleenFavorieten) {
+        btn.style.background = '#f1c40f'; btn.style.color = 'white'; btn.innerText = "⭐ Favorieten (AAN)";
+    } else {
+        btn.style.background = 'white'; btn.style.color = '#f1c40f'; btn.innerText = "⭐ Toon Favorieten";
+    }
+    window.renderOefeningenLijst();
+};
+
+window.toggleFavoriet = function(id) {
+    let oef = window.oefeningenDB.find(o => o.id === id);
+    if(oef) {
+        oef.isFavoriet = !oef.isFavoriet;
+        localStorage.setItem('blackshots_oefeningen', JSON.stringify(window.oefeningenDB));
+        window.renderOefeningenLijst();
+    }
+};
+
 window.renderOefeningenLijst = function() {
-    const lijst = document.getElementById('oefeningen-lijst');
+    const grid = document.getElementById('oefeningen-grid');
     const zoekterm = document.getElementById('zoek-oefening') ? document.getElementById('zoek-oefening').value.toLowerCase().trim() : "";
-    if(!lijst) return; lijst.innerHTML = '';
+    if(!grid) return; grid.innerHTML = '';
+
+    const countEl = document.getElementById('dash-oef-count'); 
+    if(countEl) countEl.innerText = window.oefeningenDB.length;
 
     let gefilterd = window.oefeningenDB.filter(o => {
+        if (filterAlleenFavorieten && !o.isFavoriet) return false;
         let catText = o.categorieen ? o.categorieen.join(' ').toLowerCase() : '';
         return (!zoekterm) || o.naam.toLowerCase().includes(zoekterm) || catText.includes(zoekterm);
     });
 
-    if(gefilterd.length === 0) { lijst.innerHTML = '<p style="color:#7f8c8d; font-style:italic;">Geen oefeningen gevonden...</p>'; return; }
+    if(gefilterd.length === 0) { grid.innerHTML = '<p style="color:#7f8c8d; font-style:italic; grid-column: 1 / -1;">Geen oefeningen gevonden...</p>'; return; }
 
-    gefilterd.sort((a,b) => a.naam.localeCompare(b.naam)).forEach((oef, idx) => {
-        let catTags = ''; if(oef.categorieen) oef.categorieen.forEach(c => catTags += `<span style="background:#3498db; color:white; font-size:0.75rem; padding:2px 6px; border-radius:4px; margin-right:5px;">${c}</span>`);
+    gefilterd.sort((a,b) => a.naam.localeCompare(b.naam)).forEach((oef) => {
+        let catTags = ''; if(oef.categorieen) oef.categorieen.forEach(c => catTags += `<span style="background:#3498db; color:white; font-size:0.75rem; padding:2px 6px; border-radius:4px; margin-right:5px; margin-bottom:5px; display:inline-block;">${c}</span>`);
         
-        let li = document.createElement('li');
-        li.style.cssText = "background:var(--card-bg); border:1px solid var(--border-color); padding:15px; border-radius:8px; margin-bottom:10px;";
+        let favIcoon = oef.isFavoriet ? '⭐' : '☆';
         
-        li.innerHTML = `
-            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                <div style="flex:1;">
-                    <strong style="font-size:1.2rem; display:block; margin-bottom:5px;">${oef.naam}</strong>
-                    <div style="margin-bottom:8px;">${catTags}</div>
-                    <div style="color:#7f8c8d; font-size:0.9rem;">⏱ ${oef.duur} min | 👥 ${oef.aantalSpelers || 'Alle'}</div>
-                </div>
-                <div style="display:flex; gap:5px;">
-                    <button onclick="window.openOefeningPopup('${oef.id}')" style="background:#3498db; color:white; border:none; padding:8px 12px; border-radius:4px; cursor:pointer;">👁️ Bekijk</button>
-                    <button onclick="window.bewerkOefening('${oef.id}')" style="background:#f39c12; color:white; border:none; padding:8px 12px; border-radius:4px; cursor:pointer;">✏️</button>
-                    <button onclick="window.exporteerOefening('${oef.id}')" style="background:#9b59b6; color:white; border:none; padding:8px 12px; border-radius:4px; cursor:pointer;">💾</button>
-                </div>
+        let div = document.createElement('div');
+        div.style.cssText = "background:white; border:1px solid var(--border-color); border-radius:8px; overflow:hidden; display:flex; flex-direction:column; box-shadow:0 2px 4px rgba(0,0,0,0.05);";
+        
+        div.innerHTML = `
+            <div style="background:#f8f9fa; padding:15px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:flex-start;">
+                <h3 style="margin:0; font-size:1.1rem; color:var(--secondary-color);">${oef.naam}</h3>
+                <button onclick="window.toggleFavoriet('${oef.id}')" style="background:none; border:none; cursor:pointer; font-size:1.2rem;" title="Maak favoriet">${favIcoon}</button>
+            </div>
+            <div style="padding:15px; flex:1;">
+                <div style="margin-bottom:10px;">${catTags}</div>
+                <div style="color:#7f8c8d; font-size:0.9rem; margin-bottom:10px;">⏱ ${oef.duur} min | 👥 ${oef.aantalSpelers || 'Alle'}</div>
+            </div>
+            <div style="padding:10px 15px; background:#fcfcfc; border-top:1px solid #eee; display:flex; gap:5px; flex-wrap:wrap;">
+                <button onclick="window.openOefeningPopup('${oef.id}')" style="flex:2; background:#3498db; color:white; border:none; padding:8px; border-radius:4px; cursor:pointer; font-weight:bold;">👁️ Bekijk</button>
+                <button onclick="window.bewerkOefening('${oef.id}')" style="flex:1; background:#f39c12; color:white; border:none; padding:8px; border-radius:4px; cursor:pointer;" title="Bewerken">✏️</button>
+                <button onclick="window.dupliceerOefening('${oef.id}')" style="flex:1; background:#2c3e50; color:white; border:none; padding:8px; border-radius:4px; cursor:pointer;" title="Kopieer oefening">📄</button>
+                <button onclick="window.printOefening('${oef.id}')" style="flex:1; background:#95a5a6; color:white; border:none; padding:8px; border-radius:4px; cursor:pointer;" title="Print naar PDF">🖨️</button>
+                <button onclick="window.verwijderOefening('${oef.id}')" style="background:#e74c3c; color:white; border:none; padding:8px 12px; border-radius:4px; cursor:pointer;" title="Verwijder">X</button>
             </div>
         `;
-        lijst.appendChild(li);
+        grid.appendChild(div);
     });
+};
+
+// --- NIEUW: DUPLICEER OEFENING ---
+window.dupliceerOefening = function(id) {
+    let bronOef = window.oefeningenDB.find(o => o.id === id);
+    if(!bronOef) return;
+    
+    // Maak een diepe kopie
+    let nieuweOef = JSON.parse(JSON.stringify(bronOef));
+    nieuweOef.id = 'oef_' + Date.now() + Math.floor(Math.random() * 1000);
+    nieuweOef.naam = bronOef.naam + " (Kopie)";
+    nieuweOef.isFavoriet = false;
+
+    window.oefeningenDB.push(nieuweOef);
+    localStorage.setItem('blackshots_oefeningen', JSON.stringify(window.oefeningenDB));
+    window.renderOefeningenLijst();
+    
+    // Open hem direct in bewerk-modus
+    window.bewerkOefening(nieuweOef.id);
+};
+
+// --- NIEUW: PRINT NAAR PDF ---
+window.printOefening = function(id) {
+    let oef = window.oefeningenDB.find(o => o.id === id);
+    if(!oef) return;
+
+    let imgHtml = oef.tekening ? `<img src="${oef.tekening}" style="max-width:100%; border:2px solid #333; border-radius:8px; margin-top:20px;">` : '';
+    let aandachtHtml = oef.aandachtspunten ? `<h3>💡 Aandachtspunten</h3><p style="white-space:pre-wrap;">${oef.aandachtspunten}</p>` : '';
+    let makHtml = oef.makkelijker ? `<div style="padding:10px; border-left:4px solid #27ae60; background:#f0fbf4; margin-bottom:10px;"><strong>🟢 Makkelijker:</strong> ${oef.makkelijker}</div>` : '';
+    let moeiHtml = oef.moeilijker ? `<div style="padding:10px; border-left:4px solid #e74c3c; background:#fdedec;"><strong>🔴 Moeilijker:</strong> ${oef.moeilijker}</div>` : '';
+
+    let printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+        <html>
+        <head>
+            <title>${oef.naam} - Black Shots</title>
+            <style>
+                body { font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; color: #333; line-height: 1.5; }
+                h1 { color: #2c3e50; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+                h3 { color: #2980b9; margin-top: 20px; }
+                .meta { color: #7f8c8d; font-weight: bold; margin-bottom: 20px; }
+            </style>
+        </head>
+        <body>
+            <h1>🏀 ${oef.naam}</h1>
+            <div class="meta">⏱ ${oef.duur} min | 👥 ${oef.aantalSpelers || 'Alle spelers'} | 🎒 Spullen: ${oef.spullen || '-'}</div>
+            
+            <div style="display:flex; gap:20px; align-items:flex-start;">
+                <div style="flex:1;">
+                    <h3>📝 Uitleg</h3>
+                    <p style="white-space:pre-wrap;">${oef.uitleg || 'Geen uitleg opgegeven.'}</p>
+                    ${aandachtHtml}
+                    ${makHtml}
+                    ${moeiHtml}
+                </div>
+                <div style="flex:1; text-align:center;">
+                    ${imgHtml}
+                </div>
+            </div>
+            <script>
+                window.onload = function() { window.print(); }
+            </script>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
 };
 
 window.openOefeningPopup = function(id) {
     let oef = window.oefeningenDB.find(o => o.id === id);
     if(!oef) return;
 
-    // We bouwen de modal nu inclusief de 'pijltjes' logica
     let modal = document.createElement('div');
     modal.className = 'modal-overlay';
     modal.style.display = 'flex';
     
-    // We slaan de huidige week op in een variabele die we in de pop-up bijhouden
     let huidigeWeekIndex = 0;
 
     function renderModalInhoud() {
         let isLeerlijn = oef.progressie && oef.progressie.length > 0;
         let weekData = isLeerlijn ? (typeof oef.progressie[huidigeWeekIndex] === 'string' ? oef.progressie[huidigeWeekIndex] : oef.progressie[huidigeWeekIndex].tekst) : "Geen leerlijn beschikbaar.";
         let weekImg = isLeerlijn ? (typeof oef.progressie[huidigeWeekIndex] === 'object' ? oef.progressie[huidigeWeekIndex].tekening : null) : null;
-        
-        // Kies de juiste afbeelding: week-plaatje of anders basis-plaatje
         let finalImg = weekImg || oef.tekening;
 
-        modal.innerHTML = `
-            <div class="modal-content" style="max-width:600px; width:95%; padding:20px; background:white; border-radius:8px; position:relative;">
-                <button onclick="this.parentElement.parentElement.remove()" style="position:absolute; top:10px; right:10px; border:none; background:none; cursor:pointer; font-size:1.2rem;">X</button>
-                <h2>${oef.naam}</h2>
-                <p><strong>Uitleg:</strong> ${oef.uitleg}</p>
-                
-                <div style="display:flex; gap:10px; margin:15px 0;">
-                    <div style="flex:1; background:#e8f8f5; padding:10px; border-radius:4px;"><strong>Makkelijker:</strong><br>${oef.makkelijker || '-'}</div>
-                    <div style="flex:1; background:#fdedec; padding:10px; border-radius:4px;"><strong>Moeilijker:</strong><br>${oef.moeilijker || '-'}</div>
-                </div>
+        // Video knop
+        let videoBtn = oef.videoLink ? `<a href="${oef.videoLink}" target="_blank" style="display:inline-block; background:#e74c3c; color:white; padding:8px 12px; border-radius:4px; text-decoration:none; font-weight:bold; margin-bottom:15px;">▶️ Bekijk Video</a>` : '';
 
-                ${isLeerlijn ? `
-                    <div style="background:#fdf2e9; padding:15px; border-radius:4px; margin-top:15px;">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                            <button onclick="changeWeek(-1)" ${huidigeWeekIndex === 0 ? 'disabled' : ''}>◀ Vorige</button>
-                            <strong>Week ${huidigeWeekIndex + 1} / ${oef.progressie.length}</strong>
-                            <button onclick="changeWeek(1)" ${huidigeWeekIndex === oef.progressie.length - 1 ? 'disabled' : ''}>Volgende ▶</button>
-                        </div>
-                        <p>${weekData}</p>
-                        ${finalImg ? `<div style="text-align:center;"><img src="${finalImg}" style="max-width:100%; border-radius:4px; margin-top:10px;"></div>` : ''}
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width:800px; width:95%; padding:0; background:white; border-radius:8px; overflow:hidden; display:flex; flex-direction:column; max-height:90vh;">
+                <div style="background:#2c3e50; color:white; padding:15px 20px; display:flex; justify-content:space-between; align-items:center;">
+                    <h2 style="margin:0; font-size:1.4rem;">${oef.naam}</h2>
+                    <div>
+                        <button onclick="window.printOefening('${oef.id}')" style="background:#ecf0f1; color:#2c3e50; border:none; padding:6px 12px; border-radius:4px; font-weight:bold; cursor:pointer; margin-right:10px;">🖨️ Print</button>
+                        <button onclick="this.closest('.modal-overlay').remove()" style="background:none; border:none; color:white; font-size:1.5rem; cursor:pointer;">&times;</button>
                     </div>
-                ` : ''}
+                </div>
+                
+                <div style="padding:20px; overflow-y:auto; flex:1;">
+                    <div style="color:#7f8c8d; font-weight:bold; margin-bottom:15px; font-size:0.9rem;">⏱ ${oef.duur} min | 👥 ${oef.aantalSpelers || 'Alle'} | 🎒 ${oef.spullen || 'Geen extra spullen'}</div>
+                    ${videoBtn}
+                    
+                    <div style="display:grid; grid-template-columns: ${finalImg ? '1fr 1fr' : '1fr'}; gap:20px;">
+                        <div>
+                            <h4 style="margin-top:0; color:#2980b9;">📝 Uitleg</h4>
+                            <p style="white-space:pre-wrap; margin-bottom:15px;">${oef.uitleg || '-'}</p>
+                            
+                            ${oef.aandachtspunten ? `<h4 style="margin-top:0; color:#d35400;">💡 Aandachtspunten</h4><p style="white-space:pre-wrap; margin-bottom:15px;">${oef.aandachtspunten}</p>` : ''}
+                            
+                            <div style="display:flex; flex-direction:column; gap:10px;">
+                                ${oef.makkelijker ? `<div style="background:#f0fbf4; border-left:4px solid #27ae60; padding:10px; border-radius:4px;"><strong>🟢 Makkelijker:</strong><br>${oef.makkelijker}</div>` : ''}
+                                ${oef.moeilijker ? `<div style="background:#fdf2e9; border-left:4px solid #e67e22; padding:10px; border-radius:4px;"><strong>🔴 Moeilijker:</strong><br>${oef.moeilijker}</div>` : ''}
+                            </div>
+                        </div>
+                        
+                        ${finalImg ? `
+                        <div style="display:flex; justify-content:center; align-items:flex-start;">
+                            <img src="${finalImg}" style="max-width:100%; border-radius:8px; border:2px solid #bdc3c7;">
+                        </div>` : ''}
+                    </div>
+
+                    ${isLeerlijn ? `
+                        <div style="background:#fdf2e9; padding:15px; border-radius:6px; margin-top:20px; border:1px solid #f39c12;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                                <button onclick="window.changeWeek(-1)" ${huidigeWeekIndex === 0 ? 'disabled' : ''} style="padding:6px 12px; cursor:pointer;">◀ Vorige</button>
+                                <strong>Week ${huidigeWeekIndex + 1} van ${oef.progressie.length}</strong>
+                                <button onclick="window.changeWeek(1)" ${huidigeWeekIndex === oef.progressie.length - 1 ? 'disabled' : ''} style="padding:6px 12px; cursor:pointer;">Volgende ▶</button>
+                            </div>
+                            <p style="white-space:pre-wrap;">${weekData}</p>
+                        </div>
+                    ` : ''}
+                </div>
             </div>
         `;
     }
 
-    // Helper functie om te wisselen
-    window.changeWeek = function(richting) {
-        huidigeWeekIndex += richting;
-        renderModalInhoud();
-    };
-
+    window.changeWeek = function(richting) { huidigeWeekIndex += richting; renderModalInhoud(); };
     renderModalInhoud();
     document.body.appendChild(modal);
-};
-
-window.toonWeekInfo = function(index, oefNaam, richting) {
-    let oef = window.oefeningenDB.find(o => o.naam === oefNaam);
-    let container = document.getElementById(`tijdlijn-info-${index}`);
-    
-    // We slaan de huidige week op in een data-attribuut
-    let huidigeWeek = parseInt(container.dataset.week) || 0;
-    let nieuweWeek = huidigeWeek + richting;
-    
-    // Check grenzen
-    if(nieuweWeek < 0) nieuweWeek = 0;
-    if(nieuweWeek >= oef.progressie.length) nieuweWeek = oef.progressie.length - 1;
-    
-    container.dataset.week = nieuweWeek;
-    
-    // Update de tekst in het blokje
-    container.querySelector('.week-tekst').innerText = oef.progressie[nieuweWeek];
-    container.querySelector('.week-titel').innerText = `Week ${nieuweWeek + 1}`;
 };
 
 window.verwijderOefening = function(id) {
     if(confirm("Weet je zeker dat je deze oefening wilt verwijderen?")) {
         window.oefeningenDB = window.oefeningenDB.filter(o => o.id !== id);
         localStorage.setItem('blackshots_oefeningen', JSON.stringify(window.oefeningenDB));
-        const countEl = document.getElementById('dash-oef-count'); if(countEl) countEl.innerText = window.oefeningenDB.length;
         window.renderOefeningenLijst();
     }
 };
@@ -344,15 +447,18 @@ window.bewerkOefening = function(id) {
     if(!oef) return;
 
     editOefeningId = oef.id;
-    document.getElementById('form-titel').innerText = "Oefening Bewerken";
-    document.getElementById('opslaan-btn').innerText = "Wijzigingen Opslaan";
+    document.getElementById('form-titel').innerText = "✏️ Oefening Bewerken";
+    document.getElementById('opslaan-btn').innerText = "💾 Wijzigingen Opslaan";
+    document.getElementById('opslaan-btn').style.background = "#f39c12";
     document.getElementById('annuleer-btn').style.display = "block";
 
-    document.getElementById('oef-naam').value = oef.naam;
-    document.getElementById('oef-duur').value = oef.duur;
+    document.getElementById('oef-naam').value = oef.naam || '';
+    document.getElementById('oef-duur').value = oef.duur || '';
     document.getElementById('oef-spelers').value = oef.aantalSpelers || '';
     document.getElementById('oef-spullen').value = oef.spullen || '';
+    document.getElementById('oef-video').value = oef.videoLink || '';
     document.getElementById('oef-uitleg').value = oef.uitleg || '';
+    document.getElementById('oef-aandacht').value = oef.aandachtspunten || '';
     document.getElementById('oef-makkelijker').value = oef.makkelijker || '';
     document.getElementById('oef-moeilijker').value = oef.moeilijker || '';
 
@@ -370,14 +476,19 @@ window.bewerkOefening = function(id) {
         });
     }
 
+    // Ondersteuning voor zowel de oude als de nieuwe manier van team variaties opslaan
     document.getElementById('team-variaties-container').innerHTML = '';
     if (oef.teamVariaties) {
-        Object.keys(oef.teamVariaties).forEach(tId => {
-            let varData = oef.teamVariaties[tId];
-            let txt = typeof varData === 'string' ? varData : varData.tekst;
-            let img = typeof varData === 'object' ? varData.tekening : '';
-            window.voegTeamVariatieToe(tId, txt, img);
-        });
+        if (Array.isArray(oef.teamVariaties)) {
+            oef.teamVariaties.forEach(varData => window.voegTeamVariatieToe(varData.teams || [], varData.tekst || "", varData.tekening || ""));
+        } else {
+            Object.keys(oef.teamVariaties).forEach(tId => {
+                let varData = oef.teamVariaties[tId];
+                let txt = typeof varData === 'string' ? varData : varData.tekst;
+                let img = typeof varData === 'object' ? varData.tekening : '';
+                window.voegTeamVariatieToe([tId], txt, img);
+            });
+        }
     }
 
     window.vulDynamischeFormulieren();
@@ -389,13 +500,15 @@ window.bewerkOefening = function(id) {
 
 window.resetOefeningFormulier = function() {
     editOefeningId = null;
-    document.getElementById('form-titel').innerText = "Nieuwe Oefening Toevoegen";
-    document.getElementById('opslaan-btn').innerText = "Oefening Opslaan";
+    document.getElementById('form-titel').innerText = "✨ Nieuwe Oefening Toevoegen";
+    document.getElementById('opslaan-btn').innerText = "💾 Oefening Opslaan in Bibliotheek";
+    document.getElementById('opslaan-btn').style.background = "#27ae60";
     document.getElementById('annuleer-btn').style.display = "none";
 
     document.getElementById('oef-naam').value = ''; document.getElementById('oef-duur').value = '';
     document.getElementById('oef-spelers').value = ''; document.getElementById('oef-spullen').value = '';
-    document.getElementById('oef-uitleg').value = ''; document.getElementById('oef-makkelijker').value = '';
+    document.getElementById('oef-video').value = ''; document.getElementById('oef-uitleg').value = '';
+    document.getElementById('oef-aandacht').value = ''; document.getElementById('oef-makkelijker').value = '';
     document.getElementById('oef-moeilijker').value = ''; 
     
     let basisBtn = document.getElementById('btn-teken-basis');
@@ -405,23 +518,6 @@ window.resetOefeningFormulier = function() {
     document.querySelectorAll('.doel-cb').forEach(cb => cb.checked = false); document.querySelectorAll('.cat-cb').forEach(cb => cb.checked = false);
 };
 
-// --- NIEUW: EXPORTEER 1 OEFENING ---
-window.exporteerOefening = function(id) {
-    const oef = window.oefeningenDB.find(o => o.id === id);
-    if(!oef) return;
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify([oef], null, 2));
-    const downloadAnchorNode = document.createElement('a');
-    downloadAnchorNode.setAttribute("href", dataStr);
-    
-    let veiligeNaam = oef.naam.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-    downloadAnchorNode.setAttribute("download", `oefening_${veiligeNaam}.json`);
-    
-    document.body.appendChild(downloadAnchorNode);
-    downloadAnchorNode.click();
-    downloadAnchorNode.remove();
-};
-
-// --- NIEUW: IMPORTEER 1 OF MEERDERE OEFENINGEN ---
 window.importeerOefening = function(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -429,33 +525,21 @@ window.importeerOefening = function(event) {
     reader.onload = (e) => {
         try {
             const data = JSON.parse(e.target.result);
-            // Check of het een array is (1 of meerdere oefeningen) of 1 los object
             let nieuweOefeningen = Array.isArray(data) ? data : [data];
-            
             let toegevoegd = 0;
             nieuweOefeningen.forEach(nieuweOef => {
                 if (nieuweOef.naam && nieuweOef.duur) {
-                    // Maak altijd een nieuw ID aan zodat we niets per ongeluk overschrijven
                     nieuweOef.id = 'oef_' + Date.now() + Math.floor(Math.random() * 1000);
                     window.oefeningenDB.push(nieuweOef);
                     toegevoegd++;
                 }
             });
-
             if (toegevoegd > 0) {
                 localStorage.setItem('blackshots_oefeningen', JSON.stringify(window.oefeningenDB));
-                const countEl = document.getElementById('dash-oef-count');
-                if(countEl) countEl.innerText = window.oefeningenDB.length;
                 window.renderOefeningenLijst();
                 alert(`🏀 Succes! ${toegevoegd} oefening(en) toegevoegd aan je bibliotheek.`);
-            } else {
-                alert("Dit bestand bevat geen geldige oefening(en).");
-            }
-        } catch (err) {
-            alert("Fout bij het inlezen van bestand.");
-            console.error(err);
-        }
-        // Reset de file input zodat je hetzelfde bestand nog een keer zou kunnen inladen
+            } else { alert("Dit bestand bevat geen geldige oefening(en)."); }
+        } catch (err) { alert("Fout bij het inlezen van bestand."); console.error(err); }
         event.target.value = '';
     };
     reader.readAsText(file);
