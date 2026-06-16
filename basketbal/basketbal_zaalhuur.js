@@ -13,9 +13,9 @@ window.ontvangCloudDataZaalhuur = function(sleutel, data) {
 };
 
 window.zaalhuurData = JSON.parse(localStorage.getItem('blackshots_zaalhuur_data')) || [];
-// Haal ook de Jaarplanning en Teams op voor de Scanner
 window.activiteitenDB = JSON.parse(localStorage.getItem('blackshots_activiteiten')) || [];
-window.teamsDB = JSON.parse(localStorage.getItem('blackshots_teams')) || [];
+// NIEUW: Laad de specifieke trainingen in!
+window.geplandeTrainingen = JSON.parse(localStorage.getItem('blackshots_trainingen')) || {};
 
 document.addEventListener('DOMContentLoaded', () => {
     if (window.zaalhuurData.length > 0) {
@@ -324,36 +324,25 @@ window.runZaalScanner = function() {
         // 1. Check in de eenmalige Jaarplanning (Wedstrijden etc.)
         let heeftActiviteit = window.activiteitenDB.some(act => {
             if (act.datum !== huur.isoDatum) return false;
-            if (!act.tijd) return true; // Geen tijd = hele dag
+            if (!act.tijd) return true; 
             let actUur = parseInt(act.tijd.split(':')[0]);
             let huurUur = parseInt(huur.startTijd.split(':')[0]);
-            return Math.abs(actUur - huurUur) <= 2; // Binnen 2 uur = ok
+            return Math.abs(actUur - huurUur) <= 2; 
         });
 
-        // 2. NIEUW: Check in het vaste Trainingsschema (Teams)
+        // 2. CHECK SPECIFIEKE TRAININGSDAG (Waterdicht via jouw Firebase structuur)
         let heeftTraining = false;
         if (!heeftActiviteit) {
-            let d = new Date(huur.isoDatum);
-            let dagen = ['zondag', 'maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag'];
-            let dagNaam = dagen[d.getDay()]; // Bijv. 'dinsdag'
-
-            heeftTraining = window.teamsDB.some(team => {
-                if (team.trainingen && Array.isArray(team.trainingen)) {
-                    return team.trainingen.some(tr => {
-                        if (!tr.dag || !tr.startTijd) return false;
-                        if (tr.dag.toLowerCase() !== dagNaam) return false;
-                        
-                        // Check of de tijden overlappen (max 1.5 uur speling)
-                        let trUur = parseInt(tr.startTijd.split(':')[0]);
-                        let huurUur = parseInt(huur.startTijd.split(':')[0]);
-                        return Math.abs(trUur - huurUur) <= 1.5; 
-                    });
-                }
-                return false;
-            });
+            // huur.isoDatum is bijv. '2026-06-01'. 
+            // We checken of er een sleutel bestaat in je database die begint met '2026-06-01_'
+            let datumPrefix = huur.isoDatum + "_";
+            
+            // Loop door alle sleutels (bijv. '2026-06-01_m16', '2026-06-02_recreanten')
+            let trainingSleutels = Object.keys(window.geplandeTrainingen);
+            heeftTraining = trainingSleutels.some(key => key.startsWith(datumPrefix));
         }
 
-        // Als er géén eenmalige activiteit EN géén wekelijkse training is, is het een lek
+        // Als er géén eenmalige activiteit EN géén specifieke training voor deze datum is -> Lek!
         if (!heeftActiviteit && !heeftTraining) {
             lekken.push(huur);
         }
