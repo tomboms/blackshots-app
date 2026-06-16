@@ -175,7 +175,6 @@ window.slaOefeningOp = function() {
     const naam = document.getElementById('oef-naam').value.trim();
     const duur = parseInt(document.getElementById('oef-duur').value);
     
-    // De twee nieuwe velden ophalen
     const minSpelers = parseInt(document.getElementById('oef-min-spelers').value); 
     const groepering = document.getElementById('oef-groepering').value.trim();
     
@@ -219,7 +218,7 @@ window.slaOefeningOp = function() {
         id: editOefeningId || 'oef_' + Date.now() + Math.floor(Math.random() * 1000),
         isFavoriet: isFav,
         naam, duur, 
-        minSpelers: isNaN(minSpelers) ? 1 : minSpelers, // Fallback naar 1 speler
+        minSpelers: isNaN(minSpelers) ? 1 : minSpelers,
         groepering, 
         spullen, videoLink: video, 
         uitleg, aandachtspunten: aandacht, makkelijker, moeilijker, 
@@ -256,21 +255,21 @@ window.toggleFavoriet = function(id) {
 };
 
 window.renderOefeningenLijst = function() {
-    // ---- DE AUTO-FIXER (Repareert oude oefeningen) ----
+    // ---- DE AUTO-FIXER (Repareert oude oefeningen tijdelijk in het geheugen) ----
     window.oefeningenDB.forEach(o => {
+        if (!o.id) o.id = 'oef_' + Date.now() + Math.floor(Math.random() * 10000);
         if (!o.naam) o.naam = "Naamloze Oefening";
         if (!Array.isArray(o.categorieen)) o.categorieen = [];
         
-        // Converteer oude "Aantal Spelers" text naar de twee nieuwe velden
         if (o.aantalSpelers && o.minSpelers === undefined) {
-            o.groepering = o.aantalSpelers; // Zet de oude tekst over naar groepering
+            o.groepering = o.aantalSpelers; 
             let match = String(o.aantalSpelers).match(/\d+/);
             o.minSpelers = match ? parseInt(match[0]) : 1;
         }
         if (o.minSpelers === undefined || o.minSpelers === null) o.minSpelers = 1;
         if (o.isFavoriet === undefined) o.isFavoriet = false;
     });
-    // ---------------------------------------------------
+    // -----------------------------------------------------------------------------
 
     const grid = document.getElementById('oefeningen-grid');
     const zoekterm = document.getElementById('zoek-oefening') ? document.getElementById('zoek-oefening').value.toLowerCase().trim() : "";
@@ -558,4 +557,13 @@ window.importeerOefening = function(event) {
         event.target.value = '';
     };
     reader.readAsText(file);
+};
+
+// --- NIEUWE FUNCTIE: Sla alles handmatig op ---
+window.syncAlleOefeningen = function() {
+    if(confirm("Weet je zeker dat je alle oefeningen opnieuw wilt opslaan en synchroniseren met de cloud? Dit repareert permanent ontbrekende velden bij oude oefeningen.")) {
+        localStorage.setItem('blackshots_oefeningen', JSON.stringify(window.oefeningenDB));
+        alert("✅ Alle oefeningen zijn succesvol gerepareerd en gesynchroniseerd met de cloud!");
+        window.renderOefeningenLijst();
+    }
 };

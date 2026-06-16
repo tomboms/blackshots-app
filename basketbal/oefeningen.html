@@ -150,9 +150,10 @@
                 <button id="btn-filter-fav" onclick="window.toggleFavorietenFilter()" style="background:white; color:#f1c40f; border:1px solid #bdc3c7; padding:10px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">⭐ Toon Favorieten</button>
                 <button onclick="document.getElementById('import-oefening-file').click()" style="background:#3498db; color:white; border:none; padding:10px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">📥 Importeer</button>
                 <input type="file" id="import-oefening-file" accept=".json" style="display:none;" onchange="window.importeerOefening(event)">
+                
+                <button onclick="window.syncAlleOefeningen()" style="background:#e67e22; color:white; border:none; padding:10px 15px; border-radius:4px; font-weight:bold; cursor:pointer;" title="Forceer een database update voor alle oefeningen">🔄 Sla Alles Op</button>
             </div>
         </div>
-
         <input type="text" id="zoek-oefening" placeholder="🔎 Zoek op naam of categorie..." onkeyup="window.renderOefeningenLijst()" style="width:100%; padding:15px; margin-bottom:15px; border:2px solid var(--primary-color); border-radius:8px; font-size:1rem;">
         
         <div id="oefeningen-grid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap:15px;"></div>
