@@ -1,52 +1,24 @@
-<!DOCTYPE html>
-<html lang="nl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Black Shots - Trainer Beheer</title>
-    <link rel="stylesheet" href="basketbal.css">
-</head>
-<body>
-    <div id="cloud-status-indicator" style="position: fixed; bottom: 20px; right: 20px; background: #27ae60; color: white; padding: 10px 20px; border-radius: 30px; font-weight: bold; font-size: 0.9rem; box-shadow: 0 4px 10px rgba(0,0,0,0.2); z-index: 99999; transition: 0.3s; opacity: 0; pointer-events: none;">☁️ Cloud Actief</div>
-
-    <nav class="top-nav">
-        <h1>🏀 Black Shots Clubbeheer</h1>
-        <a href="../index.html" class="terug-knop">🏠 Terug</a>
-    </nav>
-
-    
-
-    <main class="content-sectie active" style="max-width:900px; margin:20px auto; padding:15px;">
-        
-        <div class="card" style="border-top-color:#9b59b6;">
-            <h3 style="margin-top:0; color:var(--secondary-color);">➕ Nieuwe Medewerker / Trainer Toevoegen</h3>
-            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:15px;">
-                <input type="text" id="g_naam" placeholder="Gebruikersnaam (bijv. Lotfi)" style="flex:1; min-width:150px; padding:10px; border:1px solid #ccc; border-radius:4px;">
-                <input type="text" id="g_ww" placeholder="Wachtwoord..." style="flex:1; min-width:150px; padding:10px; border:1px solid #ccc; border-radius:4px;">
-                <select id="g_rol" style="flex:1; min-width:150px; padding:10px; border:1px solid #ccc; border-radius:4px;">
-                    <option value="trainer">🏀 Trainer / Coach</option>
-                    <option value="bestuur">💼 Bestuurslid / Secretaris</option>
-                    <option value="admin">👑 Hoofdbeheerder (Admin)</option>
-                </select>
-                <button onclick="window.voegGebruikerToe()" class="primary-btn" style="background:#9b59b6; padding:10px 20px;">Aanmaken</button>
-            </div>
-        </div>
-
-        <div class="card">
-            <h3 style="margin-top:0; color:var(--secondary-color); margin-bottom:20px;">👥 Actieve Accounts & Rechten</h3>
-            <div id="gebruikers-lijst-container"></div>
-        </div>
-    </main>
-
-    <script src="basketbal_auth.js"></script>
-    <script src="basketbal_data.js"></script>
-    <script type="module" src="firebase_motor.js"></script>
-    
-    <script>
+<script>
         let ingelogdeGebruiker = JSON.parse(localStorage.getItem('bs_actieve_gebruiker'));
         if(!ingelogdeGebruiker || ingelogdeGebruiker.rol !== 'admin') {
             window.location.href = '../index.html';
         }
+
+        // --- CLOUD SYNC MOTOR ---
+        window.slaDataOp = function(sleutel, data) {
+            localStorage.setItem(sleutel, JSON.stringify(data));
+            if (typeof window.opslaanInFirebase === 'function') window.opslaanInFirebase(sleutel, data);
+            else if (typeof window.bewaarNaarFirebase === 'function') window.bewaarNaarFirebase(sleutel, data);
+            else document.dispatchEvent(new CustomEvent('cloudSync', { detail: { sleutel: sleutel, data: data } }));
+        };
+
+        // Luisteren naar binnenkomende Firebase data
+        window.ontvangCloudDataGebruikers = function(sleutel, data) {
+            if (sleutel === 'blackshots_gebruikers' && data) {
+                localStorage.setItem('blackshots_gebruikers', JSON.stringify(data)); // Werk lokale kopie direct bij
+                window.renderGebruikers();
+            }
+        };
 
         window.renderGebruikers = function() {
             let gebruikers = JSON.parse(localStorage.getItem('blackshots_gebruikers')) || [];
@@ -62,28 +34,31 @@
                 let randKleur = g.rol === 'admin' ? '#f1c40f' : (g.rol === 'bestuur' ? '#9b59b6' : '#3498db');
 
                 let teamVinkjes = '<div style="display:flex; flex-wrap:wrap; gap:8px;">';
-                window.teamsDB.forEach(t => {
-                    let isChecked = (g.teams.includes('all') || g.teams.includes(t.id)) ? 'checked' : '';
-                    let disabled = g.teams.includes('all') ? 'disabled' : '';
-                    teamVinkjes += `
-                        <label style="display:inline-flex; align-items:center; font-size:0.85rem; background:#eef2f5; padding:6px 10px; border-radius:6px; border:1px solid #bdc3c7;">
-                            <input type="checkbox" ${isChecked} ${disabled} onchange="window.toggleTeamRecht(${index}, '${t.id}', this.checked)" style="margin-right:6px;"> ${t.naam}
-                        </label>`;
-                });
+                if (window.teamsDB) {
+                    window.teamsDB.forEach(t => {
+                        let isChecked = (g.teams && (g.teams.includes('all') || g.teams.includes(t.id))) ? 'checked' : '';
+                        let disabled = (g.teams && g.teams.includes('all')) ? 'disabled' : '';
+                        teamVinkjes += `
+                            <label style="display:inline-flex; align-items:center; font-size:0.85rem; background:#eef2f5; padding:6px 10px; border-radius:6px; border:1px solid #bdc3c7;">
+                                <input type="checkbox" ${isChecked} ${disabled} onchange="window.toggleTeamRecht(${index}, '${t.id}', this.checked)" style="margin-right:6px;"> ${t.naam}
+                            </label>`;
+                    });
+                } else {
+                    teamVinkjes += '<span style="color:#7f8c8d; font-size:0.85rem;">Geen teams geladen</span>';
+                }
                 teamVinkjes += '</div>';
 
                 let paginaOpties = [
-                    {id:'dashboard', n:'📊 Dashboard'}, {id:'Jaarplanning', n:'📅 Jaarplanning'},  {id:'agenda', n:'📅 Trainingen'}, 
+                    {id:'dashboard', n:'📊 Dashboard'}, {id:'Jaarplanning', n:'📅 Jaarplanning'},  {id:'agenda', n:'📅 Agenda'}, 
                     {id:'team', n:'👥 Teams'}, {id:'spelers', n:'👤 Spelers'}, 
                     {id:'oefeningen', n:'📋 Oefeningen'}, {id:'toernooien', n:'🏆 Interne Competitie'}, {id:'gebruikers', n:'🔐 Trainer Beheer'},
-                    {id:'bestuur', n:'📁 Bestuur'}, {id:'pouleindeling', n:'⛹️ pouleindeling'}, {id:'Zaalhuur', n:'🏟️ Zaalhuur'} 
-                
+                    {id:'bestuur', n:'📁 Bestuur'}, {id:'pouleindeling', n:'⛹️ Pouleindeling'}, {id:'Zaalhuur', n:'🏟️ Zaalhuur'} 
                 ];
 
                 let paginaVinkjes = '<div style="display:flex; flex-wrap:wrap; gap:8px;">';
                 paginaOpties.forEach(p => {
-                    let isChecked = (g.paginas.includes('all') || g.paginas.includes(p.id)) ? 'checked' : '';
-                    let disabled = g.paginas.includes('all') ? 'disabled' : '';
+                    let isChecked = (g.paginas && (g.paginas.includes('all') || g.paginas.includes(p.id))) ? 'checked' : '';
+                    let disabled = (g.paginas && g.paginas.includes('all')) ? 'disabled' : '';
                     paginaVinkjes += `
                         <label style="display:inline-flex; align-items:center; font-size:0.85rem; background:#eaf2f8; padding:6px 10px; border-radius:6px; border:1px solid #aed6f1;">
                             <input type="checkbox" ${isChecked} ${disabled} onchange="window.togglePaginaRecht(${index}, '${p.id}', this.checked)" style="margin-right:6px;"> ${p.n}
@@ -120,7 +95,7 @@
             let ww = document.getElementById('g_ww').value.trim();
             let rol = document.getElementById('g_rol').value;
 
-            if(!naam || !ww) return alert("Vul een naam and wachtwoord in.");
+            if(!naam || !ww) return alert("Vul een naam en wachtwoord in.");
 
             let gebruikers = JSON.parse(localStorage.getItem('blackshots_gebruikers')) || [];
             
@@ -138,7 +113,8 @@
             };
 
             gebruikers.push(nw);
-            localStorage.setItem('blackshots_gebruikers', JSON.stringify(gebruikers));
+            // Sla op via Firebase
+            window.slaDataOp('blackshots_gebruikers', gebruikers);
             
             document.getElementById('g_naam').value = '';
             document.getElementById('g_ww').value = '';
@@ -150,7 +126,8 @@
             if(confirm("Weet je zeker dat je dit account definitief wilt intrekken?")) {
                 let gebruikers = JSON.parse(localStorage.getItem('blackshots_gebruikers')) || [];
                 gebruikers.splice(index, 1);
-                localStorage.setItem('blackshots_gebruikers', JSON.stringify(gebruikers));
+                // Sla op via Firebase
+                window.slaDataOp('blackshots_gebruikers', gebruikers);
                 window.renderGebruikers();
             }
         };
@@ -164,7 +141,8 @@
             } else {
                 gebruikers[gIdx].teams = gebruikers[gIdx].teams.filter(id => id !== teamId);
             }
-            localStorage.setItem('blackshots_gebruikers', JSON.stringify(gebruikers));
+            // Sla op via Firebase
+            window.slaDataOp('blackshots_gebruikers', gebruikers);
         };
 
         window.togglePaginaRecht = function(gIdx, pagId, checked) {
@@ -176,10 +154,9 @@
             } else {
                 gebruikers[gIdx].paginas = gebruikers[gIdx].paginas.filter(id => id !== pagId);
             }
-            localStorage.setItem('blackshots_gebruikers', JSON.stringify(gebruikers));
+            // Sla op via Firebase
+            window.slaDataOp('blackshots_gebruikers', gebruikers);
         };
 
-        setTimeout(() => window.renderGebruikers(), 200);
+        setTimeout(() => window.renderGebruikers(), 300);
     </script>
-</body>
-</html>
