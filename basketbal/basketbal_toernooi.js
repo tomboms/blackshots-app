@@ -65,7 +65,7 @@ window.toggleTeamCollapse = function(teamId) {
     window.renderToernooi();
 };
 // ============================================================================
-// VERNIEUWDE SYNC NAAR JAARPLANNING (Met uitgebreide details & juiste velden)
+// HARDE SYNC NAAR JAARPLANNING (Geen checks, gewoon pushen!)
 // ============================================================================
 window.syncToernooiNaarJaarplanning = function() {
     if (!actieveCompId || !window.toernooiDB[actieveCompId]) return alert("Geen toernooi actief!");
@@ -76,13 +76,12 @@ window.syncToernooiNaarJaarplanning = function() {
     
     let matchenPerDatum = {};
     
-    // Groepeer alle wedstrijden netjes per datum
+    // Groepeer alle wedstrijden per datum
     comp.wedstrijden.forEach(w => {
         if (!w.datum) return;
         
         let dStr = w.datum;
         let isoDatum = dStr;
-        // Fix de datum van "8-jun" naar "2026-06-08" voor de agenda
         if (/^\d{1,2}-[a-z]{3}$/i.test(dStr)) {
             let maanden = { 'jan':'01', 'feb':'02', 'mrt':'03', 'apr':'04', 'mei':'05', 'jun':'06', 'jul':'07', 'aug':'08', 'sep':'09', 'okt':'10', 'nov':'11', 'dec':'12' };
             let delen = dStr.toLowerCase().split('-');
@@ -95,19 +94,16 @@ window.syncToernooiNaarJaarplanning = function() {
     });
 
     let toegevoegd = 0;
-    let geupdate = 0;
 
     Object.keys(matchenPerDatum).forEach(isoDatum => {
         let matchesOpDag = matchenPerDatum[isoDatum];
-        let startTijd = "17:00"; // Standaard tijd
+        let startTijd = "17:00"; 
         
-        // Bepaal de vroegste starttijd voor in de agenda
         matchesOpDag.forEach(w => {
             if (w.tijd && (!startTijd || w.tijd < startTijd)) startTijd = w.tijd;
         });
 
-        // 📝 Bouw het gedetailleerde overzicht voor de Notities op!
-        let beschrijving = `Automatisch toegevoegd vanuit de Toernooi module: ${comp.naam}\n\nWedstrijdprogramma voor deze dag:\n`;
+        let beschrijving = `Automatisch toegevoegd vanuit Toernooi module: ${comp.naam}\n\nWedstrijdprogramma:\n`;
         
         matchesOpDag.sort((a,b) => (a.tijd||'').localeCompare(b.tijd||'')).forEach(w => {
             let tThuis = getTeamWeergave(w.thuis, berekendeStand, comp.teams).naam;
@@ -116,13 +112,12 @@ window.syncToernooiNaarJaarplanning = function() {
             beschrijving += `• ${w.tijd || '??:??'} | ${tThuis} vs ${tUit} (${locatie})\n`;
         });
 
-        let uniekId = `toernooi_${actieveCompId}_${isoDatum}`;
-        let bestaandeIndex = planningDB.findIndex(item => item.id === uniekId);
+        // Genereer ALTIJD een compleet nieuw, willekeurig ID zodat hij hem gegarandeerd als "Nieuw" ziet
+        let uniekId = `toernooi_push_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
 
-        // OPLOSSING: We voegen hier alle velden toe die de Jaarplanning nodig heeft (zoals isoDatum, eindDatum, tekst en omschrijving)
         let act = {
             id: uniekId,
-            type: 'training', // Wordt gezien als legitieme actie voor zaalhuur
+            type: 'training', 
             titel: `🏆 ${comp.naam}`,
             tekst: `🏆 ${comp.naam}`,
             datum: isoDatum,
@@ -134,18 +129,13 @@ window.syncToernooiNaarJaarplanning = function() {
             omschrijving: beschrijving
         };
 
-        if (bestaandeIndex > -1) {
-            // Overschrijf de spook-activiteit compleet met de juiste, nieuwe data
-            planningDB[bestaandeIndex] = act;
-            geupdate++;
-        } else {
-            planningDB.push(act);
-            toegevoegd++;
-        }
+        // HARDE PUSH: Direct toevoegen aan de array, geen vragen gesteld
+        planningDB.push(act);
+        toegevoegd++;
     });
 
     localStorage.setItem('blackshots_activiteiten', JSON.stringify(planningDB));
-    alert(`✅ Toernooi gesynchroniseerd met de Jaarplanning!\n\nNieuwe speeldagen in agenda: ${toegevoegd}\nBestaande speeldagen geüpdatet: ${geupdate}\n\nKijk in de Notities van de Jaarplanning voor het gedetailleerde programma.`);
+    alert(`✅ BAM! Harde push uitgevoerd.\n\nEr zijn direct ${toegevoegd} speeldagen in de Jaarplanning geknald!\n(Let op: als je nu nog een keer klikt, komen ze er dubbel in).`);
 };
 
 window.berekenStand = function(comp) {
