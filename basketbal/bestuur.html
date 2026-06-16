@@ -5,6 +5,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Black Shots - Bestuur</title>
     <link rel="stylesheet" href="basketbal.css?v=3">
+    <style>
+        /* Extra veiligheid voor de pop-ups als de CSS klasse niet direct laadt */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            justify-content: center;
+            align-items: center;
+            z-index: 99999;
+            backdrop-filter: blur(2px);
+        }
+        .modal-content {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            width: 100%;
+            max-width: 500px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        .sjabloon-rij {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+            background: #f8f9fa;
+            padding: 5px;
+            border-radius: 4px;
+        }
+    </style>
 </head>
 <body>
     <div id="cloud-status-indicator" style="position: fixed; bottom: 20px; right: 20px; background: #27ae60; color: white; padding: 10px 20px; border-radius: 30px; font-weight: bold; font-size: 0.9rem; z-index: 99999; opacity: 0; pointer-events: none;">☁️ Cloud Actief</div>
@@ -19,8 +51,8 @@
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px;">
                 <h2 style="margin:0; color:var(--secondary-color);">📁 Bestuursvergaderingen</h2>
                 <div style="display:flex; gap:10px;">
-                    <button onclick="openSjabloonInstellingen()" style="background:#7f8c8d; color:white; border:none; padding:10px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">⚙️ Agenda Sjabloon</button>
-                   <button onclick="window.openNieuweVergaderingModal()" class="primary-btn" style="background:#27ae60; border:none; padding:10px 20px; border-radius:4px; font-weight:bold; cursor:pointer;">+ Nieuwe Vergadering</button>
+                    <button onclick="window.openSjabloonInstellingen()" style="background:#7f8c8d; color:white; border:none; padding:10px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">⚙️ Agenda Sjablonen</button>
+                    <button onclick="window.openNieuweVergaderingModal()" class="primary-btn" style="background:#27ae60; border:none; padding:10px 20px; border-radius:4px; font-weight:bold; cursor:pointer;">+ Nieuwe Vergadering</button>
                 </div>
             </div>
             <div id="vergaderingen-lijst"></div>
@@ -29,48 +61,49 @@
         <div id="editor-scherm" style="display:none;">
             
             <div class="hide-in-live">
-                <button onclick="sluitEditor()" style="background:#7f8c8d; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; margin-bottom:20px;">⬅ Terug naar overzicht</button>
+                <button onclick="window.sluitEditor()" style="background:#7f8c8d; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; margin-bottom:20px;">⬅ Terug naar overzicht</button>
                 
+                <div id="lock-btn-container" style="margin-bottom: 20px;"></div>
+
                 <div class="card" style="border-top-color:#3498db; margin-bottom:20px;">
                     <h3 style="margin-top:0; color:var(--secondary-color);">Vergadering Details</h3>
                     <div style="display:flex; gap:15px; flex-wrap:wrap;">
                         <div style="flex:1; min-width:200px;">
                             <label style="font-weight:bold; font-size:0.9rem; color:#7f8c8d;">Datum</label>
-                            <input type="text" id="v_datum" placeholder="bijv. Maandag 11 Mei" onchange="slaOp()" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px; background:transparent; color:inherit;">
+                            <input type="text" id="v_datum" placeholder="bijv. Maandag 11 Mei" onchange="window.slaOp()" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px; background:transparent; color:inherit;">
                         </div>
                         <div style="flex:1; min-width:150px;">
                             <label style="font-weight:bold; font-size:0.9rem; color:#7f8c8d;">Tijd</label>
-                            <input type="text" id="v_tijd" placeholder="bijv. 20:00 uur" onchange="slaOp()" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px; background:transparent; color:inherit;">
+                            <input type="text" id="v_tijd" placeholder="bijv. 20:00 uur" onchange="window.slaOp()" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px; background:transparent; color:inherit;">
                         </div>
                         <div style="flex:1; min-width:200px;">
                             <label style="font-weight:bold; font-size:0.9rem; color:#7f8c8d;">Locatie / Adres</label>
-                            <input type="text" id="v_adres" placeholder="bijv. Statenlaan 78 / Online" onchange="slaOp()" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px; background:transparent; color:inherit;">
+                            <input type="text" id="v_adres" placeholder="bijv. Statenlaan 78 / Online" onchange="window.slaOp()" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px; background:transparent; color:inherit;">
                         </div>
                     </div>
                     <div style="margin-top:15px;">
                         <label style="font-weight:bold; font-size:0.9rem; color:#7f8c8d;">Aanwezigen</label>
-                        <input type="text" id="v_aanwezig" placeholder="Martin, Izaac, Jolanda, Tom..." onchange="slaOp()" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px; background:transparent; color:inherit;">
+                        <input type="text" id="v_aanwezig" placeholder="Martin, Izaac, Jolanda, Tom..." onchange="window.slaOp()" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px; background:transparent; color:inherit;">
                     </div>
                 </div>
 
-                <button onclick="toggleLiveModus()" style="width:100%; background:#e74c3c; color:white; border:none; padding:15px; border-radius:6px; font-weight:bold; font-size:1.2rem; cursor:pointer; box-shadow:0 4px 10px rgba(231, 76, 60, 0.3); margin-bottom:20px; transition:0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">🔴 Start Live Vergadering (Notuleren)</button>
+                <button onclick="window.toggleLiveModus()" style="width:100%; background:#e74c3c; color:white; border:none; padding:15px; border-radius:6px; font-weight:bold; font-size:1.2rem; cursor:pointer; box-shadow:0 4px 10px rgba(231, 76, 60, 0.3); margin-bottom:20px; transition:0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">🔴 Start Live Vergadering (Notuleren)</button>
 
                 <div style="display:flex; gap:10px; margin-bottom:30px; flex-wrap:wrap;">
-                    <button onclick="genereerDocument('agenda')" style="flex:1; min-width:200px; background:#3498db; color:white; border:none; padding:15px; border-radius:6px; font-weight:bold; font-size:1rem; cursor:pointer; box-shadow:0 4px 6px rgba(0,0,0,0.1); transition:0.2s;"><span style="font-size:1.4rem; display:block; margin-bottom:5px;">📄</span> Officiële Agenda <br><span style="font-size:0.8rem; font-weight:normal;">Print de lege agenda</span></button>
+                    <button onclick="window.genereerDocument('agenda')" style="flex:1; min-width:200px; background:#3498db; color:white; border:none; padding:15px; border-radius:6px; font-weight:bold; font-size:1rem; cursor:pointer; box-shadow:0 4px 6px rgba(0,0,0,0.1); transition:0.2s;"><span style="font-size:1.4rem; display:block; margin-bottom:5px;">📄</span> Officiële Agenda <br><span style="font-size:0.8rem; font-weight:normal;">Print de lege agenda</span></button>
                     
-                    <button onclick="genereerDocument('spiekbrief')" style="flex:1; min-width:200px; background:#e67e22; color:white; border:none; padding:15px; border-radius:6px; font-weight:bold; font-size:1rem; cursor:pointer; box-shadow:0 4px 6px rgba(0,0,0,0.1); transition:0.2s;"><span style="font-size:1.4rem; display:block; margin-bottom:5px;">🤫</span> Tom's Spiekbrief <br><span style="font-size:0.8rem; font-weight:normal;">Print agenda + voorbereiding</span></button>
+                    <button onclick="window.genereerDocument('spiekbrief')" style="flex:1; min-width:200px; background:#e67e22; color:white; border:none; padding:15px; border-radius:6px; font-weight:bold; font-size:1rem; cursor:pointer; box-shadow:0 4px 6px rgba(0,0,0,0.1); transition:0.2s;"><span style="font-size:1.4rem; display:block; margin-bottom:5px;">🤫</span> Tom's Spiekbrief <br><span style="font-size:0.8rem; font-weight:normal;">Print agenda + voorbereiding</span></button>
                     
-                    <button onclick="genereerDocument('notulen')" style="flex:1; min-width:200px; background:#9b59b6; color:white; border:none; padding:15px; border-radius:6px; font-weight:bold; font-size:1rem; cursor:pointer; box-shadow:0 4px 6px rgba(0,0,0,0.1); transition:0.2s;"><span style="font-size:1.4rem; display:block; margin-bottom:5px;">✍️</span> Definitieve Notulen <br><span style="font-size:0.8rem; font-weight:normal;">Print het Nette verslag</span></button>
+                    <button onclick="window.genereerDocument('notulen')" style="flex:1; min-width:200px; background:#9b59b6; color:white; border:none; padding:15px; border-radius:6px; font-weight:bold; font-size:1rem; cursor:pointer; box-shadow:0 4px 6px rgba(0,0,0,0.1); transition:0.2s;"><span style="font-size:1.4rem; display:block; margin-bottom:5px;">✍️</span> Definitieve Notulen <br><span style="font-size:0.8rem; font-weight:normal;">Print het Nette verslag</span></button>
                 </div>
             </div>
-            <div id="lock-btn-container" style="margin-bottom: 20px;"></div>
 
             <div id="live-header" style="display:none; justify-content:space-between; align-items:center; background:#e74c3c; color:white; padding:15px 20px; border-radius:8px; margin-bottom:20px; box-shadow:0 4px 10px rgba(0,0,0,0.2);">
                 <div style="display:flex; align-items:center; gap:10px;">
                     <span style="font-size:1.5rem; animation: pulse 1.5s infinite;">🔴</span>
                     <h2 style="margin:0; font-size:1.3rem; color:white;">Live Vergadering - Maak hier je snelle kladnotities!</h2>
                 </div>
-                <button onclick="toggleLiveModus()" style="background:white; color:#e74c3c; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.1);">🛑 Afronden & Uitwerken</button>
+                <button onclick="window.toggleLiveModus()" style="background:white; color:#e74c3c; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.1);">🛑 Afronden & Uitwerken</button>
             </div>
             <style>@keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }</style>
 
@@ -81,28 +114,54 @@
             <div id="agenda-punten-container"></div>
 
             <div class="hide-in-live">
-                <button onclick="voegPuntToe()" style="background:#27ae60; color:white; border:none; padding:12px 20px; border-radius:4px; font-weight:bold; cursor:pointer; margin-top:10px; font-size:1rem; box-shadow:0 2px 4px rgba(0,0,0,0.1);">+ Nieuw Agendapunt Toevoegen</button>
+                <button onclick="window.voegPuntToe()" style="background:#27ae60; color:white; border:none; padding:12px 20px; border-radius:4px; font-weight:bold; cursor:pointer; margin-top:10px; font-size:1rem; box-shadow:0 2px 4px rgba(0,0,0,0.1);">+ Nieuw Agendapunt Toevoegen</button>
                 
                 <div style="border-top:1px solid var(--border-color); margin-top:50px; padding-top:20px;">
-                    <button onclick="verwijderVergadering()" style="background:#e74c3c; color:white; border:none; padding:10px 20px; border-radius:4px; font-weight:bold; cursor:pointer; float:right;">🗑️ Vergadering Wissen</button>
+                    <button onclick="window.verwijderVergadering()" style="background:#e74c3c; color:white; border:none; padding:10px 20px; border-radius:4px; font-weight:bold; cursor:pointer; float:right;">🗑️ Vergadering Wissen</button>
                 </div>
             </div>
         </div>
 
     </main>
 
-    <div id="sjabloon-modal" class="modal-overlay">
+    <div id="sjabloon-modal" class="modal-overlay" style="display:none;">
         <div class="modal-content">
-            <h2 style="margin-top:0; color:var(--secondary-color); border-bottom:1px solid var(--border-color); padding-bottom:10px;">⚙️ Standaard Agenda Sjabloon</h2>
-            <p style="font-size:0.9rem; color:#7f8c8d;">Als je een <strong>nieuwe vergadering</strong> aanmaakt, worden deze punten automatisch klaargezet.</p>
+            <h2 style="margin-top:0; color:var(--secondary-color); border-bottom:1px solid var(--border-color); padding-bottom:10px;">⚙️ Agenda Sjablonen Beheer</h2>
+            <p style="font-size:0.9rem; color:#7f8c8d;">Pas hier de standaard agendapunten aan voor nieuwe vergaderingen.</p>
             
-            <div id="sjabloon-lijst" style="margin:20px 0;"></div>
+            <div id="sjabloon-lijst" style="margin:20px 0; max-height: 300px; overflow-y: auto;"></div>
             
-            <button onclick="voegSjabloonPuntToe()" style="background:#3498db; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; margin-bottom:20px;">+ Regel Toevoegen</button>
+            <button onclick="window.voegSjabloonPuntToe()" style="background:#3498db; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; margin-bottom:20px;">+ Regel Toevoegen</button>
             
             <div style="display:flex; justify-content:flex-end; gap:10px; border-top:1px solid var(--border-color); padding-top:15px;">
-                <button onclick="sluitSjabloonInstellingen()" style="background:#bdc3c7; color:#333; border:none; padding:10px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">Annuleren</button>
-                <button onclick="slaSjabloonOp()" style="background:#27ae60; color:white; border:none; padding:10px 20px; border-radius:4px; font-weight:bold; cursor:pointer;">✅ Opslaan</button>
+                <button onclick="window.sluitSjabloonInstellingen()" style="background:#bdc3c7; color:#333; border:none; padding:10px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">Annuleren</button>
+                <button onclick="window.slaSjabloonOp()" style="background:#27ae60; color:white; border:none; padding:10px 20px; border-radius:4px; font-weight:bold; cursor:pointer;">✅ Opslaan</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="aanmaak-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-content">
+            <h3 style="margin-top:0; color:var(--secondary-color); border-bottom:2px solid #f4f6f8; padding-bottom:10px;">📅 Nieuwe Vergadering Plannen</h3>
+            
+            <div style="margin-bottom:15px;">
+                <label style="font-weight:bold; display:block; margin-bottom:5px; font-size:0.9rem; color:#7f8c8d;">Kies Datum:</label>
+                <input type="date" id="am_datum" style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:4px; font-family: inherit;">
+            </div>
+
+            <div style="margin-bottom:15px;">
+                <label style="font-weight:bold; display:block; margin-bottom:5px; font-size:0.9rem; color:#7f8c8d;">Type / Agenda Sjabloon:</label>
+                <select id="am_type" style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:4px; font-weight:bold; font-family: inherit;">
+                    <option value="Bestuur">💼 Bestuursvergadering (Standaard)</option>
+                    <option value="ALV">👥 Algemene Ledenvergadering (ALV)</option>
+                    <option value="Commissie">📋 Commissie / Overleg</option>
+                    <option value="Plain">⚪ Blanco / Plain Vergadering</option>
+                </select>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px; border-top:1px solid #eee; padding-top:15px;">
+                <button onclick="document.getElementById('aanmaak-modal').style.display='none'" style="background:#bdc3c7; border:none; padding:10px 15px; border-radius:4px; cursor:pointer; font-weight:bold;">Annuleren</button>
+                <button onclick="window.bevestigNieuweVergadering()" style="background:#27ae60; color:white; border:none; padding:10px 20px; border-radius:4px; font-weight:bold; cursor:pointer;">Aanmaken</button>
             </div>
         </div>
     </div>
@@ -110,33 +169,6 @@
     <script src="basketbal_auth.js"></script>
     <script src="basketbal_data.js"></script>
     <script type="module" src="firebase_motor.js"></script>
-    <script src="basketbal_bestuur.js?v=3"></script>
-
-<div id="aanmaak-modal" class="modal-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); justify-content:center; align-items:center; z-index:99999;">
-    <div style="background:white; padding:25px; border-radius:8px; width:100%; max-width:450px; box-shadow:0 4px 15px rgba(0,0,0,0.2);">
-        <h3 style="margin-top:0; color:var(--secondary-color); border-bottom:2px solid #f4f6f8; padding-bottom:10px;">📅 Nieuwe Vergadering Plannen</h3>
-        
-        <div style="margin-bottom:15px;">
-            <label style="font-weight:bold; display:block; margin-bottom:5px; font-size:0.9rem; color:#7f8c8d;">Kies Datum:</label>
-            <input type="date" id="am_datum" style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:4px;">
-        </div>
-
-        <div style="margin-bottom:15px;">
-            <label style="font-weight:bold; display:block; margin-bottom:5px; font-size:0.9rem; color:#7f8c8d;">Type / Sjabloon:</label>
-            <select id="am_type" style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:4px; font-weight:bold;">
-                <option value="Bestuur">💼 Bestuursvergadering (Standaard)</option>
-                <option value="ALV">👥 Algemene Ledenvergadering (ALV)</option>
-                <option value="Commissie">📋 Commissie / Overleg</option>
-                <option value="Plain">⚪ Blanco / Plain Vergadering</option>
-            </select>
-        </div>
-
-        <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px; border-top:1px solid #eee; padding-top:15px;">
-            <button onclick="document.getElementById('aanmaak-modal').style.display='none'" style="background:#bdc3c7; border:none; padding:10px 15px; border-radius:4px; cursor:pointer;">Annuleren</button>
-            <button onclick="window.bevestigNieuweVergadering()" style="background:#27ae60; color:white; border:none; padding:10px 20px; border-radius:4px; font-weight:bold; cursor:pointer;">Aanmaken</button>
-        </div>
-    </div>
-</div>    
-
+    <script src="basketbal_bestuur.js?v=4"></script>
 </body>
 </html>

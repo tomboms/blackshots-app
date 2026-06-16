@@ -98,12 +98,11 @@ window.bevestigNieuweVergadering = function() {
     
     if(!ruweDatum) return alert("Kies eerst een datum!");
     
-    // Zet de Amerikaanse datum (YYYY-MM-DD) om naar een mooie Nederlandse tekst voor het overzicht
     let dParts = ruweDatum.split('-');
     let maanden = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
-    let weergaveDatum = `${parseInt(dParts[2])} ${maandengebr = maanden[parseInt(dParts[1]) - 1]} ${dParts[0]}`;
+    // TYPEFOUT HERSTELD: Geen 'maandengebr =' meer, wat voor crashes zorgde
+    let weergaveDatum = `${parseInt(dParts[2])} ${maanden[parseInt(dParts[1]) - 1]} ${dParts[0]}`;
 
-    // Haal de juiste agendapunten op uit de gekozen sjabloon
     let geselecteerdSjabloon = window.bestuurSjablonen[type] || [];
     let startPunten = geselecteerdSjabloon.map(titel => {
         return { id: 'p_' + Math.random().toString(36).substr(2, 9), titel: titel, isSub: false, prep: '', klad: '', verslag: '' };
@@ -113,19 +112,18 @@ window.bevestigNieuweVergadering = function() {
         id: 'verg_' + Date.now(), 
         type: type,
         datum: weergaveDatum, 
-        isoDatum: ruweDatum, // Nodig voor de automatische jaarplanning sync
+        isoDatum: ruweDatum, 
         tijd: '20:00 uur', 
         adres: 'De Veste', 
         aanwezig: 'Martin, Izaac, Jolanda, Tom', 
-        vastgezet: false, // Start altijd open voor wijzigingen
-        acties: [], // 🚀 DE FUNDERING VOOR JE TO-DO TAB!
+        vastgezet: false, 
+        acties: [], 
         punten: startPunten
     };
 
     window.bestuurDB.push(nw);
     document.getElementById('aanmaak-modal').style.display = 'none';
     
-    // Sla direct op naar Firebase en open de editor
     functionSlaOpEnHerlaadGeforceerd();
     window.openVergadering(nw.id);
 };
