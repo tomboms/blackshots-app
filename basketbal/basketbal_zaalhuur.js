@@ -13,8 +13,9 @@ window.ontvangCloudDataZaalhuur = function(sleutel, data) {
 };
 
 window.zaalhuurData = JSON.parse(localStorage.getItem('blackshots_zaalhuur_data')) || [];
-// Haal ook de Jaarplanning op voor de Scanner
+// Haal ook de Jaarplanning en Teams op voor de Scanner
 window.activiteitenDB = JSON.parse(localStorage.getItem('blackshots_activiteiten')) || [];
+window.teamsDB = JSON.parse(localStorage.getItem('blackshots_teams')) || [];
 
 document.addEventListener('DOMContentLoaded', () => {
     if (window.zaalhuurData.length > 0) {
@@ -320,16 +321,42 @@ window.runZaalScanner = function() {
     });
 
     Object.values(huurGroepen).forEach(huur => {
-        // Kijk of er op deze dag een activiteit (Wedstrijd/Training) is die rond deze tijd start
+        // 1. Check in de eenmalige Jaarplanning (Wedstrijden etc.)
         let heeftActiviteit = window.activiteitenDB.some(act => {
             if (act.datum !== huur.isoDatum) return false;
-            if (!act.tijd) return true; // Als activiteit geen tijd heeft, nemen we aan dat het de hele dag is
+            if (!act.tijd) return true; // Geen tijd = hele dag
             let actUur = parseInt(act.tijd.split(':')[0]);
             let huurUur = parseInt(huur.startTijd.split(':')[0]);
-            return Math.abs(actUur - huurUur) <= 2; // Als het binnen 2 uur van elkaar start, is het ok
+            return Math.abs(actUur - huurUur) <= 2; // Binnen 2 uur = ok
         });
 
-        if (!heeftActiviteit) lekken.push(huur);
+        // 2. NIEUW: Check in het vaste Trainingsschema (Teams)
+        let heeftTraining = false;
+        if (!heeftActiviteit) {
+            let d = new Date(huur.isoDatum);
+            let dagen = ['zondag', 'maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag'];
+            let dagNaam = dagen[d.getDay()]; // Bijv. 'dinsdag'
+
+            heeftTraining = window.teamsDB.some(team => {
+                if (team.trainingen && Array.isArray(team.trainingen)) {
+                    return team.trainingen.some(tr => {
+                        if (!tr.dag || !tr.startTijd) return false;
+                        if (tr.dag.toLowerCase() !== dagNaam) return false;
+                        
+                        // Check of de tijden overlappen (max 1.5 uur speling)
+                        let trUur = parseInt(tr.startTijd.split(':')[0]);
+                        let huurUur = parseInt(huur.startTijd.split(':')[0]);
+                        return Math.abs(trUur - huurUur) <= 1.5; 
+                    });
+                }
+                return false;
+            });
+        }
+
+        // Als er géén eenmalige activiteit EN géén wekelijkse training is, is het een lek
+        if (!heeftActiviteit && !heeftTraining) {
+            lekken.push(huur);
+        }
     });
 
     // Weergave Geldlekken
