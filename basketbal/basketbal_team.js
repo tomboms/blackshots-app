@@ -29,18 +29,10 @@ window.getCanonicalTeam = function(identifier) {
 // ============================================================================
 // TEAM BEHEER RENDEREN
 // ============================================================================
-w// ============================================================================
-// TEAM BEHEER RENDEREN
-// ============================================================================
 window.renderTeamBeheer = function() {
     try {
         const lijst = document.getElementById('team-beheer-lijst');
         if (!lijst) return;
-
-        // --- NIEUW: Lees het actieve seizoen direct uit de instellingen! ---
-        let instellingen = JSON.parse(localStorage.getItem('blackshots_instellingen')) || {};
-        let actiefSeizoen = instellingen.seizoen || "2025-2026";
-        // Nu "weet" deze pagina dat we in seizoen 2025-2026 zitten!
 
         let lijstHTML = '';
         const dagenMap = {1: "Maandag", 2: "Dinsdag", 3: "Woensdag", 4: "Donderdag", 5: "Vrijdag"};
@@ -53,7 +45,7 @@ window.renderTeamBeheer = function() {
         let vandaag = new Date();
         let vandaagIso = vandaag.toISOString().split('T')[0];
         
-        // Lees de datumprikker uit
+        // --- NIEUW: Lees de datumprikker uit ---
         let horizonInput = document.getElementById('team-event-horizon-date');
         let maxDatumIso = horizonInput ? horizonInput.value : '';
 
@@ -62,9 +54,8 @@ window.renderTeamBeheer = function() {
             let standaardMax = new Date();
             standaardMax.setDate(vandaag.getDate() + 60);
             maxDatumIso = standaardMax.toISOString().split('T')[0];
-            if (horizonInput) horizonInput.value = maxDatumIso; 
+            if (horizonInput) horizonInput.value = maxDatumIso; // Vul de kalender visueel in
         }
-
 
         window.teamsDB.forEach((team, index) => {
             if (!team) return;
