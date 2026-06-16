@@ -281,20 +281,21 @@ window.genereerToernooiBericht = function() {
     });
     schemaTabelHTML += `</tbody></table>`;
 
+    // HIER LEZEN WE DE INSTELLINGEN UIT
+    let instellingen = JSON.parse(localStorage.getItem('blackshots_instellingen')) || {};
+    let basisSjabloon = instellingen.toernooiMailSjabloon || "Beste ouders,\n\n[TEAMS]\n\n[SCHEMA]\n\nMet vriendelijke groet,";
+    
+    // Converteer normale enter-toetsen (enters in het tekstvak) naar echte HTML enters (<br>)
+    let geformatteerdSjabloon = basisSjabloon.replace(/\n/g, '<br>');
+
+    // Vervang de placeholders door de daadwerkelijke tabellen
+    let finalTekst = geformatteerdSjabloon
+        .replace('[TEAMS]', teamTabelHTML)
+        .replace('[SCHEMA]', schemaTabelHTML);
+
     let htmlContent = `
         <div style="font-family: Arial, sans-serif; font-size: 14px; color: #333; line-height: 1.6;">
-            <p>Beste ouders,</p>
-            <p>Op maandag gaat de interne competitie weer van start!<br>
-            De trainingen zien er daarom anders uit. Op deze dagen houden we geen traditionele training, maar spelen we wedstrijden onderling.</p>
-            
-            ${teamTabelHTML}
-            
-            <p>De wedstrijden beginnen op de geplande tijd met 10 minuten warming-up, met vervolgens 4 keer 10 minuten doorlopende speeltijd.</p>
-            <p>Het eerstgenoemde team is het thuisteam en speelt in het zwart, het tweede team speelt in een andere kleur.</p>
-            
-            ${schemaTabelHTML}
-            
-            <p>Bij vragen hoor ik het graag!</p>
+            ${finalTekst}
         </div>
     `;
 

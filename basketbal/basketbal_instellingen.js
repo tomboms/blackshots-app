@@ -1,6 +1,5 @@
-// --- BASKETBAL_INSTELLINGEN.JS: SYSTEEM, TARIEVEN & ARCHIEF ---
+// --- BASKETBAL_INSTELLINGEN.JS: SYSTEEM & TARIEVEN ---
 
-// --- CLOUD SYNC MOTOR ---
 window.slaDataOp = function(sleutel, data) {
     localStorage.setItem(sleutel, JSON.stringify(data));
     if (typeof window.opslaanInFirebase === 'function') window.opslaanInFirebase(sleutel, data);
@@ -8,7 +7,6 @@ window.slaDataOp = function(sleutel, data) {
     else document.dispatchEvent(new CustomEvent('cloudSync', { detail: { sleutel: sleutel, data: data } }));
 };
 
-// Luisteren naar Firebase data
 window.ontvangCloudDataInstellingen = function(sleutel, data) {
     if (sleutel === 'blackshots_instellingen' && data) {
         window.appInstellingen = data;
@@ -16,11 +14,10 @@ window.ontvangCloudDataInstellingen = function(sleutel, data) {
     }
 };
 
-// Standaard instellingen als er nog niks is
 window.appInstellingen = JSON.parse(localStorage.getItem('blackshots_instellingen')) || {
     seizoen: "2025-2026",
     bestuurAanwezigen: "Martin, Izaac, Jolanda, Tom",
-    toernooiMailIntro: "Beste ouders,\n\nOp de komende maandagen gaat de interne competitie weer van start! De trainingen zien er daarom anders uit. We spelen wedstrijden onderling.\n\nDe wedstrijden beginnen om 17:00 uur met 10 minuten warming-up, vervolgens 4x 10 minuten doorlopende speeltijd.",
+    toernooiMailSjabloon: "Beste ouders,\n\nOp maandag gaat de interne competitie weer van start!\nDe trainingen zien er daarom anders uit. Op deze dagen houden we geen traditionele training, maar spelen we wedstrijden onderling.\n\n[TEAMS]\n\nDe wedstrijden beginnen op de geplande tijd met 10 minuten warming-up, met vervolgens 4 keer 10 minuten doorlopende speeltijd.\nHet eerstgenoemde team is het thuisteam en speelt in het zwart, het tweede team speelt in een andere kleur.\n\n[SCHEMA]\n\nBij vragen hoor ik het graag!",
     tarieven: [
         { id: "t1", zaal: "Sporthal VEKA", deel: "hele zaal", prijs: 45.50 },
         { id: "t2", zaal: "Sporthal VEKA", deel: "zaaldeel A", prijs: 27.81 },
@@ -33,14 +30,13 @@ document.addEventListener('DOMContentLoaded', () => {
     window.vulInstellingenScherm();
 });
 
-// --- 1. SEIZOENEN TOT 2050 GENEREREN ---
 window.genereerSeizoenen = function() {
     let select = document.getElementById('inst_seizoen');
     if (!select) return;
     select.innerHTML = '';
     
     let startJaar = 2023;
-    let eindJaar = 2050;
+    let eindJaar = 2050; // De lijst tot 2050 zoals gewenst!
     
     for (let i = startJaar; i <= eindJaar; i++) {
         let seizoenNaam = `${i}-${i+1}`;
@@ -48,11 +44,10 @@ window.genereerSeizoenen = function() {
     }
 };
 
-// --- 2. SCHERM VULLEN ---
 window.vulInstellingenScherm = function() {
     if (document.getElementById('inst_seizoen')) document.getElementById('inst_seizoen').value = window.appInstellingen.seizoen || "2025-2026";
     if (document.getElementById('inst_bestuur')) document.getElementById('inst_bestuur').value = window.appInstellingen.bestuurAanwezigen || "";
-    if (document.getElementById('inst_mail')) document.getElementById('inst_mail').value = window.appInstellingen.toernooiMailIntro || "";
+    if (document.getElementById('inst_mail')) document.getElementById('inst_mail').value = window.appInstellingen.toernooiMailSjabloon || "";
     
     window.tekenTarievenLijst();
 };
@@ -60,13 +55,12 @@ window.vulInstellingenScherm = function() {
 window.slaSysteemInstellingenOp = function() {
     window.appInstellingen.seizoen = document.getElementById('inst_seizoen').value;
     window.appInstellingen.bestuurAanwezigen = document.getElementById('inst_bestuur').value;
-    window.appInstellingen.toernooiMailIntro = document.getElementById('inst_mail').value;
+    window.appInstellingen.toernooiMailSjabloon = document.getElementById('inst_mail').value;
     
     window.slaDataOp('blackshots_instellingen', window.appInstellingen);
     alert("✅ Systeeminstellingen succesvol opgeslagen!");
 };
 
-// --- 3. ZAALHUUR TARIEVEN BEHEER ---
 window.tekenTarievenLijst = function() {
     let container = document.getElementById('tarieven-lijst');
     if (!container) return;
@@ -118,21 +112,6 @@ window.verwijderTarief = function(idx) {
     window.tekenTarievenLijst();
 };
 
-// --- 4. VEILIG ARCHIVEREN (DE SLIMME BACKUP) ---
-window.archiveerOudeData = function() {
-    if (!confirm("Weet je zeker dat je alle data van vóór dit seizoen wilt verplaatsen naar het archief? Dit houdt je dashboard snel en overzichtelijk, en er gaat géén data verloren!")) return;
-
-    let archiefDB = JSON.parse(localStorage.getItem('blackshots_archief')) || { toernooien: [], zaalhuur: [], bestuur: [] };
-    let aantalVerplaatst = 0;
-
-    // We kunnen hier specifieke logica toevoegen om toernooien en zaalhuur van vorige seizoenen te detecteren en naar archiefDB te pushen.
-    // Voor nu doen we een veilige demonstratie-push zodat je ziet dat het werkt:
-    
-    window.slaDataOp('blackshots_archief', archiefDB);
-    alert(`✅ Archivering afgerond! Alle historische data staat nu veilig in de 'blackshots_archief' map in je Firebase.`);
-};
-
-// Lokale harde schijf JSON export (Bestaande functie)
 window.exporteerDatabaseLokaal = function() {
     let exportData = {
         gebruikers: JSON.parse(localStorage.getItem('blackshots_gebruikers') || '[]'),
