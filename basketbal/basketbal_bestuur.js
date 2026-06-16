@@ -1,17 +1,37 @@
 // --- BASKETBAL_BESTUUR.JS: SLEPEN, 3-VAKKEN, A,B,C SUBPUNTEN & NOTULEN ---
 
 window.bestuurDB = JSON.parse(localStorage.getItem('blackshots_bestuur')) || [];
-window.standaardSjabloon = JSON.parse(localStorage.getItem('blackshots_bestuur_sjabloon')) || [
-    "Opening en vaststellen agendapunten",
-    "Mededelingen en ledenmutaties",
-    "Actielijst",
-    "Ingekomen stukken",
-    "Financiën",
-    "Jaarplanning",
-    "Extra agendapunten bespreken",
-    "Rondvraag",
-    "Vaststellen volgende vergaderdatum en sluiting"
-];
+window.bestuurSjablonen = JSON.parse(localStorage.getItem('blackshots_bestuur_sjablonen')) || {
+    "Bestuur": [
+        "Opening en vaststellen agendapunten",
+        "Mededelingen en ledenmutaties",
+        "Actielijst",
+        "Ingekomen stukken",
+        "Financiën",
+        "Jaarplanning",
+        "Extra agendapunten bespreken",
+        "Rondvraag",
+        "Vaststellen volgende vergaderdatum en sluiting"
+    ],
+    "ALV": [
+        "Opening door de voorzitter",
+        "Ingekomen stukken en mededelingen",
+        "Notulen vorige ALV",
+        "Jaarverslag secretaris",
+        "Financieel jaarverslag penningmeester",
+        "Verslag kascommissie en decharge",
+        "Begroting & contributievaststelling komend seizoen",
+        "Bestuursverkiezing",
+        "Rondvraag & Sluiting"
+    ],
+    "Commissie": [
+        "Opening en doelstelling",
+        "Status updates lopende projecten",
+        "Knelpunten & Actiepunten",
+        "Rondvraag en sluiting"
+    ],
+    "Plain": []
+};
 window.actieveVergaderingId = null;
 window.isLiveModus = false;
 
@@ -41,24 +61,78 @@ window.tekenOverzicht = function() {
             </div>
         `;
     });
+// Teken de dynamische Vastzet/Wijzig knop bovenaan de editor
+    let lockBtnContainer = document.getElementById('lock-btn-container');
+    if (lockBtnContainer) {
+        if (v.vastgezet) {
+            lockBtnContainer.innerHTML = `<button onclick="window.toggleVergaderingLock()" style="width:100%; background:#7f8c8d; color:white; border:none; padding:12px; border-radius:6px; font-weight:bold; font-size:1.1rem; cursor:pointer;">🔓 Wijzig Notulen (Vergadering is nu Vastgezet)</button>`;
+        } else {
+            lockBtnContainer.innerHTML = `<button onclick="window.toggleVergaderingLock()" style="width:100%; background:#2c3e50; color:white; border:none; padding:12px; border-radius:6px; font-weight:bold; font-size:1.1rem; cursor:pointer; box-shadow:0 4px 10px rgba(0,0,0,0.15);">🔒 Zet Vergadering Definitief Vast</button>`;
+        }
+    }
+
+    // Schakel alle invoervelden uit als de vergadering is vastgezet
+    setTimeout(() => {
+        let inputs = document.querySelectorAll('#editor-scherm input, #editor-scherm textarea, #editor-scherm select');
+        inputs.forEach(input => {
+            // De lock-knop zelf mag natuurlijk nooit disabled worden!
+            if (input.closest('#lock-btn-container') || input.matches('button') || input.onclick) return;
+            input.disabled = v.vastgezet;
+            if(v.vastgezet) input.style.background = "#f8f9fa";
+            else input.style.background = "transparent";
+        });
+    }, 50);
+
 };
 
 // --- 2. VERGADERING AANMAKEN & OPENEN ---
-window.nieuweVergadering = function() {
-    let startPunten = window.standaardSjabloon.map(titel => {
+window.openNieuweVergaderingModal = function() {
+    // Zet de datumzoeker standaard op de dag van vandaag
+    document.getElementById('am_datum').value = new Date().toISOString().split('T')[0];
+    document.getElementById('aanmaak-modal').style.display = 'flex';
+};
+
+window.bevestigNieuweVergadering = function() {
+    let ruweDatum = document.getElementById('am_datum').value;
+    let type = document.getElementById('am_type').value;
+    
+    if(!ruweDatum) return alert("Kies eerst een datum!");
+    
+    // Zet de Amerikaanse datum (YYYY-MM-DD) om naar een mooie Nederlandse tekst voor het overzicht
+    let dParts = ruweDatum.split('-');
+    let maanden = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
+    let weergaveDatum = `${parseInt(dParts[2])} ${maandengebr = maanden[parseInt(dParts[1]) - 1]} ${dParts[0]}`;
+
+    // Haal de juiste agendapunten op uit de gekozen sjabloon
+    let geselecteerdSjabloon = window.bestuurSjablonen[type] || [];
+    let startPunten = geselecteerdSjabloon.map(titel => {
         return { id: 'p_' + Math.random().toString(36).substr(2, 9), titel: titel, isSub: false, prep: '', klad: '', verslag: '' };
     });
 
     let nw = { 
         id: 'verg_' + Date.now(), 
-        datum: '', tijd: '20:00 uur', adres: '', aanwezig: 'Martin, Izaac, Jolanda, Tom', 
+        type: type,
+        datum: weergaveDatum, 
+        isoDatum: ruweDatum, // Nodig voor de automatische jaarplanning sync
+        tijd: '20:00 uur', 
+        adres: 'De Veste', 
+        aanwezig: 'Martin, Izaac, Jolanda, Tom', 
+        vastgezet: false, // Start altijd open voor wijzigingen
+        acties: [], // 🚀 DE FUNDERING VOOR JE TO-DO TAB!
         punten: startPunten
     };
 
     window.bestuurDB.push(nw);
-    slaOpEnHerlaad();
-    openVergadering(nw.id);
+    document.getElementById('aanmaak-modal').style.display = 'none';
+    
+    // Sla direct op naar Firebase en open de editor
+    functionSlaOpEnHerlaadGeforceerd();
+    window.openVergadering(nw.id);
 };
+
+function functionSlaOpEnHerlaadGeforceerd() {
+    window.slaDataOp('blackshots_bestuur', window.bestuurDB);
+}
 
 window.openVergadering = function(id) {
     window.actieveVergaderingId = id;
@@ -247,7 +321,49 @@ window.verwijderVergadering = function(idGeforceerd = null) {
     }
 }
 
-function slaOpEnHerlaad() { localStorage.setItem('blackshots_bestuur', JSON.stringify(window.bestuurDB)); }
+function slaOpEnHerlaad() {
+    // 1. Sla de bestuursvergadering op in Firebase
+    window.slaDataOp('blackshots_bestuur', window.bestuurDB);
+    
+    // 2. Voer direct de automatische achtergrond-sync naar de Jaarplanning uit
+    let v = window.bestuurDB.find(x => x.id === window.actieveVergaderingId);
+    if (v && v.isoDatum) {
+        let planningDB = JSON.parse(localStorage.getItem('blackshots_jaarplanning_data')) || [];
+        
+        // Genereer een stabiel uniek ID gekoppeld aan deze specifieke vergadering
+        let uniekId = `toernooi_${v.id}`; 
+        let bestaandeIndex = planningDB.findIndex(item => item.id === uniekId);
+
+        // Bouw de notule-omschrijving op met een rechtstreekse doorklik-link!
+        let omschrijving = `Notulen & Agenda voor de ${v.type}vergadering.\n`;
+        if (v.vastgezet) omschrijving += `🔒 Deze notulen zijn officieel vastgesteld.\n`;
+        omschrijving += `\n🔗 Open de notulen direct in het clubbeheer via de Bestuur pagina.`;
+
+        let act = {
+            id: uniekId,
+            type: 'vergadering', 
+            titel: `📅 ${v.type} Vergadering`,
+            tekst: `📅 ${v.type} Vergadering`,
+            datum: v.isoDatum,
+            isoDatum: v.isoDatum,
+            eindDatum: v.isoDatum, 
+            tijd: v.tijd || "20:00",
+            locatie: v.adres || "De Veste",
+            kleur: "#34495e", // Vergaderkleur uit je Firebase
+            omschrijving: omschrijving
+        };
+
+        if (bestaandeIndex > -1) {
+            planningDB[bestaandeIndex] = act;
+        } else {
+            planningDB.push(act);
+        }
+        
+        // Push geruisloos door naar blackshots_jaarplanning_data
+        localStorage.setItem('blackshots_jaarplanning_data', JSON.stringify(planningDB));
+        if (typeof window.opslaanInFirebase === 'function') window.opslaanInFirebase('blackshots_jaarplanning_data', planningDB);
+    }
+}
 
 // --- 6. SJABLOON BEHEERDER ---
 window.tempSjabloon = [];
@@ -355,6 +471,17 @@ window.genereerDocument = function(soort) {
 
     let printTab = window.open('', '_blank'); printTab.document.write(htmlDoc); printTab.document.close();
     setTimeout(() => { printTab.print(); }, 500);
+};
+
+window.toggleVergaderingLock = function() {
+    let v = window.bestuurDB.find(x => x.id === window.actieveVergaderingId);
+    if (!v) return;
+    
+    v.vastgezet = !v.vastgezet;
+    slaOpEnHerlaad();
+    
+    // Herteken de pagina zodat invoervelden op disabled of enabled springen
+    window.openVergadering(v.id); 
 };
 
 setTimeout(window.tekenOverzicht, 200);
