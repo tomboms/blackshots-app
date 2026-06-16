@@ -399,20 +399,33 @@ window.runZaalScanner = function() {
     let verwachteZalen = [];
 
     // Helper: Check of een specifieke datum is gemarkeerd als vakantie/feestdag in de Jaarplanning
-    function isDatumEenVakantie(isoDatum) {
+    function isDatumEenVakantie(checkIsoDatum) {
         return window.activiteitenDB.some(act => {
-            if (act.datum !== isoDatum) return false;
-            // Check op de 'isVakantie' boolean, óf of het type/id gelijk is aan 'vakantie'
-            if (act.isVakantie === true) return true;
+            // Check of het type/vinkje een vakantie of annulering is
+            let isVak = (act.isVakantie === true);
             let typeStr = (act.type || "").toLowerCase();
-            return typeStr.includes('vakantie');
+            let titelStr = (act.titel || "").toLowerCase();
+            
+            if (!isVak && !typeStr.includes('vakantie') && !titelStr.includes('vakantie') && !titelStr.includes('feestdag') && !titelStr.includes('geen training') && !titelStr.includes('geannuleerd')) {
+                return false;
+            }
+
+            // OPLOSSING: Gebruik isoDatum én eindDatum uit Firebase voor hele vakantieperiodes
+            let start = act.isoDatum || act.datum;
+            let eind = act.eindDatum || start; // Als er geen einddatum is, is het 1 dag
+            
+            if (!start) return false;
+            // Valideer of de check datum TUSSEN de start en eind van de vakantie valt
+            return (checkIsoDatum >= start && checkIsoDatum <= eind);
         });
     }
 
     // A. Haal alle eenmalige activiteiten op (Wedstrijden etc. voor VANDAAG of later)
     window.activiteitenDB.forEach(act => {
-        if (!act.datum || act.datum < huidigeDatum) return;
-        if (isDatumEenVakantie(act.datum)) return; // Sla vakanties over!
+        let actDatum = act.isoDatum || act.datum; // OPLOSSING: Gebruik isoDatum uit Firebase
+        if (!actDatum || actDatum < huidigeDatum) return;
+        
+        if (isDatumEenVakantie(actDatum)) return; // Sla vakanties over!
         
         let typeStr = (act.type || "").toLowerCase();
         let locStr = (act.locatie || "").toLowerCase();
@@ -420,7 +433,7 @@ window.runZaalScanner = function() {
         // Is het een thuiswedstrijd, training, of in één van onze zalen?
         if (typeStr.includes('thuis') || typeStr.includes('training') || locStr.includes('veste') || locStr.includes('veka') || locStr.includes('wijstwijzer')) {
             verwachteZalen.push({
-                datum: act.datum,
+                datum: actDatum,
                 tijd: act.tijd || "",
                 titel: act.titel || "Activiteit",
                 type: act.type || "Activiteit"
@@ -468,7 +481,7 @@ window.runZaalScanner = function() {
         });
 
         if (!heeftHuur) {
-            // Voorkom dubbele meldingen op precies dezelfde dag/tijd
+            // Voorkom dubbele meldingen op precies dezelfde dag/tijd (samenvoegen)
             let dubbel = tekorten.find(t => t.datum === verwacht.datum && t.tijd === verwacht.tijd);
             if (dubbel) {
                 if (!dubbel.titel.includes(verwacht.titel)) {
