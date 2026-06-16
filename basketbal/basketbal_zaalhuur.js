@@ -394,13 +394,25 @@ window.runZaalScanner = function() {
         lekkenContainer.innerHTML = lekHtml;
     }
 
-    // 2. Zoek naar ZAALTEKORTEN (Alles wat een zaal nodig heeft, maar géén huur heeft)
+// 2. Zoek naar ZAALTEKORTEN (Alles wat een zaal nodig heeft, maar géén huur heeft)
     let tekorten = [];
     let verwachteZalen = [];
+
+    // Helper: Check of een specifieke datum is gemarkeerd als vakantie/feestdag in de Jaarplanning
+    function isDatumEenVakantie(isoDatum) {
+        return window.activiteitenDB.some(act => {
+            if (act.datum !== isoDatum) return false;
+            // Check op de 'isVakantie' boolean, óf of het type/id gelijk is aan 'vakantie'
+            if (act.isVakantie === true) return true;
+            let typeStr = (act.type || "").toLowerCase();
+            return typeStr.includes('vakantie');
+        });
+    }
 
     // A. Haal alle eenmalige activiteiten op (Wedstrijden etc. voor VANDAAG of later)
     window.activiteitenDB.forEach(act => {
         if (!act.datum || act.datum < huidigeDatum) return;
+        if (isDatumEenVakantie(act.datum)) return; // Sla vakanties over!
         
         let typeStr = (act.type || "").toLowerCase();
         let locStr = (act.locatie || "").toLowerCase();
@@ -423,20 +435,23 @@ window.runZaalScanner = function() {
         let isoDatum = d.toISOString().split('T')[0];
         let dagNummer = d.getDay(); // 0=Zondag, 1=Maandag, etc.
 
-        window.teamsDB.forEach(team => {
-            if (team.trainingen && Array.isArray(team.trainingen)) {
-                team.trainingen.forEach(tr => {
-                    if (tr.dag === dagNummer) {
-                        verwachteZalen.push({
-                            datum: isoDatum,
-                            tijd: tr.start || "",
-                            titel: `Training ${team.naam}`,
-                            type: "Vaste Training"
-                        });
-                    }
-                });
-            }
-        });
+        // Als deze dag in de jaarplanning GEEN vakantie/feestdag is, voeg de vaste trainingen toe
+        if (!isDatumEenVakantie(isoDatum)) {
+            window.teamsDB.forEach(team => {
+                if (team.trainingen && Array.isArray(team.trainingen)) {
+                    team.trainingen.forEach(tr => {
+                        if (tr.dag === dagNummer) {
+                            verwachteZalen.push({
+                                datum: isoDatum,
+                                tijd: tr.start || "",
+                                titel: `Training ${team.naam}`,
+                                type: "Vaste Training"
+                            });
+                        }
+                    });
+                }
+            });
+        }
     }
 
     // C. Cross-Check: Is er zaalhuur voor al deze verwachtingen?
@@ -453,10 +468,9 @@ window.runZaalScanner = function() {
         });
 
         if (!heeftHuur) {
-            // Check of we dit tijdstip/datum al gemeld hebben (bijv. als X10 en X12 tegelijk trainen)
+            // Voorkom dubbele meldingen op precies dezelfde dag/tijd
             let dubbel = tekorten.find(t => t.datum === verwacht.datum && t.tijd === verwacht.tijd);
             if (dubbel) {
-                // Plak de naam erbij zodat je 1 overzichtelijke melding krijgt
                 if (!dubbel.titel.includes(verwacht.titel)) {
                     dubbel.titel += ` + ${verwacht.titel}`;
                 }
@@ -469,16 +483,20 @@ window.runZaalScanner = function() {
     // Sorteer alles netjes chronologisch
     tekorten.sort((a, b) => a.datum.localeCompare(b.datum) || a.tijd.localeCompare(b.tijd));
 
-    // D. Weergave Zaaltekorten genereren
+    // D. Weergave Zaaltekorten genereren met de Nederlandse datum (DD-MM-YYYY)
     if (tekorten.length === 0) {
         tekortContainer.innerHTML = `<div style="padding:10px; background:#f0fbf4; color:#27ae60; border-radius:4px; font-weight:bold;">✅ Geen tekorten. Voor de komende 30 dagen is overal een zaal voor!</div>`;
     } else {
         let tekortHtml = '';
         tekorten.forEach(tekort => {
+            // Zet de datum om van YYYY-MM-DD naar DD-MM-YYYY
+            let datumParts = tekort.datum.split('-');
+            let weergaveDatum = `${datumParts[2]}-${datumParts[1]}-${datumParts[0]}`;
+
             tekortHtml += `<div class="scanner-card conflict-tekort">
                 <div class="scanner-card-header"><span style="color:#c0392b;">${tekort.type}</span> <span>${tekort.tijd || 'Tijd onbekend'}</span></div>
                 <div style="font-size:0.9rem; font-weight:bold;">${tekort.titel}</div>
-                <div style="font-size:0.8rem; color:#7f8c8d; margin-top:5px;">Datum: ${tekort.datum}</div>
+                <div style="font-size:0.8rem; color:#7f8c8d; margin-top:5px;">Datum: ${weergaveDatum}</div>
             </div>`;
         });
         tekortContainer.innerHTML = tekortHtml;
