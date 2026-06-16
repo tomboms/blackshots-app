@@ -394,42 +394,84 @@ window.runZaalScanner = function() {
         lekkenContainer.innerHTML = lekHtml;
     }
 
-    // 2. Zoek naar ZAALTEKORTEN (Thuiswedstrijd of Training in de agenda, maar geen Zaalhuur)
+    // 2. Zoek naar ZAALTEKORTEN (Alles wat een zaal nodig heeft, maar géén huur heeft)
     let tekorten = [];
-    
-    let relevanteActiviteiten = window.activiteitenDB.filter(act => {
-        if (!act.type || !act.datum) return false;
+    let verwachteZalen = [];
+
+    // A. Haal alle eenmalige activiteiten op (Wedstrijden etc. voor VANDAAG of later)
+    window.activiteitenDB.forEach(act => {
+        if (!act.datum || act.datum < huidigeDatum) return;
         
-        let typeStr = act.type.toLowerCase();
+        let typeStr = (act.type || "").toLowerCase();
         let locStr = (act.locatie || "").toLowerCase();
         
-        // Zodra het een thuiswedstrijd is, of een training, rekenen we het als "Zaal Nodig!"
-        // Zelfs als je per ongeluk het locatie-vakje leeg had gelaten.
-        let isThuisWedstrijd = typeStr.includes('thuis') || typeStr.includes('training') || locStr.includes('veste') || locStr.includes('veka') || locStr.includes('wijstwijzer');
-        
-        // Let op: Toon alleen tekorten voor VANDAAG of in de TOEKOMST
-        return isThuisWedstrijd && act.datum >= huidigeDatum;
+        // Is het een thuiswedstrijd, training, of in één van onze zalen?
+        if (typeStr.includes('thuis') || typeStr.includes('training') || locStr.includes('veste') || locStr.includes('veka') || locStr.includes('wijstwijzer')) {
+            verwachteZalen.push({
+                datum: act.datum,
+                tijd: act.tijd || "",
+                titel: act.titel || "Activiteit",
+                type: act.type || "Activiteit"
+            });
+        }
     });
 
-    relevanteActiviteiten.forEach(act => {
+    // B. Haal alle VASTE trainingen op (Genereer voor de komende 30 dagen)
+    for (let i = 0; i <= 30; i++) {
+        let d = new Date();
+        d.setDate(d.getDate() + i);
+        let isoDatum = d.toISOString().split('T')[0];
+        let dagNummer = d.getDay(); // 0=Zondag, 1=Maandag, etc.
+
+        window.teamsDB.forEach(team => {
+            if (team.trainingen && Array.isArray(team.trainingen)) {
+                team.trainingen.forEach(tr => {
+                    if (tr.dag === dagNummer) {
+                        verwachteZalen.push({
+                            datum: isoDatum,
+                            tijd: tr.start || "",
+                            titel: `Training ${team.naam}`,
+                            type: "Vaste Training"
+                        });
+                    }
+                });
+            }
+        });
+    }
+
+    // C. Cross-Check: Is er zaalhuur voor al deze verwachtingen?
+    verwachteZalen.forEach(verwacht => {
         let heeftHuur = actieveHuur.some(z => {
-            if (z.isoDatum !== act.datum) return false;
-            // Als we wél zaalhuur hebben op die dag, maar je was bij de wedstrijd de Tijd vergeten in te vullen, rekenen we hem voor de zekerheid toch goed.
-            if (!act.tijd || !z.startTijd) return true; 
+            if (z.isoDatum !== verwacht.datum) return false;
+            if (!verwacht.tijd || !z.startTijd) return true; // Tijd onbekend? Dan rekenen we de zaal voor die dag goed.
             
-            let actUur = parseInt(act.tijd.split(':')[0]);
+            let verwUur = parseInt(verwacht.tijd.split(':')[0]);
             let huurUur = parseInt(z.startTijd.split(':')[0]);
             
-            // Check of de zaalhuur binnen 2 uur van de wedstrijd start
-            return Math.abs(actUur - huurUur) <= 2; 
+            // Check of we binnen 2 uur van elkaar zitten
+            return Math.abs(verwUur - huurUur) <= 2; 
         });
 
-        if (!heeftHuur) tekorten.push(act);
+        if (!heeftHuur) {
+            // Check of we dit tijdstip/datum al gemeld hebben (bijv. als X10 en X12 tegelijk trainen)
+            let dubbel = tekorten.find(t => t.datum === verwacht.datum && t.tijd === verwacht.tijd);
+            if (dubbel) {
+                // Plak de naam erbij zodat je 1 overzichtelijke melding krijgt
+                if (!dubbel.titel.includes(verwacht.titel)) {
+                    dubbel.titel += ` + ${verwacht.titel}`;
+                }
+            } else {
+                tekorten.push(verwacht);
+            }
+        }
     });
 
-    // Weergave Zaaltekorten
+    // Sorteer alles netjes chronologisch
+    tekorten.sort((a, b) => a.datum.localeCompare(b.datum) || a.tijd.localeCompare(b.tijd));
+
+    // D. Weergave Zaaltekorten genereren
     if (tekorten.length === 0) {
-        tekortContainer.innerHTML = `<div style="padding:10px; background:#f0fbf4; color:#27ae60; border-radius:4px; font-weight:bold;">✅ Geen tekorten. Voor alle thuis-activiteiten is een zaal geboekt!</div>`;
+        tekortContainer.innerHTML = `<div style="padding:10px; background:#f0fbf4; color:#27ae60; border-radius:4px; font-weight:bold;">✅ Geen tekorten. Voor de komende 30 dagen is overal een zaal voor!</div>`;
     } else {
         let tekortHtml = '';
         tekorten.forEach(tekort => {
