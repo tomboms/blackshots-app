@@ -78,7 +78,8 @@ window.slaDataOp = function(sleutel, data) {
 window.syncToernooiNaarJaarplanning = function() {
     if (!actieveCompId || !window.toernooiDB[actieveCompId]) return alert("Geen toernooi actief!");
     
-    let planningDB = JSON.parse(localStorage.getItem('blackshots_activiteiten')) || [];
+    // FIX 1: Veranderd naar blackshots_jaarplanning_data
+    let planningDB = JSON.parse(localStorage.getItem('blackshots_jaarplanning_data')) || [];
     let comp = window.toernooiDB[actieveCompId];
     const berekendeStand = window.berekenStand(comp);
     
@@ -150,8 +151,8 @@ window.syncToernooiNaarJaarplanning = function() {
         }
     });
 
-    // We sturen hem nu wél via jouw Firebase motor
-    window.slaDataOp('blackshots_activiteiten', planningDB);
+    // FIX 2: Veranderd naar blackshots_jaarplanning_data
+    window.slaDataOp('blackshots_jaarplanning_data', planningDB);
     
     alert(`✅ Toernooi gesynchroniseerd met de Jaarplanning!\n\nNieuwe speeldagen in agenda: ${toegevoegd}\nBestaande speeldagen geüpdatet: ${geupdate}\n\nKijk in de Notities van de Jaarplanning voor het gedetailleerde programma.`);
 };
