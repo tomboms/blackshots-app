@@ -108,12 +108,19 @@ window.syncToernooiNaarJaarplanning = function() {
 
     Object.keys(matchenPerDatum).forEach(isoDatum => {
         let matchesOpDag = matchenPerDatum[isoDatum];
-        let startTijd = "17:00"; // Standaard tijd
+       let startTijd = null; 
         
         // Bepaal de vroegste starttijd voor in de agenda
         matchesOpDag.forEach(w => {
-            if (w.tijd && (!startTijd || w.tijd < startTijd)) startTijd = w.tijd;
+            if (w.tijd) {
+                if (!startTijd || w.tijd < startTijd) {
+                    startTijd = w.tijd;
+                }
+            }
         });
+
+        // Fallback voor het geval je nog helemaal géén tijden had ingevuld bij de wedstrijden
+        if (!startTijd) startTijd = "17:00";
 
         // 📝 Bouw het gedetailleerde overzicht voor de Notities op!
         let beschrijving = `Automatisch toegevoegd vanuit de Toernooi module: ${comp.naam}\n\nWedstrijdprogramma voor deze dag:\n`;
