@@ -147,7 +147,6 @@ window.hernummerWeken = function() {
     Array.from(container.children).forEach((div, index) => { div.querySelector('.week-nummer').innerText = index + 1; });
 };
 
-// NIEUW: Meerdere teams kunnen selecteren voor een variatie
 window.voegTeamVariatieToe = function(geselecteerdeTeams = [], tekst = "", tekening = "") {
     const container = document.getElementById('team-variaties-container');
     const div = document.createElement('div');
@@ -175,7 +174,11 @@ window.voegTeamVariatieToe = function(geselecteerdeTeams = [], tekst = "", teken
 window.slaOefeningOp = function() {
     const naam = document.getElementById('oef-naam').value.trim();
     const duur = parseInt(document.getElementById('oef-duur').value);
-    const aantalSpelers = document.getElementById('oef-spelers').value.trim(); 
+    
+    // De twee nieuwe velden ophalen
+    const minSpelers = parseInt(document.getElementById('oef-min-spelers').value); 
+    const groepering = document.getElementById('oef-groepering').value.trim();
+    
     const spullen = document.getElementById('oef-spullen').value.trim();
     const video = document.getElementById('oef-video').value.trim();
     const uitleg = document.getElementById('oef-uitleg').value.trim();
@@ -195,7 +198,6 @@ window.slaOefeningOp = function() {
         if (txt || img) progressie.push({ tekst: txt, tekening: img }); 
     });
 
-    // Uitlezen van de meervoudige team variaties
     let teamVariaties = [];
     Array.from(document.getElementById('team-variaties-container').children).forEach(rij => {
         let geselecteerdeTeams = [];
@@ -210,14 +212,16 @@ window.slaOefeningOp = function() {
     let doelgroepen = []; document.querySelectorAll('.doel-cb:checked').forEach(cb => doelgroepen.push(cb.value));
     let categorieen = []; document.querySelectorAll('.cat-cb:checked').forEach(cb => categorieen.push(cb.value));
 
-    // Bestaande favoriet status behouden
     let bestaandeOef = editOefeningId ? window.oefeningenDB.find(o => o.id === editOefeningId) : null;
     let isFav = bestaandeOef ? bestaandeOef.isFavoriet : false;
 
     const oefeningData = {
         id: editOefeningId || 'oef_' + Date.now() + Math.floor(Math.random() * 1000),
         isFavoriet: isFav,
-        naam, duur, aantalSpelers, spullen, videoLink: video, 
+        naam, duur, 
+        minSpelers: isNaN(minSpelers) ? 1 : minSpelers, // Fallback naar 1 speler
+        groepering, 
+        spullen, videoLink: video, 
         uitleg, aandachtspunten: aandacht, makkelijker, moeilijker, 
         progressie, teamVariaties, doelgroepen, categorieen,
         tekening: tekeningBasis 
@@ -252,6 +256,22 @@ window.toggleFavoriet = function(id) {
 };
 
 window.renderOefeningenLijst = function() {
+    // ---- DE AUTO-FIXER (Repareert oude oefeningen) ----
+    window.oefeningenDB.forEach(o => {
+        if (!o.naam) o.naam = "Naamloze Oefening";
+        if (!Array.isArray(o.categorieen)) o.categorieen = [];
+        
+        // Converteer oude "Aantal Spelers" text naar de twee nieuwe velden
+        if (o.aantalSpelers && o.minSpelers === undefined) {
+            o.groepering = o.aantalSpelers; // Zet de oude tekst over naar groepering
+            let match = String(o.aantalSpelers).match(/\d+/);
+            o.minSpelers = match ? parseInt(match[0]) : 1;
+        }
+        if (o.minSpelers === undefined || o.minSpelers === null) o.minSpelers = 1;
+        if (o.isFavoriet === undefined) o.isFavoriet = false;
+    });
+    // ---------------------------------------------------
+
     const grid = document.getElementById('oefeningen-grid');
     const zoekterm = document.getElementById('zoek-oefening') ? document.getElementById('zoek-oefening').value.toLowerCase().trim() : "";
     if(!grid) return; grid.innerHTML = '';
@@ -261,7 +281,7 @@ window.renderOefeningenLijst = function() {
 
     let gefilterd = window.oefeningenDB.filter(o => {
         if (filterAlleenFavorieten && !o.isFavoriet) return false;
-        let catText = o.categorieen ? o.categorieen.join(' ').toLowerCase() : '';
+        let catText = o.categorieen.join(' ').toLowerCase();
         return (!zoekterm) || o.naam.toLowerCase().includes(zoekterm) || catText.includes(zoekterm);
     });
 
@@ -269,8 +289,8 @@ window.renderOefeningenLijst = function() {
 
     gefilterd.sort((a,b) => a.naam.localeCompare(b.naam)).forEach((oef) => {
         let catTags = ''; if(oef.categorieen) oef.categorieen.forEach(c => catTags += `<span style="background:#3498db; color:white; font-size:0.75rem; padding:2px 6px; border-radius:4px; margin-right:5px; margin-bottom:5px; display:inline-block;">${c}</span>`);
-        
         let favIcoon = oef.isFavoriet ? '⭐' : '☆';
+        let opstellingTekst = oef.groepering ? oef.groepering : 'Vrij';
         
         let div = document.createElement('div');
         div.style.cssText = "background:white; border:1px solid var(--border-color); border-radius:8px; overflow:hidden; display:flex; flex-direction:column; box-shadow:0 2px 4px rgba(0,0,0,0.05);";
@@ -282,7 +302,7 @@ window.renderOefeningenLijst = function() {
             </div>
             <div style="padding:15px; flex:1;">
                 <div style="margin-bottom:10px;">${catTags}</div>
-                <div style="color:#7f8c8d; font-size:0.9rem; margin-bottom:10px;">⏱ ${oef.duur} min | 👥 ${oef.aantalSpelers || 'Alle'}</div>
+                <div style="color:#7f8c8d; font-size:0.9rem; margin-bottom:10px;">⏱ ${oef.duur} min | 👥 Min. ${oef.minSpelers} | 📋 ${opstellingTekst}</div>
             </div>
             <div style="padding:10px 15px; background:#fcfcfc; border-top:1px solid #eee; display:flex; gap:5px; flex-wrap:wrap;">
                 <button onclick="window.openOefeningPopup('${oef.id}')" style="flex:2; background:#3498db; color:white; border:none; padding:8px; border-radius:4px; cursor:pointer; font-weight:bold;">👁️ Bekijk</button>
@@ -296,12 +316,10 @@ window.renderOefeningenLijst = function() {
     });
 };
 
-// --- NIEUW: DUPLICEER OEFENING ---
 window.dupliceerOefening = function(id) {
     let bronOef = window.oefeningenDB.find(o => o.id === id);
     if(!bronOef) return;
     
-    // Maak een diepe kopie
     let nieuweOef = JSON.parse(JSON.stringify(bronOef));
     nieuweOef.id = 'oef_' + Date.now() + Math.floor(Math.random() * 1000);
     nieuweOef.naam = bronOef.naam + " (Kopie)";
@@ -310,12 +328,9 @@ window.dupliceerOefening = function(id) {
     window.oefeningenDB.push(nieuweOef);
     localStorage.setItem('blackshots_oefeningen', JSON.stringify(window.oefeningenDB));
     window.renderOefeningenLijst();
-    
-    // Open hem direct in bewerk-modus
     window.bewerkOefening(nieuweOef.id);
 };
 
-// --- NIEUW: PRINT NAAR PDF ---
 window.printOefening = function(id) {
     let oef = window.oefeningenDB.find(o => o.id === id);
     if(!oef) return;
@@ -339,7 +354,7 @@ window.printOefening = function(id) {
         </head>
         <body>
             <h1>🏀 ${oef.naam}</h1>
-            <div class="meta">⏱ ${oef.duur} min | 👥 ${oef.aantalSpelers || 'Alle spelers'} | 🎒 Spullen: ${oef.spullen || '-'}</div>
+            <div class="meta">⏱ ${oef.duur} min | 👥 Min. ${oef.minSpelers} (${oef.groepering || 'Vrij'}) | 🎒 Spullen: ${oef.spullen || '-'}</div>
             
             <div style="display:flex; gap:20px; align-items:flex-start;">
                 <div style="flex:1;">
@@ -378,7 +393,6 @@ window.openOefeningPopup = function(id) {
         let weekImg = isLeerlijn ? (typeof oef.progressie[huidigeWeekIndex] === 'object' ? oef.progressie[huidigeWeekIndex].tekening : null) : null;
         let finalImg = weekImg || oef.tekening;
 
-        // Video knop
         let videoBtn = oef.videoLink ? `<a href="${oef.videoLink}" target="_blank" style="display:inline-block; background:#e74c3c; color:white; padding:8px 12px; border-radius:4px; text-decoration:none; font-weight:bold; margin-bottom:15px;">▶️ Bekijk Video</a>` : '';
 
         modal.innerHTML = `
@@ -392,7 +406,7 @@ window.openOefeningPopup = function(id) {
                 </div>
                 
                 <div style="padding:20px; overflow-y:auto; flex:1;">
-                    <div style="color:#7f8c8d; font-weight:bold; margin-bottom:15px; font-size:0.9rem;">⏱ ${oef.duur} min | 👥 ${oef.aantalSpelers || 'Alle'} | 🎒 ${oef.spullen || 'Geen extra spullen'}</div>
+                    <div style="color:#7f8c8d; font-weight:bold; margin-bottom:15px; font-size:0.9rem;">⏱ ${oef.duur} min | 👥 Min. ${oef.minSpelers} (${oef.groepering || 'Vrij'}) | 🎒 ${oef.spullen || 'Geen extra spullen'}</div>
                     ${videoBtn}
                     
                     <div style="display:grid; grid-template-columns: ${finalImg ? '1fr 1fr' : '1fr'}; gap:20px;">
@@ -454,7 +468,8 @@ window.bewerkOefening = function(id) {
 
     document.getElementById('oef-naam').value = oef.naam || '';
     document.getElementById('oef-duur').value = oef.duur || '';
-    document.getElementById('oef-spelers').value = oef.aantalSpelers || '';
+    document.getElementById('oef-min-spelers').value = oef.minSpelers || '';
+    document.getElementById('oef-groepering').value = oef.groepering || '';
     document.getElementById('oef-spullen').value = oef.spullen || '';
     document.getElementById('oef-video').value = oef.videoLink || '';
     document.getElementById('oef-uitleg').value = oef.uitleg || '';
@@ -476,7 +491,6 @@ window.bewerkOefening = function(id) {
         });
     }
 
-    // Ondersteuning voor zowel de oude als de nieuwe manier van team variaties opslaan
     document.getElementById('team-variaties-container').innerHTML = '';
     if (oef.teamVariaties) {
         if (Array.isArray(oef.teamVariaties)) {
@@ -506,7 +520,8 @@ window.resetOefeningFormulier = function() {
     document.getElementById('annuleer-btn').style.display = "none";
 
     document.getElementById('oef-naam').value = ''; document.getElementById('oef-duur').value = '';
-    document.getElementById('oef-spelers').value = ''; document.getElementById('oef-spullen').value = '';
+    document.getElementById('oef-min-spelers').value = ''; document.getElementById('oef-groepering').value = ''; 
+    document.getElementById('oef-spullen').value = '';
     document.getElementById('oef-video').value = ''; document.getElementById('oef-uitleg').value = '';
     document.getElementById('oef-aandacht').value = ''; document.getElementById('oef-makkelijker').value = '';
     document.getElementById('oef-moeilijker').value = ''; 

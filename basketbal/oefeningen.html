@@ -47,11 +47,20 @@
                     <input type="number" id="oef-duur" placeholder="Bijv. 10">
                 </div>
             </div>
-            <div class="grid-3">
+            
+            <!-- HIER ZIT DE VERANDERING: AANTAL SPELERS IS OPGESPLITST -->
+            <div class="grid-2">
                 <div class="input-groep">
-                    <label>Aantal Spelers</label>
-                    <input type="text" id="oef-spelers" placeholder="Bijv. 12+">
+                    <label>Min. Aantal Spelers (Getal) *</label>
+                    <input type="number" id="oef-min-spelers" placeholder="Bijv. 4" style="border-left: 3px solid #3498db;">
                 </div>
+                <div class="input-groep">
+                    <label>Opstelling / Groepering (Tekst)</label>
+                    <input type="text" id="oef-groepering" placeholder="Bijv. Groepjes van 4">
+                </div>
+            </div>
+
+            <div class="grid-2">
                 <div class="input-groep">
                     <label>Benodigde Spullen</label>
                     <input type="text" id="oef-spullen" placeholder="Bijv. 2 ballen, 4 pionnen">
@@ -61,6 +70,7 @@
                     <input type="text" id="oef-video" placeholder="Plak hier een URL...">
                 </div>
             </div>
+
             <div class="grid-2">
                 <div>
                     <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d; display:block; margin-bottom:5px;">Doelgroepen:</label>
