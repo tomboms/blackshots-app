@@ -1,4 +1,4 @@
-// --- BASKETBAL_TOERNOOI.JS: PERFECTE LAYOUT, SYNC & SNEL WISSELEN ---
+// --- BASKETBAL_TOERNOOI.JS ---
 
 window.toernooiDB = JSON.parse(localStorage.getItem('blackshots_toernooi')) || {};
 let actieveCompId = null;
@@ -66,28 +66,24 @@ window.toggleTeamCollapse = function(teamId) {
 };
 
 // ============================================================================
-// NIEUW: SYNC NAAR JAARPLANNING
+// VERNIEUWDE SYNC NAAR JAARPLANNING (Met uitgebreide details)
 // ============================================================================
 window.syncToernooiNaarJaarplanning = function() {
     if (!actieveCompId || !window.toernooiDB[actieveCompId]) return alert("Geen toernooi actief!");
     
     let planningDB = JSON.parse(localStorage.getItem('blackshots_activiteiten')) || [];
     let comp = window.toernooiDB[actieveCompId];
+    const berekendeStand = window.berekenStand(comp);
     
-    // Verzamel alle unieke datums en pak de vroegste tijd
-    let speeldagen = {};
+    let matchenPerDatum = {};
+    
+    // Groepeer alle wedstrijden netjes per datum
     comp.wedstrijden.forEach(w => {
         if (!w.datum) return;
-        if (!speeldagen[w.datum]) speeldagen[w.datum] = w.tijd || "17:00";
-        else if (w.tijd && w.tijd < speeldagen[w.datum]) speeldagen[w.datum] = w.tijd; 
-    });
-
-    let toegevoegd = 0;
-    let geupdate = 0;
-
-    Object.keys(speeldagen).forEach(dStr => {
+        
+        let dStr = w.datum;
         let isoDatum = dStr;
-        // Als de datum nog als "8-jun" staat, maken we er "YYYY-MM-DD" van voor de agenda
+        // Fix de datum van "8-jun" naar "2026-06-08" voor de agenda
         if (/^\d{1,2}-[a-z]{3}$/i.test(dStr)) {
             let maanden = { 'jan':'01', 'feb':'02', 'mrt':'03', 'apr':'04', 'mei':'05', 'jun':'06', 'jul':'07', 'aug':'08', 'sep':'09', 'okt':'10', 'nov':'11', 'dec':'12' };
             let delen = dStr.toLowerCase().split('-');
@@ -95,23 +91,50 @@ window.syncToernooiNaarJaarplanning = function() {
             isoDatum = `${jaar}-${maanden[delen[1]]}-${delen[0].padStart(2, '0')}`;
         }
 
+        if (!matchenPerDatum[isoDatum]) matchenPerDatum[isoDatum] = [];
+        matchenPerDatum[isoDatum].push(w);
+    });
+
+    let toegevoegd = 0;
+    let geupdate = 0;
+
+    Object.keys(matchenPerDatum).forEach(isoDatum => {
+        let matchesOpDag = matchenPerDatum[isoDatum];
+        let startTijd = "17:00"; // Standaard tijd
+        
+        // Bepaal de vroegste starttijd voor in de agenda
+        matchesOpDag.forEach(w => {
+            if (w.tijd && (!startTijd || w.tijd < startTijd)) startTijd = w.tijd;
+        });
+
+        // 📝 Bouw het gedetailleerde overzicht voor de Notities op!
+        let beschrijving = `Automatisch toegevoegd vanuit de Toernooi module: ${comp.naam}\n\nWedstrijdprogramma voor deze dag:\n`;
+        
+        matchesOpDag.sort((a,b) => (a.tijd||'').localeCompare(b.tijd||'')).forEach(w => {
+            let tThuis = getTeamWeergave(w.thuis, berekendeStand, comp.teams).naam;
+            let tUit = getTeamWeergave(w.uit, berekendeStand, comp.teams).naam;
+            let locatie = w.veld || "Onbekend";
+            beschrijving += `• ${w.tijd || '??:??'} | ${tThuis} vs ${tUit} (${locatie})\n`;
+        });
+
         let uniekId = `toernooi_${actieveCompId}_${isoDatum}`;
         let bestaandeIndex = planningDB.findIndex(item => item.id === uniekId);
 
         let act = {
             id: uniekId,
-            type: 'training', // Zodat de zaalhuur-scanner hem snapt als legitieme actie!
+            type: 'training', // Wordt gezien als legitieme actie voor zaalhuur
             titel: `🏆 ${comp.naam}`,
             datum: isoDatum,
-            tijd: speeldagen[dStr],
+            tijd: startTijd,
             locatie: "De Veste",
             kleur: "#16a085",
-            beschrijving: "Speeldag Toernooi/Competitie. Automatisch gesynchroniseerd."
+            beschrijving: beschrijving
         };
 
         if (bestaandeIndex > -1) {
             planningDB[bestaandeIndex].titel = act.titel;
             planningDB[bestaandeIndex].tijd = act.tijd;
+            planningDB[bestaandeIndex].beschrijving = act.beschrijving;
             geupdate++;
         } else {
             planningDB.push(act);
@@ -120,7 +143,7 @@ window.syncToernooiNaarJaarplanning = function() {
     });
 
     localStorage.setItem('blackshots_activiteiten', JSON.stringify(planningDB));
-    alert(`✅ Toernooi gesynchroniseerd met de Jaarplanning!\n\nNieuwe speeldagen in agenda: ${toegevoegd}\nBestaande geüpdatet: ${geupdate}`);
+    alert(`✅ Toernooi gesynchroniseerd met de Jaarplanning!\n\nNieuwe speeldagen in agenda: ${toegevoegd}\nBestaande speeldagen geüpdatet: ${geupdate}\n\nKijk in de Notities van de Jaarplanning voor het gedetailleerde programma.`);
 };
 
 window.berekenStand = function(comp) {
@@ -297,19 +320,13 @@ window.kopieerHTMLMail = function() {
     alert("✅ Gekopieerd! Je kunt het bericht (inclusief tabellen!) nu plakken in je e-mail.");
 };
 
-// ============================================================================
-// NIEUW: SNEL SPELERS VERPLAATSEN
-// ============================================================================
 window.verplaatsSpeler = function(vanTeamId, spelerId, naarTeamId) {
-    if (!naarTeamId) return; // Dropdown stond op lege optie
-    
+    if (!naarTeamId) return; 
     let comp = window.toernooiDB[actieveCompId];
     
-    // Verwijder uit het oude team
     let vanTeam = comp.teams.find(t => t.id === vanTeamId);
     if (vanTeam) vanTeam.spelers = vanTeam.spelers.filter(s => s !== spelerId);
     
-    // Voeg toe aan het nieuwe team
     let naarTeam = comp.teams.find(t => t.id === naarTeamId);
     if (naarTeam && !naarTeam.spelers.includes(spelerId)) {
         naarTeam.spelers.push(spelerId);
@@ -417,7 +434,7 @@ window.renderToernooi = function() {
     }
     if(document.getElementById('toernooi-schema')) document.getElementById('toernooi-schema').innerHTML = schemaHtml;
 
-    // 3. TEAMS RENDERN MET NIEUWE FUNCTIES
+    // 3. TEAMS RENDERN
     let spelersLijstHtml = '<option value="">-- Voeg clublid toe --</option>';
     if (window.spelersDB && window.spelersDB.length > 0) {
         let gesorteerd = [...window.spelersDB].sort((a,b) => (a.naam || '').localeCompare(b.naam || ''));
@@ -430,8 +447,7 @@ window.renderToernooi = function() {
         let pijl = isCollapsed ? '▶' : '▼';
         let bodyDisplay = isCollapsed ? 'none' : 'block';
 
-        // Genereer de verplaats-opties voor DIT specifieke team (toon alle andere teams)
-        let verplaatsOptiesHtml = '<option value="">🔄 Verplaats...</option>';
+        let verplaatsOptiesHtml = '<option value="">🔄 Verplaats</option>';
         comp.teams.forEach(anderTeam => {
             if (anderTeam.id !== t.id) {
                 verplaatsOptiesHtml += `<option value="${anderTeam.id}">${anderTeam.naam}</option>`;
@@ -451,19 +467,17 @@ window.renderToernooi = function() {
             let sObj = (window.spelersDB || []).find(s => s.id === sId || s.naam === sId);
             let weergaveNaam = sObj ? sObj.naam : sId; 
             
-            // Nieuwe layout voor elke speler met het Verplaats-dropdown menu
             teamsHtml += `<li style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px dashed #eee; padding:6px 0; font-size:0.9rem;">
                 <span style="font-weight:bold;">${weergaveNaam}</span> 
-                <div style="display:flex; gap:5px;">
-                    <select onchange="window.verplaatsSpeler('${t.id}', '${sId}', this.value)" style="padding:2px 5px; font-size:0.8rem; border-radius:4px; border:1px solid #ccc; max-width:110px;">
+                <div style="display:flex; gap:5px; align-items:center;">
+                    <select onchange="window.verplaatsSpeler('${t.id}', '${sId}', this.value)" style="padding:2px 4px; font-size:0.75rem; border-radius:4px; border:1px solid #ecf0f1; background:#f8f9fa; color:#7f8c8d; max-width:85px; cursor:pointer;" title="Verplaats speler">
                         ${verplaatsOptiesHtml}
                     </select>
-                    <button onclick="window.verwijderSpelerUitTeam('${t.id}', ${pIdx})" style="color:white; background:#e74c3c; border:none; border-radius:4px; cursor:pointer; font-weight:bold; padding:2px 6px;" title="Verwijder uit team">X</button>
+                    <button onclick="window.verwijderSpelerUitTeam('${t.id}', ${pIdx})" style="color:#bdc3c7; background:none; border:none; cursor:pointer; font-weight:bold; font-size:1.1rem; padding:0 4px;" title="Verwijder uit team">&times;</button>
                 </div>
             </li>`;
         });
 
-        // Twee manieren om toe te voegen: Lid via dropdown OF Vrije naam intypen
         teamsHtml += `</ul>
                     <div style="display:flex; gap:5px; margin-bottom:8px;">
                         <select id="add_speler_${t.id}" style="flex:1; padding:8px; font-size:0.85rem; border:1px solid #ccc; border-radius:4px;">${spelersLijstHtml}</select>
@@ -505,7 +519,6 @@ window.voegToernooiSpelerToe = function(teamId) {
     }
 };
 
-// NIEUW: SNEL VRIJE NAAM TOEVOEGEN
 window.voegCustomToernooiSpelerToe = function(teamId) {
     let inputVeld = document.getElementById(`add_custom_speler_${teamId}`);
     if (!inputVeld) return;
@@ -534,9 +547,7 @@ window.toernooiWedstrijdToevoegen = function() {
     let thuis = document.getElementById('nw_thuis').value;
     let uit = document.getElementById('nw_uit').value;
     
-    if (!thuis || !uit || thuis === uit) {
-        return alert("Kies twee verschillende teams of plaatsingen.");
-    }
+    if (!thuis || !uit || thuis === uit) return alert("Kies twee verschillende teams of plaatsingen.");
     
     window.toernooiDB[actieveCompId].wedstrijden.push({ 
         id: 'tm_' + Date.now(), datum: datum, tijd: tijd, veld: veld, 
@@ -633,7 +644,7 @@ window.openLiveScore = function(matchId) {
                     <div id="ls_logs" style="height:150px; overflow-y:auto; font-size:0.9rem;"></div>
                 </div>
                 <div style="background:#34495e; padding:15px; border-radius:8px;">
-                    <h3 style="margin-top:0; border-bottom:1px solid #7f8c8d; padding-bottom:5px;">🌟 Topscorers (Deze wedstrijd)</h3>
+                    <h3 style="margin-top:0; border-bottom:1px solid #7f8c8d; padding-bottom:5px;">🌟 Topscorers</h3>
                     <div id="ls_stats" style="height:150px; overflow-y:auto; font-size:0.9rem;"></div>
                 </div>
             </div>
