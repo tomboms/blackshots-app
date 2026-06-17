@@ -327,12 +327,15 @@ window.slaBewerkteSpelerOp = function() {
     window.sluitBewerkSpelerModal();
     window.renderSpelers();
 };
-
 window.voegSpelerToe = function() {
     let naam = document.getElementById('nw-speler-naam').value.trim();
     let gebDatum = document.getElementById('nw-speler-gebdatum').value;
     let rugnr = document.getElementById('nw-speler-rugnr').value;
-    let rol = document.getElementById('nw-speler-rol').value.trim();
+    
+    // FIX: Controleer of het rol-veld bestaat, anders is het gewoon leeg
+    let rolVeld = document.getElementById('nw-speler-rol');
+    let rol = rolVeld ? rolVeld.value.trim() : "";
+    
     let teamId = document.getElementById('nw-speler-team').value;
     
     let isRec = document.getElementById('nw-speler-rec') ? document.getElementById('nw-speler-rec').checked : false;
@@ -359,7 +362,7 @@ window.voegSpelerToe = function() {
         document.getElementById('nw-speler-naam').value = '';
         document.getElementById('nw-speler-gebdatum').value = '';
         document.getElementById('nw-speler-rugnr').value = '';
-        document.getElementById('nw-speler-rol').value = '';
+        if(rolVeld) rolVeld.value = '';
         if(document.getElementById('nw-speler-rec')) document.getElementById('nw-speler-rec').checked = false;
         if(document.getElementById('nw-speler-proef')) document.getElementById('nw-speler-proef').checked = true;
         window.renderSpelers();

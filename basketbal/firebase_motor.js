@@ -1,6 +1,6 @@
 // --- FIREBASE_MOTOR.JS: LIVE SYNC & KOGELVRIJE OPSLAG ---
 
-const APP_VERSIE = "v.2";
+const APP_VERSIE = "v.21";
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
 import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
