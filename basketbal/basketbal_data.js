@@ -96,7 +96,7 @@ window.laadVolgendeVergaderingDashboard = function() {
 
     let bestuurDB = JSON.parse(localStorage.getItem('blackshots_bestuur')) || [];
     let vandaagIso = new Date().toISOString().split('T')[0];
-    let aankomend = boardroom = scarcity = bestuurDB.filter(v => v.isoDatum && v.isoDatum >= vandaagIso);
+    let aankomend = bestuurDB.filter(v => v.isoDatum && v.isoDatum >= vandaagIso);
     
     aankomend.sort((a,b) => a.isoDatum.localeCompare(b.isoDatum));
 
@@ -329,15 +329,15 @@ window.laadJaarplanningWeekDashboard = function() {
             let itemsHtml = '';
             if(dagItems.length > 0) {
                 dagItems.forEach(item => {
-                    // CONTROLEER OP ANNULERING
-                    let isGeannuleerd = item.geannuleerd === true || (item.titel && (item.titel.toLowerCase().includes('geannuleerd') || item.titel.toLowerCase().includes('vervalt')));
+                    // STRENGE CONTROLEER OP ANNULERING (Ook als het "true" als tekst is!)
+                    let isGeannuleerd = (String(item.geannuleerd) === 'true') || (item.titel && (item.titel.toLowerCase().includes('geannuleerd') || item.titel.toLowerCase().includes('vervalt')));
                     
                     let kleur = '#3498db';
                     let tekstKleur = '#ffffff';
                     let borderLink = 'transparent';
                     
                     // BEPAAL LINK EN KLEUR
-                    let linkUrl = item.isVasteTraining ? 'team.html' : 'jaarplanning.html';
+                    let linkUrl = item.isVasteTraining ? 'agenda.html' : 'jaarplanning.html';
                     if (item.type === 'thuis' || item.type === 'uit') linkUrl = 'pouleindeling.html';
 
                     if (isGeannuleerd) {
@@ -366,8 +366,11 @@ window.laadJaarplanningWeekDashboard = function() {
                     let safeTijd = (item.tijd || 'Hele dag').replace(/'/g, "\\'");
                     let safeLoc = (item.locatie || 'Onbekend').replace(/'/g, "\\'");
 
+                    // KLIK-ACTIE: Als het een training is direct naar agenda, anders de pop-up
+                    let klikActie = item.isVasteTraining ? `window.location.href='agenda.html'` : `window.toonActiviteitDetails('${safeTitel}', '${safeTijd}', '${safeLoc}', '${linkUrl}', ${isGeannuleerd})`;
+
                     itemsHtml += `
-                        <div onclick="window.toonActiviteitDetails('${safeTitel}', '${safeTijd}', '${safeLoc}', '${linkUrl}', ${isGeannuleerd})" 
+                        <div onclick="${klikActie}" 
                              style="background:${kleur}; color:${tekstKleur}; padding:6px 8px; border-radius:4px; margin-bottom:5px; font-size:0.78rem; cursor:pointer; box-shadow:0 1px 2px rgba(0,0,0,0.05); border-left: 3px solid ${borderLink}; transition:0.2s;"
                              onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" title="${item.titel}">
                             <div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:bold; line-height:1.2;">
@@ -405,6 +408,7 @@ window.laadJaarplanningWeekDashboard = function() {
     }
 };
 
+// --- NIEUW: PERFECTE MULTI-TOERNOOI SCANNER ---
 window.laadCompetitieWidget = function() {
     let container = document.getElementById('dash-competitie-inhoud');
     if (!container) return;
@@ -412,36 +416,56 @@ window.laadCompetitieWidget = function() {
     let toernooiData = JSON.parse(localStorage.getItem('blackshots_toernooi')) || {};
     let alleWedstrijden = [];
 
-    if (Array.isArray(toernooiData)) {
-        toernooiData.forEach(t => {
-            if (t.rondes) t.rondes.forEach(r => { if(r.wedstrijden) alleWedstrijden.push(...r.wedstrijden); });
-        });
-    } else if (typeof toernooiData === 'object') {
-        if (toernooiData.rondes) {
-            toernooiData.rondes.forEach(r => { if(r.wedstrijden) alleWedstrijden.push(...r.wedstrijden); });
+    // Scan door het complexe toernooi-object (omdat 'oud' en 'jong' aparte sleutels zijn met direct 'wedstrijden' erin)
+    Object.values(toernooiData).forEach(t => {
+        if (typeof t !== 'object') return;
+        
+        let teamMap = {};
+        if (Array.isArray(t.teams)) {
+            t.teams.forEach(tm => teamMap[tm.id] = tm.naam);
         }
-        Object.keys(toernooiData).forEach(key => {
-            let t = toernooiData[key];
-            if (t && t.rondes) {
-                t.rondes.forEach(r => { if(r.wedstrijden) alleWedstrijden.push(...r.wedstrijden); });
-            }
+        
+        let wLijst = [];
+        if (t.wedstrijden) wLijst.push(...t.wedstrijden);
+        if (t.rondes) t.rondes.forEach(r => { if(r.wedstrijden) wLijst.push(...r.wedstrijden); });
+
+        wLijst.forEach(w => {
+            let thuisNaam = teamMap[w.thuis] || w.thuis;
+            let uitNaam = teamMap[w.uit] || w.uit;
+            
+            // Schone opmaak voor kruisfinales
+            if (thuisNaam === 'nr1') thuisNaam = '1e Plaats';
+            if (thuisNaam === 'nr2') thuisNaam = '2e Plaats';
+            if (thuisNaam === 'nr3') thuisNaam = '3e Plaats';
+            if (thuisNaam === 'nr4') thuisNaam = '4e Plaats';
+            if (uitNaam === 'nr1') uitNaam = '1e Plaats';
+            if (uitNaam === 'nr2') uitNaam = '2e Plaats';
+            if (uitNaam === 'nr3') uitNaam = '3e Plaats';
+            if (uitNaam === 'nr4') uitNaam = '4e Plaats';
+            
+            alleWedstrijden.push({ ...w, thuisNaam: thuisNaam, uitNaam: uitNaam });
         });
-    }
+    });
 
     if (alleWedstrijden.length === 0) {
         container.innerHTML = `
             <div style="background:#fff3e0; border-left:4px solid #e67e22; padding:12px; border-radius:6px; font-size:0.85rem; color:#d35400;">
-                📢 Er zijn momenteel geen geplande wedstrijden gevonden in de actieve toernooien. Open 'Interne Toernooien' om speelrondes te genereren.
+                📢 Er zijn momenteel geen geplande wedstrijden gevonden in de actieve toernooien.
             </div>
         `;
         return;
     }
 
+    // Filter alleen de wedstrijden die nog geen stand/score hebben, anders de laatst gespeelde 4!
+    let aankomend = alleWedstrijden.filter(w => w.scoreThuis === null || w.scoreThuis === undefined || w.scoreThuis === "" || w.scoreThuis === 0);
+    if (aankomend.length === 0) aankomend = alleWedstrijden.reverse();
+
     let wedstrijdenHtml = '';
-    alleWedstrijden.slice(0, 4).forEach(w => {
+    aankomend.slice(0, 4).forEach(w => {
+        let dDatum = w.datum ? w.datum : '';
         wedstrijdenHtml += `
             <div style="font-size:0.85rem; background:white; padding:6px 12px; border:1px solid #e2e8f0; border-radius:4px; display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">🏀 <strong>${w.thuis}</strong> vs. <strong>${w.uit}</strong></span>
+                <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">🏀 <strong>${w.thuisNaam}</strong> vs. <strong>${w.uitNaam}</strong> <span style="color:#7f8c8d; font-size:0.75rem; margin-left:5px;">${dDatum}</span></span>
                 <span style="color:#e67e22; font-weight:bold; background:#fff3e0; padding:2px 6px; border-radius:4px; font-size:0.75rem; white-space:nowrap;">${w.tijd || '18:00'} (${w.veld || 'A'})</span>
             </div>
         `;
@@ -449,12 +473,13 @@ window.laadCompetitieWidget = function() {
 
     container.innerHTML = `
         <div style="background:#fdf6f0; border-left:4px solid #e67e22; padding:12px; border-radius:6px;">
-            <strong style="color:#d35400; font-size:0.9rem; display:block; margin-bottom:8px;">🔥 Actieve Toernooien / Speelrondes deze maand:</strong>
+            <strong style="color:#d35400; font-size:0.9rem; display:block; margin-bottom:8px;">🔥 Actieve Toernooien / Speelrondes:</strong>
             <div style="display:flex; flex-direction:column; gap:2px;">${wedstrijdenHtml}</div>
         </div>
     `;
 };
 
+// --- CATEGORIE LOGICA ---
 window.voegCategorieToe = function() {
     const inputField = document.getElementById('nieuwe-cat-naam');
     if (!inputField) return;
@@ -466,11 +491,13 @@ window.voegCategorieToe = function() {
         if (window.vulInstellingenLijsten) window.vulInstellingenLijsten();
     }
 };
+
 window.verwijderCategorie = function(index) {
     window.categorieenDB.splice(index, 1);
     localStorage.setItem('blackshots_categorieen', JSON.stringify(window.categorieenDB));
     if (window.vulInstellingenLijsten) window.vulInstellingenLijsten();
 };
+
 window.vulInstellingenLijsten = function() {
     const cLijst = document.getElementById('instellingen-cat-lijst');
     if (cLijst) {
