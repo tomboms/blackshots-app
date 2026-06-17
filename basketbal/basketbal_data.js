@@ -54,6 +54,7 @@ window.laadDashboardData = function() {
     window.laadCompetitieWidget();
     window.laadTeamRosterWidget(); // NIEUW: NBB Team Roster
     window.laadInternePoulesWidget(); // <-- DEZE REGEL TOEVOEGEN
+    window.laadNBBPoulesWidget()
 };
 
 function userHasAccess(user, pageId) {
@@ -637,5 +638,75 @@ window.laadInternePoulesWidget = function() {
     }
     
     html += `</div>`;
+    container.innerHTML = html;
+};
+
+// --- NIEUW: NBB POULES & TEGENSTANDERS WIDGET ---
+window.dashNBBPouleSelect = null;
+
+window.laadNBBPoulesWidget = function() {
+    let container = document.getElementById('dash-nbb-poules-inhoud');
+    if(!container) return;
+    
+    let bsTeams = JSON.parse(localStorage.getItem('blackshots_poule_teams')) || [];
+
+    if(bsTeams.length === 0) {
+        container.innerHTML = `<p style="color:#7f8c8d; font-style:italic; margin:0; background:#fdfdfd; padding:10px; border:1px solid #eee; border-radius:4px;">Geen NBB poules ingeladen. Ga naar 'Poule-indelingen' om een bestand te uploaden.</p>`; 
+        return;
+    }
+
+    if (!window.dashNBBPouleSelect || !bsTeams.find(t => t.teamNaam === window.dashNBBPouleSelect)) {
+        window.dashNBBPouleSelect = bsTeams[0].teamNaam;
+    }
+
+    let opties = bsTeams.map(t => `<option value="${t.teamNaam}" ${t.teamNaam === window.dashNBBPouleSelect ? 'selected' : ''}>${t.teamNaam}</option>`).join('');
+    
+    let html = `
+        <select onchange="window.dashNBBPouleSelect = this.value; window.laadNBBPoulesWidget()" class="select-schoon" style="width:100%; margin-bottom:15px; background:#f8f9fa;">
+            ${opties}
+        </select>
+    `;
+
+    let geselecteerdTeam = bsTeams.find(t => t.teamNaam === window.dashNBBPouleSelect);
+    
+    if (geselecteerdTeam) {
+        let tegenstandersHtml = '';
+        if(geselecteerdTeam.tegenstanders && geselecteerdTeam.tegenstanders.length > 0) {
+            geselecteerdTeam.tegenstanders.forEach(teg => {
+                let vereniging = teg['Vereniging'] || teg['vereniging'] || '';
+                let team = teg['Team'] || teg['team'] || '';
+                let isOns = vereniging.toLowerCase().includes('black shots');
+                let isLeeg = (!vereniging || vereniging.trim() === '');
+                
+                if (isLeeg) {
+                    tegenstandersHtml += `<div style="padding:6px 0; border-bottom:1px solid #eee; color:#e74c3c; font-style:italic; font-size:0.85rem;">-- Vrij (Geen tegenstander) --</div>`;
+                } else {
+                    let rowStyle = isOns ? "font-weight:bold; color:var(--primary-color); background:#ebf5fb; padding:6px; border-radius:4px;" : "color:#34495e; padding:6px 0;";
+                    tegenstandersHtml += `
+                        <div style="border-bottom:1px solid #eee; font-size:0.85rem; display:flex; justify-content:space-between; align-items:center; ${rowStyle}">
+                            <span style="display:flex; align-items:center; gap:5px;">${isOns ? '🏀' : '🛡️'} ${vereniging}</span>
+                            <span>${team}</span>
+                        </div>
+                    `;
+                }
+            });
+        } else {
+            tegenstandersHtml = '<i style="color:#bdc3c7; font-size:0.8rem;">Geen tegenstanders gevonden</i>';
+        }
+
+        html += `
+            <div style="background:#fdfdfd; border:1px solid #eee; padding:12px; border-radius:6px; border-left:4px solid #9b59b6;">
+                <div style="font-size:0.85rem; color:#7f8c8d; margin-bottom:10px;">
+                    <strong>Poule:</strong> ${geselecteerdTeam.pouleNaam} <br>
+                    <strong>Onze Code:</strong> <span style="background:#e67e22; color:white; padding:2px 6px; border-radius:4px;">${geselecteerdTeam.onzeCode}</span>
+                </div>
+                <h4 style="margin:0 0 8px 0; color:#2c3e50; font-size:0.95rem; border-bottom:2px solid #f1f5f9; padding-bottom:4px;">Tegenstanders:</h4>
+                <div style="max-height: 180px; overflow-y: auto; padding-right:5px;">
+                    ${tegenstandersHtml}
+                </div>
+            </div>
+        `;
+    }
+    
     container.innerHTML = html;
 };
