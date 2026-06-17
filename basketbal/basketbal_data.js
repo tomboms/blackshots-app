@@ -23,6 +23,7 @@ window.teamsDB = JSON.parse(localStorage.getItem('blackshots_teams')) || [];
 window.spelersDB = JSON.parse(localStorage.getItem('blackshots_spelers')) || [];
 window.oefeningenDB = JSON.parse(localStorage.getItem('blackshots_oefeningen')) || [];
 window.categorieenDB = JSON.parse(localStorage.getItem('blackshots_categorieen')) || ["Warming-up", "Shooting", "Dribbling", "Passing", "Defense", "Conditioning", "Partijvorm"];
+window.geplandeTrainingenDB = JSON.parse(localStorage.getItem('blackshots_trainingen')) || {};
 
 // ============================================================================
 // 📊 DASHBOARD ENGINE INITIALISATIE
@@ -117,34 +118,47 @@ window.laadVolgendeVergaderingDashboard = function() {
     `;
 };
 
+// --- ECHTE ZAALHUUR DATA BEREKENING (KIJKT NAAR ZAALHUUR TABLAD) ---
 window.berekenZaalhuurKostenWeek = function() {
     let kostenDiv = document.getElementById('dash-zaalhuur-kosten');
     let periodeSelect = document.getElementById('filter-zaalhuur-periode');
     let labelEl = document.getElementById('dash-zaalhuur-label');
     if (!kostenDiv) return;
 
-    let multiplier = periodeSelect ? parseFloat(periodeSelect.value) : 4.33; // Default Maand
-    let lblText = "deze maand";
-    if(multiplier === 1) lblText = "deze week"; else if(multiplier === 13) lblText = "dit kwartaal"; else if(multiplier === 26) lblText = "dit halfjaar"; else if(multiplier === 52) lblText = "dit jaar";
+    // Converteer de oude value (1, 4.33, etc.) naar harde dagen vooruitkijken
+    let factor = periodeSelect ? parseFloat(periodeSelect.value) : 4.33; 
+    let dagenVooruit = 30;
+    let lblText = "de komende maand";
+    
+    if (factor === 1) { dagenVooruit = 7; lblText = "de komende week"; }
+    else if (factor === 13) { dagenVooruit = 91; lblText = "het komende kwartaal"; }
+    else if (factor === 26) { dagenVooruit = 182; lblText = "het komende halfjaar"; }
+    else if (factor === 52) { dagenVooruit = 365; lblText = "het komende jaar"; }
+
     if(labelEl) labelEl.innerText = lblText;
 
-    let instellingen = JSON.parse(localStorage.getItem('blackshots_instellingen')) || {};
-    let tarieven = instellingen.tarieven || [];
-    let wekelijkseKosten = 0;
+    let zaalhuurData = JSON.parse(localStorage.getItem('blackshots_zaalhuur_data')) || [];
+    
+    let vandaag = new Date();
+    let vandaagIso = vandaag.toISOString().split('T')[0];
+    
+    let eindDatum = new Date();
+    eindDatum.setDate(vandaag.getDate() + dagenVooruit);
+    let eindIso = eindDatum.toISOString().split('T')[0];
 
-    window.teamsDB.forEach(team => {
-        if (Array.isArray(team.trainingen)) {
-            team.trainingen.forEach(tr => {
-                let uren = (tr.duur || 90) / 60;
-                let zaalNaam = (tr.zaal || "").toLowerCase();
-                let matchedTarief = tarieven.find(t => zaalNaam.includes(t.zaal.toLowerCase()));
-                let uurPrijs = matchedTarief ? parseFloat(matchedTarief.prijs) : 35.00;
-                wekelijkseKosten += (uren * uurPrijs);
-            });
+    let totaleKosten = 0;
+
+    // Scan door de echte zaalhuur database
+    zaalhuurData.forEach(z => {
+        if (z.isoDatum && z.isoDatum >= vandaagIso && z.isoDatum <= eindIso && !z.geannuleerd) {
+            // Zoek naar het veld 'bedrag', 'kosten' of 'prijs' in jouw database structuur
+            let bedrag = parseFloat(z.bedrag || z.kosten || z.prijs || 0);
+            if (!isNaN(bedrag)) {
+                totaleKosten += bedrag;
+            }
         }
     });
 
-    let totaleKosten = wekelijkseKosten * multiplier;
     kostenDiv.innerText = `€ ${totaleKosten.toFixed(2).replace('.', ',')}`;
 };
 
@@ -238,7 +252,7 @@ window.toonActiviteitDetails = function(titel, tijd, locatie, omschrijving, url,
     document.getElementById('dash-activiteit-modal').style.display = 'flex';
 };
 
-// --- 5. DE LIVE WEEK-VIEW (7 KOLOMMEN) MET STRIKTE ANNULERINGS LOGICA ---
+// --- 5. DE LIVE WEEK-VIEW (7 KOLOMMEN) MET ECHTE AGENDA ANNULERINGS LOGICA ---
 window.laadJaarplanningWeekDashboard = function() {
     const jaarplanningWeekContainer = document.getElementById('dash-jaarplanning-week');
     const weekLabel = document.getElementById('dash-week-label');
@@ -247,6 +261,7 @@ window.laadJaarplanningWeekDashboard = function() {
         let kalenderCategorieen = JSON.parse(localStorage.getItem('blackshots_jaarplanning_categorieen')) || [];
         let nbbWedstrijden = JSON.parse(localStorage.getItem('blackshots_wedstrijden_json')) || [];
         let zaalhuurData = JSON.parse(localStorage.getItem('blackshots_zaalhuur_data')) || [];
+        window.geplandeTrainingenDB = JSON.parse(localStorage.getItem('blackshots_trainingen')) || {}; // Haal actuele trainingen op
         
         if (weekLabel) {
             if (window.dashboardWeekOffset === 0) weekLabel.innerText = "(Deze Week)";
@@ -277,26 +292,33 @@ window.laadJaarplanningWeekDashboard = function() {
                 return (start <= isoDag && eind >= isoDag);
             });
 
-            // VASTE TRAININGEN VERWERKEN
+            // VASTE TRAININGEN VERWERKEN INCLUSIEF AGENDA CHECK
             if (Array.isArray(window.teamsDB)) {
                 window.teamsDB.forEach(team => {
-                    // Check of er voor dit team specifiek op deze dag een annulering is ingepland via de jaarplanning
-                    let teamIsHandmatigGeannuleerd = dagItems.some(i => 
-                        i.teams && i.teams.includes(team.id) && 
-                        (String(i.geannuleerd) === 'true' || (i.titel||'').toLowerCase().includes('geannuleerd') || (i.titel||'').toLowerCase().includes('vervalt'))
-                    );
+                    // Check de echte trainingsagenda database voor annuleringen
+                    let trainingsSleutel = `${isoDag}_${team.id}`;
+                    let dagAgenda = window.geplandeTrainingenDB[trainingsSleutel];
+                    let isGeannuleerdViaAgenda = false;
+                    let annuleringsReden = "";
+
+                    // Als het eerste item in de agenda 'geannuleerd' is
+                    if (dagAgenda && Array.isArray(dagAgenda) && dagAgenda.length > 0) {
+                        if (dagAgenda[0].type === "geannuleerd") {
+                            isGeannuleerdViaAgenda = true;
+                            annuleringsReden = dagAgenda[0].reden || "Geannuleerd via trainingsagenda";
+                        }
+                    }
 
                     if (Array.isArray(team.trainingen)) {
                         team.trainingen.forEach(tr => {
                             if (parseInt(tr.dag) === dagVanDeWeekBS) {
-                                // Maak hem rood en geannuleerd als hij geannuleerd is!
                                 dagItems.push({
                                     titel: `🏀 Training ${team.naam}`,
                                     tijd: tr.start,
                                     locatie: tr.veld ? `Veld ${tr.veld}` : (tr.zaal || "De Veste"),
                                     isVasteTraining: true,
-                                    omschrijving: `Vaste trainingstijd voor ${team.naam}.\nZaal: ${tr.zaal || 'Onbekend'}\nStart: ${tr.start}`,
-                                    forceerGeannuleerd: teamIsHandmatigGeannuleerd
+                                    omschrijving: isGeannuleerdViaAgenda ? `❌ Training is GEANNULEERD.\nReden: ${annuleringsReden}` : `Vaste trainingstijd voor ${team.naam}.\nZaal: ${tr.zaal || 'Onbekend'}\nStart: ${tr.start}`,
+                                    forceerGeannuleerd: isGeannuleerdViaAgenda
                                 });
                             }
                         });
@@ -324,15 +346,7 @@ window.laadJaarplanningWeekDashboard = function() {
 
             let itemsHtml = '';
             if(dagItems.length > 0) {
-                // Filter dubbele handmatige annuleringen weg om rommel te voorkomen
-                let ontdubbeldeItems = dagItems.filter(item => {
-                    if(!item.isVasteTraining && (String(item.geannuleerd) === 'true' || (item.titel||'').toLowerCase().includes('geannuleerd'))) {
-                        return false; // Verberg de losse memo, we hebben de originele training al rood gemaakt!
-                    }
-                    return true;
-                });
-
-                ontdubbeldeItems.forEach(item => {
+                dagItems.forEach(item => {
                     let isGeannuleerd = item.forceerGeannuleerd === true || (String(item.geannuleerd) === 'true') || (item.titel && (item.titel.toLowerCase().includes('geannuleerd') || item.titel.toLowerCase().includes('vervalt')));
                     let kleur = '#3498db', tekstKleur = '#ffffff', borderLink = 'transparent';
                     
@@ -383,7 +397,7 @@ window.laadJaarplanningWeekDashboard = function() {
     }
 };
 
-// --- NIEUW: POULE-INDELING SPECIFIEK WIDGET ---
+// --- POULE-INDELING SPECIFIEK WIDGET ---
 window.laadPouleWidget = function() {
     let container = document.getElementById('dash-poule-inhoud');
     if(!container) return;
@@ -454,4 +468,33 @@ window.laadCompetitieWidget = function() {
     });
 
     container.innerHTML = `<div style="background:#fdf6f0; border-left:4px solid #e67e22; padding:12px; border-radius:6px;"><strong style="color:#d35400; font-size:0.9rem; display:block; margin-bottom:8px;">🔥 Aankomende / Recente Wedstrijden:</strong><div style="display:flex; flex-direction:column; gap:2px;">${wedstrijdenHtml || '<i>Geen data</i>'}</div></div>`;
+};
+
+// --- CATEGORIE LOGICA ---
+window.voegCategorieToe = function() {
+    const inputField = document.getElementById('nieuwe-cat-naam');
+    if (!inputField) return;
+    const naam = inputField.value.trim();
+    if (naam && !window.categorieenDB.includes(naam)) {
+        window.categorieenDB.push(naam);
+        localStorage.setItem('blackshots_categorieen', JSON.stringify(window.categorieenDB));
+        inputField.value = '';
+        if (window.vulInstellingenLijsten) window.vulInstellingenLijsten();
+    }
+};
+
+window.verwijderCategorie = function(index) {
+    window.categorieenDB.splice(index, 1);
+    localStorage.setItem('blackshots_categorieen', JSON.stringify(window.categorieenDB));
+    if (window.vulInstellingenLijsten) window.vulInstellingenLijsten();
+};
+
+window.vulInstellingenLijsten = function() {
+    const cLijst = document.getElementById('instellingen-cat-lijst');
+    if (cLijst) {
+        cLijst.innerHTML = '';
+        window.categorieenDB.forEach((cat, index) => {
+            cLijst.innerHTML += `<li style="background:var(--secondary-color); color:white; padding:6px 12px; border-radius:20px; display:flex; align-items:center; gap:10px;">${cat} <button onclick="window.verwijderCategorie(${index})" style="background:transparent; color:white; border:none; cursor:pointer; font-weight:bold;">X</button></li>`;
+        });
+    }
 };
