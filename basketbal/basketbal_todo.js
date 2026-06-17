@@ -1,5 +1,28 @@
-// --- BASKETBAL_TODO.JS: DE SMART KANBAN ENGINE MET CATEGORIEËN ---
+// --- BASKETBAL_TODO.JS: DE SMART KANBAN ENGINE MET CLOUD SYNC ---
 
+// ============================================================================
+// ☁️ FIREBASE CLOUD ONTVANGER
+// ============================================================================
+window.ontvangCloudDataTodo = function(sleutel, data) {
+    if (!data) return;
+    if (sleutel === 'blackshots_todo') {
+        // Zorg dat we altijd een nette array terugkrijgen uit Firebase
+        window.todoDB = Array.isArray(data) ? data : Object.values(data);
+        window.genereerSlimmeTaken();
+        window.renderKanbanBord();
+    }
+};
+
+window.slaTodoDataOp = function() {
+    // Sla lokaal op én stuur direct naar Firebase!
+    localStorage.setItem('blackshots_todo', JSON.stringify(window.todoDB));
+    document.dispatchEvent(new CustomEvent('cloudSync', { detail: { sleutel: 'blackshots_todo', data: window.todoDB } }));
+};
+
+
+// ============================================================================
+// 🚀 INITIATIE
+// ============================================================================
 window.todoDB = JSON.parse(localStorage.getItem('blackshots_todo')) || [];
 window.actieveGebruiker = JSON.parse(localStorage.getItem('bs_actieve_gebruiker')) || { naam: "Onbekend" };
 
@@ -150,7 +173,7 @@ window.accepteerSuggestie = function(index) {
         link: sug.link || ""
     });
 
-    localStorage.setItem('blackshots_todo', JSON.stringify(window.todoDB));
+    window.slaTodoDataOp(); // Opslaan in Cloud
     window.genereerSlimmeTaken();
     window.renderKanbanBord();
 };
@@ -243,7 +266,7 @@ window.veranderStatus = function(id, nwStatus) {
     let taak = window.todoDB.find(t => t.id === id);
     if (taak) {
         taak.status = nwStatus;
-        localStorage.setItem('blackshots_todo', JSON.stringify(window.todoDB));
+        window.slaTodoDataOp(); // Opslaan in Cloud
         window.renderKanbanBord();
     }
 };
@@ -309,7 +332,7 @@ window.slaTodoOp = function() {
         window.todoDB.push(nwTaak);
     }
 
-    localStorage.setItem('blackshots_todo', JSON.stringify(window.todoDB));
+    window.slaTodoDataOp(); // Opslaan in Cloud
     document.getElementById('todo-modal').style.display = 'none';
     window.genereerSlimmeTaken(); 
     window.renderKanbanBord();
@@ -319,7 +342,7 @@ window.verwijderTodo = function() {
     let id = document.getElementById('todo-id').value;
     if (confirm("Weet je zeker dat je deze taak wilt verwijderen?")) {
         window.todoDB = window.todoDB.filter(t => t.id !== id);
-        localStorage.setItem('blackshots_todo', JSON.stringify(window.todoDB));
+        window.slaTodoDataOp(); // Opslaan in Cloud
         document.getElementById('todo-modal').style.display = 'none';
         window.genereerSlimmeTaken();
         window.renderKanbanBord();
