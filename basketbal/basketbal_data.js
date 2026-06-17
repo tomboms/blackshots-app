@@ -252,125 +252,139 @@ window.laadVerjaardagenDashboard = function() {
     });
 };
 
-// --- GEAUTOMATISEERD INTERACTIEF WEEK OVERZICHT (MET KNOPPEN) ---
-window.laadJaarplanningWeekDashboard = function(wijziging = 0) {
-    let container = document.getElementById('dash-jaarplanning-week');
-    if (!container) return;
+// --- NAVIGATIE VOOR HET DASHBOARD ---
+window.dashboardWeekOffset = 0;
 
-    // Houd bij in welke week we zitten (0 = deze week, -1 = vorige, 1 = volgende)
-    if (typeof window.dashWeekOffset === 'undefined') window.dashWeekOffset = 0;
-    window.dashWeekOffset += wijziging;
+window.veranderDashboardWeek = function(wijziging) {
+    if (wijziging === 0) {
+        window.dashboardWeekOffset = 0;
+    } else {
+        window.dashboardWeekOffset += wijziging;
+    }
+    window.laadJaarplanningWeekDashboard();
+};
 
-    let jaarplanningData = JSON.parse(localStorage.getItem('blackshots_jaarplanning_data')) || [];
-    
-    // Bereken de exacte start van de te tonen week (Maandag)
-    let vandaag = new Date();
-    let huidigeDag = vandaag.getDay();
-    let verschilMetMaandag = vandaag.getDate() - huidigeDag + (huidigeDag === 0 ? -6 : 1);
-    
-    let startVanWeek = new Date(vandaag.setDate(verschilMetMaandag));
-    startVanWeek.setDate(startVanWeek.getDate() + (window.dashWeekOffset * 7));
-
-    let eindVanWeek = new Date(startVanWeek);
-    eindVanWeek.setDate(startVanWeek.getDate() + 6);
-
-    const dagenNamen = ["Zondag", "Maandag", "Dinsdag", "Woensdag", "Donderdag", "Vrijdag", "Zaterdag"];
-    const maandenKort = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
-
-    // De titel in het midden van de knoppen
-    let weekTitel = `${startVanWeek.getDate()} ${maandenKort[startVanWeek.getMonth()]} - ${eindVanWeek.getDate()} ${maandenKort[eindVanWeek.getMonth()]}`;
-    if (window.dashWeekOffset === 0) weekTitel = "Deze Week (" + weekTitel + ")";
-
-    // Teken de knoppen-balk
-    let html = `
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; background:#f8f9fa; padding:10px; border-radius:6px; border:1px solid #cbd5e1;">
-            <button onclick="window.laadJaarplanningWeekDashboard(-1)" style="background:white; border:1px solid #bdc3c7; padding:6px 12px; border-radius:4px; font-weight:bold; cursor:pointer; color:var(--secondary-color);">&larr; Vorige</button>
-            <strong style="color:var(--primary-color); font-size:1rem;">${weekTitel}</strong>
-            <button onclick="window.laadJaarplanningWeekDashboard(1)" style="background:white; border:1px solid #bdc3c7; padding:6px 12px; border-radius:4px; font-weight:bold; cursor:pointer; color:var(--secondary-color);">Volgende &rarr;</button>
-        </div>
-    `;
-
-    // Loop precies de 7 dagen van Maandag t/m Zondag af
-    let heeftActiviteiten = false;
-
-    for (let i = 0; i < 7; i++) {
-        let loopDatum = new Date(startVanWeek);
-        loopDatum.setDate(startVanWeek.getDate() + i);
-        let loopIso = loopDatum.toISOString().split('T')[0];
-        let dagVanDeWeek = loopDatum.getDay();
-
-        // 1. Speciale evenementen op deze dag
-        let dagEvents = jaarplanningData.filter(item => item.isoDatum === loopIso);
-        dagEvents.sort((a,b) => (a.tijd || '00:00').localeCompare(b.tijd || '00:00'));
+// 5. DE LIVE WEEK-VIEW (7 KOLOMMEN) MET NAVIGATIE ONDERSTEUNING
+window.laadJaarplanningWeekDashboard = function() {
+    const jaarplanningWeekContainer = document.getElementById('dash-jaarplanning-week');
+    const weekLabel = document.getElementById('dash-week-label');
+    if (jaarplanningWeekContainer) {
+        let jaarplanningData = JSON.parse(localStorage.getItem('blackshots_jaarplanning_data')) || [];
+        let kalenderCategorieen = JSON.parse(localStorage.getItem('blackshots_jaarplanning_categorieen')) || [];
+        let nbbWedstrijden = JSON.parse(localStorage.getItem('blackshots_wedstrijden_json')) || [];
+        let zaalhuurData = JSON.parse(localStorage.getItem('blackshots_zaalhuur_data')) || [];
         
-        // 2. Vaste trainingen op deze dag
-        let dagTrainingen = [];
-        window.teamsDB.forEach(team => {
-            if (Array.isArray(team.trainingen)) {
-                team.trainingen.forEach(tr => {
-                    if (parseInt(tr.dag) === dagVanDeWeek) {
-                        dagTrainingen.push({
-                            teamNaam: team.naam,
-                            tijd: tr.start,
-                            zaal: tr.zaal || "De Veste"
-                        });
-                    }
-                });
-            }
-        });
-        dagTrainingen.sort((a,b) => a.tijd.localeCompare(b.tijd));
+        // Update het labelletje met welke week we bekijken
+        if (weekLabel) {
+            if (window.dashboardWeekOffset === 0) weekLabel.innerText = "(Deze Week)";
+            else if (window.dashboardWeekOffset === 1) weekLabel.innerText = "(Volgende Week)";
+            else if (window.dashboardWeekOffset === -1) weekLabel.innerText = "(Vorige Week)";
+            else weekLabel.innerText = `(${window.dashboardWeekOffset > 0 ? '+' : ''}${window.dashboardWeekOffset} Weken)`;
+        }
 
-        // Toon de dag als er events of trainingen zijn
-        if (dagEvents.length > 0 || dagTrainingen.length > 0) {
-            heeftActiviteiten = true;
-            let echteVandaag = new Date().toISOString().split('T')[0];
-            let kopKleur = loopIso === echteVandaag ? '#e74c3c' : 'var(--secondary-color)';
-            let kopTekst = loopIso === echteVandaag ? `📍 VANDAAG: ${dagenNamen[dagVanDeWeek]} ${loopDatum.getDate()} ${maandenKort[loopDatum.getMonth()]}` : `${dagenNamen[dagVanDeWeek]} ${loopDatum.getDate()} ${maandenKort[loopDatum.getMonth()]}`;
+        // De echte datum voor het blauwe "vandaag" randje
+        let echteVandaag = new Date();
+        let echteVandaagIso = `${echteVandaag.getFullYear()}-${String(echteVandaag.getMonth()+1).padStart(2,'0')}-${String(echteVandaag.getDate()).padStart(2,'0')}`;
+
+        // De berekende datum (inclusief verschuiving)
+        let kalenderDatum = new Date();
+        kalenderDatum.setDate(kalenderDatum.getDate() + (window.dashboardWeekOffset * 7));
+        
+        let huidigeDag = kalenderDatum.getDay(); 
+        let afstandTotMaandag = huidigeDag === 0 ? -6 : 1 - huidigeDag;
+        
+        let maandag = new Date(kalenderDatum);
+        maandag.setDate(kalenderDatum.getDate() + afstandTotMaandag);
+
+        let dagenLijst = ["Ma", "Di", "Wo", "Do", "Vr", "Za", "Zo"];
+        let weekHtml = `<div style="display:flex; gap:10px; overflow-x:auto; padding-bottom:10px; min-height:240px;">`;
+
+        for(let i=0; i<7; i++) {
+            let loopDag = new Date(maandag);
+            loopDag.setDate(maandag.getDate() + i);
             
-            html += `<div style="margin-bottom:15px;"><strong style="font-size:0.95rem; color:${kopKleur}; display:block; margin-bottom:8px; border-bottom:1px solid #eee; padding-bottom:4px;">${kopTekst}</strong>`;
-            
-            // Render de grote event-kaarten
-            dagEvents.forEach(ev => {
-                let tijdLabel = ev.tijd ? `⏰ ${ev.tijd}` : '🕒 Hele dag';
-                let locLabel = ev.locatie ? ` | 📍 ${ev.locatie}` : '';
-                
-                html += `
-                    <div style="background:white; border:1px solid #e2e8f0; border-left:4px solid #e74c3c; padding:8px 12px; border-radius:6px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
-                        <span style="font-weight:bold; color:var(--secondary-color); font-size:0.9rem;">${ev.titel}</span>
-                        <span style="font-size:0.75rem; color:#7f8c8d; font-weight:500;">${tijdLabel}${locLabel}</span>
-                    </div>
-                `;
+            let isoDag = `${loopDag.getFullYear()}-${String(loopDag.getMonth()+1).padStart(2,'0')}-${String(loopDag.getDate()).padStart(2,'0')}`;
+            let isVandaag = (isoDag === echteVandaagIso);
+
+            // Handmatige activiteiten ophalen
+            let dagItems = jaarplanningData.filter(item => {
+                if(!item.isoDatum) return false;
+                let start = item.isoDatum;
+                let eind = item.eindDatum || item.isoDatum;
+                return (start <= isoDag && eind >= isoDag);
             });
 
-            // Render de compacte training-tags
-            if (dagTrainingen.length > 0) {
-                let trainingTags = dagTrainingen.map(tr => 
-                    `<span style="background:#eef2f5; color:#34495e; padding:3px 8px; border-radius:4px; font-size:0.75rem; border:1px solid #cbd5e1; display:inline-block; font-weight:bold;">${tr.teamNaam} <span style="color:#7f8c8d; font-weight:normal;">(${tr.tijd})</span></span>`
-                ).join(' ');
-
-                html += `
-                    <div style="background:#f8f9fa; border:1px dashed #cbd5e1; padding:8px 12px; border-radius:6px; margin-bottom:6px; display:flex; gap:10px;">
-                        <span style="font-size:1rem; margin-top:2px;">🏀</span>
-                        <div>
-                            <div style="display:flex; flex-wrap:wrap; gap:5px;">${trainingTags}</div>
-                        </div>
-                    </div>
-                `;
+            // NBB data dynamisch ophalen
+            let wedstrijdenOpDag = nbbWedstrijden.filter(w => w.Datum && w.Datum.startsWith(isoDag));
+            if (wedstrijdenOpDag.length > 0) {
+                let thuisTeams = [], uitTeams = [];
+                wedstrijdenOpDag.forEach(w => {
+                    if (w.Thuisteam && w.Thuisteam.toLowerCase().includes('black shots')) thuisTeams.push(w.Thuisteam.replace(/Black Shots/ig, '').trim()||"?");
+                    else if (w.Uitteam && w.Uitteam.toLowerCase().includes('black shots')) uitTeams.push(w.Uitteam.replace(/Black Shots/ig, '').trim()||"?");
+                });
+                if (thuisTeams.length > 0) dagItems.push({ titel: `Thuis: ${[...new Set(thuisTeams)].join(', ')}`, type: 'thuis' });
+                if (uitTeams.length > 0) dagItems.push({ titel: `Uit: ${[...new Set(uitTeams)].join(', ')}`, type: 'uit' });
             }
 
-            html += `</div>`;
+            // STYLING OP BASIS VAN VAKANTIE
+            let isVakantieDag = dagItems.some(item => {
+                let typeId = (item.type || 'memo').toLowerCase();
+                let cat = kalenderCategorieen.find(c => c.id === typeId);
+                return cat && cat.isVakantie;
+            });
+
+            let cardBg = isVakantieDag ? 'rgba(231, 76, 60, 0.04)' : 'var(--card-bg)';
+            let borderCol = isVandaag ? 'var(--primary-color)' : (isVakantieDag ? 'rgba(231, 76, 60, 0.3)' : 'var(--border-color)');
+            let headerBg = isVandaag ? 'var(--primary-color)' : (isVakantieDag ? '#e74c3c' : 'var(--secondary-color)');
+            let nummerKleur = isVakantieDag ? '#e74c3c' : 'var(--text-color)';
+
+            let itemsHtml = '';
+            if(dagItems.length > 0) {
+                dagItems.forEach(item => {
+                    let typeId = (item.type || 'memo').toLowerCase();
+                    let cat = kalenderCategorieen.find(c => c.id === typeId);
+                    let kleur = cat ? cat.kleur : '#3498db';
+                    let tekstKleur = cat && cat.tekstKleur ? cat.tekstKleur : '#ffffff';
+
+                    let extraMeta = [];
+                    if(item.tijd) extraMeta.push(`⏰ ${item.tijd}`);
+                    if(item.locatie) extraMeta.push(`📍 ${item.locatie}`);
+                    let metaString = extraMeta.length > 0 ? `<div style="font-size:0.7rem; opacity:0.9; margin-top:4px; font-weight:normal;">${extraMeta.join('<br>')}</div>` : '';
+
+                    itemsHtml += `
+                        <div style="background:${kleur}; color:${tekstKleur}; padding:8px; border-radius:4px; margin-bottom:6px; font-size:0.8rem; font-weight:bold; box-shadow:0 1px 2px rgba(0,0,0,0.1);">
+                            <div style="white-space:normal; line-height:1.2;">${item.titel}</div>
+                            ${metaString}
+                        </div>
+                    `;
+                });
+            } else {
+                itemsHtml = `<div style="color:var(--text-muted); font-size:0.8rem; text-align:center; padding:15px 0; font-style:italic;">Geen items</div>`;
+            }
+
+            // ZAALHUUR BALKEN DETECTEREN EN STYLEN ONDERAAN DE DAG
+            let zalenOpDag = zaalhuurData.filter(z => z.isoDatum === isoDag && !z.geannuleerd);
+            let zaalBalkHtml = '';
+            if (zalenOpDag.length > 0) {
+                let uniekeZalen = [...new Set(zalenOpDag.map(z => z.zaal.replace('Sporthal ', '').replace('Sportzaal ', '').trim()))];
+                zaalBalkHtml = `<div class="kalender-zaal-balk" style="background: var(--hover-bg); color: var(--text-muted); font-size: 0.68rem; text-align: center; padding: 4px; font-weight: bold; border-top: 1px solid var(--border-color); text-transform: uppercase; margin-top: auto;">${uniekeZalen.join(' & ')}</div>`;
+            }
+
+            weekHtml += `
+                <div style="flex: 1; min-width: 130px; background: ${cardBg}; border: 2px solid ${borderCol}; border-radius: 6px; display: flex; flex-direction: column; overflow: hidden; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
+                    <div style="background: ${headerBg}; color: white; text-align: center; padding: 8px 0; font-weight: bold; border-bottom: 1px solid ${borderCol};">
+                        ${dagenLijst[i]} <span style="font-size:1.2rem; display:block; color: ${isVandaag ? 'white' : nummerKleur};">${loopDag.getDate()}</span>
+                    </div>
+                    <div style="padding: 8px; flex: 1; display:flex; flex-direction:column; background: transparent;">
+                        ${itemsHtml}
+                        ${zaalBalkHtml}
+                    </div>
+                </div>
+            `;
         }
+        weekHtml += `</div>`;
+        jaarplanningWeekContainer.innerHTML = weekHtml;
     }
-
-    if (!heeftActiviteiten) {
-        html += `
-        <div style="background:#fdfdfd; padding:20px; text-align:center; border:1px dashed #cbd5e1; border-radius:6px;">
-            <span style="font-size:1.5rem; display:block; margin-bottom:10px;">🏖️</span>
-            <p style="color: #7f8c8d; font-style: italic; margin: 0; font-size:0.9rem;">Er staan in deze specifieke week geen clubtaken of vaste trainingen in het systeem.</p>
-        </div>`;
-    }
-
-    container.innerHTML = html;
 };
 
 // --- NIEUW: INTERNE COMPETITIE & POULE-INDELINGEN QUICK-WIDGET ---

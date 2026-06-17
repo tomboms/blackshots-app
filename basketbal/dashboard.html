@@ -85,9 +85,15 @@
 
         <div class="dashboard-layout">
             
-            <div>
-                <div class="card" style="border-top-color: #e74c3c;">
-                    <h3 style="margin-top: 0; margin-bottom: 15px; color: var(--secondary-color);">📆 Komende 7 Dagen (Trainingen & Events)</h3>
+            <div class="card" style="border-top-color: #e74c3c; overflow: hidden;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px; flex-wrap:wrap; gap:10px;">
+                        <h3 style="margin: 0; color: var(--secondary-color);">📆 Weekagenda <span id="dash-week-label" style="font-size:0.9rem; color:#7f8c8d; font-weight:normal;">(Deze Week)</span></h3>
+                        <div style="display:flex; gap:5px;">
+                            <button onclick="window.veranderDashboardWeek(-1)" style="background:#f8f9fa; border:1px solid #cbd5e1; padding:5px 10px; border-radius:4px; cursor:pointer; font-weight:bold; color:var(--secondary-color);">&larr;</button>
+                            <button onclick="window.veranderDashboardWeek(0)" style="background:#f8f9fa; border:1px solid #cbd5e1; padding:5px 10px; border-radius:4px; cursor:pointer; font-weight:bold; color:var(--secondary-color);">Vandaag</button>
+                            <button onclick="window.veranderDashboardWeek(1)" style="background:#f8f9fa; border:1px solid #cbd5e1; padding:5px 10px; border-radius:4px; cursor:pointer; font-weight:bold; color:var(--secondary-color);">&rarr;</button>
+                        </div>
+                    </div>
                     <div id="dash-jaarplanning-week">
                         <p style="color: #7f8c8d; font-style: italic; margin: 0;">Kalender wordt opgebouwd...</p>
                     </div>
