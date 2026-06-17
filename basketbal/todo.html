@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Black Shots - Smart To-Do</title>
+    <link rel="stylesheet" href="basketbal.css">
+    <style>
+        .kanban-board { display: flex; gap: 20px; overflow-x: auto; padding-bottom: 20px; align-items: flex-start; }
+        .kanban-kolom { flex: 1; min-width: 300px; background: #f4f6f8; border-radius: 8px; padding: 15px; border: 1px solid #e2e8f0; }
+        .kanban-header { font-size: 1.1rem; font-weight: bold; color: var(--secondary-color); margin-bottom: 15px; display: flex; justify-content: space-between; border-bottom: 2px solid #cbd5e1; padding-bottom: 10px; }
+        .taak-kaart { background: white; border-radius: 6px; padding: 12px; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border-left: 4px solid var(--primary-color); position: relative; }
+        .taak-kaart:hover { box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        .taak-titel { font-weight: bold; color: var(--secondary-color); font-size: 1rem; margin-bottom: 5px; }
+        .taak-meta { font-size: 0.75rem; color: #7f8c8d; margin-bottom: 8px; line-height: 1.4; }
+        .taak-acties { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; border-top: 1px dashed #eee; padding-top: 8px; }
+        .badge-urgentie-hoog { background: #fdedec; color: #c0392b; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 0.7rem; }
+        .badge-urgentie-normaal { background: #fef5e7; color: #d35400; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 0.7rem; }
+        .badge-urgentie-laag { background: #eafaf1; color: #27ae60; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 0.7rem; }
+        .smart-inbox { background: #ebf5fb; border: 1px solid #3498db; border-radius: 8px; padding: 15px; margin-bottom: 25px; }
+        .smart-kaart { background: white; border-left: 4px solid #f1c40f; padding: 10px 15px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    </style>
+</head>
+<body style="overflow-y: auto;">
+
+    <nav class="top-nav">
+        <h1>🏀 Black Shots Clubbeheer</h1>
+        <a href="dashboard.html" class="terug-knop">🏠 Dashboard</a>
+    </nav>
+
+    <main class="content-sectie active" style="max-width: 1200px; margin: 20px auto; padding: 0 15px;">
+        
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px;">
+            <div>
+                <h2 style="margin:0; color:var(--secondary-color);">✅ Smart To-Do & Actielijst</h2>
+                <p style="color: #7f8c8d; margin-top:5px;">Beheer taken, wijs ze toe aan het bestuur, of accepteer slimme suggesties.</p>
+            </div>
+            <button onclick="window.openTodoModal()" style="background:#27ae60; color:white; border:none; padding:10px 20px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">+ Nieuwe Taak</button>
+        </div>
+
+        <div class="smart-inbox" id="smart-inbox-container" style="display:none;">
+            <h3 style="margin: 0 0 10px 0; color: #2980b9;">🤖 Systeem Meldingen & Suggesties</h3>
+            <p style="font-size: 0.85rem; color: #34495e; margin-bottom: 15px;">Het systeem heeft de database gescand en stelt de volgende taken voor. Klik op toevoegen om ze op het bord te zetten.</p>
+            <div id="smart-inbox-lijst"></div>
+        </div>
+
+        <div style="margin-bottom:15px; display:flex; gap:10px; align-items:center;">
+            <strong style="color:#7f8c8d; font-size:0.9rem;">Filters:</strong>
+            <select id="filter-verantwoordelijke" onchange="window.renderKanbanBord()" style="padding:6px; border-radius:4px; border:1px solid #cbd5e1; font-weight:bold; color:var(--secondary-color);">
+                <option value="all">Alle Taken</option>
+                <option value="ik">Alleen Mijn Taken</option>
+            </select>
+        </div>
+
+        <div class="kanban-board">
+            <div class="kanban-kolom">
+                <div class="kanban-header">
+                    <span>📝 Te Doen</span>
+                    <span id="count-todo" style="background:#cbd5e1; color:white; padding:2px 8px; border-radius:12px; font-size:0.8rem;">0</span>
+                </div>
+                <div id="kolom-todo" style="min-height: 200px;"></div>
+            </div>
+
+            <div class="kanban-kolom">
+                <div class="kanban-header">
+                    <span>⏳ Mee Bezig</span>
+                    <span id="count-doing" style="background:#f39c12; color:white; padding:2px 8px; border-radius:12px; font-size:0.8rem;">0</span>
+                </div>
+                <div id="kolom-doing" style="min-height: 200px;"></div>
+            </div>
+
+            <div class="kanban-kolom">
+                <div class="kanban-header">
+                    <span>✅ Afgerond</span>
+                    <span id="count-done" style="background:#27ae60; color:white; padding:2px 8px; border-radius:12px; font-size:0.8rem;">0</span>
+                </div>
+                <div id="kolom-done" style="min-height: 200px;"></div>
+            </div>
+        </div>
+    </main>
+
+    <div id="todo-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:99999; justify-content:center; align-items:center;">
+        <div style="background:white; padding:25px; border-radius:12px; width:90%; max-width:550px; box-shadow:0 10px 30px rgba(0,0,0,0.3); position:relative;">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #eee; padding-bottom:10px; margin-bottom:15px;">
+                <h3 id="todo-modal-titel" style="margin:0; color:var(--secondary-color);">Taak Aanmaken</h3>
+                <button onclick="document.getElementById('todo-modal').style.display='none'" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
+            </div>
+            
+            <input type="hidden" id="todo-id">
+
+            <div style="margin-bottom:15px;">
+                <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">Titel van de taak:</label>
+                <input type="text" id="todo-titel" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px; font-weight:bold;" placeholder="Bijv. Ballen oppompen">
+            </div>
+
+            <div style="margin-bottom:15px;">
+                <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">Omschrijving (Optioneel):</label>
+                <textarea id="todo-omschrijving" rows="3" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px; font-family:inherit;" placeholder="Extra details..."></textarea>
+            </div>
+
+            <div style="background:#fdf2e9; border:1px solid #e67e22; padding:12px; border-radius:6px; margin-bottom:15px;">
+                <label style="font-weight:bold; font-size:0.85rem; color:#d35400;">⏱️ Specifiek Tijdsvenster (Optioneel):</label>
+                <input type="text" id="todo-tijdvak" style="width:100%; padding:8px; border:1px solid #f39c12; border-radius:4px; margin-top:5px;" placeholder="Bijv. Tijdens de training tussen 17:45 en 18:00">
+            </div>
+
+            <div style="display:flex; gap:15px; margin-bottom:15px;">
+                <div style="flex:1;">
+                    <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">Deadline Datum:</label>
+                    <input type="date" id="todo-deadline" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;">
+                </div>
+                <div style="flex:1;">
+                    <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">Urgentie:</label>
+                    <select id="todo-urgentie" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;">
+                        <option value="normaal">🟠 Normaal</option>
+                        <option value="hoog">🔴 Hoog (ASAP)</option>
+                        <option value="laag">🟢 Laag (Ooit)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="margin-bottom:20px;">
+                <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">Wie pakt dit op? (Verantwoordelijke):</label>
+                <input type="text" id="todo-verantwoordelijke" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;" placeholder="Bijv. Tom, Martin of Iedereen">
+            </div>
+
+            <div style="display:flex; gap:10px;">
+                <button id="btn-verwijder-todo" onclick="window.verwijderTodo()" style="display:none; flex:1; padding:12px; border:1px solid #e74c3c; color:#e74c3c; background:white; border-radius:6px; cursor:pointer; font-weight:bold;">🗑️ Verwijderen</button>
+                <button onclick="window.slaTodoOp()" style="flex:2; padding:12px; background:var(--primary-color); color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold; font-size:1rem;">💾 Taak Opslaan</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="basketbal_auth.js"></script>
+    <script src="basketbal_todo.js"></script>
+    <script>document.addEventListener('DOMContentLoaded', () => { window.initTodoModule(); });</script>
+</body>
+</html>
