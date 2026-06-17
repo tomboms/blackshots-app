@@ -101,15 +101,6 @@ window.genereerSlimmeTaken = function() {
         });
     }
 
-    // CHECK 6: Financiën aan het eind van de maand (Vanaf dag 25)
-    if (vandaag.getDate() >= 25) {
-        window.slimmeSuggesties.push({
-            titel: `Controleer zaalhuurkosten deze maand`,
-            omschrijving: `Het is bijna het einde van de maand. Controleer het actuele zaalhuur overzicht in het dashboard.`,
-            urgentie: 'normaal', verantwoordelijke: 'Penningmeester', categorie: 'Financien', link: 'zaalhuur.html'
-        });
-    }
-
     window.renderSlimmeInbox();
 };
 
