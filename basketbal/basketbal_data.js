@@ -53,6 +53,7 @@ window.laadDashboardData = function() {
     window.laadJaarplanningWeekDashboard();
     window.laadCompetitieWidget();
     window.laadTeamRosterWidget(); // NIEUW: NBB Team Roster
+    window.laadInternePoulesWidget(); // <-- DEZE REGEL TOEVOEGEN
 };
 
 function userHasAccess(user, pageId) {
@@ -581,4 +582,60 @@ window.vulInstellingenLijsten = function() {
             cLijst.innerHTML += `<li style="background:var(--secondary-color); color:white; padding:6px 12px; border-radius:20px; display:flex; align-items:center; gap:10px;">${cat} <button onclick="window.verwijderCategorie(${index})" style="background:transparent; color:white; border:none; cursor:pointer; font-weight:bold;">X</button></li>`;
         });
     }
+};
+
+// --- NIEUW: INTERNE POULES (TEAMS & SPELERS) WIDGET ---
+window.dashInternePouleSelect = null;
+
+window.laadInternePoulesWidget = function() {
+    let container = document.getElementById('dash-interne-poules-inhoud');
+    if(!container) return;
+    
+    let toernooiData = JSON.parse(localStorage.getItem('blackshots_toernooi')) || {};
+    let poulesKeys = Object.keys(toernooiData).filter(k => toernooiData[k] && typeof toernooiData[k] === 'object');
+
+    if(poulesKeys.length === 0) {
+        container.innerHTML = `<p style="color:#7f8c8d; font-style:italic; margin:0;">Geen actieve interne toernooien of poules gevonden.</p>`; 
+        return;
+    }
+
+    // Zorg dat er een toernooi is geselecteerd
+    if (!window.dashInternePouleSelect || !poulesKeys.includes(window.dashInternePouleSelect)) {
+        window.dashInternePouleSelect = poulesKeys[0];
+    }
+
+    // Dropdown om te wisselen tussen toernooien (bijv. Oudere / Jongere jeugd)
+    let toernooiOpties = poulesKeys.map(k => `<option value="${k}" ${k === window.dashInternePouleSelect ? 'selected' : ''}>${toernooiData[k].naam || k}</option>`).join('');
+    
+    let html = `
+        <select onchange="window.dashInternePouleSelect = this.value; window.laadInternePoulesWidget()" class="select-schoon" style="width:100%; margin-bottom:15px; background:#f8f9fa;">
+            ${toernooiOpties}
+        </select>
+        <div style="display:flex; flex-direction:column; gap:10px; max-height: 250px; overflow-y: auto; padding-right: 5px;">
+    `;
+
+    let t = toernooiData[window.dashInternePouleSelect];
+    let teams = t.teams || [];
+
+    if (teams.length === 0) {
+        html += `<p style="font-size:0.85rem; color:#7f8c8d; font-style:italic;">Geen teams ingedeeld in dit toernooi.</p>`;
+    } else {
+        teams.forEach(tm => {
+            // Teken de spelers als tags
+            let spelersHtml = (tm.spelers || []).map(sp => `<span style="background:#eef2f5; color:#34495e; padding:3px 6px; border-radius:4px; font-size:0.75rem; border:1px solid #cbd5e1; display:inline-block; font-weight:bold;">${sp}</span>`).join(' ');
+            
+            html += `
+                <div style="background:#fdfdfd; border:1px solid #eee; padding:10px; border-radius:6px; border-left:4px solid ${tm.kleur || '#e67e22'};">
+                    <strong style="color:#2c3e50; font-size:0.9rem; display:flex; justify-content:space-between; margin-bottom:5px;">
+                        <span>${tm.naam}</span>
+                        <span style="color:#7f8c8d; font-size:0.75rem; font-weight:normal; background:#f4f6f8; padding:2px 6px; border-radius:10px;">${(tm.spelers || []).length} spelers</span>
+                    </strong>
+                    <div style="display:flex; flex-wrap:wrap; gap:4px;">${spelersHtml || '<i style="color:#bdc3c7; font-size:0.8rem;">Geen spelers</i>'}</div>
+                </div>
+            `;
+        });
+    }
+    
+    html += `</div>`;
+    container.innerHTML = html;
 };
