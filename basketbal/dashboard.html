@@ -6,57 +6,19 @@
     <title>Black Shots - Dashboard</title>
     <link rel="stylesheet" href="basketbal.css">
     <style>
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 25px;
-        }
-        .stat-card {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            text-align: center;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-            border-bottom: 4px solid var(--primary-color);
-        }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 25px; }
+        .stat-card { background: white; padding: 20px; border-radius: 8px; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-bottom: 4px solid var(--primary-color); }
         .stat-card h4 { margin: 0; color: #7f8c8d; font-size: 0.9rem; text-transform: uppercase; }
         .stat-card .num { font-size: 2rem; font-weight: bold; color: var(--secondary-color); margin-top: 5px; }
-        
-        .dashboard-layout {
-            display: grid;
-            grid-template-columns: 1.5fr 1fr;
-            gap: 25px;
-        }
-        @media (max-width: 768px) {
-            .dashboard-layout { grid-template-columns: 1fr; }
-        }
-        .dash-rij {
-            background: #f8f9fa;
-            padding: 12px;
-            border-radius: 6px;
-            margin-bottom: 10px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-left: 4px solid #f1c40f;
-        }
-        .select-schoon {
-            padding: 6px 10px;
-            border-radius: 4px;
-            border: 1px solid #cbd5e1;
-            font-weight: bold;
-            color: var(--secondary-color);
-            font-family: inherit;
-            cursor: pointer;
-        }
+        .dashboard-layout { display: grid; grid-template-columns: 1.5fr 1fr; gap: 25px; }
+        @media (max-width: 768px) { .dashboard-layout { grid-template-columns: 1fr; } }
+        .dash-rij { background: #f8f9fa; padding: 12px; border-radius: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid #f1c40f; }
+        .select-schoon { padding: 6px 10px; border-radius: 4px; border: 1px solid #cbd5e1; font-weight: bold; color: var(--secondary-color); font-family: inherit; cursor: pointer; }
     </style>
 </head>
 <body style="overflow-y: auto; background-color: var(--bg-color);">
 
-    <div id="cloud-status-indicator" style="position: fixed; bottom: 20px; right: 20px; background: #27ae60; color: white; padding: 10px 20px; border-radius: 30px; font-weight: bold; font-size: 0.9rem; box-shadow: 0 4px 10px rgba(0,0,0,0.2); z-index: 99999; transition: 0.3s; opacity: 0; pointer-events: none;">
-        ☁️ Cloud Actief
-    </div>
+    <div id="cloud-status-indicator" style="position: fixed; bottom: 20px; right: 20px; background: #27ae60; color: white; padding: 10px 20px; border-radius: 30px; font-weight: bold; font-size: 0.9rem; box-shadow: 0 4px 10px rgba(0,0,0,0.2); z-index: 99999; transition: 0.3s; opacity: 0; pointer-events: none;">☁️ Cloud Actief</div>
 
     <nav class="top-nav">
         <h1>🏀 Black Shots Clubbeheer</h1>
@@ -92,25 +54,29 @@
                     <button onclick="window.veranderDashboardWeek(1)" style="background:#f8f9fa; border:1px solid #cbd5e1; padding:5px 10px; border-radius:4px; cursor:pointer; font-weight:bold; color:var(--secondary-color);">&rarr;</button>
                 </div>
             </div>
-            <div id="dash-jaarplanning-week">
-                <p style="color: #7f8c8d; font-style: italic; margin: 0;">Kalender wordt opgebouwd...</p>
-            </div>
+            <div id="dash-jaarplanning-week"><p style="color: #7f8c8d; font-style: italic; margin: 0;">Kalender wordt opgebouwd...</p></div>
         </div>
 
         <div class="dashboard-layout">
             
             <div>
+                <div class="card" style="border-top-color: #f39c12; margin-bottom: 25px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
+                        <h3 style="margin: 0; color: var(--secondary-color);">⛹️ Poule-indelingen</h3>
+                        <button onclick="window.location.href='pouleindeling.html'" class="primary-btn" style="background:#f39c12; padding:6px 12px; font-size:0.85rem;">Beheren</button>
+                    </div>
+                    <div id="dash-poule-inhoud"></div>
+                </div>
+
                 <div class="card" style="border-top-color: #e67e22;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
-                        <h3 style="margin: 0; color: var(--secondary-color);">🏆 Interne Competitie & Poules</h3>
-                        <div style="display:flex; gap:8px;">
-                            <button onclick="window.location.href='toernooien.html'" style="background:#e67e22; color:white; border:none; padding:6px 12px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.85rem;">🏆 Naar Toernooien</button>
-                            <button onclick="window.location.href='pouleindeling.html'" style="background:#f39c12; color:white; border:none; padding:6px 12px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.85rem;">⛹️ Naar Poules</button>
+                        <h3 style="margin: 0; color: var(--secondary-color);">🏆 Interne Competitie</h3>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <select id="filter-toernooi-select" onchange="window.laadCompetitieWidget()" class="select-schoon" style="max-width:180px;"></select>
+                            <button onclick="window.location.href='toernooien.html'" style="background:#e67e22; color:white; border:none; padding:6px 12px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.85rem;">Speelschema's</button>
                         </div>
                     </div>
-                    <div id="dash-competitie-inhoud">
-                        <p style="color: #7f8c8d; font-style: italic; margin: 0;">Status van de poules laden...</p>
-                    </div>
+                    <div id="dash-competitie-inhoud"><p style="color: #7f8c8d; font-style: italic; margin: 0;">Status laden...</p></div>
                 </div>
 
                 <div class="card" style="margin-top: 25px; border-top-color: #7f8c8d;">
@@ -125,9 +91,18 @@
                     <div id="dash-vergadering-inhoud" style="margin-bottom:15px;"></div>
                     
                     <div style="background:#ebf5fb; border-left:4px solid #2980b9; padding:12px; border-radius:6px; margin-top:10px;">
-                        <strong style="color:#2980b9; font-size:0.9rem; display:block; text-transform:uppercase;">🏟️ Verwachte Zaalhuur (Deze Week):</strong>
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <strong style="color:#2980b9; font-size:0.9rem; display:block; text-transform:uppercase;">🏟️ Verwachte Zaalhuur:</strong>
+                            <select id="filter-zaalhuur-periode" onchange="window.berekenZaalhuurKostenWeek()" class="select-schoon" style="padding:2px 5px; font-size:0.8rem; background:white;">
+                                <option value="1">1 Week</option>
+                                <option value="4.33" selected>1 Maand</option>
+                                <option value="13">Kwartaal</option>
+                                <option value="26">Halfjaar</option>
+                                <option value="52">Heel Jaar</option>
+                            </select>
+                        </div>
                         <div id="dash-zaalhuur-kosten" style="font-size:1.4rem; font-weight:bold; color:#2c3e50; margin-top:5px;">€ 0,00</div>
-                        <span style="font-size:0.75rem; color:#7f8c8d;">Berekend op basis van de vaste trainingstijden en de tarievenlijst.</span>
+                        <span style="font-size:0.75rem; color:#7f8c8d;">Berekend voor <strong id="dash-zaalhuur-label">deze maand</strong> op basis van vaste trainingen.</span>
                     </div>
                 </div>
 
@@ -135,12 +110,7 @@
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:5px;">
                         <h3 style="margin: 0; color: var(--secondary-color);">🎉 Feestvarkens & Jubilea</h3>
                         <select id="filter-verjaardag-periode" onchange="window.laadVerjaardagenDashboard()" class="select-schoon">
-                            <option value="7">1 Week</option>
-                            <option value="14">2 Weken</option>
-                            <option value="30" selected>1 Maand</option>
-                            <option value="90">3 Maanden</option>
-                            <option value="180">6 Maanden</option>
-                            <option value="365">1 Jaar</option>
+                            <option value="7">1 Week</option><option value="14">2 Weken</option><option value="30" selected>1 Maand</option><option value="90">3 Maanden</option><option value="180">6 Maanden</option><option value="365">1 Jaar</option>
                         </select>
                     </div>
                     <div id="dash-verjaardagen-inhoud"></div>
@@ -151,27 +121,26 @@
     </main>
 
     <div id="dash-activiteit-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:99999; justify-content:center; align-items:center; backdrop-filter: blur(2px);">
-        <div style="background:white; padding:25px; border-radius:12px; width:90%; max-width:450px; box-shadow:0 10px 30px rgba(0,0,0,0.3); position:relative;">
+        <div style="background:white; padding:25px; border-radius:12px; width:90%; max-width:480px; box-shadow:0 10px 30px rgba(0,0,0,0.3); position:relative;">
             <h3 id="dash-act-titel" style="margin-top:0; color:var(--secondary-color); font-size:1.4rem; padding-right:20px; word-wrap: break-word;">Titel</h3>
             <div style="background:#f8f9fa; padding:15px; border-radius:6px; margin:15px 0; border:1px solid #eee;">
                 <p id="dash-act-tijd" style="color:#2c3e50; font-weight:bold; margin:0 0 8px 0; font-size:1rem;">⏰ Tijd</p>
                 <p id="dash-act-locatie" style="color:#7f8c8d; margin:0; font-size:1rem;">📍 Locatie</p>
+                <p id="dash-act-omschrijving" style="color:#34495e; font-size:0.95rem; margin:15px 0 0 0; padding-top:15px; border-top:1px dashed #cbd5e1; display:none; white-space:pre-wrap; line-height:1.4; font-weight:500;"></p>
             </div>
             <div style="display:flex; gap:10px; margin-top:20px;">
                 <button onclick="document.getElementById('dash-activiteit-modal').style.display='none'" style="flex:1; padding:12px; border:1px solid #cbd5e1; background:white; border-radius:6px; cursor:pointer; font-weight:bold; color:#7f8c8d;">Sluiten</button>
-                <button id="dash-act-link" style="flex:2; padding:12px; background:var(--primary-color); color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold; font-size:1rem;">Ga naar Planning 🔗</button>
+                <button id="dash-act-link" style="flex:2; padding:12px; background:var(--primary-color); color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold; font-size:1rem;">Ga naar Pagina 🔗</button>
             </div>
         </div>
     </div>
 
     <script src="basketbal_auth.js"></script>
-    <script src="basketbal_data.js?v=5"></script>
+    <script src="basketbal_data.js?v=6"></script>
     <script type="module" src="firebase_motor.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            setTimeout(() => {
-                if(window.laadDashboardData) window.laadDashboardData();
-            }, 350);
+            setTimeout(() => { if(window.laadDashboardData) window.laadDashboardData(); }, 350);
         });
     </script>
 </body>
