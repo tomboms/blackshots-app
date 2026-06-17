@@ -23,6 +23,8 @@
 </head>
 <body style="overflow-y: auto;">
 
+    <div id="cloud-status-indicator" style="position: fixed; bottom: 20px; right: 20px; background: #27ae60; color: white; padding: 10px 20px; border-radius: 30px; font-weight: bold; font-size: 0.9rem; z-index: 99999; opacity: 0; transition: 0.3s; pointer-events: none;">☁️ Cloud Actief</div>
+
     <nav class="top-nav">
         <h1>🏀 Black Shots Clubbeheer</h1>
         <a href="dashboard.html" class="terug-knop">🏠 Dashboard</a>
@@ -145,6 +147,13 @@
 
     <script src="basketbal_auth.js"></script>
     <script src="basketbal_todo.js"></script>
-    <script>document.addEventListener('DOMContentLoaded', () => { window.initTodoModule(); });</script>
+    
+    <script type="module" src="firebase_motor.js"></script>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => { 
+            setTimeout(() => { window.initTodoModule(); }, 200); 
+        });
+    </script>
 </body>
 </html>
