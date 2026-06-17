@@ -1,4 +1,4 @@
-// --- BASKETBAL_DATA.JS: MODERN DASHBOARD ENGINE MET GEAVANCEERDE FILTERS EN POP-UPS ---
+// --- BASKETBAL_DATA.JS: MODERN DASHBOARD ENGINE MET STANDENLIJST & TEAM KIEZER ---
 
 window.toggleDarkMode = function() {
     let body = document.body;
@@ -59,7 +59,6 @@ function userHasAccess(user, pageId) {
     return user.paginas.includes('all') || user.paginas.includes(pageId) || user.rol === 'admin' || user.rol === 'bestuur';
 }
 
-// --- DYNAMISCHE SNELKOPPELINGEN ---
 window.laadSnelkoppelingenDashboard = function(user) {
     let container = document.getElementById('dash-snelkoppelingen-container');
     if (!container) return;
@@ -118,14 +117,12 @@ window.laadVolgendeVergaderingDashboard = function() {
     `;
 };
 
-// --- ECHTE ZAALHUUR DATA BEREKENING (KIJKT NAAR ZAALHUUR TABLAD) ---
 window.berekenZaalhuurKostenWeek = function() {
     let kostenDiv = document.getElementById('dash-zaalhuur-kosten');
     let periodeSelect = document.getElementById('filter-zaalhuur-periode');
     let labelEl = document.getElementById('dash-zaalhuur-label');
     if (!kostenDiv) return;
 
-    // Converteer de oude value (1, 4.33, etc.) naar harde dagen vooruitkijken
     let factor = periodeSelect ? parseFloat(periodeSelect.value) : 4.33; 
     let dagenVooruit = 30;
     let lblText = "de komende maand";
@@ -138,24 +135,15 @@ window.berekenZaalhuurKostenWeek = function() {
     if(labelEl) labelEl.innerText = lblText;
 
     let zaalhuurData = JSON.parse(localStorage.getItem('blackshots_zaalhuur_data')) || [];
-    
-    let vandaag = new Date();
-    let vandaagIso = vandaag.toISOString().split('T')[0];
-    
-    let eindDatum = new Date();
-    eindDatum.setDate(vandaag.getDate() + dagenVooruit);
+    let vandaag = new Date(); let vandaagIso = vandaag.toISOString().split('T')[0];
+    let eindDatum = new Date(); eindDatum.setDate(vandaag.getDate() + dagenVooruit);
     let eindIso = eindDatum.toISOString().split('T')[0];
-
     let totaleKosten = 0;
 
-    // Scan door de echte zaalhuur database
     zaalhuurData.forEach(z => {
         if (z.isoDatum && z.isoDatum >= vandaagIso && z.isoDatum <= eindIso && !z.geannuleerd) {
-            // Zoek naar het veld 'bedrag', 'kosten' of 'prijs' in jouw database structuur
             let bedrag = parseFloat(z.bedrag || z.kosten || z.prijs || 0);
-            if (!isNaN(bedrag)) {
-                totaleKosten += bedrag;
-            }
+            if (!isNaN(bedrag)) totaleKosten += bedrag;
         }
     });
 
@@ -221,7 +209,6 @@ window.laadVerjaardagenDashboard = function() {
     });
 };
 
-// --- INTERACTIEVE WEEK NAVIGATIE MOTOR ---
 window.dashboardWeekOffset = 0;
 window.veranderDashboardWeek = function(wijziging) {
     if (wijziging === 0) window.dashboardWeekOffset = 0; else window.dashboardWeekOffset += wijziging;
@@ -248,11 +235,10 @@ window.toonActiviteitDetails = function(titel, tijd, locatie, omschrijving, url,
     } else {
         linkKnop.innerText = "Naar Jaarplanning 🔗"; linkKnop.style.background = "var(--primary-color)";
     }
-    
     document.getElementById('dash-activiteit-modal').style.display = 'flex';
 };
 
-// --- 5. DE LIVE WEEK-VIEW (7 KOLOMMEN) MET ECHTE AGENDA ANNULERINGS LOGICA ---
+// --- 5. DE LIVE WEEK-VIEW (7 KOLOMMEN) ---
 window.laadJaarplanningWeekDashboard = function() {
     const jaarplanningWeekContainer = document.getElementById('dash-jaarplanning-week');
     const weekLabel = document.getElementById('dash-week-label');
@@ -261,7 +247,7 @@ window.laadJaarplanningWeekDashboard = function() {
         let kalenderCategorieen = JSON.parse(localStorage.getItem('blackshots_jaarplanning_categorieen')) || [];
         let nbbWedstrijden = JSON.parse(localStorage.getItem('blackshots_wedstrijden_json')) || [];
         let zaalhuurData = JSON.parse(localStorage.getItem('blackshots_zaalhuur_data')) || [];
-        window.geplandeTrainingenDB = JSON.parse(localStorage.getItem('blackshots_trainingen')) || {}; // Haal actuele trainingen op
+        window.geplandeTrainingenDB = JSON.parse(localStorage.getItem('blackshots_trainingen')) || {}; 
         
         if (weekLabel) {
             if (window.dashboardWeekOffset === 0) weekLabel.innerText = "(Deze Week)";
@@ -285,23 +271,19 @@ window.laadJaarplanningWeekDashboard = function() {
             let isVandaag = (isoDag === echteVandaagIso);
             let dagVanDeWeekBS = i + 1; 
 
-            // Handmatige activiteiten ophalen
             let dagItems = jaarplanningData.filter(item => {
                 if(!item.isoDatum) return false;
                 let start = item.isoDatum; let eind = item.eindDatum || item.isoDatum;
                 return (start <= isoDag && eind >= isoDag);
             });
 
-            // VASTE TRAININGEN VERWERKEN INCLUSIEF AGENDA CHECK
             if (Array.isArray(window.teamsDB)) {
                 window.teamsDB.forEach(team => {
-                    // Check de echte trainingsagenda database voor annuleringen
                     let trainingsSleutel = `${isoDag}_${team.id}`;
                     let dagAgenda = window.geplandeTrainingenDB[trainingsSleutel];
                     let isGeannuleerdViaAgenda = false;
                     let annuleringsReden = "";
 
-                    // Als het eerste item in de agenda 'geannuleerd' is
                     if (dagAgenda && Array.isArray(dagAgenda) && dagAgenda.length > 0) {
                         if (dagAgenda[0].type === "geannuleerd") {
                             isGeannuleerdViaAgenda = true;
@@ -346,7 +328,14 @@ window.laadJaarplanningWeekDashboard = function() {
 
             let itemsHtml = '';
             if(dagItems.length > 0) {
-                dagItems.forEach(item => {
+                let ontdubbeldeItems = dagItems.filter(item => {
+                    if(!item.isVasteTraining && (String(item.geannuleerd) === 'true' || (item.titel||'').toLowerCase().includes('geannuleerd'))) {
+                        return false; 
+                    }
+                    return true;
+                });
+
+                ontdubbeldeItems.forEach(item => {
                     let isGeannuleerd = item.forceerGeannuleerd === true || (String(item.geannuleerd) === 'true') || (item.titel && (item.titel.toLowerCase().includes('geannuleerd') || item.titel.toLowerCase().includes('vervalt')));
                     let kleur = '#3498db', tekstKleur = '#ffffff', borderLink = 'transparent';
                     
@@ -397,28 +386,57 @@ window.laadJaarplanningWeekDashboard = function() {
     }
 };
 
-// --- POULE-INDELING SPECIFIEK WIDGET ---
+// --- NIEUW: DYNAMISCHE POULE-INDELING MET TEAM SELECTOR ---
+window.dashPouleSelect = null;
+window.dashPouleTeamSelect = null;
+
 window.laadPouleWidget = function() {
     let container = document.getElementById('dash-poule-inhoud');
     if(!container) return;
     let toernooiData = JSON.parse(localStorage.getItem('blackshots_toernooi')) || {};
     let poulesKeys = Object.keys(toernooiData).filter(k => toernooiData[k] && typeof toernooiData[k] === 'object');
-    
+
     if(poulesKeys.length === 0) {
-        container.innerHTML = `<p style="color:#7f8c8d; font-style:italic; margin:0;">Geen poules of toernooien in het systeem gevonden.</p>`; return;
+        container.innerHTML = `<p style="color:#7f8c8d; font-style:italic; margin:0;">Geen poules of toernooien gevonden.</p>`; return;
     }
 
-    let html = '';
-    poulesKeys.slice(0,3).forEach(k => {
-        let t = toernooiData[k]; let aantalTeams = (t.teams && Array.isArray(t.teams)) ? t.teams.length : 0;
-        html += `<div style="background:#fdfdfd; border:1px solid #eee; padding:10px 12px; border-radius:6px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
-            <strong style="color:#2c3e50;">${t.naam || k}</strong> <span style="background:#f39c12; color:white; padding:3px 8px; border-radius:4px; font-size:0.75rem; font-weight:bold;">${aantalTeams} Teams</span>
-        </div>`;
-    });
+    if (!window.dashPouleSelect || !poulesKeys.includes(window.dashPouleSelect)) window.dashPouleSelect = poulesKeys[0];
+    let geselecteerdToernooi = toernooiData[window.dashPouleSelect];
+    let teams = geselecteerdToernooi.teams || [];
+
+    if (teams.length > 0 && (!window.dashPouleTeamSelect || !teams.find(t => t.id === window.dashPouleTeamSelect))) {
+        window.dashPouleTeamSelect = teams[0].id;
+    }
+
+    let pouleOptions = poulesKeys.map(k => `<option value="${k}" ${k === window.dashPouleSelect ? 'selected' : ''}>${toernooiData[k].naam || k}</option>`).join('');
+    let teamOptions = teams.map(t => `<option value="${t.id}" ${t.id === window.dashPouleTeamSelect ? 'selected' : ''}>${t.naam}</option>`).join('');
+
+    let html = `
+        <div style="display:flex; gap:10px; margin-bottom:10px;">
+            <select onchange="window.dashPouleSelect = this.value; window.dashPouleTeamSelect = null; window.laadPouleWidget()" class="select-schoon" style="flex:1;">${pouleOptions}</select>
+            <select onchange="window.dashPouleTeamSelect = this.value; window.laadPouleWidget()" class="select-schoon" style="flex:1; background:#f8f9fa;">${teamOptions}</select>
+        </div>
+    `;
+
+    let selectedTeam = teams.find(t => t.id === window.dashPouleTeamSelect);
+    if (selectedTeam) {
+        let spelersHtml = (selectedTeam.spelers || []).map(sp => `<span style="background:#eef2f5; color:#34495e; padding:4px 8px; border-radius:4px; font-size:0.8rem; border:1px solid #cbd5e1; display:inline-block; font-weight:bold;">${sp}</span>`).join(' ');
+        html += `
+            <div style="background:#fdfdfd; border:1px solid #eee; padding:12px; border-radius:6px; border-left:4px solid ${selectedTeam.kleur || '#3498db'};">
+                <strong style="display:flex; justify-content:space-between; color:#2c3e50; margin-bottom:8px; font-size:0.9rem;">
+                    <span>👥 Team Roster</span>
+                    <span style="color:#7f8c8d; font-size:0.8rem;">${(selectedTeam.spelers || []).length} spelers</span>
+                </strong>
+                <div style="display:flex; flex-wrap:wrap; gap:5px;">${spelersHtml || '<i>Geen spelers ingedeeld</i>'}</div>
+            </div>
+        `;
+    } else {
+        html += `<p style="font-size:0.85rem; color:#7f8c8d; font-style:italic;">Selecteer een team om de spelers te zien.</p>`;
+    }
     container.innerHTML = html;
 };
 
-// --- MULTI-TOERNOOI SCANNER MET DROPDOWN ---
+// --- NIEUW: DYNAMISCHE COMPETITIE STANDENLIJST ---
 window.laadCompetitieWidget = function() {
     let container = document.getElementById('dash-competitie-inhoud');
     let select = document.getElementById('filter-toernooi-select');
@@ -428,7 +446,7 @@ window.laadCompetitieWidget = function() {
     let poulesKeys = Object.keys(toernooiData).filter(k => toernooiData[k] && typeof toernooiData[k] === 'object');
 
     if (poulesKeys.length === 0) {
-        container.innerHTML = `<div style="background:#fff3e0; border-left:4px solid #e67e22; padding:12px; border-radius:6px; font-size:0.85rem; color:#d35400;">📢 Geen wedstrijden gevonden. Open 'Interne Toernooien' om speelrondes te genereren.</div>`;
+        container.innerHTML = `<div style="background:#fff3e0; border-left:4px solid #e67e22; padding:12px; border-radius:6px; font-size:0.85rem; color:#d35400;">📢 Geen actieve toernooien gevonden.</div>`;
         return;
     }
 
@@ -437,37 +455,77 @@ window.laadCompetitieWidget = function() {
     }
 
     let actieveKey = select ? select.value : poulesKeys[0];
-    let geselecteerdToernooi = toernooiData[actieveKey];
-    let alleWedstrijden = [];
+    let t = toernooiData[actieveKey];
+    if (!t) return;
 
-    if (geselecteerdToernooi) {
-        let teamMap = {}; if (Array.isArray(geselecteerdToernooi.teams)) { geselecteerdToernooi.teams.forEach(tm => teamMap[tm.id] = tm.naam); }
-        let wLijst = [];
-        if (geselecteerdToernooi.wedstrijden) wLijst.push(...geselecteerdToernooi.wedstrijden);
-        if (geselecteerdToernooi.rondes) geselecteerdToernooi.rondes.forEach(r => { if(r.wedstrijden) wLijst.push(...r.wedstrijden); });
-
-        wLijst.forEach(w => {
-            let thuisNaam = teamMap[w.thuis] || w.thuis; let uitNaam = teamMap[w.uit] || w.uit;
-            if (thuisNaam === 'nr1') thuisNaam = '1e Plaats'; if (thuisNaam === 'nr2') thuisNaam = '2e Plaats'; if (thuisNaam === 'nr3') thuisNaam = '3e Plaats'; if (thuisNaam === 'nr4') thuisNaam = '4e Plaats';
-            if (uitNaam === 'nr1') uitNaam = '1e Plaats'; if (uitNaam === 'nr2') uitNaam = '2e Plaats'; if (uitNaam === 'nr3') uitNaam = '3e Plaats'; if (uitNaam === 'nr4') uitNaam = '4e Plaats';
-            alleWedstrijden.push({ ...w, thuisNaam, uitNaam });
-        });
+    let standen = {};
+    if (Array.isArray(t.teams)) {
+        t.teams.forEach(tm => { standen[tm.id] = { id: tm.id, naam: tm.naam, gespeeld: 0, winst: 0, verlies: 0, gelijk: 0, punten: 0, ds: 0 }; });
     }
 
-    let aankomend = alleWedstrijden.filter(w => w.scoreThuis === null || w.scoreThuis === undefined || w.scoreThuis === "" || w.scoreThuis === 0);
-    if (aankomend.length === 0) aankomend = alleWedstrijden.reverse();
+    let alleWedstrijden = [];
+    if (t.wedstrijden) alleWedstrijden.push(...t.wedstrijden);
+    if (t.rondes) t.rondes.forEach(r => { if(r.wedstrijden) alleWedstrijden.push(...r.wedstrijden); });
 
-    let wedstrijdenHtml = '';
-    aankomend.slice(0, 4).forEach(w => {
-        wedstrijdenHtml += `
-            <div style="font-size:0.85rem; background:white; padding:6px 12px; border:1px solid #e2e8f0; border-radius:4px; display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">🏀 <strong>${w.thuisNaam}</strong> vs. <strong>${w.uitNaam}</strong> <span style="color:#7f8c8d; font-size:0.75rem; margin-left:5px;">${w.datum||''}</span></span>
-                <span style="color:#e67e22; font-weight:bold; background:#fff3e0; padding:2px 6px; border-radius:4px; font-size:0.75rem; white-space:nowrap;">${w.tijd || '18:00'} (${w.veld || 'A'})</span>
-            </div>
-        `;
+    alleWedstrijden.forEach(w => {
+        if (w.scoreThuis !== null && w.scoreUit !== null && w.scoreThuis !== "" && w.scoreUit !== "") {
+            let sT = parseInt(w.scoreThuis); let sU = parseInt(w.scoreUit);
+            let tId = w.thuis; let uId = w.uit;
+
+            if (tId && tId.startsWith('nr')) return;
+            if (!standen[tId]) standen[tId] = { id: tId, naam: tId, gespeeld: 0, winst: 0, verlies: 0, gelijk: 0, punten: 0, ds: 0 };
+            if (!standen[uId]) standen[uId] = { id: uId, naam: uId, gespeeld: 0, winst: 0, verlies: 0, gelijk: 0, punten: 0, ds: 0 };
+
+            standen[tId].gespeeld++; standen[uId].gespeeld++;
+            standen[tId].ds += (sT - sU); standen[uId].ds += (sU - sT);
+
+            if (sT > sU) { standen[tId].winst++; standen[tId].punten += 2; standen[uId].verlies++; }
+            else if (sU > sT) { standen[uId].winst++; standen[uId].punten += 2; standen[tId].verlies++; }
+            else { standen[tId].gelijk++; standen[uId].gelijk++; standen[tId].punten += 1; standen[uId].punten += 1; }
+        }
     });
 
-    container.innerHTML = `<div style="background:#fdf6f0; border-left:4px solid #e67e22; padding:12px; border-radius:6px;"><strong style="color:#d35400; font-size:0.9rem; display:block; margin-bottom:8px;">🔥 Aankomende / Recente Wedstrijden:</strong><div style="display:flex; flex-direction:column; gap:2px;">${wedstrijdenHtml || '<i>Geen data</i>'}</div></div>`;
+    let standArray = Object.values(standen).filter(st => !st.id.startsWith('nr'));
+    standArray.sort((a,b) => {
+        if (b.punten !== a.punten) return b.punten - a.punten;
+        if (b.ds !== a.ds) return b.ds - a.ds;
+        return b.winst - a.winst;
+    });
+
+    let standHtml = `
+        <table style="width:100%; font-size:0.85rem; border-collapse:collapse; text-align:left;">
+            <tr style="border-bottom:2px solid #e2e8f0; color:#7f8c8d;">
+                <th style="padding:6px 4px; width:20px;">#</th><th style="padding:6px 4px;">Team</th>
+                <th style="padding:6px 4px; text-align:center;" title="Gespeeld">G</th>
+                <th style="padding:6px 4px; text-align:center; color:var(--primary-color);" title="Punten">P</th>
+                <th style="padding:6px 4px; text-align:center;" title="Doelsaldo">DS</th>
+            </tr>
+    `;
+    
+    if (standArray.length === 0) {
+        standHtml += `<tr><td colspan="5" style="text-align:center; padding:10px; color:#7f8c8d; font-style:italic;">Geen uitslagen bekend.</td></tr>`;
+    } else {
+        standArray.forEach((st, idx) => {
+            let badge = ''; if(idx === 0) badge = '🥇'; else if(idx===1) badge = '🥈'; else if(idx===2) badge = '🥉';
+            standHtml += `
+                <tr style="border-bottom:1px solid #f1f5f9;">
+                    <td style="padding:8px 4px; font-weight:bold; color:var(--secondary-color);">${idx+1}</td>
+                    <td style="padding:8px 4px; font-weight:bold; color:#34495e;">${st.naam} <span style="font-size:1rem;">${badge}</span></td>
+                    <td style="padding:8px 4px; text-align:center; color:#7f8c8d;">${st.gespeeld}</td>
+                    <td style="padding:8px 4px; text-align:center; font-weight:bold; color:#e67e22; font-size:1rem;">${st.punten}</td>
+                    <td style="padding:8px 4px; text-align:center; color:#7f8c8d;">${st.ds > 0 ? '+'+st.ds : st.ds}</td>
+                </tr>
+            `;
+        });
+    }
+    standHtml += `</table>`;
+
+    container.innerHTML = `
+        <div style="background:#fdf6f0; border-left:4px solid #e67e22; padding:12px; border-radius:6px; overflow-x:auto;">
+            <strong style="color:#d35400; font-size:0.9rem; display:block; margin-bottom:8px;">📊 Actuele Stand:</strong>
+            ${standHtml}
+        </div>
+    `;
 };
 
 // --- CATEGORIE LOGICA ---
