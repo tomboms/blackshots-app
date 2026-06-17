@@ -253,6 +253,7 @@ window.laadVerjaardagenDashboard = function() {
 };
 
 // --- GEAUTOMATISEERD 7 DAGEN OVERZICHT (JAARPLANNING + TRAININGROUGE) ---
+// --- GEAUTOMATISEERD 7 DAGEN OVERZICHT (SLIM GECOMBINEERD) ---
 window.laadJaarplanningWeekDashboard = function() {
     let container = document.getElementById('dash-jaarplanning-week');
     if (!container) return;
@@ -269,53 +270,71 @@ window.laadJaarplanningWeekDashboard = function() {
         let loopDatum = new Date(vandaag);
         loopDatum.setDate(vandaag.getDate() + i);
         let loopIso = loopDatum.toISOString().split('T')[0];
-        let dagVanDeWeek = loopDatum.getDay(); // 0 = Zo, 1 = Ma, etc.
+        let dagVanDeWeek = loopDatum.getDay();
 
+        // Haal de jaarplanning items (Speciale events) op
         let dagEvents = jaarplanningData.filter(item => item.isoDatum === loopIso);
+        dagEvents.sort((a,b) => (a.tijd || '00:00').localeCompare(b.tijd || '00:00'));
         
-        // Vang ook de vaste wekelijkse trainingstijden van de teams op die op deze dag vallen!
+        // Haal de reguliere trainingen op voor deze dag
+        let dagTrainingen = [];
         window.teamsDB.forEach(team => {
             if (Array.isArray(team.trainingen)) {
                 team.trainingen.forEach(tr => {
                     if (parseInt(tr.dag) === dagVanDeWeek) {
-                        dagEvents.push({
-                            id: 'tr_loop_' + team.id + '_' + tr.start,
-                            titel: `🏀 Training ${team.naam}`,
+                        dagTrainingen.push({
+                            teamNaam: team.naam,
                             tijd: tr.start,
-                            locatie: tr.zaal || "De Veste",
-                            isTraining: true
+                            zaal: tr.zaal || "De Veste"
                         });
                     }
                 });
             }
         });
+        dagTrainingen.sort((a,b) => a.tijd.localeCompare(b.tijd));
 
-        // Sorteer de events van vandaag netjes op tijdstip
-        dagEvents.sort((a,b) => (a.tijd || '00:00').localeCompare(b.tijd || '00:00'));
-
-        if (dagEvents.length > 0) {
+        // Teken de dag alleen als er IETS te doen is
+        if (dagEvents.length > 0 || dagTrainingen.length > 0) {
             let datumKop = i === 0 ? "Vandaag" : (i === 1 ? "Morgen" : `${dagenNamen[dagVanDeWeek]} ${loopDatum.getDate()} ${maandenKort[loopDatum.getMonth()]}`);
             
-            html += `<div style="margin-bottom:12px;"><strong style="font-size:0.9rem; color:var(--primary-color); display:block; margin-bottom:6px;">📍 ${datumKop}</strong>`;
+            html += `<div style="margin-bottom:15px;"><strong style="font-size:0.95rem; color:var(--primary-color); display:block; margin-bottom:8px; border-bottom:1px solid #eee; padding-bottom:4px;">📍 ${datumKop}</strong>`;
             
+            // 1. Toon de Speciale Jaarplanning Events (Grote kaarten)
             dagEvents.forEach(ev => {
-                let borderKleur = ev.isTraining ? '#3498db' : '#e74c3c';
                 let tijdLabel = ev.tijd ? `⏰ ${ev.tijd}` : '🕒 Hele dag';
                 let locLabel = ev.locatie ? ` | 📍 ${ev.locatie}` : '';
                 
                 html += `
-                    <div style="background:white; border:1px solid #e2e8f0; border-left:4px solid ${borderKleur}; padding:8px 12px; border-radius:6px; margin-bottom:5px; display:flex; justify-content:space-between; align-items:center;">
+                    <div style="background:white; border:1px solid #e2e8f0; border-left:4px solid #e74c3c; padding:8px 12px; border-radius:6px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
                         <span style="font-weight:bold; color:var(--secondary-color); font-size:0.9rem;">${ev.titel}</span>
                         <span style="font-size:0.75rem; color:#7f8c8d; font-weight:500;">${tijdLabel}${locLabel}</span>
                     </div>
                 `;
             });
+
+            // 2. Toon de Reguliere Trainingen (Compact gebundeld)
+            if (dagTrainingen.length > 0) {
+                let trainingTags = dagTrainingen.map(tr => 
+                    `<span style="background:#eef2f5; color:#34495e; padding:3px 8px; border-radius:4px; font-size:0.75rem; border:1px solid #cbd5e1; display:inline-block; font-weight:bold;">${tr.teamNaam} <span style="color:#7f8c8d; font-weight:normal;">(${tr.tijd})</span></span>`
+                ).join(' ');
+
+                html += `
+                    <div style="background:#f8f9fa; border:1px dashed #cbd5e1; padding:10px 12px; border-radius:6px; margin-bottom:6px; display:flex; gap:10px;">
+                        <span style="font-size:1.1rem;">🏀</span>
+                        <div>
+                            <span style="font-size:0.8rem; font-weight:bold; color:#7f8c8d; display:block; margin-bottom:6px;">Reguliere Trainingen:</span>
+                            <div style="display:flex; flex-wrap:wrap; gap:5px;">${trainingTags}</div>
+                        </div>
+                    </div>
+                `;
+            }
+
             html += `</div>`;
         }
     }
 
     if (html === '') {
-        html = '<p style="color: #7f8c8d; font-style: italic; margin: 0;">Geen geplande clubtaken of trainingen in de komende 7 dagen.</p>';
+        html = '<p style="color: #7f8c8d; font-style: italic; margin: 0;">Geen geplande evenementen of trainingen in de komende 7 dagen.</p>';
     }
     container.innerHTML = html;
 };
