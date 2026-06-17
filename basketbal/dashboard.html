@@ -60,17 +60,17 @@
         <div class="dashboard-layout">
             
             <div>
-                <div class="card" style="border-top-color: #f39c12; margin-bottom: 25px;">
+                <div class="card" style="border-top-color: #3498db; margin-bottom: 25px;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
-                        <h3 style="margin: 0; color: var(--secondary-color);">⛹️ Poule-indelingen</h3>
-                        <button onclick="window.location.href='pouleindeling.html'" class="primary-btn" style="background:#f39c12; padding:6px 12px; font-size:0.85rem;">Beheren</button>
+                        <h3 style="margin: 0; color: var(--secondary-color);">⛹️ Teamindeling (NBB / Clubteams)</h3>
+                        <button onclick="window.location.href='spelers.html'" class="primary-btn" style="background:#3498db; padding:6px 12px; font-size:0.85rem;">Spelers Beheren</button>
                     </div>
-                    <div id="dash-poule-inhoud"></div>
+                    <div id="dash-team-roster-inhoud"></div>
                 </div>
 
                 <div class="card" style="border-top-color: #e67e22;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
-                        <h3 style="margin: 0; color: var(--secondary-color);">🏆 Interne Competitie</h3>
+                        <h3 style="margin: 0; color: var(--secondary-color);">🏆 Interne Competitie Stand</h3>
                         <div style="display:flex; gap:8px; align-items:center;">
                             <select id="filter-toernooi-select" onchange="window.laadCompetitieWidget()" class="select-schoon" style="max-width:180px;"></select>
                             <button onclick="window.location.href='toernooien.html'" style="background:#e67e22; color:white; border:none; padding:6px 12px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.85rem;">Speelschema's</button>
@@ -136,7 +136,7 @@
     </div>
 
     <script src="basketbal_auth.js"></script>
-    <script src="basketbal_data.js?v=6"></script>
+    <script src="basketbal_data.js?v=7"></script>
     <script type="module" src="firebase_motor.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {

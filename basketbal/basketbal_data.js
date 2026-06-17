@@ -1,4 +1,4 @@
-// --- BASKETBAL_DATA.JS: MODERN DASHBOARD ENGINE MET STANDENLIJST & TEAM KIEZER ---
+// --- BASKETBAL_DATA.JS: DASHBOARD ENGINE MET OFFICILE CLUBTEAM (NBB) VIEWER ---
 
 window.toggleDarkMode = function() {
     let body = document.body;
@@ -52,13 +52,14 @@ window.laadDashboardData = function() {
     window.laadVerjaardagenDashboard();
     window.laadJaarplanningWeekDashboard();
     window.laadCompetitieWidget();
-    window.laadPouleWidget();
+    window.laadTeamRosterWidget(); // NIEUW: NBB Team Roster
 };
 
 function userHasAccess(user, pageId) {
     return user.paginas.includes('all') || user.paginas.includes(pageId) || user.rol === 'admin' || user.rol === 'bestuur';
 }
 
+// --- DYNAMISCHE SNELKOPPELINGEN ---
 window.laadSnelkoppelingenDashboard = function(user) {
     let container = document.getElementById('dash-snelkoppelingen-container');
     if (!container) return;
@@ -117,6 +118,7 @@ window.laadVolgendeVergaderingDashboard = function() {
     `;
 };
 
+// --- ECHTE ZAALHUUR DATA BEREKENING (KIJKT NAAR ZAALHUUR TABLAD) ---
 window.berekenZaalhuurKostenWeek = function() {
     let kostenDiv = document.getElementById('dash-zaalhuur-kosten');
     let periodeSelect = document.getElementById('filter-zaalhuur-periode');
@@ -238,7 +240,7 @@ window.toonActiviteitDetails = function(titel, tijd, locatie, omschrijving, url,
     document.getElementById('dash-activiteit-modal').style.display = 'flex';
 };
 
-// --- 5. DE LIVE WEEK-VIEW (7 KOLOMMEN) ---
+// --- 5. DE LIVE WEEK-VIEW (7 KOLOMMEN) MET ECHTE AGENDA ANNULERINGS LOGICA ---
 window.laadJaarplanningWeekDashboard = function() {
     const jaarplanningWeekContainer = document.getElementById('dash-jaarplanning-week');
     const weekLabel = document.getElementById('dash-week-label');
@@ -386,57 +388,81 @@ window.laadJaarplanningWeekDashboard = function() {
     }
 };
 
-// --- NIEUW: DYNAMISCHE POULE-INDELING MET TEAM SELECTOR ---
-window.dashPouleSelect = null;
-window.dashPouleTeamSelect = null;
+// --- NIEUW: NBB CLUBTEAM ROSTER VIEWER ---
+window.dashTeamSelect = null;
 
-window.laadPouleWidget = function() {
-    let container = document.getElementById('dash-poule-inhoud');
+window.laadTeamRosterWidget = function() {
+    let container = document.getElementById('dash-team-roster-inhoud');
     if(!container) return;
-    let toernooiData = JSON.parse(localStorage.getItem('blackshots_toernooi')) || {};
-    let poulesKeys = Object.keys(toernooiData).filter(k => toernooiData[k] && typeof toernooiData[k] === 'object');
 
-    if(poulesKeys.length === 0) {
-        container.innerHTML = `<p style="color:#7f8c8d; font-style:italic; margin:0;">Geen poules of toernooien gevonden.</p>`; return;
+    let teams = window.teamsDB || [];
+    if(teams.length === 0) {
+        container.innerHTML = `<p style="color:#7f8c8d; font-style:italic; margin:0;">Geen actieve teams gevonden in de database.</p>`;
+        return;
     }
 
-    if (!window.dashPouleSelect || !poulesKeys.includes(window.dashPouleSelect)) window.dashPouleSelect = poulesKeys[0];
-    let geselecteerdToernooi = toernooiData[window.dashPouleSelect];
-    let teams = geselecteerdToernooi.teams || [];
-
-    if (teams.length > 0 && (!window.dashPouleTeamSelect || !teams.find(t => t.id === window.dashPouleTeamSelect))) {
-        window.dashPouleTeamSelect = teams[0].id;
+    if (!window.dashTeamSelect || !teams.find(t => t.id === window.dashTeamSelect)) {
+        window.dashTeamSelect = teams[0].id;
     }
 
-    let pouleOptions = poulesKeys.map(k => `<option value="${k}" ${k === window.dashPouleSelect ? 'selected' : ''}>${toernooiData[k].naam || k}</option>`).join('');
-    let teamOptions = teams.map(t => `<option value="${t.id}" ${t.id === window.dashPouleTeamSelect ? 'selected' : ''}>${t.naam}</option>`).join('');
+    let teamOptions = teams.map(t => `<option value="${t.id}" ${t.id === window.dashTeamSelect ? 'selected' : ''}>${t.naam}</option>`).join('');
 
     let html = `
         <div style="display:flex; gap:10px; margin-bottom:10px;">
-            <select onchange="window.dashPouleSelect = this.value; window.dashPouleTeamSelect = null; window.laadPouleWidget()" class="select-schoon" style="flex:1;">${pouleOptions}</select>
-            <select onchange="window.dashPouleTeamSelect = this.value; window.laadPouleWidget()" class="select-schoon" style="flex:1; background:#f8f9fa;">${teamOptions}</select>
+            <select onchange="window.dashTeamSelect = this.value; window.laadTeamRosterWidget()" class="select-schoon" style="flex:1; background:#f8f9fa;">${teamOptions}</select>
         </div>
     `;
 
-    let selectedTeam = teams.find(t => t.id === window.dashPouleTeamSelect);
-    if (selectedTeam) {
-        let spelersHtml = (selectedTeam.spelers || []).map(sp => `<span style="background:#eef2f5; color:#34495e; padding:4px 8px; border-radius:4px; font-size:0.8rem; border:1px solid #cbd5e1; display:inline-block; font-weight:bold;">${sp}</span>`).join(' ');
-        html += `
-            <div style="background:#fdfdfd; border:1px solid #eee; padding:12px; border-radius:6px; border-left:4px solid ${selectedTeam.kleur || '#3498db'};">
-                <strong style="display:flex; justify-content:space-between; color:#2c3e50; margin-bottom:8px; font-size:0.9rem;">
-                    <span>👥 Team Roster</span>
-                    <span style="color:#7f8c8d; font-size:0.8rem;">${(selectedTeam.spelers || []).length} spelers</span>
-                </strong>
-                <div style="display:flex; flex-wrap:wrap; gap:5px;">${spelersHtml || '<i>Geen spelers ingedeeld</i>'}</div>
+    let selectedTeam = teams.find(t => t.id === window.dashTeamSelect);
+    let roster = window.spelersDB.filter(s => s.teamId === window.dashTeamSelect);
+
+    // Zoek de eerstvolgende Bondswedstrijd voor dit team!
+    let nbbWedstrijden = JSON.parse(localStorage.getItem('blackshots_wedstrijden_json')) || [];
+    let vandaagIso = new Date().toISOString().split('T')[0];
+    
+    let teamMatches = nbbWedstrijden.filter(w => {
+        if (!w.Datum || w.Datum < vandaagIso) return false;
+        let thuis = (w.Thuisteam || '').toLowerCase();
+        let uit = (w.Uitteam || '').toLowerCase();
+        
+        let checkNaam = selectedTeam.naam.toLowerCase().replace(/[^a-z0-9]/g, ''); 
+        let thuisSchoon = thuis.replace(/[^a-z0-9]/g, '');
+        let uitSchoon = uit.replace(/[^a-z0-9]/g, '');
+
+        return (thuis.includes('black shots') && thuisSchoon.includes(checkNaam)) || 
+               (uit.includes('black shots') && uitSchoon.includes(checkNaam));
+    });
+    
+    teamMatches.sort((a,b) => a.Datum.localeCompare(b.Datum));
+    let nextMatchHtml = '';
+    
+    if (teamMatches.length > 0) {
+        let nxt = teamMatches[0];
+        let isThuis = (nxt.Thuisteam || '').toLowerCase().includes(selectedTeam.naam.toLowerCase().replace('black shots', '').trim());
+        nextMatchHtml = `
+            <div style="margin-top:10px; padding:8px; background:#ebf5fb; border-radius:4px; font-size:0.8rem; color:#2980b9; display:flex; justify-content:space-between; align-items:center; border: 1px solid #d6eaf8;">
+                <span>📅 <strong>NBB Wedstrijd:</strong> ${isThuis ? '🏠 Thuis' : '🚀 Uit'} vs ${isThuis ? nxt.Uitteam : nxt.Thuisteam}</span>
+                <span style="font-weight:bold;">${nxt.Datum.substring(5)}</span>
             </div>
         `;
-    } else {
-        html += `<p style="font-size:0.85rem; color:#7f8c8d; font-style:italic;">Selecteer een team om de spelers te zien.</p>`;
     }
+
+    let spelersHtml = roster.map(sp => `<span style="background:#eef2f5; color:#34495e; padding:4px 8px; border-radius:4px; font-size:0.8rem; border:1px solid #cbd5e1; display:inline-block; font-weight:bold;">${sp.naam}</span>`).join(' ');
+    
+    html += `
+        <div style="background:#fdfdfd; border:1px solid #eee; padding:12px; border-radius:6px; border-left:4px solid ${selectedTeam.kleur || '#3498db'};">
+            <strong style="display:flex; justify-content:space-between; color:#2c3e50; margin-bottom:8px; font-size:0.9rem;">
+                <span>👥 Selectie ${selectedTeam.naam}</span>
+                <span style="color:#7f8c8d; font-size:0.8rem;">${roster.length} spelers</span>
+            </strong>
+            <div style="display:flex; flex-wrap:wrap; gap:5px;">${spelersHtml || '<i>Nog geen spelers aan dit team gekoppeld in de database.</i>'}</div>
+            ${nextMatchHtml}
+        </div>
+    `;
     container.innerHTML = html;
 };
 
-// --- NIEUW: DYNAMISCHE COMPETITIE STANDENLIJST ---
+// --- DYNAMISCHE COMPETITIE STANDENLIJST ---
 window.laadCompetitieWidget = function() {
     let container = document.getElementById('dash-competitie-inhoud');
     let select = document.getElementById('filter-toernooi-select');
