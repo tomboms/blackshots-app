@@ -25,7 +25,7 @@
         
         .dashboard-layout {
             display: grid;
-            grid-template-columns: 2fr 1fr;
+            grid-template-columns: 1.5fr 1fr;
             gap: 25px;
         }
         @media (max-width: 768px) {
@@ -39,7 +39,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-left: 4px solid #3498db;
+            border-left: 4px solid #f1c40f;
         }
         .select-schoon {
             padding: 6px 10px;
@@ -66,7 +66,7 @@
         </div>
     </nav>
 
-    <main class="content-sectie active" style="max-width: 1200px; margin: 20px auto; padding: 0 15px;">
+    <main class="content-sectie active" style="max-width: 1250px; margin: 20px auto; padding: 0 15px;">
         
         <div class="stats-grid">
             <div class="stat-card" style="border-bottom-color: #3498db;">
@@ -83,23 +83,24 @@
             </div>
         </div>
 
+        <div class="card" style="border-top-color: #e74c3c; overflow: hidden; margin-bottom: 25px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px; flex-wrap:wrap; gap:10px;">
+                <h3 style="margin: 0; color: var(--secondary-color);">📆 Weekagenda <span id="dash-week-label" style="font-size:0.9rem; color:#7f8c8d; font-weight:normal;">(Deze Week)</span></h3>
+                <div style="display:flex; gap:5px;">
+                    <button onclick="window.veranderDashboardWeek(-1)" style="background:#f8f9fa; border:1px solid #cbd5e1; padding:5px 10px; border-radius:4px; cursor:pointer; font-weight:bold; color:var(--secondary-color);">&larr;</button>
+                    <button onclick="window.veranderDashboardWeek(0)" style="background:#f8f9fa; border:1px solid #cbd5e1; padding:5px 10px; border-radius:4px; cursor:pointer; font-weight:bold; color:var(--secondary-color);">Vandaag</button>
+                    <button onclick="window.veranderDashboardWeek(1)" style="background:#f8f9fa; border:1px solid #cbd5e1; padding:5px 10px; border-radius:4px; cursor:pointer; font-weight:bold; color:var(--secondary-color);">&rarr;</button>
+                </div>
+            </div>
+            <div id="dash-jaarplanning-week">
+                <p style="color: #7f8c8d; font-style: italic; margin: 0;">Kalender wordt opgebouwd...</p>
+            </div>
+        </div>
+
         <div class="dashboard-layout">
             
-            <div class="card" style="border-top-color: #e74c3c; overflow: hidden;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px; flex-wrap:wrap; gap:10px;">
-                        <h3 style="margin: 0; color: var(--secondary-color);">📆 Weekagenda <span id="dash-week-label" style="font-size:0.9rem; color:#7f8c8d; font-weight:normal;">(Deze Week)</span></h3>
-                        <div style="display:flex; gap:5px;">
-                            <button onclick="window.veranderDashboardWeek(-1)" style="background:#f8f9fa; border:1px solid #cbd5e1; padding:5px 10px; border-radius:4px; cursor:pointer; font-weight:bold; color:var(--secondary-color);">&larr;</button>
-                            <button onclick="window.veranderDashboardWeek(0)" style="background:#f8f9fa; border:1px solid #cbd5e1; padding:5px 10px; border-radius:4px; cursor:pointer; font-weight:bold; color:var(--secondary-color);">Vandaag</button>
-                            <button onclick="window.veranderDashboardWeek(1)" style="background:#f8f9fa; border:1px solid #cbd5e1; padding:5px 10px; border-radius:4px; cursor:pointer; font-weight:bold; color:var(--secondary-color);">&rarr;</button>
-                        </div>
-                    </div>
-                    <div id="dash-jaarplanning-week">
-                        <p style="color: #7f8c8d; font-style: italic; margin: 0;">Kalender wordt opgebouwd...</p>
-                    </div>
-                </div>
-
-                <div class="card" style="margin-top: 25px; border-top-color: #e67e22;">
+            <div>
+                <div class="card" style="border-top-color: #e67e22;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
                         <h3 style="margin: 0; color: var(--secondary-color);">🏆 Interne Competitie & Poules</h3>
                         <div style="display:flex; gap:8px;">
@@ -150,7 +151,7 @@
     </main>
 
     <script src="basketbal_auth.js"></script>
-    <script src="basketbal_data.js?v=3"></script>
+    <script src="basketbal_data.js?v=4"></script>
     <script type="module" src="firebase_motor.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
