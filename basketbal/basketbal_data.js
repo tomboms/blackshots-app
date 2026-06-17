@@ -1,4 +1,4 @@
-// --- BASKETBAL_DATA.JS: MODERN DASHBOARD ENGINE MET TRAININGINTEGRATIE & MULTI-TOERNOOI SCANNER ---
+// --- BASKETBAL_DATA.JS: MODERN DASHBOARD ENGINE MET TRAININGINTEGRATIE, KLIKACTIES EN AFKAPPING ---
 
 window.toggleDarkMode = function() {
     let body = document.body;
@@ -32,12 +32,10 @@ window.laadDashboardData = function() {
     let actieveGebruiker = JSON.parse(localStorage.getItem('bs_actieve_gebruiker'));
     if (!actieveGebruiker) return;
 
-    // 1. LIVE COUNTERS
     if (document.getElementById('stat-leden')) document.getElementById('stat-leden').innerText = window.spelersDB.length;
     if (document.getElementById('stat-teams')) document.getElementById('stat-teams').innerText = window.teamsDB.length;
     if (document.getElementById('stat-oefeningen')) document.getElementById('stat-oefeningen').innerText = window.oefeningenDB.length;
 
-    // 2. RECHTENBEVEILIGING BESTUURSBLOK
     let isBestuurslid = userHasAccess(actieveGebruiker, 'bestuur');
     let bestuurWidget = document.getElementById('dash-widget-bestuur');
     if (bestuurWidget) {
@@ -50,7 +48,6 @@ window.laadDashboardData = function() {
         }
     }
 
-    // 3. GENEREREN WIDGETS
     window.laadSnelkoppelingenDashboard(actieveGebruiker);
     window.laadVerjaardagenDashboard();
     window.laadJaarplanningWeekDashboard();
@@ -61,7 +58,6 @@ function userHasAccess(user, pageId) {
     return user.paginas.includes('all') || user.paginas.includes(pageId) || user.rol === 'admin' || user.rol === 'bestuur';
 }
 
-// --- DYNAMISCHE SNELKOPPELINGEN ---
 window.laadSnelkoppelingenDashboard = function(user) {
     let container = document.getElementById('dash-snelkoppelingen-container');
     if (!container) return;
@@ -94,7 +90,6 @@ window.laadSnelkoppelingenDashboard = function(user) {
     });
 };
 
-// --- AUTOMATISCHE VOLGENDE VERGADERING ---
 window.laadVolgendeVergaderingDashboard = function() {
     let container = document.getElementById('dash-vergadering-inhoud');
     if (!container) return;
@@ -128,7 +123,6 @@ window.laadVolgendeVergaderingDashboard = function() {
     `;
 };
 
-// --- COSTE SCANNER ZAALHUUR ---
 window.berekenZaalhuurKostenWeek = function() {
     let kostenDiv = document.getElementById('dash-zaalhuur-kosten');
     if (!kostenDiv) return;
@@ -142,10 +136,8 @@ window.berekenZaalhuurKostenWeek = function() {
             team.trainingen.forEach(tr => {
                 let uren = (tr.duur || 90) / 60;
                 let zaalNaam = (tr.zaal || "").toLowerCase();
-                
                 let matchedTarief = tarieven.find(t => zaalNaam.includes(t.zaal.toLowerCase()));
                 let uurPrijs = matchedTarief ? parseFloat(matchedTarief.prijs) : 35.00;
-                
                 totaleKosten += (uren * uurPrijs);
             });
         }
@@ -154,7 +146,6 @@ window.berekenZaalhuurKostenWeek = function() {
     kostenDiv.innerText = `€ ${totaleKosten.toFixed(2).replace('.', ',')}`;
 };
 
-// --- VERJAARDAGEN & JUBILEA HORIZON ---
 window.laadVerjaardagenDashboard = function() {
     let container = document.getElementById('dash-verjaardagen-inhoud');
     let filterEl = document.getElementById('filter-verjaardag-periode');
@@ -163,7 +154,6 @@ window.laadVerjaardagenDashboard = function() {
     let maxDagen = parseInt(filterEl.value) || 30;
     let vandaag = new Date();
     vandaag.setHours(0,0,0,0);
-    
     let resultaten = [];
 
     window.spelersDB.forEach(s => {
@@ -173,45 +163,30 @@ window.laadVerjaardagenDashboard = function() {
                 let bMonth = parseInt(parts[1]) - 1;
                 let bDay = parseInt(parts[2]);
                 let bYear = parseInt(parts[0]);
-
                 let bdayDitJaar = new Date(vandaag.getFullYear(), bMonth, bDay);
                 if (bdayDitJaar < vandaag) bdayDitJaar.setFullYear(vandaag.getFullYear() + 1);
-
                 let diffDagen = Math.ceil((bdayDitJaar - vandaag) / (1000 * 60 * 60 * 24));
-                
                 if (diffDagen <= maxDagen) {
                     resultaten.push({
-                        naam: s.naam,
-                        team: s.teamId || "Vrij",
-                        dagen: diffDagen,
-                        type: 'verjaardag',
+                        naam: s.naam, team: s.teamId || "Vrij", dagen: diffDagen, type: 'verjaardag',
                         label: `Wordt <strong>${bdayDitJaar.getFullYear() - bYear}</strong> jaar`,
                         datumText: bdayDitJaar.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })
                     });
                 }
             }
         }
-
         if (s.lidSinds && s.lidSinds !== '-') {
             let slashParts = s.lidSinds.split('-');
             if (slashParts.length === 3) {
-                let lDay = parseInt(slashParts[0]);
-                let lMonth = parseInt(slashParts[1]) - 1;
-                let lYear = parseInt(slashParts[2]);
-
+                let lDay = parseInt(slashParts[0]), lMonth = parseInt(slashParts[1]) - 1, lYear = parseInt(slashParts[2]);
                 if (!isNaN(lDay) && !isNaN(lMonth) && !isNaN(lYear)) {
                     let jubDitJaar = new Date(vandaag.getFullYear(), lMonth, lDay);
                     if (jubDitJaar < vandaag) jubDitJaar.setFullYear(vandaag.getFullYear() + 1);
-
                     let diffDagenJub = Math.ceil((jubDitJaar - vandaag) / (1000 * 60 * 60 * 24));
                     let aantalJaarLid = jubDitJaar.getFullYear() - lYear;
-
                     if (diffDagenJub <= maxDagen && aantalJaarLid > 0) {
                         resultaten.push({
-                            naam: s.naam,
-                            team: s.teamId || "Vrij",
-                            dagen: diffDagenJub,
-                            type: 'jubileum',
+                            naam: s.naam, team: s.teamId || "Vrij", dagen: diffDagenJub, type: 'jubileum',
                             label: `🏅 🎉 <strong>${aantalJaarLid} jaar</strong> lid!`,
                             datumText: jubDitJaar.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })
                         });
@@ -222,7 +197,6 @@ window.laadVerjaardagenDashboard = function() {
     });
 
     resultaten.sort((a,b) => a.dagen - b.dagen);
-
     if (resultaten.length === 0) {
         container.innerHTML = `<p style="color:#7f8c8d; font-style:italic; margin:0; padding:10px; text-align:center;">Geen verjaardagen of jubilea in deze periode.</p>`;
         return;
@@ -257,7 +231,15 @@ window.veranderDashboardWeek = function(wijziging) {
     window.laadJaarplanningWeekDashboard();
 };
 
-// --- 5. DE LIVE WEEK-VIEW (7 KOLOMMEN) MET VOLLEDIGE TRAINING & NOTATIE VERWERKING ---
+window.toonActiviteitDetails = function(titel, tijd, locatie, url, isGeannuleerd) {
+    document.getElementById('dash-act-titel').innerText = isGeannuleerd ? '❌ ' + titel + ' (Geannuleerd)' : titel;
+    document.getElementById('dash-act-tijd').innerText = '⏰ Tijdstip: ' + tijd;
+    document.getElementById('dash-act-locatie').innerText = '📍 Locatie: ' + locatie;
+    document.getElementById('dash-act-link').onclick = () => window.location.href = url;
+    document.getElementById('dash-activiteit-modal').style.display = 'flex';
+};
+
+// --- 5. DE LIVE WEEK-VIEW (7 KOLOMMEN) MET KLIKBAARHEID, AFKAPPING EN ANNULERING ---
 window.laadJaarplanningWeekDashboard = function() {
     const jaarplanningWeekContainer = document.getElementById('dash-jaarplanning-week');
     const weekLabel = document.getElementById('dash-week-label');
@@ -282,7 +264,6 @@ window.laadJaarplanningWeekDashboard = function() {
         
         let huidigeDag = kalenderDatum.getDay(); 
         let afstandTotMaandag = huidigeDag === 0 ? -6 : 1 - huidigeDag;
-        
         let maandag = new Date(kalenderDatum);
         maandag.setDate(kalenderDatum.getDate() + afstandTotMaandag);
 
@@ -295,9 +276,8 @@ window.laadJaarplanningWeekDashboard = function() {
             
             let isoDag = `${loopDag.getFullYear()}-${String(loopDag.getMonth()+1).padStart(2,'0')}-${String(loopDag.getDate()).padStart(2,'0')}`;
             let isVandaag = (isoDag === echteVandaagIso);
-            let dagVanDeWeekBS = i + 1; // 1=Ma, 2=Di, 3=Wo, 4=Do, 5=Vr, 6=Za, 7=Zo
+            let dagVanDeWeekBS = i + 1; 
 
-            // Handmatige activiteiten ophalen
             let dagItems = jaarplanningData.filter(item => {
                 if(!item.isoDatum) return false;
                 let start = item.isoDatum;
@@ -305,7 +285,6 @@ window.laadJaarplanningWeekDashboard = function() {
                 return (start <= isoDag && eind >= isoDag);
             });
 
-            // AUTOMATISCH DE REGULIERE TRAININGEN IN DE LIJST VERWERKEN
             if (Array.isArray(window.teamsDB)) {
                 window.teamsDB.forEach(team => {
                     if (Array.isArray(team.trainingen)) {
@@ -323,22 +302,19 @@ window.laadJaarplanningWeekDashboard = function() {
                 });
             }
 
-            // NBB data dynamisch ophalen
             let wedstrijdenOpDag = nbbWedstrijden.filter(w => w.Datum && w.Datum.startsWith(isoDag));
             if (wedstrijdenOpDag.length > 0) {
                 let thuisTeams = [], uitTeams = [];
                 wedstrijdenOpDag.forEach(w => {
                     if (w.Thuisteam && w.Thuisteam.toLowerCase().includes('black shots')) thuisTeams.push(w.Thuisteam.replace(/Black Shots/ig, '').trim()||"?");
-                    else if (w.Uitteam && w.Uitteam.toLowerCase().includes('black shots')) uittech = uitTeams.push(w.Uitteam.replace(/Black Shots/ig, '').trim()||"?");
+                    else if (w.Uitteam && w.Uitteam.toLowerCase().includes('black shots')) uitTeams.push(w.Uitteam.replace(/Black Shots/ig, '').trim()||"?");
                 });
                 if (thuisTeams.length > 0) dagItems.push({ titel: `🏠 Thuis: ${[...new Set(thuisTeams)].join(', ')}`, type: 'thuis' });
                 if (uitTeams.length > 0) dagItems.push({ titel: `🚀 Uit: ${[...new Set(uitTeams)].join(', ')}`, type: 'uit' });
             }
 
-            // Sorteer alles netjes op starttijd binnen de dagkolom
             dagItems.sort((a,b) => (a.tijd || '00:00').localeCompare(b.tijd || '00:00'));
 
-            // STYLING OP BASIS VAN VAKANTIE
             let isVakantieDag = dagItems.some(item => {
                 let typeId = (item.type || 'memo').toLowerCase();
                 let cat = kalenderCategorieen.find(c => c.id === typeId);
@@ -348,17 +324,30 @@ window.laadJaarplanningWeekDashboard = function() {
             let cardBg = isVakantieDag ? 'rgba(231, 76, 60, 0.04)' : 'var(--card-bg)';
             let borderCol = isVandaag ? 'var(--primary-color)' : (isVakantieDag ? 'rgba(231, 76, 60, 0.3)' : 'var(--border-color)');
             let headerBg = isVandaag ? 'var(--primary-color)' : (isVakantieDag ? '#e74c3c' : 'var(--secondary-color)');
-            let nummerKleur = "#ffffff"; // FIX: Altijd wit en krachtig leesbaar maken op donkere headers!
+            let nummerKleur = "#ffffff"; 
 
             let itemsHtml = '';
             if(dagItems.length > 0) {
                 dagItems.forEach(item => {
+                    // CONTROLEER OP ANNULERING
+                    let isGeannuleerd = item.geannuleerd === true || (item.titel && (item.titel.toLowerCase().includes('geannuleerd') || item.titel.toLowerCase().includes('vervalt')));
+                    
                     let kleur = '#3498db';
                     let tekstKleur = '#ffffff';
+                    let borderLink = 'transparent';
+                    
+                    // BEPAAL LINK EN KLEUR
+                    let linkUrl = item.isVasteTraining ? 'team.html' : 'jaarplanning.html';
+                    if (item.type === 'thuis' || item.type === 'uit') linkUrl = 'pouleindeling.html';
 
-                    if (item.isVasteTraining) {
+                    if (isGeannuleerd) {
+                        kleur = '#fdedec'; // Lichtrood alarm achtergrond
+                        tekstKleur = '#c0392b'; // Donkerrood tekst
+                        borderLink = '#e74c3c';
+                    } else if (item.isVasteTraining) {
                         kleur = '#eef2f5';
                         tekstKleur = '#34495e';
+                        borderLink = '#bdc3c7';
                     } else {
                         let typeId = (item.type || 'memo').toLowerCase();
                         let cat = kalenderCategorieen.find(c => c.id === typeId);
@@ -371,11 +360,19 @@ window.laadJaarplanningWeekDashboard = function() {
                     let extraMeta = [];
                     if(item.tijd) extraMeta.push(`⏰ ${item.tijd}`);
                     if(item.locatie) extraMeta.push(`📍 ${item.locatie}`);
-                    let metaString = extraMeta.length > 0 ? `<div style="font-size:0.7rem; opacity:0.85; margin-top:2px; font-weight:normal;">${extraMeta.join(' | ')}</div>` : '';
+                    let metaString = extraMeta.length > 0 ? `<div style="font-size:0.7rem; opacity:0.85; margin-top:3px; font-weight:normal;">${extraMeta.join(' | ')}</div>` : '';
+
+                    let safeTitel = (item.titel || '').replace(/'/g, "\\'");
+                    let safeTijd = (item.tijd || 'Hele dag').replace(/'/g, "\\'");
+                    let safeLoc = (item.locatie || 'Onbekend').replace(/'/g, "\\'");
 
                     itemsHtml += `
-                        <div style="background:${kleur}; color:${tekstKleur}; padding:6px 8px; border-radius:4px; margin-bottom:5px; font-size:0.78rem; font-weight:bold; box-shadow:0 1px 2px rgba(0,0,0,0.05); border-left: 3px solid ${item.isVasteTraining ? '#bdc3c7' : 'transparent'};">
-                            <div style="white-space:normal; line-height:1.2;">${item.titel}</div>
+                        <div onclick="window.toonActiviteitDetails('${safeTitel}', '${safeTijd}', '${safeLoc}', '${linkUrl}', ${isGeannuleerd})" 
+                             style="background:${kleur}; color:${tekstKleur}; padding:6px 8px; border-radius:4px; margin-bottom:5px; font-size:0.78rem; cursor:pointer; box-shadow:0 1px 2px rgba(0,0,0,0.05); border-left: 3px solid ${borderLink}; transition:0.2s;"
+                             onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" title="${item.titel}">
+                            <div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:bold; line-height:1.2;">
+                                ${isGeannuleerd ? '❌ ' : ''}${item.titel}
+                            </div>
                             ${metaString}
                         </div>
                     `;
@@ -408,7 +405,6 @@ window.laadJaarplanningWeekDashboard = function() {
     }
 };
 
-// --- NIEUW: AUTOMATISCHE MULTI-TOERNOOI EN POULES SCANNER ---
 window.laadCompetitieWidget = function() {
     let container = document.getElementById('dash-competitie-inhoud');
     if (!container) return;
@@ -416,7 +412,6 @@ window.laadCompetitieWidget = function() {
     let toernooiData = JSON.parse(localStorage.getItem('blackshots_toernooi')) || {};
     let alleWedstrijden = [];
 
-    // Doorzoek alle mogelijke toernooi-datastructuren om de actieve wedstrijden te vinden
     if (Array.isArray(toernooiData)) {
         toernooiData.forEach(t => {
             if (t.rondes) t.rondes.forEach(r => { if(r.wedstrijden) alleWedstrijden.push(...r.wedstrijden); });
@@ -425,7 +420,6 @@ window.laadCompetitieWidget = function() {
         if (toernooiData.rondes) {
             toernooiData.rondes.forEach(r => { if(r.wedstrijden) alleWedstrijden.push(...r.wedstrijden); });
         }
-        // Scan door losse toernooisleutels (zoals Toernooi_Ouderen en Toernooi_Jongeren!)
         Object.keys(toernooiData).forEach(key => {
             let t = toernooiData[key];
             if (t && t.rondes) {
@@ -443,13 +437,12 @@ window.laadCompetitieWidget = function() {
         return;
     }
 
-    // Pak de eerstvolgende 4 wedstrijden om te tonen op het dashboard
     let wedstrijdenHtml = '';
     alleWedstrijden.slice(0, 4).forEach(w => {
         wedstrijdenHtml += `
             <div style="font-size:0.85rem; background:white; padding:6px 12px; border:1px solid #e2e8f0; border-radius:4px; display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                <span>🏀 <strong>${w.thuis}</strong> vs. <strong>${w.uit}</strong></span>
-                <span style="color:#e67e22; font-weight:bold; background:#fff3e0; padding:2px 6px; border-radius:4px; font-size:0.75rem;">${w.tijd || '18:00'} (${w.veld || 'A'})</span>
+                <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">🏀 <strong>${w.thuis}</strong> vs. <strong>${w.uit}</strong></span>
+                <span style="color:#e67e22; font-weight:bold; background:#fff3e0; padding:2px 6px; border-radius:4px; font-size:0.75rem; white-space:nowrap;">${w.tijd || '18:00'} (${w.veld || 'A'})</span>
             </div>
         `;
     });
@@ -462,7 +455,6 @@ window.laadCompetitieWidget = function() {
     `;
 };
 
-// --- CATEGORIE LOGICA ---
 window.voegCategorieToe = function() {
     const inputField = document.getElementById('nieuwe-cat-naam');
     if (!inputField) return;
@@ -474,13 +466,11 @@ window.voegCategorieToe = function() {
         if (window.vulInstellingenLijsten) window.vulInstellingenLijsten();
     }
 };
-
 window.verwijderCategorie = function(index) {
     window.categorieenDB.splice(index, 1);
     localStorage.setItem('blackshots_categorieen', JSON.stringify(window.categorieenDB));
     if (window.vulInstellingenLijsten) window.vulInstellingenLijsten();
 };
-
 window.vulInstellingenLijsten = function() {
     const cLijst = document.getElementById('instellingen-cat-lijst');
     if (cLijst) {
