@@ -31,15 +31,24 @@
         @media (max-width: 768px) {
             .dashboard-layout { grid-template-columns: 1fr; }
         }
-        .verjaardag-rij, .vergadering-detail {
+        .dash-rij {
             background: #f8f9fa;
-            padding: 10px 12px;
+            padding: 12px;
             border-radius: 6px;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-left: 4px solid #f1c40f;
+            border-left: 4px solid #3498db;
+        }
+        .select-schoon {
+            padding: 6px 10px;
+            border-radius: 4px;
+            border: 1px solid #cbd5e1;
+            font-weight: bold;
+            color: var(--secondary-color);
+            font-family: inherit;
+            cursor: pointer;
         }
     </style>
 </head>
@@ -52,7 +61,7 @@
     <nav class="top-nav">
         <h1>🏀 Black Shots Clubbeheer</h1>
         <div style="display:flex; align-items:center; gap:15px;">
-            <button id="dark-mode-toggle" onclick="window.toggleDarkMode()" style="background:transparent; border:none; font-size:1.4rem; cursor:pointer; padding:5px; line-height:1;" title="Schakel Dark Mode">🌙</button>
+            <button id="dark-mode-toggle" onclick="window.toggleDarkMode()" style="background:transparent; border:none; font-size:1.4rem; cursor:pointer; padding:5px; line-height:1;">🌙</button>
             <a href="../index.html" class="terug-knop">🏠 Portaal</a>
         </div>
     </nav>
@@ -61,11 +70,11 @@
         
         <div class="stats-grid">
             <div class="stat-card" style="border-bottom-color: #3498db;">
-                <h4>👥 Totaal Ledenbestand</h4>
+                <h4>👥 Actieve Leden</h4>
                 <div class="num" id="stat-leden">-</div>
             </div>
             <div class="stat-card" style="border-bottom-color: #9b59b6;">
-                <h4>🏀 Actieve Teams</h4>
+                <h4>🏀 Teams & Groepen</h4>
                 <div class="num" id="stat-teams">-</div>
             </div>
             <div class="stat-card" style="border-bottom-color: #2ecc71;">
@@ -78,33 +87,56 @@
             
             <div>
                 <div class="card" style="border-top-color: #e74c3c;">
-                    <h3 style="margin-top: 0; margin-bottom: 15px; color: var(--secondary-color);">📆 Aankomende Week (Jaarplanning)</h3>
+                    <h3 style="margin-top: 0; margin-bottom: 15px; color: var(--secondary-color);">📆 Komende 7 Dagen (Trainingen & Events)</h3>
                     <div id="dash-jaarplanning-week">
-                        <p style="color: #7f8c8d; font-style: italic; margin: 0;">Kalender wordt geladen...</p>
+                        <p style="color: #7f8c8d; font-style: italic; margin: 0;">Kalender wordt opgebouwd...</p>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-top: 25px; border-top-color: #e67e22;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
+                        <h3 style="margin: 0; color: var(--secondary-color);">🏆 Interne Competitie & Poules</h3>
+                        <div style="display:flex; gap:8px;">
+                            <button onclick="window.location.href='toernooien.html'" style="background:#e67e22; color:white; border:none; padding:6px 12px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.85rem;">🏆 Naar Toernooien</button>
+                            <button onclick="window.location.href='pouleindeling.html'" style="background:#f39c12; color:white; border:none; padding:6px 12px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.85rem;">⛹️ Naar Poules</button>
+                        </div>
+                    </div>
+                    <div id="dash-competitie-inhoud">
+                        <p style="color: #7f8c8d; font-style: italic; margin: 0;">Status van de poules laden...</p>
                     </div>
                 </div>
 
                 <div class="card" style="margin-top: 25px; border-top-color: #7f8c8d;">
-                    <h3 style="margin-top: 0; margin-bottom: 15px; font-size: 1.1rem; color: var(--text-color);">⚡ Jouw Snelkoppelingen</h3>
-                    <p style="font-size: 0.85rem; color: #7f8c8d; margin-top: -10px; margin-bottom: 15px;">Knoppen worden getoond op basis van jouw persoonlijke accountrechten.</p>
-                    <div id="dash-snelkoppelingen-container" style="display: flex; gap: 10px; flex-wrap: wrap;">
-                        </div>
+                    <h3 style="margin-top: 0; margin-bottom: 15px; font-size: 1.1rem; color: var(--text-color);">⚡ Snel Toegankelijke Pagina's</h3>
+                    <div id="dash-snelkoppelingen-container" style="display: flex; gap: 10px; flex-wrap: wrap;"></div>
                 </div>
             </div>
 
             <div>
                 <div id="dash-widget-bestuur" class="card" style="border-top-color: #2c3e50; display: none; margin-bottom: 25px;">
-                    <h3 style="margin-top: 0; margin-bottom: 15px; color: var(--secondary-color);">💼 Eerstvolgende Vergadering</h3>
-                    <div id="dash-vergadering-inhoud">
-                        <p style="color: #7f8c8d; font-style: italic; margin: 0;">Geen aankomende vergaderingen gepland.</p>
+                    <h3 style="margin-top: 0; margin-bottom: 15px; color: var(--secondary-color);">💼 Bestuurszaken & Kosten live</h3>
+                    <div id="dash-vergadering-inhoud" style="margin-bottom:15px;"></div>
+                    
+                    <div style="background:#ebf5fb; border-left:4px solid #2980b9; padding:12px; border-radius:6px; margin-top:10px;">
+                        <strong style="color:#2980b9; font-size:0.9rem; display:block; text-transform:uppercase;">🏟️ Verwachte Zaalhuur (Deze Week):</strong>
+                        <div id="dash-zaalhuur-kosten" style="font-size:1.4rem; font-weight:bold; color:#2c3e50; margin-top:5px;">€ 0,00</div>
+                        <span style="font-size:0.75rem; color:#7f8c8d;">Berekend op basis van de vaste trainingstijden en de tarievenlijst.</span>
                     </div>
                 </div>
 
                 <div class="card" style="border-top-color: #f1c40f;">
-                    <h3 style="margin-top: 0; margin-bottom: 15px; color: var(--secondary-color);">🎉 Eerstvolgende Verjaardagen</h3>
-                    <div id="dash-verjaardagen-inhoud">
-                        <p style="color: #7f8c8d; font-style: italic; margin: 0;">Geen geboortedatums bekend...</p>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:5px;">
+                        <h3 style="margin: 0; color: var(--secondary-color);">🎉 Feestvarkens & Jubilea</h3>
+                        <select id="filter-verjaardag-periode" onchange="window.laadVerjaardagenDashboard()" class="select-schoon">
+                            <option value="7">1 Week</option>
+                            <option value="14">2 Weken</option>
+                            <option value="30" selected>1 Maand</option>
+                            <option value="90">3 Maanden</option>
+                            <option value="180">6 Maanden</option>
+                            <option value="365">1 Jaar</option>
+                        </select>
                     </div>
+                    <div id="dash-verjaardagen-inhoud"></div>
                 </div>
             </div>
 
@@ -112,11 +144,10 @@
     </main>
 
     <script src="basketbal_auth.js"></script>
-    <script src="basketbal_data.js?v=2"></script>
+    <script src="basketbal_data.js?v=3"></script>
     <script type="module" src="firebase_motor.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // Geef de cloud de tijd om in te laden, herteken daarna het dashboard
             setTimeout(() => {
                 if(window.laadDashboardData) window.laadDashboardData();
             }, 350);
