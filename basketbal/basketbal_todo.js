@@ -1,4 +1,4 @@
-// --- BASKETBAL_TODO.JS: DE SMART KANBAN ENGINE ---
+// --- BASKETBAL_TODO.JS: DE SMART KANBAN ENGINE MET CATEGORIEËN ---
 
 window.todoDB = JSON.parse(localStorage.getItem('blackshots_todo')) || [];
 window.actieveGebruiker = JSON.parse(localStorage.getItem('bs_actieve_gebruiker')) || { naam: "Onbekend" };
@@ -19,48 +19,48 @@ window.genereerSlimmeTaken = function() {
     let spelers = JSON.parse(localStorage.getItem('blackshots_spelers')) || [];
     let teams = JSON.parse(localStorage.getItem('blackshots_teams')) || [];
     let trainingen = JSON.parse(localStorage.getItem('blackshots_trainingen')) || {};
-    let toernooien = JSON.parse(localStorage.getItem('blackshots_toernooi')) || {};
+    let bestuurDB = JSON.parse(localStorage.getItem('blackshots_bestuur')) || [];
+    let nbbWedstrijden = JSON.parse(localStorage.getItem('blackshots_wedstrijden_json')) || [];
     
-    // Check 1: Proefleden die langer dan 14 dagen meedraaien
     let vandaag = new Date();
+    let vandaagIso = vandaag.toISOString().split('T')[0];
+    let over7Dagen = new Date(vandaag); over7Dagen.setDate(vandaag.getDate() + 7);
+    let over7DagenIso = over7Dagen.toISOString().split('T')[0];
+
+    // CHECK 1: Proefleden & Proeftrainers
     spelers.forEach(s => {
-        if (s.isProeflid && s.lidSinds && s.lidSinds !== 'Proefperiode') {
-            // Dit is even een simpele check, je zou hier nog echt datumverschil kunnen rekenen
+        if (s.isProeflid) {
+            let isTrainer = (s.clubLidmaatschap || '').toLowerCase().includes('trainer');
             window.slimmeSuggesties.push({
-                titel: `Vraag ${s.naam} voor officieel lidmaatschap`,
-                omschrijving: `${s.naam} staat nog als proeflid in het systeem.`,
-                urgentie: 'normaal', verantwoordelijke: 'Bestuur', link: 'spelers.html'
+                titel: isTrainer ? `Evalueer proeftrainer ${s.naam}` : `Vraag ${s.naam} voor officieel lidmaatschap`,
+                omschrijving: isTrainer ? `Plan een gesprek in om te zien of ${s.naam} definitief trainer wil blijven.` : `${s.naam} staat nog als proeflid in het systeem.`,
+                urgentie: 'normaal', verantwoordelijke: 'Bestuur', categorie: 'Bestuur', link: 'spelers.html'
             });
         }
     });
 
-    // Check 2: Teams zonder Coach of Trainer
+    // CHECK 2: Teams zonder Coach of Trainer
     teams.forEach(t => {
         if (!t.isVrijwilliger && !t.isRecreant) {
             if (!t.coach || t.coach.trim() === '') {
                 window.slimmeSuggesties.push({
-                    titel: `Zoek coach voor ${t.naam}`, omschrijving: `Er is nog geen coach geregistreerd voor team ${t.naam}.`,
-                    urgentie: 'hoog', verantwoordelijke: 'Bestuur', link: 'team.html'
+                    titel: `Zoek coach voor ${t.naam}`, omschrijving: `Er is nog geen coach geregistreerd voor ${t.naam}.`,
+                    urgentie: 'hoog', verantwoordelijke: 'Bestuur', categorie: 'Trainingen', link: 'team.html'
                 });
             }
         }
     });
 
-    // Check 3: JOUW WENS -> Naderende Training ZONDER Oefeningen (Binnen 3 dagen)
-    let over3Dagen = new Date(); over3Dagen.setDate(vandaag.getDate() + 3);
-    let over3DagenIso = over3Dagen.toISOString().split('T')[0];
-    let vandaagIso = vandaag.toISOString().split('T')[0];
-
+    // CHECK 3: Trainingsplanner (Binnen 7 Dagen)
     teams.forEach(team => {
         if (team.trainer && team.trainer.toLowerCase().includes(window.actieveGebruiker.naam.toLowerCase())) {
             if (Array.isArray(team.trainingen)) {
                 team.trainingen.forEach(tr => {
-                    // Simpele check: Valt deze trainingsdag in de komende 3 dagen?
                     let komendeDatum = new Date(vandaag);
                     let afstand = (tr.dag - vandaag.getDay() + 7) % 7;
-                    if (afstand === 0) afstand = 7; // Vandaag is 0, maar we kijken vooruit
+                    if (afstand === 0) afstand = 7; 
                     
-                    if (afstand <= 3) {
+                    if (afstand <= 7) {
                         komendeDatum.setDate(vandaag.getDate() + afstand);
                         let checkIso = komendeDatum.toISOString().split('T')[0];
                         let agendaSleutel = `${checkIso}_${team.id}`;
@@ -69,9 +69,9 @@ window.genereerSlimmeTaken = function() {
                         if (!gepland || gepland.length === 0) {
                             window.slimmeSuggesties.push({
                                 titel: `Plan training voor ${team.naam}`, 
-                                omschrijving: `Je geeft over ${afstand} dag(en) training, maar hebt nog geen oefeningen in de agenda gezet.`,
+                                omschrijving: `Over ${afstand} dag(en) geef je training, maar de oefeningen staan nog niet in de app.`,
                                 tijdvak: `Voorafgaand aan de training om ${tr.start}`,
-                                urgentie: 'hoog', verantwoordelijke: window.actieveGebruiker.naam, link: 'agenda.html'
+                                urgentie: 'hoog', verantwoordelijke: window.actieveGebruiker.naam, categorie: 'Trainingen', link: 'agenda.html'
                             });
                         }
                     }
@@ -79,6 +79,36 @@ window.genereerSlimmeTaken = function() {
             }
         }
     });
+
+    // CHECK 4: Aankomende Bestuursvergadering
+    bestuurDB.forEach(verg => {
+        if (verg.isoDatum && verg.isoDatum >= vandaagIso && verg.isoDatum <= over7DagenIso) {
+            window.slimmeSuggesties.push({
+                titel: `Bereid de vergadering van ${verg.datum} voor`,
+                omschrijving: `Zorg dat de agenda rond is en stuur een reminder naar: ${verg.aanwezig || 'de overige leden'}.`,
+                urgentie: 'hoog', verantwoordelijke: 'Voorzitter', categorie: 'Bestuur', link: 'bestuur.html'
+            });
+        }
+    });
+
+    // CHECK 5: Zaalwacht voor Thuiswedstrijden in het weekend
+    let komendeWedstrijden = nbbWedstrijden.filter(w => w.Datum >= vandaagIso && w.Datum <= over7DagenIso && (w.Thuisteam||'').toLowerCase().includes('black shots'));
+    if (komendeWedstrijden.length > 0) {
+        window.slimmeSuggesties.push({
+            titel: `Regel zaalwacht/tafelaars voor komend weekend`,
+            omschrijving: `Er staan ${komendeWedstrijden.length} thuiswedstrijd(en) gepland. Zorg dat de bezetting rond is.`,
+            urgentie: 'hoog', verantwoordelijke: 'Wedstrijdsecretaris', categorie: 'Wedstrijden', link: 'pouleindeling.html'
+        });
+    }
+
+    // CHECK 6: Financiën aan het eind van de maand (Vanaf dag 25)
+    if (vandaag.getDate() >= 25) {
+        window.slimmeSuggesties.push({
+            titel: `Controleer zaalhuurkosten deze maand`,
+            omschrijving: `Het is bijna het einde van de maand. Controleer het actuele zaalhuur overzicht in het dashboard.`,
+            urgentie: 'normaal', verantwoordelijke: 'Penningmeester', categorie: 'Financien', link: 'zaalhuur.html'
+        });
+    }
 
     window.renderSlimmeInbox();
 };
@@ -88,7 +118,6 @@ window.renderSlimmeInbox = function() {
     let lijst = document.getElementById('smart-inbox-lijst');
     if (!container || !lijst) return;
 
-    // Filter suggesties eruit die toevallig al letterlijk als taak op het bord staan
     let openTitels = window.todoDB.map(t => t.titel.toLowerCase());
     let actieveSuggesties = window.slimmeSuggesties.filter(s => !openTitels.includes(s.titel.toLowerCase()));
 
@@ -124,13 +153,14 @@ window.accepteerSuggestie = function(index) {
         tijdvak: sug.tijdvak || "",
         deadline: "",
         urgentie: sug.urgentie,
+        categorie: sug.categorie || "Overig",
         verantwoordelijke: sug.verantwoordelijke,
         status: 'todo',
         link: sug.link || ""
     });
 
     localStorage.setItem('blackshots_todo', JSON.stringify(window.todoDB));
-    window.genereerSlimmeTaken(); // Herberekenen
+    window.genereerSlimmeTaken();
     window.renderKanbanBord();
 };
 
@@ -150,24 +180,27 @@ window.renderKanbanBord = function() {
     let mijnNaam = window.actieveGebruiker.naam.toLowerCase();
 
     window.todoDB.forEach(taak => {
-        // Filter logica
         if (filterType === 'ik') {
             let verantw = (taak.verantwoordelijke || "").toLowerCase();
             if (!verantw.includes(mijnNaam) && !verantw.includes("iedereen")) return;
         }
 
-        // Labels en kleuren
         let badgeClass = taak.urgentie === 'hoog' ? 'badge-urgentie-hoog' : (taak.urgentie === 'laag' ? 'badge-urgentie-laag' : 'badge-urgentie-normaal');
         let urgentieTekst = taak.urgentie.toUpperCase();
         let borderKleur = taak.urgentie === 'hoog' ? '#e74c3c' : (taak.urgentie === 'laag' ? '#2ecc71' : '#f39c12');
-        if (taak.status === 'done') borderKleur = '#bdc3c7'; // Grijs als het klaar is
+        if (taak.status === 'done') borderKleur = '#bdc3c7'; 
 
-        // JOUW WENS: Tijdsvenster prominent tonen
+        let catIcoon = "📌";
+        if(taak.categorie === 'Bestuur') catIcoon = "💼";
+        if(taak.categorie === 'Wedstrijden') catIcoon = "🏆";
+        if(taak.categorie === 'Trainingen') catIcoon = "🏀";
+        if(taak.categorie === 'Facilitair') catIcoon = "🏟️";
+        if(taak.categorie === 'Financien') catIcoon = "💰";
+
         let tijdvakHtml = taak.tijdvak ? `<div style="background:#fef5e7; padding:4px 6px; border-radius:4px; font-size:0.75rem; color:#d35400; font-weight:bold; margin-bottom:5px; display:inline-block;">⏱️ ${taak.tijdvak}</div><br>` : '';
         let deadlineHtml = taak.deadline ? `📅 ${taak.deadline} | ` : '';
         let linkHtml = taak.link ? `<button onclick="window.location.href='${taak.link}'" style="background:none; border:none; color:#3498db; cursor:pointer; font-size:0.8rem; padding:0; font-weight:bold; margin-bottom:5px;">🔗 Naar Pagina</button><br>` : '';
 
-        // Status Verplaats Knoppen
         let moveKnoppen = '';
         if (taak.status === 'todo') {
             moveKnoppen = `<button onclick="window.veranderStatus('${taak.id}', 'doing')" style="background:#f39c12; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:0.75rem; font-weight:bold; width:100%;">STARTEN ▶</button>`;
@@ -186,7 +219,10 @@ window.renderKanbanBord = function() {
         let kaartHtml = `
             <div class="taak-kaart" style="border-left-color: ${borderKleur}; opacity: ${taak.status === 'done' ? '0.7' : '1'};">
                 <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:5px;">
-                    <span class="${badgeClass}">${urgentieTekst}</span>
+                    <div>
+                        <span class="${badgeClass}" style="margin-right:5px;">${urgentieTekst}</span>
+                        <span style="font-size:0.7rem; color:#7f8c8d; font-weight:bold;">${catIcoon} ${taak.categorie || 'Overig'}</span>
+                    </div>
                     <button onclick="window.openTodoModal('${taak.id}')" style="background:none; border:none; color:#7f8c8d; cursor:pointer; font-size:1rem; padding:0;">✏️</button>
                 </div>
                 <div class="taak-titel">${taak.titel}</div>
@@ -235,9 +271,10 @@ window.openTodoModal = function(editId = null) {
         document.getElementById('todo-id').value = taak.id;
         document.getElementById('todo-titel').value = taak.titel || "";
         document.getElementById('todo-omschrijving').value = taak.omschrijving || "";
-        document.getElementById('todo-tijdvak').value = taak.tijdvak || ""; // DE NIEUWE
+        document.getElementById('todo-tijdvak').value = taak.tijdvak || ""; 
         document.getElementById('todo-deadline').value = taak.deadline || "";
         document.getElementById('todo-urgentie').value = taak.urgentie || "normaal";
+        document.getElementById('todo-categorie').value = taak.categorie || "Overig";
         document.getElementById('todo-verantwoordelijke').value = taak.verantwoordelijke || "";
         delBtn.style.display = 'block';
     } else {
@@ -245,9 +282,10 @@ window.openTodoModal = function(editId = null) {
         document.getElementById('todo-id').value = "";
         document.getElementById('todo-titel').value = "";
         document.getElementById('todo-omschrijving').value = "";
-        document.getElementById('todo-tijdvak').value = ""; // DE NIEUWE
+        document.getElementById('todo-tijdvak').value = ""; 
         document.getElementById('todo-deadline').value = "";
         document.getElementById('todo-urgentie').value = "normaal";
+        document.getElementById('todo-categorie').value = "Overig";
         document.getElementById('todo-verantwoordelijke').value = window.actieveGebruiker.naam || "";
         delBtn.style.display = 'none';
     }
@@ -267,6 +305,7 @@ window.slaTodoOp = function() {
         tijdvak: document.getElementById('todo-tijdvak').value.trim(),
         deadline: document.getElementById('todo-deadline').value,
         urgentie: document.getElementById('todo-urgentie').value,
+        categorie: document.getElementById('todo-categorie').value,
         verantwoordelijke: document.getElementById('todo-verantwoordelijke').value.trim() || "Iedereen",
         status: id ? window.todoDB.find(t => t.id === id).status : 'todo',
         link: id ? (window.todoDB.find(t => t.id === id).link || "") : ""
@@ -281,7 +320,7 @@ window.slaTodoOp = function() {
 
     localStorage.setItem('blackshots_todo', JSON.stringify(window.todoDB));
     document.getElementById('todo-modal').style.display = 'none';
-    window.genereerSlimmeTaken(); // Zodat suggesties verdwijnen als je ze handmatig oplost
+    window.genereerSlimmeTaken(); 
     window.renderKanbanBord();
 };
 

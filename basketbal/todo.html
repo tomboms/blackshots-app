@@ -118,9 +118,22 @@
                 </div>
             </div>
 
-            <div style="margin-bottom:20px;">
-                <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">Wie pakt dit op? (Verantwoordelijke):</label>
-                <input type="text" id="todo-verantwoordelijke" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;" placeholder="Bijv. Tom, Martin of Iedereen">
+            <div style="display:flex; gap:15px; margin-bottom:20px;">
+                <div style="flex:1;">
+                    <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">Wie pakt dit op? (Verantw.):</label>
+                    <input type="text" id="todo-verantwoordelijke" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;" placeholder="Bijv. Tom, Martin of Iedereen">
+                </div>
+                <div style="flex:1;">
+                    <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">Categorie:</label>
+                    <select id="todo-categorie" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;">
+                        <option value="Overig">📌 Overig</option>
+                        <option value="Bestuur">💼 Bestuur & Organisatie</option>
+                        <option value="Wedstrijden">🏆 Wedstrijden & Poules</option>
+                        <option value="Trainingen">🏀 Trainingen & Teams</option>
+                        <option value="Facilitair">🏟️ Zaalhuur & Materiaal</option>
+                        <option value="Financien">💰 Financiën</option>
+                    </select>
+                </div>
             </div>
 
             <div style="display:flex; gap:10px;">
