@@ -52,7 +52,11 @@
         
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
             <h2 style="margin:0; color:var(--secondary-color);">🧩 Thuiswedstrijd Planner</h2>
-            <button style="background:#27ae60; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">💾 Concept Opslaan</button>
+            <div style="display:flex; gap:10px;">
+                <!-- NIEUW: KNOP OM HANDMATIG EEN WEDSTRIJD AAN TE MAKEN -->
+                <button onclick="window.openNieuweWedstrijdModal()" style="background:#3498db; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">+ Nieuwe Wedstrijd</button>
+                <button style="background:#27ae60; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">💾 Concept Opslaan</button>
+            </div>
         </div>
 
         <div class="planner-controls">
@@ -75,16 +79,65 @@
         </div>
 
         <div class="planner-wrapper">
+            <!-- DE WACHTKAMER VOOR TE PLANNEN WEDSTRIJDEN -->
             <div class="wachtkamer" id="te-plannen-container" ondragover="window.onDragOver(event)" ondrop="window.onDropTePlannen(event)" ondragenter="this.classList.add('dropzone-highlight')" ondragleave="this.classList.remove('dropzone-highlight')">
                 <div class="wachtkamer-header">📋 Te Plannen (<span id="aantal-te-plannen">0</span>)</div>
                 <p style="font-size:0.8rem; color:#7f8c8d; font-style:italic; text-align:center; margin:0;" id="wachtkamer-leeg">Selecteer een datum met thuiswedstrijden of sleep blokken terug hierheen.</p>
-                </div>
+                <!-- Wedstrijden komen hier -->
+            </div>
 
+            <!-- HET PLANBORD -->
             <div class="planner-bord" id="planner-bord-container">
-                </div>
+                <!-- Wordt via Javascript getekend -->
+            </div>
         </div>
 
     </main>
+
+    <!-- NIEUW: MODAL VOOR HANDMATIGE WEDSTRIJD -->
+    <div id="nieuw-wedstrijd-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:99999; justify-content:center; align-items:center;">
+        <div style="background:white; padding:25px; border-radius:12px; width:90%; max-width:450px; box-shadow:0 10px 30px rgba(0,0,0,0.3); position:relative;">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #eee; padding-bottom:10px; margin-bottom:15px;">
+                <h3 style="margin:0; color:var(--secondary-color);">➕ Handmatige Wedstrijd</h3>
+                <button onclick="document.getElementById('nieuw-wedstrijd-modal').style.display='none'" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
+            </div>
+            
+            <div style="margin-bottom:15px;">
+                <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">Thuisteam (Black Shots):</label>
+                <select id="nw-match-team" onchange="window.updateDuurSuggestie()" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px; font-weight:bold;">
+                    <option value="">-- Selecteer eigen team --</option>
+                </select>
+            </div>
+
+            <div style="margin-bottom:15px;">
+                <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">Tegenstander (Uitteam):</label>
+                <input type="text" id="nw-match-tegenstander" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;" placeholder="Bijv. Almonte X12-1">
+            </div>
+
+            <div style="display:flex; gap:15px; margin-bottom:20px;">
+                <div style="flex:1;">
+                    <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">Type Wedstrijd:</label>
+                    <select id="nw-match-type" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;">
+                        <option value="Oefenwedstrijd">Oefenwedstrijd</option>
+                        <option value="Bekerwedstrijd">Beker</option>
+                        <option value="Inhaalwedstrijd">Inhaal</option>
+                    </select>
+                </div>
+                <div style="flex:1;">
+                    <label style="font-weight:bold; font-size:0.85rem; color:#d35400;">Duur van de wedstrijd:</label>
+                    <select id="nw-match-duur" style="width:100%; padding:10px; border:2px solid #e67e22; border-radius:4px; font-weight:bold;">
+                        <option value="60">1 Uur (60 min)</option>
+                        <option value="75">1.25 Uur (75 min)</option>
+                        <option value="90">1.5 Uur (90 min)</option>
+                        <option value="105" selected>1.75 Uur (105 min)</option>
+                        <option value="120">2 Uur (120 min)</option>
+                    </select>
+                </div>
+            </div>
+
+            <button onclick="window.slaNieuweWedstrijdOp()" style="width:100%; padding:12px; background:var(--primary-color); color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold; font-size:1rem;">Toevoegen aan Planbord</button>
+        </div>
+    </div>
 
     <script src="basketbal_auth.js"></script>
     <script src="basketbal_planner.js"></script>
