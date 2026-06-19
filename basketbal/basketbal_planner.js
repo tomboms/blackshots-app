@@ -68,36 +68,61 @@ window.tijdNaarMinuten = function(tijdStr) {
 // ============================================================================
 // 🚨 CONFLICT ENGINE (NIEUW!)
 // ============================================================================
-window.checkConflicten = function(taakPersoon, matchStartMin, matchEindMin, speelDatum, alleDaggeplande) {
+// ============================================================================
+// 🚨 GEAVANCEERDE CONFLICT ENGINE
+// ============================================================================
+window.checkConflicten = function(taakPersoon, matchStartMin, matchEindMin, speelDatum, alleDaggeplande, huidigeMatchId, alleTakenHuidigeMatch) {
     if (!taakPersoon || taakPersoon === "" || taakPersoon === "Vrij") return false;
 
-    // CHECK 1: Is deze persoon "Afwezig" in het Scheidsrechters rooster?
+    // CHECK 1: Is deze persoon meerdere keren in DEZELFDE wedstrijd ingedeeld?
+    let countInMatch = 0;
+    if(alleTakenHuidigeMatch.sA === taakPersoon) countInMatch++;
+    if(alleTakenHuidigeMatch.sB === taakPersoon) countInMatch++;
+    if(alleTakenHuidigeMatch.tab === taakPersoon) countInMatch++;
+    if(alleTakenHuidigeMatch.sco === taakPersoon) countInMatch++;
+    if(countInMatch > 1) return true; // Dubbel gepland in deze wedstrijd!
+
+    // CHECK 2: Is deze persoon "Afwezig" in het Scheidsrechters rooster?
     let sr = window.scheidsrechtersDB.find(s => s.naam === taakPersoon);
     if (sr) {
         let status = window.beschikbaarheidDB[`${sr.id}_${speelDatum}`];
-        if (status === 'af') return true; // AFWEZIG! Conflict!
+        if (status === 'af') return true; // AFWEZIG!
     }
 
-    // CHECK 2: Speelt dit TEAM (of persoon uit dit team) zelf op dit tijdstip?
+    // CHECK 3: Overlap met andere wedstrijden checken
     let conflict = false;
     alleDaggeplande.forEach(andereMatch => {
         let aStart = window.tijdNaarMinuten(andereMatch.geplandeTijd);
         if (aStart === 0) return;
         let aEind = aStart + andereMatch.duur;
 
-        // Checken we of ze tegelijk vallen (Overlap)
+        // Is er een tijds-overlap?
         if (matchStartMin < aEind && matchEindMin > aStart) {
+            
+            // A. Staat deze persoon al ingedeeld bij die ANDERE overlappende wedstrijd?
+            if (andereMatch.uniekId !== huidigeMatchId) {
+                let andereTaken = window.takenDB[andereMatch.uniekId] || {};
+                if (andereTaken.sA === taakPersoon || andereTaken.sB === taakPersoon || 
+                    andereTaken.tab === taakPersoon || andereTaken.sco === taakPersoon) {
+                    conflict = true; 
+                }
+            }
+
+            // B. Speelt het TEAM dat als taak is ingedeeld zelf een wedstrijd?
             let anderThuisteam = andereMatch.Thuisteam.replace('Black Shots ', '').trim();
-            // Als de taak is toegewezen aan het team dat nu op het veld staat
             if (taakPersoon === anderThuisteam || taakPersoon.includes(anderThuisteam)) {
                 conflict = true;
+            }
+
+            // C. Speelt het GEKOPPELDE TEAM van de scheidsrechter een wedstrijd?
+            if (sr && sr.gekoppeldTeam && sr.gekoppeldTeam === anderThuisteam) {
+                conflict = true; // Thijmen kan niet fluiten, want M22 speelt nu!
             }
         }
     });
 
     return conflict;
 };
-
 // ============================================================================
 // 📋 TAKEN TOEWIJZEN MODAL
 // ============================================================================
@@ -249,7 +274,8 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
         // --- CONFLICT CHECKER ---
         let aantalConflicten = 0;
         let checkTaak = (naam) => {
-            let isConflict = dbStatus && window.checkConflicten(naam, startMinuten, startMinuten + duurMinuten, datum, geplandeDataLijst);
+            // Nu sturen we de huidigeMatchId en alleTaken mee voor de dubbel-check!
+            let isConflict = dbStatus && window.checkConflicten(naam, startMinuten, startMinuten + duurMinuten, datum, geplandeDataLijst, uniekId, taken);
             if (isConflict) aantalConflicten++;
             return {
                 tekst: naam ? naam : "Vrij",
@@ -263,11 +289,7 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
         let tB = checkTaak(taken.sB);
         let tTab = checkTaak(taken.tab);
         let tSco = checkTaak(taken.sco);
-
-        let conflictBanner = aantalConflicten > 0 ? `<div class="conflict-banner">⚠️ ${aantalConflicten} Conflict(en) Gedetecteerd!</div>` : '';
-        let typeBadge = (w.id && w.id.includes('custom')) ? `<span style="background:#8e44ad; color:white; padding:1px 4px; border-radius:3px; font-size:0.65rem;">${w.Wedstrijdnummer}</span>` : '';
-        let deleteBtn = (w.id && w.id.includes('custom')) ? `<button onmousedown="event.stopPropagation();" onclick="window.verwijderCustomWedstrijd('${uniekId}')" style="background:none; border:none; cursor:pointer; font-size:1rem; padding:0; margin-left:auto;">🗑️</button>` : '';
-
+        
         let html = `
             <div class="wedstrijd-blok" id="${uniekId}" draggable="true" ondragstart="window.onDragStart(event)" ondragend="window.onDragEnd(event)" style="${cssPositie} height: ${pixelHoogte}px;">
                 ${conflictBanner}
