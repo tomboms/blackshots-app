@@ -1,8 +1,11 @@
-// --- BASKETBAL_PLANNER.JS: DRAG & DROP + HANDMATIG TYPEN ---
+// --- BASKETBAL_PLANNER.JS: DRAG & DROP + TAKEN TOEWIJZEN ---
 
 window.nbbWedstrijden = JSON.parse(localStorage.getItem('blackshots_wedstrijden_json')) || [];
 window.customWedstrijden = JSON.parse(localStorage.getItem('blackshots_custom_wedstrijden')) || [];
 window.teamsDB = JSON.parse(localStorage.getItem('blackshots_teams')) || [];
+window.scheidsrechtersDB = JSON.parse(localStorage.getItem('blackshots_scheidsrechters')) || [];
+// Nieuwe database puur voor de gekoppelde taken per wedstrijd-ID
+window.takenDB = JSON.parse(localStorage.getItem('blackshots_wedstrijd_taken')) || {};
 
 const START_UUR = 8; 
 const EIND_UUR = 23; 
@@ -16,6 +19,16 @@ window.initPlanner = function() {
     vandaag.setDate(vandaag.getDate() + verschilZaterdag);
     
     datumInput.value = vandaag.toISOString().split('T')[0];
+    
+    // Voorbereiden van de dropwdowns (Handmatige modal)
+    let teamSelect = document.getElementById('nw-match-team');
+    if(teamSelect) {
+        teamSelect.innerHTML = '<option value="">-- Selecteer eigen team --</option>';
+        window.teamsDB.forEach(t => {
+            teamSelect.innerHTML += `<option value="${t.naam}">${t.naam}</option>`;
+        });
+    }
+
     window.laadPlanbord();
 };
 
@@ -29,6 +42,101 @@ window.bepaalWedstrijdDuur = function(teamNaam) {
 };
 
 // ============================================================================
+// 📋 TAKEN TOEWIJZEN (4 VELDEN)
+// ============================================================================
+
+window.genereerDropdownOpties = function(huidigeWaarde) {
+    let html = `<option value="">-- Vrij --</option>`;
+    
+    html += `<optgroup label="👨‍⚖️ Scheidsrechters (Matrix)">`;
+    window.scheidsrechtersDB.forEach(sr => {
+        html += `<option value="${sr.naam}">${sr.naam}</option>`;
+    });
+    html += `</optgroup>`;
+
+    html += `<optgroup label="🏀 Club Teams">`;
+    window.teamsDB.forEach(t => {
+        html += `<option value="${t.naam}">${t.naam}</option>`;
+    });
+    html += `</optgroup>`;
+
+    html += `<optgroup label="Overig">`;
+    html += `<option value="handmatig">✏️ Handmatig typen...</option>`;
+    html += `</optgroup>`;
+
+    // Als de huidige waarde een handmatige tekst is die niet in de lijst staat, voeg hem dan toe zodat hij geselecteerd blijft
+    let bekendeWaarden = window.scheidsrechtersDB.map(s => s.naam).concat(window.teamsDB.map(t => t.naam));
+    if (huidigeWaarde && huidigeWaarde !== "" && !bekendeWaarden.includes(huidigeWaarde)) {
+        html += `<option value="${huidigeWaarde}" style="display:none;">${huidigeWaarde}</option>`;
+    }
+
+    return html;
+};
+
+window.openTakenModal = function(matchId) {
+    // Zoek wedstrijd details voor de weergave
+    let alleWedstrijden = [...window.nbbWedstrijden, ...window.customWedstrijden];
+    let match = alleWedstrijden.find(w => w.id === matchId || `match-${w.Wedstrijdnummer}` === matchId);
+    if (!match) return;
+
+    document.getElementById('taak-match-id').value = matchId;
+    document.getElementById('taak-match-titel').innerText = `🏀 ${match.Thuisteam.replace('Black Shots ', '')} vs ${match.Uitteam}`;
+    
+    let labelEl = document.getElementById(`tijd-label-${matchId}`);
+    let weergegevenTijd = labelEl ? labelEl.innerText.replace('⏱️', '').trim() : "Te plannen";
+    document.getElementById('taak-match-meta').innerText = `Tijdstip: ${weergegevenTijd} | NBB: ${match.Wedstrijdnummer || 'Custom'}`;
+
+    // Haal bestaande taken op
+    let taken = window.takenDB[matchId] || { sA: "", sB: "", tab: "", sco: "" };
+
+    // Vul de 4 dropdowns
+    let selects = ['taak-scheids-a', 'taak-scheids-b', 'taak-tablet', 'taak-score'];
+    let waarden = [taken.sA, taken.sB, taken.tab, taken.sco];
+
+    selects.forEach((selId, i) => {
+        let sel = document.getElementById(selId);
+        sel.innerHTML = window.genereerDropdownOpties(waarden[i]);
+        sel.value = waarden[i];
+    });
+
+    document.getElementById('taken-modal').style.display = 'flex';
+};
+
+window.checkHandmatigeInvoer = function(selectElement) {
+    if (selectElement.value === 'handmatig') {
+        let invoer = prompt("Typ de handmatige toewijzing (bijv. 'Ouders X10' of 'Invaller'):");
+        if (invoer && invoer.trim() !== "") {
+            // Voeg de getypte optie toe en selecteer hem direct
+            let nwOption = document.createElement('option');
+            nwOption.value = invoer.trim();
+            nwOption.text = invoer.trim();
+            selectElement.add(nwOption);
+            selectElement.value = invoer.trim();
+        } else {
+            selectElement.value = ""; // Reset naar vrij als gecanceld
+        }
+    }
+};
+
+window.slaTakenOp = function() {
+    let matchId = document.getElementById('taak-match-id').value;
+    
+    window.takenDB[matchId] = {
+        sA: document.getElementById('taak-scheids-a').value,
+        sB: document.getElementById('taak-scheids-b').value,
+        tab: document.getElementById('taak-tablet').value,
+        sco: document.getElementById('taak-score').value
+    };
+
+    localStorage.setItem('blackshots_wedstrijd_taken', JSON.stringify(window.takenDB));
+    document.getElementById('taken-modal').style.display = 'none';
+    
+    // Herlaad de bord weergave zodat we de nieuwe namen zien
+    window.laadPlanbord();
+};
+
+
+// ============================================================================
 // 🤖 LAAD ALLE TEAMS TEGELIJK (GENERATOR)
 // ============================================================================
 window.genereerAlleTeams = function() {
@@ -38,9 +146,7 @@ window.genereerAlleTeams = function() {
     if(!confirm(`Weet je zeker dat je voor ELK competitieteam een thuiswedstrijd wilt inplannen op ${speelDatum}?`)) return;
 
     window.teamsDB.forEach(t => {
-        // Alleen competitieteams, geen recreanten
         if (t.isRecreant || t.isVrijwilliger) return;
-
         let nwCustomMatch = {
             id: 'custom_' + Date.now() + '_' + Math.floor(Math.random() * 10000),
             Datum: speelDatum,
@@ -56,23 +162,14 @@ window.genereerAlleTeams = function() {
 
     localStorage.setItem('blackshots_custom_wedstrijden', JSON.stringify(window.customWedstrijden));
     window.laadPlanbord(); 
-    alert("✅ Alle teams zijn toegevoegd aan de wachtkamer!");
 };
 
-
 // ============================================================================
-// ✍️ HANDMATIGE WEDSTRIJDEN AANMAKEN & VERWIJDEREN
+// ✍️ HANDMATIGE WEDSTRIJDEN MODAL
 // ============================================================================
 window.openNieuweWedstrijdModal = function() {
-    let teamSelect = document.getElementById('nw-match-team');
-    teamSelect.innerHTML = '<option value="">-- Selecteer eigen team --</option>';
-    
-    window.teamsDB.forEach(t => {
-        teamSelect.innerHTML += `<option value="${t.naam}">${t.naam}</option>`;
-    });
-
     document.getElementById('nw-match-tegenstander').value = "";
-    document.getElementById('nw-match-type').value = "Oefenwedstrijd"; // Reset hard naar oefenwedstrijd
+    document.getElementById('nw-match-type').value = "Oefenwedstrijd"; 
     document.getElementById('nw-match-duur').value = "90";
     document.getElementById('nieuw-wedstrijd-modal').style.display = 'flex';
 };
@@ -80,7 +177,6 @@ window.openNieuweWedstrijdModal = function() {
 window.updateDuurSuggestie = function() {
     let teamNaam = document.getElementById('nw-match-team').value;
     if(!teamNaam) return;
-    
     document.getElementById('nw-match-duur').value = window.bepaalWedstrijdDuur(teamNaam);
 };
 
@@ -91,9 +187,7 @@ window.slaNieuweWedstrijdOp = function() {
     let duur = parseInt(document.getElementById('nw-match-duur').value);
     let type = document.getElementById('nw-match-type').value;
 
-    if (!teamNaam || !tegenstander) {
-        return alert("Vul zowel een thuisteam als een tegenstander in!");
-    }
+    if (!teamNaam || !tegenstander) return alert("Vul thuisteam en tegenstander in!");
 
     let nwCustomMatch = {
         id: 'custom_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
@@ -108,7 +202,6 @@ window.slaNieuweWedstrijdOp = function() {
 
     window.customWedstrijden.push(nwCustomMatch);
     localStorage.setItem('blackshots_custom_wedstrijden', JSON.stringify(window.customWedstrijden));
-    
     document.getElementById('nieuw-wedstrijd-modal').style.display = 'none';
     window.laadPlanbord(); 
 };
@@ -117,27 +210,26 @@ window.verwijderCustomWedstrijd = function(id) {
     if(confirm("Weet je zeker dat je deze wedstrijd wilt verwijderen?")) {
         window.customWedstrijden = window.customWedstrijden.filter(w => w.id !== id);
         localStorage.setItem('blackshots_custom_wedstrijden', JSON.stringify(window.customWedstrijden));
+        
+        // Gooi ook de gekoppelde taken weg als die er zijn
+        if (window.takenDB[id]) {
+            delete window.takenDB[id];
+            localStorage.setItem('blackshots_wedstrijd_taken', JSON.stringify(window.takenDB));
+        }
         window.laadPlanbord(); 
     }
 };
 
-// ============================================================================
-// ⌨️ HANDMATIG TIJD TYPEN DOOR TE KLIKKEN
-// ============================================================================
 window.wijzigTijdHandmatig = function(id) {
     let matchEl = document.getElementById(id);
     let labelEl = document.getElementById(`tijd-label-${id}`);
     
-    // Haal huidige tijd op uit het label
     let huidigeTijd = labelEl.innerText.replace('⏱️', '').trim();
     let suggestie = (huidigeTijd === 'Te plannen' || huidigeTijd === 'N.t.b.') ? '12:00' : huidigeTijd;
     
     let nweTijd = prompt("Voer de starttijd in (UU:MM), of laat leeg om hem terug naar de wachtkamer te sturen:", suggestie);
-    
-    // Annuleren geklikt
     if (nweTijd === null) return; 
 
-    // Terug naar wachtkamer als veld leeg is
     if (nweTijd.trim() === "") {
         let wachtkamer = document.getElementById('te-plannen-container');
         matchEl.style.position = 'relative';
@@ -151,26 +243,19 @@ window.wijzigTijdHandmatig = function(id) {
         return;
     }
 
-    // Tijd valideren (verwacht format 14:30)
-    if (!/^\d{1,2}:\d{2}$/.test(nweTijd)) {
-        return alert("Ongeldig formaat. Gebruik UU:MM (bijvoorbeeld 14:30)");
-    }
+    if (!/^\d{1,2}:\d{2}$/.test(nweTijd)) return alert("Ongeldig formaat. Gebruik UU:MM (bijvoorbeeld 14:30)");
 
     let parts = nweTijd.split(':');
     let uren = parseInt(parts[0]);
     let minuten = parseInt(parts[1]);
 
-    if (uren < START_UUR || uren >= EIND_UUR) {
-        return alert(`Let op: de tijd moet tussen ${START_UUR}:00 en ${EIND_UUR}:00 liggen.`);
-    }
+    if (uren < START_UUR || uren >= EIND_UUR) return alert(`Let op: de tijd moet tussen ${START_UUR}:00 en ${EIND_UUR}:00 liggen.`);
 
-    // Zet hem standaard op Veld 1 als hij nog in de wachtkamer stond
     let veldContainer = matchEl.parentElement;
     if (veldContainer.id === 'te-plannen-container') {
         veldContainer = document.getElementById('wedstrijd-container-1'); 
     }
 
-    // Bereken pixel positie (1 minuut = 1 pixel)
     let topPixels = ((uren - START_UUR) * 60) + minuten;
 
     matchEl.style.position = 'absolute';
@@ -187,7 +272,7 @@ window.wijzigTijdHandmatig = function(id) {
 };
 
 // ============================================================================
-// 🎨 BORD RENDERING
+// 🎨 BORD RENDERING (NU MET TAKEN DISPLAY)
 // ============================================================================
 window.laadPlanbord = function() {
     let bord = document.getElementById('planner-bord-container');
@@ -274,7 +359,15 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
         let typeBadge = isCustom ? `<span style="background:#8e44ad; color:white; padding:1px 4px; border-radius:3px; font-size:0.65rem;">${w.Wedstrijdnummer}</span>` : '';
         let deleteBtn = isCustom ? `<button onmousedown="event.stopPropagation();" onclick="window.verwijderCustomWedstrijd('${uniekId}')" style="background:none; border:none; cursor:pointer; font-size:1rem; padding:0; margin-left:auto;" title="Verwijder">🗑️</button>` : '';
 
-        // Let op de onmousedown="event.stopPropagation()" bij het tijd-label. Dit voorkomt dat je per ongeluk gaat slepen als je wilt klikken!
+        // Haal de taken op voor deze specifieke wedstrijd
+        let taken = window.takenDB[uniekId] || { sA: "", sB: "", tab: "", sco: "" };
+        
+        // Bepaal de weergave (Rood Vrij of Groen Gevuld)
+        let sAW = taken.sA ? `<span class="taak-waarde taak-gevuld">${taken.sA}</span>` : `<span class="taak-waarde">Vrij</span>`;
+        let sBW = taken.sB ? `<span class="taak-waarde taak-gevuld">${taken.sB}</span>` : `<span class="taak-waarde">Vrij</span>`;
+        let tabW = taken.tab ? `<span class="taak-waarde taak-gevuld">${taken.tab}</span>` : `<span class="taak-waarde">Vrij</span>`;
+        let scoW = taken.sco ? `<span class="taak-waarde taak-gevuld">${taken.sco}</span>` : `<span class="taak-waarde">Vrij</span>`;
+
         let html = `
             <div class="wedstrijd-blok" id="${uniekId}" draggable="true" 
                  ondragstart="window.onDragStart(event)" 
@@ -289,9 +382,16 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
                     <span class="wb-tijd-badge" id="tijd-label-${uniekId}" onmousedown="event.stopPropagation();" onclick="window.wijzigTijdHandmatig('${uniekId}')" title="Klik om tijd te typen">⏱️ ${tijdWeergave}</span> 
                     <span>| NBB: ${w.Wedstrijdnummer || '?'} ${typeBadge}</span>
                 </div>
-                <div class="wb-taken">
-                    <div class="taak-regel"><span>👨‍⚖️ Scheids:</span> <span style="color:#e74c3c;">Vrij</span></div>
-                    <div class="taak-regel"><span>⏱️ Tafel:</span> <span style="color:#e74c3c;">Vrij</span></div>
+                <!-- 4 TAKEN VELDEN -->
+                <div class="wb-taken" onclick="window.openTakenModal('${uniekId}')" title="Klik om de 4 taken toe te wijzen">
+                    <div style="display:flex; gap:5px;">
+                        <div class="taak-regel" style="flex:1;"><span class="taak-label">👨‍⚖️ A:</span> ${sAW}</div>
+                        <div class="taak-regel" style="flex:1;"><span class="taak-label">👨‍⚖️ B:</span> ${sBW}</div>
+                    </div>
+                    <div style="display:flex; gap:5px;">
+                        <div class="taak-regel" style="flex:1;"><span class="taak-label">💻 Tab:</span> ${tabW}</div>
+                        <div class="taak-regel" style="flex:1;"><span class="taak-label">⏱️ Sco:</span> ${scoW}</div>
+                    </div>
                 </div>
             </div>
         `;
@@ -324,7 +424,6 @@ window.onDragOver = function(e) {
 
 window.onDropVeld = function(e, veldIndex) {
     e.preventDefault();
-    
     let matchId = window.draggedMatchId;
     if (!matchId) return;
     
@@ -356,7 +455,6 @@ window.onDropVeld = function(e, veldIndex) {
 
 window.onDropTePlannen = function(e) {
     e.preventDefault();
-
     let matchId = window.draggedMatchId;
     if (!matchId) return;
     
