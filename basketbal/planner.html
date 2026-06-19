@@ -9,9 +9,17 @@
         .planner-controls { background: white; padding: 15px; border-radius: 8px; border-top: 4px solid #8e44ad; box-shadow: 0 2px 5px rgba(0,0,0,0.05); display: flex; gap: 15px; flex-wrap: wrap; align-items: center; margin-bottom: 20px; }
         .planner-wrapper { display: flex; gap: 20px; align-items: flex-start; }
         
-        .wachtkamer { width: 300px; background: #fdfdfd; border: 2px dashed #bdc3c7; border-radius: 8px; padding: 10px; min-height: 500px; display: flex; flex-direction: column; gap: 10px; }
+        /* De Linker Kolom met Wachtkamer EN Teller */
+        .linker-kolom { display: flex; flex-direction: column; gap: 20px; width: 300px; }
+        .wachtkamer { background: #fdfdfd; border: 2px dashed #bdc3c7; border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 10px; }
         .wachtkamer-header { font-weight: bold; color: var(--secondary-color); font-size: 1.1rem; margin-bottom: 10px; border-bottom: 2px solid #eee; padding-bottom: 5px; text-align: center; }
         
+        /* Teller Styling */
+        .teller-lijst { display: flex; flex-direction: column; gap: 5px; max-height: 400px; overflow-y: auto; }
+        .teller-item { display: flex; justify-content: space-between; background: #eef2f5; padding: 5px 10px; border-radius: 4px; font-size: 0.85rem; border-left: 3px solid #3498db; }
+        .teller-item strong { color: #d35400; }
+
+        /* Planner Bord */
         .planner-bord { flex: 1; display: flex; background: #f8f9fa; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; position: relative; min-height: 1600px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.02); }
         .tijd-as { width: 60px; background: #e2e8f0; border-right: 1px solid #cbd5e1; display: flex; flex-direction: column; }
         .tijd-slot { height: 120px; border-bottom: 1px solid #cbd5e1; display: flex; align-items: flex-start; justify-content: center; padding-top: 5px; font-size: 0.75rem; color: #7f8c8d; font-weight: bold; box-sizing: border-box; }
@@ -40,14 +48,14 @@
         .taak-waarde { flex: 1; color: #e74c3c; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .taak-gevuld { color: #27ae60; }
         
-        /* NIEUW: RODE EN ORANJE WAARSCHUWINGEN */
         .conflict-taak { border: 2px solid #e74c3c !important; background: #fadbd8 !important; }
         .conflict-text { color: #c0392b !important; font-weight: 900; }
-        
         .warning-taak { border: 2px solid #f39c12 !important; background: #fef5e7 !important; }
         .warning-text { color: #d35400 !important; font-weight: 900; }
-
         .conflict-banner { background: #e74c3c; color: white; font-size: 0.75rem; padding: 3px 5px; border-radius: 4px; font-weight: bold; margin-bottom: 5px; text-align: center; display: flex; align-items: center; justify-content: center; gap: 5px; }
+        
+        /* Specifieke banner voor de volgorde regels (M16 voor M18) */
+        .regel-banner { background: #8e44ad; color: white; font-size: 0.75rem; padding: 3px 5px; border-radius: 4px; font-weight: bold; margin-bottom: 5px; text-align: center; display: flex; align-items: center; justify-content: center; gap: 5px; }
 
     </style>
 </head>
@@ -61,7 +69,8 @@
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
             <h2 style="margin:0; color:var(--secondary-color);">🧩 Thuiswedstrijd Planner</h2>
             <div style="display:flex; gap:10px;">
-                <button onclick="window.genereerAlleTeams()" style="background:#8e44ad; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">⚡ Genereer Alle Teams</button>
+                <button onclick="window.openRegelsModal()" style="background:#8e44ad; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">📜 Clubregels</button>
+                <button onclick="window.genereerAlleTeams()" style="background:#34495e; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">⚡ Genereer Alle Teams</button>
                 <button onclick="window.openNieuweWedstrijdModal()" style="background:#3498db; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">+ Nieuwe Wedstrijd</button>
                 <button style="background:#27ae60; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">💾 Concept Opslaan</button>
             </div>
@@ -79,92 +88,93 @@
                     <option value="veste">De Veste (1 Veld)</option>
                 </select>
             </div>
-            <div style="margin-left:auto; display:flex; gap:10px; align-items:center;">
-                <div style="background:#fadbd8; padding:8px 12px; border-radius:4px; font-size:0.85rem; font-weight:bold; color:#c0392b; border:1px solid #e74c3c;">
-                    💡 Hover over rode/oranje vakjes voor uitleg!
-                </div>
-            </div>
         </div>
 
         <div class="planner-wrapper">
-            <div class="wachtkamer" id="te-plannen-container" ondragover="window.onDragOver(event)" ondrop="window.onDropTePlannen(event)">
-                <div class="wachtkamer-header">📋 Te Plannen (<span id="aantal-te-plannen">0</span>)</div>
-                <p style="font-size:0.8rem; color:#7f8c8d; font-style:italic; text-align:center; margin:0;" id="wachtkamer-leeg">Sleep blokken terug hierheen.</p>
+            <!-- LINKER KOLOM -->
+            <div class="linker-kolom">
+                <div class="wachtkamer" id="te-plannen-container" style="min-height: 400px;" ondragover="window.onDragOver(event)" ondrop="window.onDropTePlannen(event)">
+                    <div class="wachtkamer-header">📋 Te Plannen (<span id="aantal-te-plannen">0</span>)</div>
+                    <p style="font-size:0.8rem; color:#7f8c8d; font-style:italic; text-align:center; margin:0;" id="wachtkamer-leeg">Sleep blokken terug hierheen.</p>
+                </div>
+                
+                <!-- NIEUW: DE TELLER -->
+                <div class="wachtkamer" style="min-height: 200px;">
+                    <div class="wachtkamer-header">📊 Toewijzingen Teller</div>
+                    <p style="font-size:0.75rem; color:#7f8c8d; text-align:center; margin-bottom:10px; margin-top:0;">Totaal aantal taken op deze dag</p>
+                    <div class="teller-lijst" id="teller-lijst-container">
+                        <!-- Wordt gevuld door JS -->
+                    </div>
+                </div>
             </div>
+
+            <!-- PLANBORD -->
             <div class="planner-bord" id="planner-bord-container"></div>
         </div>
     </main>
 
+    <!-- MODALS (TAKEN & NIEUWE WEDSTRIJD) -->
+    <!-- ... (Zelfde als vorige keer, ik hou ze kort in dit HTML voorbeeld om ruimte te besparen, zorg dat je jouw oude modal code hieronder laat staan of kopieert!) ... -->
+    <!-- Voor de volledigheid hieronder de Modals: -->
+    
+    <!-- CLUBREGELS MODAL -->
+    <div id="regels-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:99999; justify-content:center; align-items:center;">
+        <div style="background:white; padding:25px; border-radius:12px; width:90%; max-width:500px; box-shadow:0 10px 30px rgba(0,0,0,0.3); position:relative;">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #eee; padding-bottom:10px; margin-bottom:15px;">
+                <h3 style="margin:0; color:var(--secondary-color);">📜 Clubregels (Volgorde)</h3>
+                <button onclick="document.getElementById('regels-modal').style.display='none'" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
+            </div>
+            <p style="font-size:0.85rem; color:#7f8c8d; margin-top:0;">Geef aan welke teams altijd vóór andere teams moeten spelen (bijv. in verband met meespelen).</p>
+            
+            <div style="display:flex; gap:10px; align-items:center; margin-bottom:20px; background:#f8f9fa; padding:10px; border-radius:6px; border:1px solid #cbd5e1;">
+                <select id="regel-team-voor" style="flex:1; padding:8px; border-radius:4px; border:1px solid #bdc3c7;"></select>
+                <strong style="color:#e74c3c; font-size:0.8rem;">moet vóór</strong>
+                <select id="regel-team-na" style="flex:1; padding:8px; border-radius:4px; border:1px solid #bdc3c7;"></select>
+                <button onclick="window.voegRegelToe()" style="background:#27ae60; color:white; border:none; padding:8px; border-radius:4px; font-weight:bold; cursor:pointer;">+</button>
+            </div>
+
+            <div id="huidige-regels-lijst" style="display:flex; flex-direction:column; gap:8px; max-height:250px; overflow-y:auto;">
+                <!-- Huidige regels komen hier -->
+            </div>
+        </div>
+    </div>
+
+    <!-- TAKEN MODAL -->
     <div id="taken-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:99999; justify-content:center; align-items:center;">
         <div style="background:white; padding:25px; border-radius:12px; width:90%; max-width:450px; box-shadow:0 10px 30px rgba(0,0,0,0.3); position:relative;">
             <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #eee; padding-bottom:10px; margin-bottom:15px;">
                 <h3 style="margin:0; color:var(--secondary-color);">📋 Taken Toewijzen</h3>
                 <button onclick="document.getElementById('taken-modal').style.display='none'" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
             </div>
-            
             <input type="hidden" id="taak-match-id">
             <div style="margin-bottom:15px; background:#f8f9fa; padding:10px; border-radius:6px; border:1px solid #e2e8f0;">
                 <strong style="color:#d35400;" id="taak-match-titel">Titel</strong>
                 <div style="font-size:0.8rem; color:#7f8c8d;" id="taak-match-meta">Meta</div>
             </div>
-
             <div style="display:flex; gap:10px; margin-bottom:15px;">
-                <div style="flex:1;">
-                    <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">👨‍⚖️ Scheids A:</label>
-                    <select id="taak-scheids-a" onchange="window.checkHandmatigeInvoer(this)" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;"></select>
-                </div>
-                <div style="flex:1;">
-                    <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">👨‍⚖️ Scheids B:</label>
-                    <select id="taak-scheids-b" onchange="window.checkHandmatigeInvoer(this)" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;"></select>
-                </div>
+                <div style="flex:1;"><label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">👨‍⚖️ Scheids A:</label><select id="taak-scheids-a" onchange="window.checkHandmatigeInvoer(this)" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;"></select></div>
+                <div style="flex:1;"><label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">👨‍⚖️ Scheids B:</label><select id="taak-scheids-b" onchange="window.checkHandmatigeInvoer(this)" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;"></select></div>
             </div>
-
             <div style="display:flex; gap:10px; margin-bottom:20px;">
-                <div style="flex:1;">
-                    <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">💻 Tablet (DWF):</label>
-                    <select id="taak-tablet" onchange="window.checkHandmatigeInvoer(this)" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;"></select>
-                </div>
-                <div style="flex:1;">
-                    <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">⏱️ Scorebord:</label>
-                    <select id="taak-score" onchange="window.checkHandmatigeInvoer(this)" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;"></select>
-                </div>
+                <div style="flex:1;"><label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">💻 Tablet (DWF):</label><select id="taak-tablet" onchange="window.checkHandmatigeInvoer(this)" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;"></select></div>
+                <div style="flex:1;"><label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">⏱️ Scorebord:</label><select id="taak-score" onchange="window.checkHandmatigeInvoer(this)" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;"></select></div>
             </div>
             <button onclick="window.slaTakenOp()" style="width:100%; padding:12px; background:var(--primary-color); color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold; font-size:1rem;">✅ Opslaan</button>
         </div>
     </div>
 
+    <!-- NIEUW WEDSTRIJD MODAL -->
     <div id="nieuw-wedstrijd-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:99999; justify-content:center; align-items:center;">
         <div style="background:white; padding:25px; border-radius:12px; width:90%; max-width:450px; box-shadow:0 10px 30px rgba(0,0,0,0.3); position:relative;">
             <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #eee; padding-bottom:10px; margin-bottom:15px;">
                 <h3 style="margin:0; color:var(--secondary-color);">➕ Handmatige Wedstrijd</h3>
                 <button onclick="document.getElementById('nieuw-wedstrijd-modal').style.display='none'" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
             </div>
-            <div style="margin-bottom:15px;">
-                <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">Thuisteam (Black Shots):</label>
-                <select id="nw-match-team" onchange="window.updateDuurSuggestie()" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px; font-weight:bold;"></select>
-            </div>
-            <div style="margin-bottom:15px;">
-                <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">Tegenstander (Uitteam):</label>
-                <input type="text" id="nw-match-tegenstander" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;">
-            </div>
+            <div style="margin-bottom:15px;"><label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">Thuisteam:</label><select id="nw-match-team" onchange="window.updateDuurSuggestie()" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px; font-weight:bold;"></select></div>
+            <div style="margin-bottom:15px;"><label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">Tegenstander:</label><input type="text" id="nw-match-tegenstander" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;"></div>
             <div style="display:flex; gap:15px; margin-bottom:20px;">
-                <div style="flex:1;">
-                    <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">Type Wedstrijd:</label>
-                    <select id="nw-match-type" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;">
-                        <option value="Oefenwedstrijd" selected>Oefenwedstrijd</option>
-                        <option value="Bekerwedstrijd">Bekerwedstrijd</option>
-                        <option value="Inhaalwedstrijd">Inhaalwedstrijd</option>
-                    </select>
-                </div>
-                <div style="flex:1;">
-                    <label style="font-weight:bold; font-size:0.85rem; color:#d35400;">Duur:</label>
-                    <select id="nw-match-duur" id="nw-match-duur" style="width:100%; padding:10px; border:2px solid #e67e22; border-radius:4px; font-weight:bold;">
-                        <option value="60">1 Uur</option>
-                        <option value="75">1.25 Uur</option>
-                        <option value="90">1.5 Uur</option>
-                        <option value="105">1.75 Uur</option>
-                    </select>
-                </div>
+                <div style="flex:1;"><label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">Type:</label><select id="nw-match-type" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;"><option value="Oefenwedstrijd" selected>Oefenwedstrijd</option><option value="Bekerwedstrijd">Bekerwedstrijd</option><option value="Inhaalwedstrijd">Inhaalwedstrijd</option></select></div>
+                <div style="flex:1;"><label style="font-weight:bold; font-size:0.85rem; color:#d35400;">Duur:</label><select id="nw-match-duur" id="nw-match-duur" style="width:100%; padding:10px; border:2px solid #e67e22; border-radius:4px; font-weight:bold;"><option value="60">1 Uur</option><option value="75">1.25 Uur</option><option value="90">1.5 Uur</option><option value="105">1.75 Uur</option></select></div>
             </div>
             <button onclick="window.slaNieuweWedstrijdOp()" style="width:100%; padding:12px; background:var(--primary-color); color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold; font-size:1rem;">Toevoegen</button>
         </div>
