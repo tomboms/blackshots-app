@@ -1,4 +1,4 @@
-// --- BASKETBAL_PLANNER.JS: MET CLUBREGELS EN TELLER ---
+// --- BASKETBAL_PLANNER.JS: 100% COMPLETE VERSIE (INCLUSIEF CLUBREGELS & TELLER) ---
 
 window.nbbWedstrijden = JSON.parse(localStorage.getItem('blackshots_wedstrijden_json')) || [];
 window.customWedstrijden = JSON.parse(localStorage.getItem('blackshots_custom_wedstrijden')) || [];
@@ -8,7 +8,6 @@ window.beschikbaarheidDB = JSON.parse(localStorage.getItem('blackshots_beschikba
 
 window.takenDB = JSON.parse(localStorage.getItem('blackshots_wedstrijd_taken')) || {};
 window.planStatusDB = JSON.parse(localStorage.getItem('blackshots_plan_status')) || {}; 
-// NIEUW: Database voor de volgorde regels
 window.clubRegelsDB = JSON.parse(localStorage.getItem('blackshots_clubregels')) || [];
 
 const START_UUR = 9; 
@@ -28,7 +27,13 @@ window.slaPlannerDataOp = function() {
     if (typeof window.opslaanInFirebase === 'function') {
         window.opslaanInFirebase('blackshots_wedstrijd_taken', window.takenDB);
         window.opslaanInFirebase('blackshots_plan_status', window.planStatusDB);
+        window.opslaanInFirebase('blackshots_custom_wedstrijden', window.customWedstrijden);
         window.opslaanInFirebase('blackshots_clubregels', window.clubRegelsDB);
+    } else {
+        document.dispatchEvent(new CustomEvent('cloudSync', { detail: { sleutel: 'blackshots_wedstrijd_taken', data: window.takenDB } }));
+        document.dispatchEvent(new CustomEvent('cloudSync', { detail: { sleutel: 'blackshots_plan_status', data: window.planStatusDB } }));
+        document.dispatchEvent(new CustomEvent('cloudSync', { detail: { sleutel: 'blackshots_custom_wedstrijden', data: window.customWedstrijden } }));
+        document.dispatchEvent(new CustomEvent('cloudSync', { detail: { sleutel: 'blackshots_clubregels', data: window.clubRegelsDB } }));
     }
 };
 
@@ -36,7 +41,8 @@ window.ontvangCloudData = function(sleutel, data) {
     if (!data) return;
     if (sleutel === 'blackshots_wedstrijd_taken') window.takenDB = data;
     if (sleutel === 'blackshots_plan_status') window.planStatusDB = data;
-    if (sleutel === 'blackshots_clubregels') window.clubRegelsDB = data;
+    if (sleutel === 'blackshots_custom_wedstrijden') window.customWedstrijden = Array.isArray(data) ? data : Object.values(data);
+    if (sleutel === 'blackshots_clubregels') window.clubRegelsDB = Array.isArray(data) ? data : Object.values(data);
     window.laadPlanbord();
 };
 
@@ -47,7 +53,6 @@ window.initPlanner = function() {
     vandaag.setDate(vandaag.getDate() + verschilZaterdag);
     datumInput.value = vandaag.toISOString().split('T')[0];
     
-    // Vul alle team dropdowns
     let opts = '<option value="">-- Selecteer team --</option>';
     window.teamsDB.forEach(t => { opts += `<option value="${t.naam}">${t.naam}</option>`; });
     
@@ -62,6 +67,13 @@ window.tijdNaarMinuten = function(tijdStr) {
     if (!tijdStr || tijdStr.includes('Te plannen') || tijdStr.includes('N.t.b.')) return 0;
     let parts = tijdStr.split(':');
     return (parseInt(parts[0]) * 60) + parseInt(parts[1]);
+};
+
+window.bepaalWedstrijdDuur = function(teamNaam) {
+    let naam = teamNaam.toUpperCase();
+    if (naam.includes('14') || naam.includes('16') || naam.includes('18') || 
+        naam.includes('20') || naam.includes('22') || naam.includes('SE')) return 105;
+    return 90; 
 };
 
 // ============================================================================
@@ -81,7 +93,7 @@ window.voegRegelToe = function() {
     window.clubRegelsDB.push({ id: 'regel_' + Date.now(), teamVoor: voor, teamNa: na });
     window.slaPlannerDataOp();
     window.renderRegelsLijst();
-    window.laadPlanbord(); // Herlaad bord om waarschuwingen te checken
+    window.laadPlanbord();
 };
 
 window.verwijderRegel = function(id) {
@@ -93,13 +105,14 @@ window.verwijderRegel = function(id) {
 
 window.renderRegelsLijst = function() {
     let lijst = document.getElementById('huidige-regels-lijst');
+    if(!lijst) return;
     if(window.clubRegelsDB.length === 0) {
         lijst.innerHTML = '<p style="color:#7f8c8d; font-size:0.8rem;">Geen actieve regels.</p>';
         return;
     }
     let html = '';
     window.clubRegelsDB.forEach(r => {
-        html += `<div style="background:#eef2f5; padding:8px 12px; border-radius:4px; border-left:3px solid #8e44ad; display:flex; justify-content:space-between; align-items:center; font-size:0.85rem;">
+        html += `<div style="background:#eef2f5; padding:8px 12px; border-radius:4px; border-left:3px solid #8e44ad; display:flex; justify-content:space-between; align-items:center; font-size:0.85rem; margin-bottom:5px;">
             <span><strong>${r.teamVoor}</strong> moet vóór <strong>${r.teamNa}</strong></span>
             <button onclick="window.verwijderRegel('${r.id}')" style="background:none; border:none; color:#e74c3c; cursor:pointer;">🗑️</button>
         </div>`;
@@ -108,7 +121,7 @@ window.renderRegelsLijst = function() {
 };
 
 // ============================================================================
-// 🚨 CONFLICT ENGINE (TAKEN)
+// 🚨 CONFLICT ENGINE (TAKEN & TOOLTIPS)
 // ============================================================================
 window.checkConflicten = function(taakPersoon, matchStartMin, matchEindMin, speelDatum, alleDaggeplande, huidigeMatchId, alleTakenHuidigeMatch) {
     let resultaat = { status: 'groen', berichten: [] };
@@ -152,7 +165,7 @@ window.checkConflicten = function(taakPersoon, matchStartMin, matchEindMin, spee
             }
             let spelendTeamDb = window.teamsDB.find(t => t.naam === anderThuisteam);
             if (spelendTeamDb && spelendTeamDb.coach && spelendTeamDb.coach.includes(taakPersoon)) {
-                resultaat.status = 'rood'; resultaat.berichten.push(`Is aan het coachen.`);
+                resultaat.status = 'rood'; resultaat.berichten.push(`Is aan het coachen bij dit team.`);
             }
         }
     });
@@ -166,7 +179,6 @@ window.checkConflicten = function(taakPersoon, matchStartMin, matchEindMin, spee
 window.werkTellerBij = function(dagWedstrijden) {
     let counts = {};
     
-    // Loop over alle wedstrijden van VANDAAG
     dagWedstrijden.forEach(w => {
         let cleanNummer = w.Wedstrijdnummer ? String(w.Wedstrijdnummer).replace(/[^a-zA-Z0-9]/g, '') : (w.Thuisteam+w.Uitteam).replace(/[^a-zA-Z0-9]/g, '');
         let uniekId = w.id || `match-${cleanNummer}`;
@@ -180,9 +192,7 @@ window.werkTellerBij = function(dagWedstrijden) {
         });
     });
 
-    // Sorteer op aantal (hoogste eerst)
     let gesorteerd = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
-    
     let lijstContainer = document.getElementById('teller-lijst-container');
     if (!lijstContainer) return;
 
@@ -238,12 +248,9 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
     document.getElementById('aantal-te-plannen').innerText = dagWedstrijden.length;
     document.getElementById('wachtkamer-leeg').style.display = dagWedstrijden.length === 0 ? 'block' : 'none';
 
-    // Werk de live Teller bij!
     window.werkTellerBij(dagWedstrijden);
 
-    // VOORBEREIDING 1: Geplande Data voor Overlap Checks
     let geplandeDataLijst = [];
-    // VOORBEREIDING 2: Lookup map voor de Clubregels (Team A voor B)
     let teamStartTijden = {}; 
 
     dagWedstrijden.forEach(w => {
@@ -256,7 +263,7 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
         if (dbStatus) {
             geplandeDataLijst.push({
                 uniekId: uniekId, Thuisteam: w.Thuisteam, geplandeTijd: dbStatus.tijd,
-                duur: w.handmatigeDuur ? w.handmatigeDuur : 90 // fallback
+                duur: w.handmatigeDuur ? w.handmatigeDuur : window.bepaalWedstrijdDuur(wedstrijdNaam)
             });
             teamStartTijden[wedstrijdNaam] = startMin; 
         }
@@ -267,9 +274,7 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
         let cleanNummer = w.Wedstrijdnummer ? String(w.Wedstrijdnummer).replace(/[^a-zA-Z0-9]/g, '') : (w.Thuisteam+w.Uitteam).replace(/[^a-zA-Z0-9]/g, '');
         let uniekId = w.id || `match-${cleanNummer}`;
         
-        let berekendeDuur = 90;
-        if (wedstrijdNaam.includes('14') || wedstrijdNaam.includes('16') || wedstrijdNaam.includes('18') || wedstrijdNaam.includes('20') || wedstrijdNaam.includes('22') || wedstrijdNaam.includes('SE')) berekendeDuur = 105;
-        let duurMinuten = w.handmatigeDuur ? w.handmatigeDuur : berekendeDuur;
+        let duurMinuten = w.handmatigeDuur ? w.handmatigeDuur : window.bepaalWedstrijdDuur(wedstrijdNaam);
         let pixelHoogte = duurMinuten * PIXEL_SCALE;
 
         let dbStatus = window.planStatusDB[uniekId];
@@ -280,21 +285,14 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
         let tijdWeergave = dbStatus ? dbStatus.tijd : 'Te plannen';
         let taken = window.takenDB[uniekId] || { sA: "", sB: "", tab: "", sco: "" };
 
-        // --- CHECK CLUBREGELS (VOLGORDE) ---
         let regelBanners = [];
-        if (dbStatus) { // Alleen checken als hij op het bord staat
+        if (dbStatus) { 
             window.clubRegelsDB.forEach(regel => {
-                // Als DIT team het "Team Voor" is, en het "Team Na" is OOK gepland, check tijd
                 if (regel.teamVoor === wedstrijdNaam && teamStartTijden[regel.teamNa]) {
-                    if (startMinuten >= teamStartTijden[regel.teamNa]) {
-                        regelBanners.push(`Let op: Moet vóór ${regel.teamNa} spelen!`);
-                    }
+                    if (startMinuten >= teamStartTijden[regel.teamNa]) regelBanners.push(`Let op: Moet vóór ${regel.teamNa} spelen!`);
                 }
-                // Als DIT team het "Team Na" is, en het "Team Voor" is OOK gepland, check tijd
                 if (regel.teamNa === wedstrijdNaam && teamStartTijden[regel.teamVoor]) {
-                    if (startMinuten <= teamStartTijden[regel.teamVoor]) {
-                        regelBanners.push(`Let op: Moet ná ${regel.teamVoor} spelen!`);
-                    }
+                    if (startMinuten <= teamStartTijden[regel.teamVoor]) regelBanners.push(`Let op: Moet ná ${regel.teamVoor} spelen!`);
                 }
             });
         }
@@ -348,23 +346,203 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
 };
 
 // ============================================================================
-// Modal functies voor Taken en Handmatige Wedstrijden zijn weggelaten in dit blok
-// voor de leesbaarheid, maar je laat jouw bestaande modal functies (openTakenModal, etc)
-// gewoon lekker staan in het bestand!
+// 📋 TAKEN TOEWIJZEN MODAL
 // ============================================================================
-window.genereerDropdownOpties = function(huidigeWaarde) { /* Jouw bestaande code */ };
-window.openTakenModal = function(matchId) { /* Jouw bestaande code */ };
-window.checkHandmatigeInvoer = function(selectElement) { /* Jouw bestaande code */ };
-window.slaTakenOp = function() { /* Jouw bestaande code */ };
-window.wijzigTijdHandmatig = function(id) { /* Jouw bestaande code */ };
+window.genereerDropdownOpties = function(huidigeWaarde) {
+    let html = `<option value="">-- Vrij --</option>`;
+    html += `<optgroup label="👨‍⚖️ Scheidsrechters (Matrix)">`;
+    window.scheidsrechtersDB.forEach(sr => html += `<option value="${sr.naam}">${sr.naam}</option>`);
+    html += `</optgroup><optgroup label="🏀 Club Teams">`;
+    window.teamsDB.forEach(t => html += `<option value="${t.naam}">${t.naam}</option>`);
+    html += `</optgroup><optgroup label="Overig"><option value="handmatig">✏️ Handmatig typen...</option></optgroup>`;
+
+    let bekende = window.scheidsrechtersDB.map(s => s.naam).concat(window.teamsDB.map(t => t.naam));
+    if (huidigeWaarde && huidigeWaarde !== "" && !bekende.includes(huidigeWaarde)) {
+        html += `<option value="${huidigeWaarde}" style="display:none;">${huidigeWaarde}</option>`;
+    }
+    return html;
+};
+
+window.openTakenModal = function(matchId) {
+    let alleWedstrijden = [...window.nbbWedstrijden, ...window.customWedstrijden];
+    let match = alleWedstrijden.find(w => {
+        let clean = w.Wedstrijdnummer ? String(w.Wedstrijdnummer).replace(/[^a-zA-Z0-9]/g, '') : (w.Thuisteam+w.Uitteam).replace(/[^a-zA-Z0-9]/g, '');
+        return (w.id || `match-${clean}`) === matchId;
+    });
+
+    if (!match) return;
+    document.getElementById('taak-match-id').value = matchId;
+    document.getElementById('taak-match-titel').innerText = `🏀 ${match.Thuisteam.replace('Black Shots ', '')} vs ${match.Uitteam}`;
+    
+    let dbStatus = window.planStatusDB[matchId];
+    document.getElementById('taak-match-meta').innerText = `Tijdstip: ${dbStatus ? dbStatus.tijd : 'Te plannen'} | NBB: ${match.Wedstrijdnummer || 'Custom'}`;
+
+    let taken = window.takenDB[matchId] || { sA: "", sB: "", tab: "", sco: "" };
+    let selects = ['taak-scheids-a', 'taak-scheids-b', 'taak-tablet', 'taak-score'];
+    let waarden = [taken.sA, taken.sB, taken.tab, taken.sco];
+
+    selects.forEach((selId, i) => {
+        let sel = document.getElementById(selId);
+        sel.innerHTML = window.genereerDropdownOpties(waarden[i]);
+        sel.value = waarden[i];
+    });
+
+    document.getElementById('taken-modal').style.display = 'flex';
+};
+
+window.checkHandmatigeInvoer = function(selectElement) {
+    if (selectElement.value === 'handmatig') {
+        let invoer = prompt("Typ de handmatige toewijzing:");
+        if (invoer && invoer.trim() !== "") {
+            let nwOption = document.createElement('option');
+            nwOption.value = invoer.trim(); nwOption.text = invoer.trim();
+            selectElement.add(nwOption); selectElement.value = invoer.trim();
+        } else selectElement.value = ""; 
+    }
+};
+
+window.slaTakenOp = function() {
+    let matchId = document.getElementById('taak-match-id').value;
+    window.takenDB[matchId] = {
+        sA: document.getElementById('taak-scheids-a').value,
+        sB: document.getElementById('taak-scheids-b').value,
+        tab: document.getElementById('taak-tablet').value,
+        sco: document.getElementById('taak-score').value
+    };
+    window.slaPlannerDataOp();
+    document.getElementById('taken-modal').style.display = 'none';
+    window.laadPlanbord();
+};
+
+// ============================================================================
+// 🖱️ DRAG & DROP & HANDMATIG REKENEN
+// ============================================================================
+window.wijzigTijdHandmatig = function(id) {
+    let labelEl = document.getElementById(`tijd-label-${id}`);
+    let huidigeTijd = labelEl.innerText.replace('⏱️', '').trim();
+    let suggestie = (huidigeTijd === 'Te plannen' || huidigeTijd === 'N.t.b.') ? '12:00' : huidigeTijd;
+    
+    let nweTijd = prompt("Voer de starttijd in (UU:MM), of laat leeg om hem terug naar de wachtkamer te sturen:", suggestie);
+    if (nweTijd === null) return; 
+
+    if (nweTijd.trim() === "") {
+        delete window.planStatusDB[id]; 
+        window.slaPlannerDataOp(); window.laadPlanbord(); return;
+    }
+
+    if (!/^\d{1,2}:\d{2}$/.test(nweTijd)) return alert("Ongeldig formaat. Gebruik UU:MM");
+
+    let parts = nweTijd.split(':');
+    let uren = parseInt(parts[0]);
+    if (uren < START_UUR || uren >= EIND_UUR) return alert(`Tijd moet tussen ${START_UUR}:00 en ${EIND_UUR}:00 liggen.`);
+
+    let huidigVeld = window.planStatusDB[id] ? window.planStatusDB[id].veld : 1;
+    window.planStatusDB[id] = { veld: huidigVeld, tijd: nweTijd };
+    window.slaPlannerDataOp(); window.laadPlanbord();
+};
+
 window.draggedMatchId = null;
-window.onDragStart = function(e) { /* Jouw bestaande code */ };
-window.onDragEnd = function(e) { /* Jouw bestaande code */ };
-window.onDragOver = function(e) { /* Jouw bestaande code */ };
-window.onDropVeld = function(e, veldIndex) { /* Jouw bestaande code */ };
-window.onDropTePlannen = function(e) { /* Jouw bestaande code */ };
-window.genereerAlleTeams = function() { /* Jouw bestaande code */ };
-window.openNieuweWedstrijdModal = function() { /* Jouw bestaande code */ };
-window.updateDuurSuggestie = function() { /* Jouw bestaande code */ };
-window.slaNieuweWedstrijdOp = function() { /* Jouw bestaande code */ };
-window.verwijderCustomWedstrijd = function(id) { /* Jouw bestaande code */ };
+window.onDragStart = function(e) { window.draggedMatchId = e.target.id; e.dataTransfer.setData('text/plain', e.target.id); setTimeout(() => { e.target.classList.add('is-dragging'); }, 10); };
+window.onDragEnd = function(e) { e.target.classList.remove('is-dragging'); window.draggedMatchId = null; };
+window.onDragOver = function(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; };
+
+window.onDropVeld = function(e, veldIndex) {
+    e.preventDefault();
+    if (!window.draggedMatchId) return;
+    
+    let rect = e.currentTarget.getBoundingClientRect();
+    let dropY = e.clientY - rect.top - 42; 
+    
+    let dropMinuten = dropY / PIXEL_SCALE;
+    let snapMinuten = Math.round(dropMinuten / SNAP_MINUTEN) * SNAP_MINUTEN;
+    if (snapMinuten < 0) snapMinuten = 0; 
+    
+    let uren = Math.floor(snapMinuten / 60) + START_UUR;
+    let minuten = snapMinuten % 60;
+    let nieuweTijd = String(uren).padStart(2, '0') + ':' + String(minuten).padStart(2, '0');
+    
+    window.planStatusDB[window.draggedMatchId] = { veld: veldIndex, tijd: nieuweTijd };
+    window.slaPlannerDataOp(); window.laadPlanbord();
+};
+
+window.onDropTePlannen = function(e) {
+    e.preventDefault();
+    if (!window.draggedMatchId) return;
+    delete window.planStatusDB[window.draggedMatchId];
+    window.slaPlannerDataOp(); window.laadPlanbord();
+};
+
+// ============================================================================
+// 🤖 HANDMATIGE WEDSTRIJDEN & GENERATOR
+// ============================================================================
+window.genereerAlleTeams = function() {
+    let speelDatum = document.getElementById('plan-datum').value;
+    if(!speelDatum) return alert("Kies eerst een datum!");
+
+    if(!confirm(`Alle competitieteams toevoegen op ${speelDatum}?`)) return;
+
+    window.teamsDB.forEach(t => {
+        if (t.isRecreant || t.isVrijwilliger) return;
+        let nwCustomMatch = {
+            id: 'custom_' + Date.now() + '_' + Math.floor(Math.random() * 10000),
+            Datum: speelDatum,
+            Thuisteam: "Black Shots " + t.naam,
+            Uitteam: "Tegenstander " + t.naam,
+            Tijd: "Te plannen",
+            Status: "Te plannen",
+            Wedstrijdnummer: "Competitie", 
+            handmatigeDuur: window.bepaalWedstrijdDuur(t.naam) 
+        };
+        window.customWedstrijden.push(nwCustomMatch);
+    });
+    window.slaPlannerDataOp(); window.laadPlanbord(); 
+};
+
+window.openNieuweWedstrijdModal = function() {
+    document.getElementById('nw-match-tegenstander').value = "";
+    document.getElementById('nw-match-type').value = "Oefenwedstrijd"; 
+    document.getElementById('nw-match-duur').value = "90";
+    document.getElementById('nieuw-wedstrijd-modal').style.display = 'flex';
+};
+
+window.updateDuurSuggestie = function() {
+    let teamNaam = document.getElementById('nw-match-team').value;
+    if(!teamNaam) return;
+    document.getElementById('nw-match-duur').value = window.bepaalWedstrijdDuur(teamNaam);
+};
+
+window.slaNieuweWedstrijdOp = function() {
+    let teamNaam = document.getElementById('nw-match-team').value;
+    let tegenstander = document.getElementById('nw-match-tegenstander').value.trim();
+    let speelDatum = document.getElementById('plan-datum').value;
+    let duur = parseInt(document.getElementById('nw-match-duur').value);
+    let type = document.getElementById('nw-match-type').value;
+
+    if (!teamNaam || !tegenstander) return alert("Vul thuisteam en tegenstander in!");
+
+    let nwCustomMatch = {
+        id: 'custom_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+        Datum: speelDatum,
+        Thuisteam: "Black Shots " + teamNaam,
+        Uitteam: tegenstander,
+        Tijd: "Te plannen",
+        Status: "Te plannen",
+        Wedstrijdnummer: type, 
+        handmatigeDuur: duur 
+    };
+
+    window.customWedstrijden.push(nwCustomMatch);
+    window.slaPlannerDataOp();
+    document.getElementById('nieuw-wedstrijd-modal').style.display = 'none';
+    window.laadPlanbord(); 
+};
+
+window.verwijderCustomWedstrijd = function(id) {
+    if(confirm("Weet je zeker dat je deze wedstrijd wilt verwijderen?")) {
+        window.customWedstrijden = window.customWedstrijden.filter(w => w.id !== id);
+        delete window.takenDB[id];
+        delete window.planStatusDB[id];
+        window.slaPlannerDataOp();
+        window.laadPlanbord(); 
+    }
+};
