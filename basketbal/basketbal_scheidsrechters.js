@@ -1,6 +1,5 @@
 // --- BASKETBAL_SCHEIDSRECHTERS.JS ---
 
-// Databanken ophalen uit local storage
 window.scheidsrechtersDB = JSON.parse(localStorage.getItem('blackshots_scheidsrechters')) || [];
 window.speeldagenDB = JSON.parse(localStorage.getItem('blackshots_speeldagen')) || [];
 window.beschikbaarheidDB = JSON.parse(localStorage.getItem('blackshots_beschikbaarheid')) || {};
@@ -14,7 +13,6 @@ window.slaDataOp = function() {
     localStorage.setItem('blackshots_speeldagen', JSON.stringify(window.speeldagenDB));
     localStorage.setItem('blackshots_beschikbaarheid', JSON.stringify(window.beschikbaarheidDB));
 
-    // Stuur direct door naar de Firebase Cloud!
     if (typeof window.opslaanInFirebase === 'function') {
         window.opslaanInFirebase('blackshots_scheidsrechters', window.scheidsrechtersDB);
         window.opslaanInFirebase('blackshots_speeldagen', window.speeldagenDB);
@@ -27,7 +25,7 @@ window.slaDataOp = function() {
 };
 
 // ============================================================================
-// ✍️ TOEVOEGEN & VERWIJDEREN
+// ✍️ TOEVOEGEN, BEWERKEN & VERWIJDEREN
 // ============================================================================
 window.voegScheidsToe = function() {
     let naamInput = document.getElementById('nw-sr-naam');
@@ -37,7 +35,8 @@ window.voegScheidsToe = function() {
     window.scheidsrechtersDB.push({
         id: 'sr_' + Date.now(),
         naam: naam,
-        maxPerDag: 2 // Standaardwaarde (kunnen we later eventueel aanpassen in een modal)
+        maxPerDag: 2, 
+        voorkeur: "" // Nieuw veld!
     });
 
     naamInput.value = '';
@@ -45,10 +44,38 @@ window.voegScheidsToe = function() {
     window.renderMatrix();
 };
 
+window.openBewerkScheidsModal = function(id) {
+    let sr = window.scheidsrechtersDB.find(s => s.id === id);
+    if(!sr) return;
+
+    document.getElementById('bewerk-sr-id').value = sr.id;
+    document.getElementById('bewerk-sr-naam').value = sr.naam;
+    document.getElementById('bewerk-sr-max').value = sr.maxPerDag || 2;
+    document.getElementById('bewerk-sr-voorkeur').value = sr.voorkeur || "";
+
+    document.getElementById('bewerk-scheids-modal').style.display = 'flex';
+};
+
+window.slaBewerkteScheidsOp = function() {
+    let id = document.getElementById('bewerk-sr-id').value;
+    let sr = window.scheidsrechtersDB.find(s => s.id === id);
+    if(!sr) return;
+
+    let nwNaam = document.getElementById('bewerk-sr-naam').value.trim();
+    if(!nwNaam) return alert("Naam mag niet leeg zijn.");
+
+    sr.naam = nwNaam;
+    sr.maxPerDag = parseInt(document.getElementById('bewerk-sr-max').value);
+    sr.voorkeur = document.getElementById('bewerk-sr-voorkeur').value.trim();
+
+    document.getElementById('bewerk-scheids-modal').style.display = 'none';
+    window.slaDataOp();
+    window.renderMatrix();
+};
+
 window.verwijderScheids = function(id) {
-    if(confirm("Scheidsrechter verwijderen?")) {
+    if(confirm("Scheidsrechter volledig verwijderen?")) {
         window.scheidsrechtersDB = window.scheidsrechtersDB.filter(sr => sr.id !== id);
-        // Schoon ook de matrix op om ruimte te besparen
         for (let key in window.beschikbaarheidDB) {
             if (key.startsWith(id + '_')) delete window.beschikbaarheidDB[key];
         }
@@ -63,7 +90,7 @@ window.voegSpeeldagToe = function() {
     
     if(!window.speeldagenDB.includes(datum)) {
         window.speeldagenDB.push(datum);
-        window.speeldagenDB.sort(); // Sorteer op tijd
+        window.speeldagenDB.sort(); 
         document.getElementById('nw-dag-datum').value = '';
         window.slaDataOp();
         window.renderMatrix();
@@ -93,9 +120,7 @@ window.haalDagenUitNBB = function() {
     wedstrijden.forEach(w => {
         let isThuis = (w.Thuisteam || '').toLowerCase().includes('black shots');
         if (isThuis && w.Datum) {
-            // Check of datum formaat YYYY-MM-DD is, in NBB export is het soms anders
             let isoDatum = w.Datum; 
-            // Simpele check of we hem al hebben
             if(!window.speeldagenDB.includes(isoDatum)) {
                 window.speeldagenDB.push(isoDatum);
                 nieuwGevonden++;
@@ -113,21 +138,16 @@ window.haalDagenUitNBB = function() {
     }
 };
 
-// ============================================================================
-// 🔄 STATUS WISSELAAR
-// ============================================================================
 window.toggleStatus = function(srId, datum) {
     let key = `${srId}_${datum}`;
     let huidig = window.beschikbaarheidDB[key] || 'nnb';
     
-    // Loop: nnb -> aan -> af -> nnb
     if (huidig === 'nnb') window.beschikbaarheidDB[key] = 'aan';
     else if (huidig === 'aan') window.beschikbaarheidDB[key] = 'af';
     else window.beschikbaarheidDB[key] = 'nnb';
 
     window.slaDataOp();
     
-    // Update alleen de specifieke knop (veel sneller dan hele tabel renderen)
     let btn = document.getElementById(`btn-${key}`);
     if (btn) {
         btn.className = 'status-btn';
@@ -160,24 +180,31 @@ window.renderMatrix = function() {
     let html = '<thead><tr>';
     html += '<th>Scheidsrechter</th>';
     
-    // Kolommen voor elke datum
     window.speeldagenDB.forEach(datum => {
-        // Maak er een leesbare NL datum van (optioneel)
         let d = new Date(datum);
         let weergaveDatum = isNaN(d) ? datum : d.toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit' });
         html += `<th style="min-width:120px;">
                     ${weergaveDatum}
-                    <button class="del-btn" onclick="window.verwijderSpeeldag('${datum}')" title="Verwijder datum">🗑️</button>
+                    <button class="actie-btn" style="color:#e74c3c;" onclick="window.verwijderSpeeldag('${datum}')" title="Verwijder datum">🗑️</button>
                  </th>`;
     });
     html += '</tr></thead><tbody>';
 
-    // Rijen voor elke scheidsrechter
     window.scheidsrechtersDB.forEach(sr => {
+        // Maak de cel visueel rijker met de voorkeuren erin
         html += `<tr>`;
-        html += `<td>
-                    ${sr.naam}
-                    <button class="del-btn" onclick="window.verwijderScheids('${sr.id}')" title="Verwijder scheids">🗑️</button>
+        html += `<td style="border-left: 4px solid #3498db;">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                        <strong style="font-size:1rem; color:var(--secondary-color);">${sr.naam}</strong>
+                        <div>
+                            <button class="actie-btn" style="color:#f39c12;" onclick="window.openBewerkScheidsModal('${sr.id}')" title="Bewerken">✏️</button>
+                            <button class="actie-btn" style="color:#e74c3c;" onclick="window.verwijderScheids('${sr.id}')" title="Verwijder">🗑️</button>
+                        </div>
+                    </div>
+                    <div style="font-size:0.75rem; color:#7f8c8d; margin-top:5px; line-height:1.4;">
+                        Max/dag: <strong style="color:#2c3e50;">${sr.maxPerDag || 2}</strong><br>
+                        Voorkeur: <strong style="color:#2c3e50;">${sr.voorkeur || 'Geen voorkeur'}</strong>
+                    </div>
                  </td>`;
         
         window.speeldagenDB.forEach(datum => {
