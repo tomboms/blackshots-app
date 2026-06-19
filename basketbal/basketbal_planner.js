@@ -1,4 +1,4 @@
-// --- BASKETBAL_PLANNER.JS: DE DRAG & DROP THUISWEDSTRIJD PLANNER ---
+// --- BASKETBAL_PLANNER.JS: DRAG & DROP + HANDMATIG TYPEN ---
 
 window.nbbWedstrijden = JSON.parse(localStorage.getItem('blackshots_wedstrijden_json')) || [];
 window.customWedstrijden = JSON.parse(localStorage.getItem('blackshots_custom_wedstrijden')) || [];
@@ -6,7 +6,6 @@ window.teamsDB = JSON.parse(localStorage.getItem('blackshots_teams')) || [];
 
 const START_UUR = 8; 
 const EIND_UUR = 23; 
-const PIXELS_PER_MINUUT = 1; 
 const SNAP_MINUTEN = 15; 
 
 window.initPlanner = function() {
@@ -30,6 +29,38 @@ window.bepaalWedstrijdDuur = function(teamNaam) {
 };
 
 // ============================================================================
+// 🤖 LAAD ALLE TEAMS TEGELIJK (GENERATOR)
+// ============================================================================
+window.genereerAlleTeams = function() {
+    let speelDatum = document.getElementById('plan-datum').value;
+    if(!speelDatum) return alert("Kies eerst een datum!");
+
+    if(!confirm(`Weet je zeker dat je voor ELK competitieteam een thuiswedstrijd wilt inplannen op ${speelDatum}?`)) return;
+
+    window.teamsDB.forEach(t => {
+        // Alleen competitieteams, geen recreanten
+        if (t.isRecreant || t.isVrijwilliger) return;
+
+        let nwCustomMatch = {
+            id: 'custom_' + Date.now() + '_' + Math.floor(Math.random() * 10000),
+            Datum: speelDatum,
+            Thuisteam: "Black Shots " + t.naam,
+            Uitteam: "Tegenstander " + t.naam,
+            Tijd: "Te plannen",
+            Status: "Te plannen",
+            Wedstrijdnummer: "Competitie", 
+            handmatigeDuur: window.bepaalWedstrijdDuur(t.naam) 
+        };
+        window.customWedstrijden.push(nwCustomMatch);
+    });
+
+    localStorage.setItem('blackshots_custom_wedstrijden', JSON.stringify(window.customWedstrijden));
+    window.laadPlanbord(); 
+    alert("✅ Alle teams zijn toegevoegd aan de wachtkamer!");
+};
+
+
+// ============================================================================
 // ✍️ HANDMATIGE WEDSTRIJDEN AANMAKEN & VERWIJDEREN
 // ============================================================================
 window.openNieuweWedstrijdModal = function() {
@@ -41,7 +72,8 @@ window.openNieuweWedstrijdModal = function() {
     });
 
     document.getElementById('nw-match-tegenstander').value = "";
-    document.getElementById('nw-match-type').value = "Oefenwedstrijd";
+    document.getElementById('nw-match-type').value = "Oefenwedstrijd"; // Reset hard naar oefenwedstrijd
+    document.getElementById('nw-match-duur').value = "90";
     document.getElementById('nieuw-wedstrijd-modal').style.display = 'flex';
 };
 
@@ -49,8 +81,7 @@ window.updateDuurSuggestie = function() {
     let teamNaam = document.getElementById('nw-match-team').value;
     if(!teamNaam) return;
     
-    let berekendeDuur = window.bepaalWedstrijdDuur(teamNaam);
-    document.getElementById('nw-match-duur').value = berekendeDuur;
+    document.getElementById('nw-match-duur').value = window.bepaalWedstrijdDuur(teamNaam);
 };
 
 window.slaNieuweWedstrijdOp = function() {
@@ -65,7 +96,7 @@ window.slaNieuweWedstrijdOp = function() {
     }
 
     let nwCustomMatch = {
-        id: 'custom_' + Date.now(),
+        id: 'custom_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
         Datum: speelDatum,
         Thuisteam: "Black Shots " + teamNaam,
         Uitteam: tegenstander,
@@ -79,15 +110,80 @@ window.slaNieuweWedstrijdOp = function() {
     localStorage.setItem('blackshots_custom_wedstrijden', JSON.stringify(window.customWedstrijden));
     
     document.getElementById('nieuw-wedstrijd-modal').style.display = 'none';
-    window.laadPlanbord(); // Bord compleet herladen
+    window.laadPlanbord(); 
 };
 
 window.verwijderCustomWedstrijd = function(id) {
-    if(confirm("Weet je zeker dat je deze handmatige wedstrijd wilt verwijderen?")) {
+    if(confirm("Weet je zeker dat je deze wedstrijd wilt verwijderen?")) {
         window.customWedstrijden = window.customWedstrijden.filter(w => w.id !== id);
         localStorage.setItem('blackshots_custom_wedstrijden', JSON.stringify(window.customWedstrijden));
-        window.laadPlanbord(); // Bord compleet herladen
+        window.laadPlanbord(); 
     }
+};
+
+// ============================================================================
+// ⌨️ HANDMATIG TIJD TYPEN DOOR TE KLIKKEN
+// ============================================================================
+window.wijzigTijdHandmatig = function(id) {
+    let matchEl = document.getElementById(id);
+    let labelEl = document.getElementById(`tijd-label-${id}`);
+    
+    // Haal huidige tijd op uit het label
+    let huidigeTijd = labelEl.innerText.replace('⏱️', '').trim();
+    let suggestie = (huidigeTijd === 'Te plannen' || huidigeTijd === 'N.t.b.') ? '12:00' : huidigeTijd;
+    
+    let nweTijd = prompt("Voer de starttijd in (UU:MM), of laat leeg om hem terug naar de wachtkamer te sturen:", suggestie);
+    
+    // Annuleren geklikt
+    if (nweTijd === null) return; 
+
+    // Terug naar wachtkamer als veld leeg is
+    if (nweTijd.trim() === "") {
+        let wachtkamer = document.getElementById('te-plannen-container');
+        matchEl.style.position = 'relative';
+        matchEl.style.top = 'auto';
+        matchEl.style.left = 'auto';
+        matchEl.style.right = 'auto';
+        labelEl.innerText = `⏱️ Te plannen`;
+        labelEl.style.background = '#e74c3c'; 
+        wachtkamer.appendChild(matchEl);
+        window.updateWachtkamerTeller();
+        return;
+    }
+
+    // Tijd valideren (verwacht format 14:30)
+    if (!/^\d{1,2}:\d{2}$/.test(nweTijd)) {
+        return alert("Ongeldig formaat. Gebruik UU:MM (bijvoorbeeld 14:30)");
+    }
+
+    let parts = nweTijd.split(':');
+    let uren = parseInt(parts[0]);
+    let minuten = parseInt(parts[1]);
+
+    if (uren < START_UUR || uren >= EIND_UUR) {
+        return alert(`Let op: de tijd moet tussen ${START_UUR}:00 en ${EIND_UUR}:00 liggen.`);
+    }
+
+    // Zet hem standaard op Veld 1 als hij nog in de wachtkamer stond
+    let veldContainer = matchEl.parentElement;
+    if (veldContainer.id === 'te-plannen-container') {
+        veldContainer = document.getElementById('wedstrijd-container-1'); 
+    }
+
+    // Bereken pixel positie (1 minuut = 1 pixel)
+    let topPixels = ((uren - START_UUR) * 60) + minuten;
+
+    matchEl.style.position = 'absolute';
+    matchEl.style.top = topPixels + 'px';
+    matchEl.style.left = '5px';
+    matchEl.style.right = '5px';
+    matchEl.style.width = 'auto'; 
+
+    labelEl.innerText = `⏱️ ${String(uren).padStart(2, '0')}:${String(minuten).padStart(2, '0')}`;
+    labelEl.style.background = '#27ae60'; 
+
+    veldContainer.appendChild(matchEl);
+    window.updateWachtkamerTeller();
 };
 
 // ============================================================================
@@ -123,14 +219,13 @@ window.laadPlanbord = function() {
         }
         gridLijnenHtml += `</div>`;
 
-        // ondragenter en ondragleave zijn verwijderd voor een rustiger sleep-beeld
         html += `
             <div class="veld-kolom" id="veld-kolom-${v+1}" 
                  ondragover="window.onDragOver(event)" 
                  ondrop="window.onDropVeld(event, ${v+1})">
                 <div class="veld-header">${veldNamen[v]}</div>
                 ${gridLijnenHtml}
-                <div id="wedstrijd-container-${v+1}" style="position:absolute; top:42px; left:0; right:0; bottom:0; pointer-events:none;">
+                <div id="wedstrijd-container-${v+1}" style="position:absolute; top:42px; left:0; right:0; bottom:0;">
                 </div>
             </div>
         `;
@@ -171,31 +266,28 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
     dagWedstrijden.forEach((w) => {
         let wedstrijdNaam = w.Thuisteam.replace('Black Shots ', '').trim() || 'Onbekend Team';
         let tegenstander = w.Uitteam || 'Tegenstander';
-        
         let uniekId = w.id || `match-${w.Wedstrijdnummer || Date.now() + Math.random()}`;
-        
         let duurMinuten = w.handmatigeDuur ? w.handmatigeDuur : window.bepaalWedstrijdDuur(wedstrijdNaam);
         let tijdWeergave = (w.Status === 'Te plannen' || w.Tijd === 'Te plannen') ? 'N.t.b.' : w.Tijd.substring(0,5);
 
         let isCustom = w.id && w.id.includes('custom');
         let typeBadge = isCustom ? `<span style="background:#8e44ad; color:white; padding:1px 4px; border-radius:3px; font-size:0.65rem;">${w.Wedstrijdnummer}</span>` : '';
-        
-        // Verwijder knop, exclusief voor custom wedstrijden
-        let deleteBtn = isCustom ? `<button onmousedown="event.stopPropagation();" onclick="window.verwijderCustomWedstrijd('${uniekId}')" style="background:none; border:none; cursor:pointer; font-size:1rem; padding:0; margin-left:auto;" title="Verwijder handmatige wedstrijd">🗑️</button>` : '';
+        let deleteBtn = isCustom ? `<button onmousedown="event.stopPropagation();" onclick="window.verwijderCustomWedstrijd('${uniekId}')" style="background:none; border:none; cursor:pointer; font-size:1rem; padding:0; margin-left:auto;" title="Verwijder">🗑️</button>` : '';
 
+        // Let op de onmousedown="event.stopPropagation()" bij het tijd-label. Dit voorkomt dat je per ongeluk gaat slepen als je wilt klikken!
         let html = `
             <div class="wedstrijd-blok" id="${uniekId}" draggable="true" 
                  ondragstart="window.onDragStart(event)" 
                  ondragend="window.onDragEnd(event)"
                  data-duur="${duurMinuten}"
-                 style="position: relative; height: ${duurMinuten}px; pointer-events: auto;">
+                 style="position: relative; height: ${duurMinuten}px;">
                 <div class="wb-titel">
                     <span>🏀 ${wedstrijdNaam} <span style="color:#7f8c8d; font-size:0.75rem;">vs ${tegenstander}</span></span>
                     ${deleteBtn}
                 </div>
                 <div class="wb-meta">
-                    <span class="wb-tijd-badge" id="tijd-label-${uniekId}">⏱️ ${tijdWeergave}</span> 
-                    | NBB: ${w.Wedstrijdnummer || '?'} ${typeBadge}
+                    <span class="wb-tijd-badge" id="tijd-label-${uniekId}" onmousedown="event.stopPropagation();" onclick="window.wijzigTijdHandmatig('${uniekId}')" title="Klik om tijd te typen">⏱️ ${tijdWeergave}</span> 
+                    <span>| NBB: ${w.Wedstrijdnummer || '?'} ${typeBadge}</span>
                 </div>
                 <div class="wb-taken">
                     <div class="taak-regel"><span>👨‍⚖️ Scheids:</span> <span style="color:#e74c3c;">Vrij</span></div>

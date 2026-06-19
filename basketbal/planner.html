@@ -28,15 +28,17 @@
         .wedstrijd-blok:hover { box-shadow: 0 6px 12px rgba(0,0,0,0.15); }
         .wedstrijd-blok.is-dragging { opacity: 0.7; cursor: grabbing; transform: scale(1.02); z-index: 50; border-color: #d35400; box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
         .wb-titel { font-weight: bold; color: #d35400; margin-bottom: 3px; font-size: 0.95rem; display: flex; justify-content: space-between; align-items: flex-start; }
-        .wb-meta { color: #7f8c8d; font-size: 0.75rem; }
-        .wb-tijd-badge { background: #e67e22; color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
+        .wb-meta { color: #7f8c8d; font-size: 0.75rem; display: flex; align-items: center; gap: 5px; }
+        
+        /* KLIKBAAR TIJD-LABEL */
+        .wb-tijd-badge { background: #e67e22; color: white; padding: 3px 8px; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+        .wb-tijd-badge:hover { background: #d35400; transform: scale(1.05); }
+        
         .wb-taken { margin-top: auto; border-top: 1px dashed #f39c12; padding-top: 5px; display: flex; flex-direction: column; gap: 2px; }
         .taak-regel { background: rgba(255,255,255,0.8); border: 1px solid #f39c12; border-radius: 4px; padding: 2px 4px; display: flex; justify-content: space-between; align-items: center; }
     </style>
 </head>
 <body style="overflow-y: auto;">
-
-    <div id="cloud-status-indicator" style="position: fixed; bottom: 20px; right: 20px; background: #27ae60; color: white; padding: 10px 20px; border-radius: 30px; font-weight: bold; font-size: 0.9rem; z-index: 99999; opacity: 0; pointer-events: none;">☁️ Cloud Actief</div>
 
     <nav class="top-nav">
         <h1>🏀 Black Shots Clubbeheer</h1>
@@ -48,6 +50,8 @@
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
             <h2 style="margin:0; color:var(--secondary-color);">🧩 Thuiswedstrijd Planner</h2>
             <div style="display:flex; gap:10px;">
+                <!-- NIEUW: DE GENERATOR KNOP -->
+                <button onclick="window.genereerAlleTeams()" style="background:#8e44ad; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;" title="Maak voor elk competitieteam een wedstrijd aan">⚡ Genereer Alle Teams</button>
                 <button onclick="window.openNieuweWedstrijdModal()" style="background:#3498db; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">+ Nieuwe Wedstrijd</button>
                 <button style="background:#27ae60; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">💾 Concept Opslaan</button>
             </div>
@@ -67,7 +71,7 @@
             </div>
             <div style="margin-left:auto; display:flex; gap:10px; align-items:center;">
                 <div style="background:#fff3e0; padding:8px 12px; border-radius:4px; font-size:0.85rem; font-weight:bold; color:#d35400; border:1px solid #f39c12;">
-                    ⏳ X10/X12 = 90 min | Ouder = 105 min
+                    💡 Tip: Klik op het oranje/groene tijd-labeltje om de tijd te typen!
                 </div>
             </div>
         </div>
@@ -121,7 +125,7 @@
                     <select id="nw-match-duur" style="width:100%; padding:10px; border:2px solid #e67e22; border-radius:4px; font-weight:bold;">
                         <option value="60">1 Uur (60 min)</option>
                         <option value="75">1.25 Uur (75 min)</option>
-                        <option value="90" selected>1.5 Uur (90 min)</option>
+                        <option value="90">1.5 Uur (90 min)</option>
                         <option value="105">1.75 Uur (105 min)</option>
                         <option value="120">2 Uur (120 min)</option>
                     </select>
