@@ -1,15 +1,13 @@
 // --- BASKETBAL_PLANNER.JS: DE DRAG & DROP THUISWEDSTRIJD PLANNER ---
 
-// Data inladen
 window.nbbWedstrijden = JSON.parse(localStorage.getItem('blackshots_wedstrijden_json')) || [];
 window.customWedstrijden = JSON.parse(localStorage.getItem('blackshots_custom_wedstrijden')) || [];
 window.teamsDB = JSON.parse(localStorage.getItem('blackshots_teams')) || [];
 
-// Instellingen voor de grid
-const START_UUR = 8; // 08:00
-const EIND_UUR = 23; // 23:00
-const PIXELS_PER_MINUUT = 1; // 1 pixel = 1 minuut. (60px per uur)
-const SNAP_MINUTEN = 15; // Blokjes klikken vast op elke 15 minuten
+const START_UUR = 8; 
+const EIND_UUR = 23; 
+const PIXELS_PER_MINUUT = 1; 
+const SNAP_MINUTEN = 15; 
 
 window.initPlanner = function() {
     let datumInput = document.getElementById('plan-datum');
@@ -22,24 +20,22 @@ window.initPlanner = function() {
     window.laadPlanbord();
 };
 
-// --- HULPFUNCTIE: BEREKEN DYNAMISCHE WEDSTRIJDDUUR ---
 window.bepaalWedstrijdDuur = function(teamNaam) {
     let naam = teamNaam.toUpperCase();
     if (naam.includes('14') || naam.includes('16') || naam.includes('18') || 
         naam.includes('20') || naam.includes('22') || naam.includes('SE')) {
         return 105;
     }
-    return 90; // Default jeugd X10/X12
+    return 90; 
 };
 
 // ============================================================================
-// ✍️ HANDMATIGE WEDSTRIJDEN AANMAKEN
+// ✍️ HANDMATIGE WEDSTRIJDEN AANMAKEN & VERWIJDEREN
 // ============================================================================
 window.openNieuweWedstrijdModal = function() {
     let teamSelect = document.getElementById('nw-match-team');
     teamSelect.innerHTML = '<option value="">-- Selecteer eigen team --</option>';
     
-    // Laad teams in vanuit de database (team.html)
     window.teamsDB.forEach(t => {
         teamSelect.innerHTML += `<option value="${t.naam}">${t.naam}</option>`;
     });
@@ -53,7 +49,6 @@ window.updateDuurSuggestie = function() {
     let teamNaam = document.getElementById('nw-match-team').value;
     if(!teamNaam) return;
     
-    // Voorspel de duur op basis van teamnaam!
     let berekendeDuur = window.bepaalWedstrijdDuur(teamNaam);
     document.getElementById('nw-match-duur').value = berekendeDuur;
 };
@@ -61,7 +56,7 @@ window.updateDuurSuggestie = function() {
 window.slaNieuweWedstrijdOp = function() {
     let teamNaam = document.getElementById('nw-match-team').value;
     let tegenstander = document.getElementById('nw-match-tegenstander').value.trim();
-    let speelDatum = document.getElementById('plan-datum').value; // Koppel direct aan de huidige bord-datum
+    let speelDatum = document.getElementById('plan-datum').value;
     let duur = parseInt(document.getElementById('nw-match-duur').value);
     let type = document.getElementById('nw-match-type').value;
 
@@ -76,19 +71,24 @@ window.slaNieuweWedstrijdOp = function() {
         Uitteam: tegenstander,
         Tijd: "Te plannen",
         Status: "Te plannen",
-        Wedstrijdnummer: type, // Gebruikken we als weergave
-        handmatigeDuur: duur // Onze override voor de duur!
+        Wedstrijdnummer: type, 
+        handmatigeDuur: duur 
     };
 
     window.customWedstrijden.push(nwCustomMatch);
     localStorage.setItem('blackshots_custom_wedstrijden', JSON.stringify(window.customWedstrijden));
     
     document.getElementById('nieuw-wedstrijd-modal').style.display = 'none';
-    
-    // Herlaad direct de wachtkamer
-    window.plaatsWedstrijdenInWachtkamer(speelDatum);
+    window.laadPlanbord(); // Bord compleet herladen
 };
 
+window.verwijderCustomWedstrijd = function(id) {
+    if(confirm("Weet je zeker dat je deze handmatige wedstrijd wilt verwijderen?")) {
+        window.customWedstrijden = window.customWedstrijden.filter(w => w.id !== id);
+        localStorage.setItem('blackshots_custom_wedstrijden', JSON.stringify(window.customWedstrijden));
+        window.laadPlanbord(); // Bord compleet herladen
+    }
+};
 
 // ============================================================================
 // 🎨 BORD RENDERING
@@ -123,12 +123,11 @@ window.laadPlanbord = function() {
         }
         gridLijnenHtml += `</div>`;
 
+        // ondragenter en ondragleave zijn verwijderd voor een rustiger sleep-beeld
         html += `
             <div class="veld-kolom" id="veld-kolom-${v+1}" 
                  ondragover="window.onDragOver(event)" 
-                 ondrop="window.onDropVeld(event, ${v+1})"
-                 ondragenter="this.classList.add('dropzone-highlight')" 
-                 ondragleave="this.classList.remove('dropzone-highlight')">
+                 ondrop="window.onDropVeld(event, ${v+1})">
                 <div class="veld-header">${veldNamen[v]}</div>
                 ${gridLijnenHtml}
                 <div id="wedstrijd-container-${v+1}" style="position:absolute; top:42px; left:0; right:0; bottom:0; pointer-events:none;">
@@ -151,7 +150,6 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
         }
     });
 
-    // We voegen hier ZOWEL de NBB wedstrijden als je eigen handmatige wedstrijden samen!
     let alleWedstrijden = [...window.nbbWedstrijden, ...window.customWedstrijden];
 
     let dagWedstrijden = alleWedstrijden.filter(w => {
@@ -174,16 +172,16 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
         let wedstrijdNaam = w.Thuisteam.replace('Black Shots ', '').trim() || 'Onbekend Team';
         let tegenstander = w.Uitteam || 'Tegenstander';
         
-        // Uniek ID (gebruik NBB matchID of Custom ID)
         let uniekId = w.id || `match-${w.Wedstrijdnummer || Date.now() + Math.random()}`;
         
-        // Duur bepalen (heeft hij een handmatige override in de DB? Anders berekenen!)
         let duurMinuten = w.handmatigeDuur ? w.handmatigeDuur : window.bepaalWedstrijdDuur(wedstrijdNaam);
-
         let tijdWeergave = (w.Status === 'Te plannen' || w.Tijd === 'Te plannen') ? 'N.t.b.' : w.Tijd.substring(0,5);
 
         let isCustom = w.id && w.id.includes('custom');
-        let typeBadge = isCustom ? `<span style="background:#8e44ad; color:white; padding:1px 4px; border-radius:3px; font-size:0.65rem;">HANDMATIG</span>` : '';
+        let typeBadge = isCustom ? `<span style="background:#8e44ad; color:white; padding:1px 4px; border-radius:3px; font-size:0.65rem;">${w.Wedstrijdnummer}</span>` : '';
+        
+        // Verwijder knop, exclusief voor custom wedstrijden
+        let deleteBtn = isCustom ? `<button onmousedown="event.stopPropagation();" onclick="window.verwijderCustomWedstrijd('${uniekId}')" style="background:none; border:none; cursor:pointer; font-size:1rem; padding:0; margin-left:auto;" title="Verwijder handmatige wedstrijd">🗑️</button>` : '';
 
         let html = `
             <div class="wedstrijd-blok" id="${uniekId}" draggable="true" 
@@ -191,7 +189,10 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
                  ondragend="window.onDragEnd(event)"
                  data-duur="${duurMinuten}"
                  style="position: relative; height: ${duurMinuten}px; pointer-events: auto;">
-                <div class="wb-titel">🏀 ${wedstrijdNaam} <span style="color:#7f8c8d; font-size:0.75rem;">vs ${tegenstander}</span></div>
+                <div class="wb-titel">
+                    <span>🏀 ${wedstrijdNaam} <span style="color:#7f8c8d; font-size:0.75rem;">vs ${tegenstander}</span></span>
+                    ${deleteBtn}
+                </div>
                 <div class="wb-meta">
                     <span class="wb-tijd-badge" id="tijd-label-${uniekId}">⏱️ ${tijdWeergave}</span> 
                     | NBB: ${w.Wedstrijdnummer || '?'} ${typeBadge}
@@ -222,7 +223,6 @@ window.onDragStart = function(e) {
 window.onDragEnd = function(e) {
     e.target.classList.remove('is-dragging');
     window.draggedMatchId = null;
-    document.querySelectorAll('.dropzone-highlight').forEach(el => el.classList.remove('dropzone-highlight'));
 };
 
 window.onDragOver = function(e) {
@@ -232,7 +232,6 @@ window.onDragOver = function(e) {
 
 window.onDropVeld = function(e, veldIndex) {
     e.preventDefault();
-    e.currentTarget.classList.remove('dropzone-highlight');
     
     let matchId = window.draggedMatchId;
     if (!matchId) return;
@@ -265,7 +264,6 @@ window.onDropVeld = function(e, veldIndex) {
 
 window.onDropTePlannen = function(e) {
     e.preventDefault();
-    e.currentTarget.classList.remove('dropzone-highlight');
 
     let matchId = window.draggedMatchId;
     if (!matchId) return;
