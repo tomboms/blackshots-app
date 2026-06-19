@@ -12,7 +12,6 @@
         .wachtkamer { width: 300px; background: #fdfdfd; border: 2px dashed #bdc3c7; border-radius: 8px; padding: 10px; min-height: 500px; display: flex; flex-direction: column; gap: 10px; }
         .wachtkamer-header { font-weight: bold; color: var(--secondary-color); font-size: 1.1rem; margin-bottom: 10px; border-bottom: 2px solid #eee; padding-bottom: 5px; text-align: center; }
         
-        /* GROTERE SCHAAL (120px per uur) */
         .planner-bord { flex: 1; display: flex; background: #f8f9fa; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; position: relative; min-height: 1600px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.02); }
         .tijd-as { width: 60px; background: #e2e8f0; border-right: 1px solid #cbd5e1; display: flex; flex-direction: column; }
         .tijd-slot { height: 120px; border-bottom: 1px solid #cbd5e1; display: flex; align-items: flex-start; justify-content: center; padding-top: 5px; font-size: 0.75rem; color: #7f8c8d; font-weight: bold; box-sizing: border-box; }
@@ -20,7 +19,6 @@
         .veld-kolom:last-child { border-right: none; }
         .veld-header { background: #34495e; color: white; text-align: center; padding: 10px; font-weight: bold; position: sticky; top: 0; z-index: 10; border-bottom: 2px solid #2c3e50; }
         
-        /* Lijnen op 30px (15 min) */
         .grid-lijnen { position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; }
         .grid-lijn-15m { border-bottom: 1px dotted #cbd5e1; height: 30px; box-sizing: border-box; opacity: 0.5; }
         .grid-lijn-30m { border-bottom: 1px dashed #cbd5e1; height: 30px; box-sizing: border-box; }
@@ -35,7 +33,6 @@
         .wb-tijd-badge { background: #e67e22; color: white; padding: 3px 8px; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
         .wb-tijd-badge:hover { background: #d35400; transform: scale(1.05); }
         
-        /* TAKEN & WAARSCHUWINGEN */
         .wb-taken { margin-top: auto; border-top: 1px dashed #f39c12; padding-top: 8px; display: flex; flex-direction: column; gap: 4px; cursor: pointer; transition: 0.2s; border-radius: 4px; }
         .wb-taken:hover { background: rgba(243, 156, 18, 0.1); }
         .taak-regel { background: rgba(255,255,255,0.8); border: 1px solid #f39c12; border-radius: 4px; padding: 4px 6px; display: flex; align-items: center; gap: 5px; font-size: 0.8rem; }
@@ -43,9 +40,13 @@
         .taak-waarde { flex: 1; color: #e74c3c; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .taak-gevuld { color: #27ae60; }
         
-        /* De rode conflict stijl */
+        /* NIEUW: RODE EN ORANJE WAARSCHUWINGEN */
         .conflict-taak { border: 2px solid #e74c3c !important; background: #fadbd8 !important; }
         .conflict-text { color: #c0392b !important; font-weight: 900; }
+        
+        .warning-taak { border: 2px solid #f39c12 !important; background: #fef5e7 !important; }
+        .warning-text { color: #d35400 !important; font-weight: 900; }
+
         .conflict-banner { background: #e74c3c; color: white; font-size: 0.75rem; padding: 3px 5px; border-radius: 4px; font-weight: bold; margin-bottom: 5px; text-align: center; display: flex; align-items: center; justify-content: center; gap: 5px; }
 
     </style>
@@ -80,7 +81,7 @@
             </div>
             <div style="margin-left:auto; display:flex; gap:10px; align-items:center;">
                 <div style="background:#fadbd8; padding:8px 12px; border-radius:4px; font-size:0.85rem; font-weight:bold; color:#c0392b; border:1px solid #e74c3c;">
-                    🚨 Conflicten lichten rood op!
+                    💡 Hover over rode/oranje vakjes voor uitleg!
                 </div>
             </div>
         </div>
@@ -94,7 +95,6 @@
         </div>
     </main>
 
-    <!-- TAKEN MODAL -->
     <div id="taken-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:99999; justify-content:center; align-items:center;">
         <div style="background:white; padding:25px; border-radius:12px; width:90%; max-width:450px; box-shadow:0 10px 30px rgba(0,0,0,0.3); position:relative;">
             <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #eee; padding-bottom:10px; margin-bottom:15px;">
@@ -133,7 +133,6 @@
         </div>
     </div>
 
-    <!-- NIEUW WEDSTRIJD MODAL -->
     <div id="nieuw-wedstrijd-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:99999; justify-content:center; align-items:center;">
         <div style="background:white; padding:25px; border-radius:12px; width:90%; max-width:450px; box-shadow:0 10px 30px rgba(0,0,0,0.3); position:relative;">
             <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #eee; padding-bottom:10px; margin-bottom:15px;">
