@@ -1,9 +1,10 @@
-// --- BASKETBAL_OVERZICHT.JS: VOLLEDIGE VERSIE MET CENTRALE SPEELDAG GENERATOR ---
+// --- BASKETBAL_OVERZICHT.JS: VOLLEDIGE VERSIE INCL. SCHEIDSRECHTER BALANS ---
 
 window.speeldagenDB = JSON.parse(localStorage.getItem('blackshots_speeldagen')) || [];
 window.nbbWedstrijden = JSON.parse(localStorage.getItem('blackshots_wedstrijden_json')) || [];
 window.customWedstrijden = JSON.parse(localStorage.getItem('blackshots_custom_wedstrijden')) || [];
 window.teamsDB = JSON.parse(localStorage.getItem('blackshots_teams')) || [];
+window.scheidsrechtersDB = JSON.parse(localStorage.getItem('blackshots_scheidsrechters')) || [];
 window.takenDB = JSON.parse(localStorage.getItem('blackshots_wedstrijd_taken')) || {};
 window.planStatusDB = JSON.parse(localStorage.getItem('blackshots_plan_status')) || {};
 
@@ -34,6 +35,7 @@ window.ontvangCloudData = function(sleutel, data) {
     if (sleutel === 'blackshots_custom_wedstrijden') window.customWedstrijden = Array.isArray(data) ? data : Object.values(data);
     if (sleutel === 'blackshots_wedstrijd_taken') window.takenDB = data;
     if (sleutel === 'blackshots_plan_status') window.planStatusDB = data;
+    if (sleutel === 'blackshots_scheidsrechters') window.scheidsrechtersDB = Array.isArray(data) ? data : Object.values(data);
     
     window.berekenEnRenderOverzicht();
 };
@@ -45,13 +47,11 @@ window.openWedstrijddagModal = function() {
     let container = document.getElementById('wday-teams-lijst');
     if(!container) return;
 
-    // Stel datum standaard in op eerstvolgende zaterdag
     let vandaag = new Date();
     let verschilZaterdag = (vandaag.getDay() <= 6) ? (6 - vandaag.getDay()) : 6;
     vandaag.setDate(vandaag.getDate() + verschilZaterdag);
     document.getElementById('wday-datum').value = vandaag.toISOString().split('T')[0];
 
-    // Bouw de lijst met actieve competitieteams op
     let html = '';
     window.teamsDB.forEach(t => {
         if (!t.isVrijwilliger && !t.isRecreant) {
@@ -77,7 +77,6 @@ window.slaCompleteWedstrijddagOp = function() {
     let gekozenDatum = document.getElementById('wday-datum').value;
     if (!gekozenDatum) return alert("Selecteer een geldige datum.");
 
-    // 1. Voeg de datum direct toe aan de Scheidsrechters matrix (indien nieuw)
     if (!window.speeldagenDB.includes(gekozenDatum)) {
         window.speeldagenDB.push(gekozenDatum);
         window.speeldagenDB.sort();
@@ -93,53 +92,45 @@ window.slaCompleteWedstrijddagOp = function() {
             let ingevuldeTijd = document.getElementById(timeId).value;
 
             let uniekId = 'custom_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
-            
-            // Bepaal de lengte (X12 = 90, M16 = 105)
             let naamUpper = teamNaam.toUpperCase();
             let duur = (naamUpper.includes('14') || naamUpper.includes('16') || naamUpper.includes('18') || 
                         naamUpper.includes('20') || naamUpper.includes('22') || naamUpper.includes('SE')) ? 105 : 90;
 
-            // 2. Maak de wedstrijd aan in het systeem
             let nwMatch = {
-                id: uniekId,
-                Datum: gekozenDatum,
-                Thuisteam: "Black Shots " + teamNaam,
-                Uitteam: "Tegenstander " + teamNaam,
-                Tijd: ingevuldeTijd ? ingevuldeTijd : "Te plannen",
-                Status: "Te plannen",
-                Wedstrijdnummer: "Competitie",
-                handmatigeDuur: duur
+                id: uniekId, Datum: gekozenDatum, Thuisteam: "Black Shots " + teamNaam, Uitteam: "Tegenstander " + teamNaam,
+                Tijd: ingevuldeTijd ? ingevuldeTijd : "Te plannen", Status: "Te plannen", Wedstrijdnummer: "Competitie", handmatigeDuur: duur
             };
             window.customWedstrijden.push(nwMatch);
 
-            // 3. SLIM: Als er een tijd is ingevuld, zet hem dan direct vast op Veld 1 van de planner!
             if (ingevuldeTijd) {
-                window.planStatusDB[uniekId] = {
-                    veld: 1, // Standaard veld 1, verplaatsen kan altijd via de planner
-                    tijd: ingevuldeTijd
-                };
+                window.planStatusDB[uniekId] = { veld: 1, tijd: ingevuldeTijd };
             }
             aantalToegevoegd++;
         }
     });
 
-    // Sla alles centraal op & schiet door naar Firebase Cloud
     window.slaOverzichtDataOp();
     document.getElementById('wedstrijddag-modal').style.display = 'none';
     window.berekenEnRenderOverzicht();
-
     alert(`✅ Succes! Datum toegevoegd aan de matrix en ${aantalToegevoegd} wedstrijden klaargezet.`);
 };
 
 // ============================================================================
-// 🎨 RENDERING EN SEIZOENSBEREKENINGEN
+// 🎨 RENDERING EN SEIZOENSBEREKENINGEN (NU OOK MET SCHEIDSRECHTERS)
 // ============================================================================
 window.berekenEnRenderOverzicht = function() {
     let alleWedstrijden = [...window.nbbWedstrijden, ...window.customWedstrijden];
-    let teamModel = {};
     
+    // MODEL 1: De Teams
+    let teamModel = {};
     window.teamsDB.forEach(t => {
         if (!t.isVrijwilliger && !t.isRecreant) teamModel[t.naam] = 0;
+    });
+
+    // MODEL 2: De Individuele Scheidsrechters
+    let scheidsModel = {};
+    window.scheidsrechtersDB.forEach(sr => {
+        scheidsModel[sr.naam] = 0;
     });
 
     let totaalTakenTeller = 0;
@@ -149,7 +140,6 @@ window.berekenEnRenderOverzicht = function() {
     window.speeldagenDB.forEach(datum => {
         dagStatusMap[datum] = { totaal: 0, vrij: 0, wedstrijden: 0 };
         let dagMatches = alleWedstrijden.filter(w => (w.Datum === datum || w.Datum.includes(datum)) && (w.Thuisteam || '').toLowerCase().includes('black shots'));
-        
         dagStatusMap[datum].wedstrijden = dagMatches.length;
 
         dagMatches.forEach(w => {
@@ -166,12 +156,15 @@ window.berekenEnRenderOverzicht = function() {
                 if (!vakje || vakje.trim() === "" || vakje === "Vrij") {
                     dagStatusMap[datum].vrij++; openTakenTeller++;
                 } else {
+                    // Tel bij het juiste model op
                     if (teamModel[vakje] !== undefined) teamModel[vakje]++;
+                    if (scheidsModel[vakje] !== undefined) scheidsModel[vakje]++;
                 }
             });
         });
     });
 
+    // STATS
     document.getElementById('stat-totaal-dagen').innerText = window.speeldagenDB.length;
     document.getElementById('stat-totaal-taken').innerText = totaalTakenTeller;
     document.getElementById('stat-open-taken').innerText = openTakenTeller;
@@ -184,6 +177,7 @@ window.berekenEnRenderOverzicht = function() {
     });
     document.getElementById('stat-drukste-team').innerText = druksteTeam;
 
+    // RENDER: TEAMS BALANS
     let balansContainer = document.getElementById('seizoens-balans-container');
     if (balansContainer) {
         let htmlBalans = '';
@@ -202,6 +196,30 @@ window.berekenEnRenderOverzicht = function() {
         balansContainer.innerHTML = htmlBalans;
     }
 
+    // RENDER: SCHEIDSRECHTERS BALANS
+    let scheidsContainer = document.getElementById('seizoens-balans-scheids-container');
+    if (scheidsContainer) {
+        if(Object.keys(scheidsModel).length === 0) {
+            scheidsContainer.innerHTML = '<p style="color:#7f8c8d; font-size:0.8rem;">Er zijn nog geen scheidsrechters toegevoegd.</p>';
+        } else {
+            let htmlScheids = '';
+            let gesorteerdeScheids = Object.keys(scheidsModel).sort((a,b) => scheidsModel[b] - scheidsModel[a]);
+            let absoluteMaxScheids = Math.max(...Object.values(scheidsModel), 1);
+
+            gesorteerdeScheids.forEach(naam => {
+                let percentage = (scheidsModel[naam] / absoluteMaxScheids) * 100;
+                htmlScheids += `
+                    <div class="balans-regel">
+                        <div class="balans-label"><span>👨‍⚖️ ${naam}</span><strong>${scheidsModel[naam]} beurten</strong></div>
+                        <div class="balans-balk-bg"><div class="balans-balk-fill oranje" style="width: ${percentage}%;"></div></div>
+                    </div>
+                `;
+            });
+            scheidsContainer.innerHTML = htmlScheids;
+        }
+    }
+
+    // RENDER: KALENDER
     let kalenderContainer = document.getElementById('kalender-lijst-container');
     if (kalenderContainer) {
         if (window.speeldagenDB.length === 0) {
