@@ -118,6 +118,9 @@ window.slaCompleteWedstrijddagOp = function() {
 // ============================================================================
 // 🎨 RENDERING EN SEIZOENSBEREKENINGEN (NU OOK MET SCHEIDSRECHTERS)
 // ============================================================================
+w// ============================================================================
+// 🎨 RENDERING EN SEIZOENSBEREKENINGEN (NU OOK MET SCHEIDSRECHTERS & SLIMME MATCHING)
+// ============================================================================
 window.berekenEnRenderOverzicht = function() {
     let alleWedstrijden = [...window.nbbWedstrijden, ...window.customWedstrijden];
     
@@ -143,8 +146,8 @@ window.berekenEnRenderOverzicht = function() {
         dagStatusMap[datum].wedstrijden = dagMatches.length;
 
         dagMatches.forEach(w => {
-            let wedstrijdNaam = w.Thuisteam.replace('Black Shots ', '').trim();
-            let cleanNummer = w.Wedstrijdnummer ? String(w.Wedstrijdnummer).replace(/[^a-zA-Z0-9]/g, '') : (wedstrijdNaam + w.Uitteam).replace(/[^a-zA-Z0-9]/g, '');
+            // FIX: Identieke ID generatie als in planner.js!
+            let cleanNummer = w.Wedstrijdnummer ? String(w.Wedstrijdnummer).replace(/[^a-zA-Z0-9]/g, '') : (w.Thuisteam+w.Uitteam).replace(/[^a-zA-Z0-9]/g, '');
             let uniekId = w.id || `match-${cleanNummer}`;
             
             let taken = window.takenDB[uniekId] || { sA: "", sB: "", tab: "", sco: "" };
@@ -153,12 +156,30 @@ window.berekenEnRenderOverzicht = function() {
             slots.forEach(vakje => {
                 dagStatusMap[datum].totaal++;
                 totaalTakenTeller++;
+                
                 if (!vakje || vakje.trim() === "" || vakje === "Vrij") {
-                    dagStatusMap[datum].vrij++; openTakenTeller++;
+                    dagStatusMap[datum].vrij++; 
+                    openTakenTeller++;
                 } else {
-                    // Tel bij het juiste model op
-                    if (teamModel[vakje] !== undefined) teamModel[vakje]++;
-                    if (scheidsModel[vakje] !== undefined) scheidsModel[vakje]++;
+                    // FIX: Slimmere tekst-herkenning
+                    let isToegewezen = false;
+
+                    // A. Kijk eerst of het een van onze Scheidsrechters is
+                    Object.keys(scheidsModel).forEach(naam => {
+                        if (vakje === naam) {
+                            scheidsModel[naam]++;
+                            isToegewezen = true;
+                        }
+                    });
+
+                    // B. Zo niet? Dan is het waarschijnlijk een Team. (Checkt ook "Ouders X10")
+                    if (!isToegewezen) {
+                        Object.keys(teamModel).forEach(team => {
+                            if (vakje === team || vakje.includes(team)) {
+                                teamModel[team]++;
+                            }
+                        });
+                    }
                 }
             });
         });
