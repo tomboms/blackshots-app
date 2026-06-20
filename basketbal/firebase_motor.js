@@ -147,4 +147,4 @@ localStorage.setItem = function(key, value) {
     }
 };
 
-setTimeout(window.startLiveSync, 1000);
+setTimeout(window.startLiveSync, 1000);1
