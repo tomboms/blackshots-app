@@ -143,17 +143,15 @@ window.renderRegelsLijst = function() {
 // 🚨 CONFLICT ENGINE
 // ============================================================================
 // ============================================================================
-// 🚨 CONFLICT ENGINE (NU MET TEAM-UITZONDERING VOOR DUBBELE TAKEN)
+// 🚨 CONFLICT ENGINE (GEPANTSERD)
 // ============================================================================
 window.checkConflicten = function(taakPersoon, matchStartMin, matchEindMin, speelDatum, alleDaggeplande, huidigeMatchId, alleTakenHuidigeMatch) {
     let resultaat = { status: 'groen', berichten: [] };
     if (!taakPersoon || taakPersoon === "" || taakPersoon === "Vrij") return resultaat;
 
-    // 1. Is dit een Team of een Persoon? 
-    // We checken of de naam in de Teams database zit, óf het woordje "Ouders" bevat.
-    let isTeam = window.teamsDB.some(t => taakPersoon.includes(t.naam)) || taakPersoon.toLowerCase().includes('ouders');
+    let veiligeNaam = String(taakPersoon);
+    let isTeam = (window.teamsDB || []).some(t => t && t.naam && veiligeNaam.includes(t.naam)) || veiligeNaam.toLowerCase().includes('ouders');
 
-    // 2. Dubbel in DEZELFDE wedstrijd (Geldt ALLEEN voor personen, niet voor teams!)
     if (!isTeam) {
         let countInMatch = 0;
         if(alleTakenHuidigeMatch.sA === taakPersoon) countInMatch++;
@@ -163,28 +161,22 @@ window.checkConflicten = function(taakPersoon, matchStartMin, matchEindMin, spee
         if(countInMatch > 1) { resultaat.status = 'rood'; resultaat.berichten.push("Persoon is dubbel ingedeeld in deze wedstrijd!"); }
     }
 
-    // 3. Afwezigheid Check (Uit de matrix)
-    let sr = window.scheidsrechtersDB.find(s => s.naam === taakPersoon);
-    if (sr && window.beschikbaarheidDB[`${sr.id}_${speelDatum}`] === 'af') {
+    let sr = (window.scheidsrechtersDB || []).find(s => s && s.naam === taakPersoon);
+    if (sr && window.beschikbaarheidDB && window.beschikbaarheidDB[`${sr.id}_${speelDatum}`] === 'af') {
         resultaat.status = 'rood'; resultaat.berichten.push("Afwezig volgens rooster.");
     }
 
-    // 4. Zachte waarschuwing voor jonge jeugd die zelf moet tafelen
-    if ((taakPersoon.toUpperCase().includes('X10') || taakPersoon.toUpperCase().includes('X12')) && !taakPersoon.toLowerCase().includes('ouders')) {
+    if ((veiligeNaam.toUpperCase().includes('X10') || veiligeNaam.toUpperCase().includes('X12')) && !veiligeNaam.toLowerCase().includes('ouders')) {
         if (resultaat.status !== 'rood') resultaat.status = 'oranje';
         resultaat.berichten.push("X10/X12 tafelen/fluiten niet zelf. Gebruik 'Ouders X10'.");
     }
 
-    // 5. Overlap met andere wedstrijden op het bord
-    alleDaggeplande.forEach(andereMatch => {
+    (alleDaggeplande || []).forEach(andereMatch => {
         let aStart = window.tijdNaarMinuten(andereMatch.geplandeTijd);
         if (aStart === 0) return;
         let aEind = aStart + andereMatch.duur;
 
-        // Is er een tijds-overlap?
         if (matchStartMin < aEind && matchEindMin > aStart) {
-            
-            // A. Al ingedeeld bij een ANDERE wedstrijd? (Geldt ALLEEN voor personen, niet voor teams!)
             if (!isTeam && andereMatch.uniekId !== huidigeMatchId) {
                 let andereTaken = window.takenDB[andereMatch.uniekId] || {};
                 if (Object.values(andereTaken).includes(taakPersoon)) {
@@ -192,20 +184,17 @@ window.checkConflicten = function(taakPersoon, matchStartMin, matchEindMin, spee
                 }
             }
             
-            let anderThuisteam = andereMatch.Thuisteam.replace('Black Shots ', '').trim();
+            let anderThuisteam = (andereMatch.Thuisteam || '').replace('Black Shots ', '').trim();
             
-            // B. Speelt dit team nu zelf een wedstrijd? (Geldt WEL voor teams)
-            if (taakPersoon === anderThuisteam || taakPersoon.includes(anderThuisteam)) {
+            if (veiligeNaam === anderThuisteam || veiligeNaam.includes(anderThuisteam)) {
                 resultaat.status = 'rood'; resultaat.berichten.push(`Dit team speelt nu zelf!`);
             }
             
-            // C. Speelt de scheidsrechter zelf met zijn/haar eigen team?
             if (sr && sr.gekoppeldTeam && sr.gekoppeldTeam === anderThuisteam) {
                 resultaat.status = 'rood'; resultaat.berichten.push(`Speelt nu zelf bij ${sr.gekoppeldTeam}.`);
             }
             
-            // D. Is deze persoon nu aan het coachen?
-            let spelendTeamDb = window.teamsDB.find(t => t.naam === anderThuisteam);
+            let spelendTeamDb = (window.teamsDB || []).find(t => t && t.naam === anderThuisteam);
             if (spelendTeamDb && spelendTeamDb.coach && spelendTeamDb.coach.includes(taakPersoon)) {
                 resultaat.status = 'rood'; resultaat.berichten.push(`Is aan het coachen bij dit team.`);
             }
@@ -687,170 +676,206 @@ window.bepaalNiveau = function(naam) {
 };
 
 // 6. DE MAGISCHE ENGINE
+// ============================================================================
+// ✨ DE MAGISCHE ENGINE (MET CRASH DETECTOR & SAFE GUARDS)
+// ============================================================================
 window.startSmartFill = function() {
-    let speelDatum = window.normaalDatum(document.getElementById('plan-datum').value);
-    if (!speelDatum) return alert("Kies eerst een datum.");
+    try {
+        let speelDatumEl = document.getElementById('plan-datum');
+        if (!speelDatumEl || !speelDatumEl.value) return alert("Kies eerst een datum.");
+        
+        let speelDatum = window.normaalDatum(speelDatumEl.value);
 
-    if (!confirm("De Smart Fill Bot gaat nu proberen alle lege vakjes eerlijk in te vullen op het bord. Doorgaan?")) return;
+        if (!confirm("De Smart Fill Bot gaat nu proberen alle lege vakjes eerlijk in te vullen op het bord. Doorgaan?")) return;
 
-    let set = window.sfSettingsDB; 
-    if(!set.voorkeuren) set.voorkeuren = []; 
+        let set = window.sfSettingsDB || {}; 
+        if(!set.voorkeuren) set.voorkeuren = []; 
 
-    let alleWedstrijden = [...window.nbbWedstrijden, ...window.customWedstrijden];
-    let dagMatches = alleWedstrijden.filter(w => window.normaalDatum(w.Datum) === speelDatum && window.planStatusDB[window.genereerUniekId(w)]);
-    
-    let kandidatenLijst = [];
-    window.teamsDB.forEach(t => { if(!t.isRecreant && !t.isVrijwilliger) kandidatenLijst.push({ naam: t.naam, type: 'team' }); });
-    window.scheidsrechtersDB.forEach(s => { kandidatenLijst.push({ naam: s.naam, type: 'scheids' }); });
+        let alleWedstrijden = [...(window.nbbWedstrijden || []), ...(window.customWedstrijden || [])];
+        let dagMatches = alleWedstrijden.filter(w => window.normaalDatum(w.Datum) === speelDatum && window.planStatusDB[window.genereerUniekId(w)]);
+        
+        if (dagMatches.length === 0) {
+            return alert("Er staan nog geen geplande wedstrijden op het bord voor deze dag!");
+        }
 
-    let taakTeller = {};
-    let dagTellerRef = {}; 
-    
-    Object.values(window.takenDB).forEach(taken => {
-        ['sA', 'sB', 'tab', 'sco'].forEach(slot => {
-            if (taken[slot] && taken[slot] !== "Vrij") taakTeller[taken[slot]] = (taakTeller[taken[slot]] || 0) + 1;
+        let kandidatenLijst = [];
+        (window.teamsDB || []).forEach(t => { 
+            if(t && t.naam && !t.isRecreant && !t.isVrijwilliger) kandidatenLijst.push({ naam: String(t.naam), type: 'team' }); 
         });
-    });
-
-    dagMatches.forEach(m => {
-        let t = window.takenDB[window.genereerUniekId(m)] || {};
-        ['sA', 'sB', 'tab', 'sco'].forEach(slot => {
-            if (t[slot] && t[slot] !== "Vrij") dagTellerRef[t[slot]] = (dagTellerRef[t[slot]] || 0) + 1;
+        (window.scheidsrechtersDB || []).forEach(s => { 
+            if(s && s.naam) kandidatenLijst.push({ naam: String(s.naam), type: 'scheids' }); 
         });
-    });
 
-    let thuisteamsVandaag = dagMatches.map(m => m.Thuisteam.replace('Black Shots ', '').trim());
-    let smartFillLog = ''; let toegewezenAantal = 0;
+        if (kandidatenLijst.length === 0) {
+            return alert("Er zijn nog geen teams of scheidsrechters toegevoegd aan het clubbeheer!");
+        }
 
-    dagMatches.sort((a, b) => window.tijdNaarMinuten(window.planStatusDB[window.genereerUniekId(a)].tijd) - window.tijdNaarMinuten(window.planStatusDB[window.genereerUniekId(b)].tijd));
+        let taakTeller = {};
+        let dagTellerRef = {}; 
+        
+        Object.values(window.takenDB || {}).forEach(taken => {
+            ['sA', 'sB', 'tab', 'sco'].forEach(slot => {
+                if (taken[slot] && taken[slot] !== "Vrij") taakTeller[taken[slot]] = (taakTeller[taken[slot]] || 0) + 1;
+            });
+        });
 
-    dagMatches.forEach(match => {
-        let matchId = window.genereerUniekId(match);
-        let matchStatus = window.planStatusDB[matchId];
-        let startMin = window.tijdNaarMinuten(matchStatus.tijd);
-        let wedstrijdNaam = match.Thuisteam.replace('Black Shots ', '').trim();
-        let matchNiveau = window.bepaalNiveau(wedstrijdNaam);
-        let taken = window.takenDB[matchId] || { sA: "", sB: "", tab: "", sco: "" };
-        let matchDuur = match.handmatigeDuur ? match.handmatigeDuur : window.bepaalWedstrijdDuur(wedstrijdNaam);
-        let eindMin = startMin + matchDuur;
+        dagMatches.forEach(m => {
+            let t = window.takenDB[window.genereerUniekId(m)] || {};
+            ['sA', 'sB', 'tab', 'sco'].forEach(slot => {
+                if (t[slot] && t[slot] !== "Vrij") dagTellerRef[t[slot]] = (dagTellerRef[t[slot]] || 0) + 1;
+            });
+        });
 
-        let analyseerVakje = (vakjeKey, taakTypeLabel) => {
-            if (taken[vakjeKey] && taken[vakjeKey] !== "Vrij") return;
+        let thuisteamsVandaag = dagMatches.map(m => (m.Thuisteam || '').replace('Black Shots ', '').trim());
+        let smartFillLog = ''; let toegewezenAantal = 0;
 
-            let besteKandidaat = null; let hoogsteScore = -9999; let besteUitleg = [];
+        dagMatches.sort((a, b) => window.tijdNaarMinuten((window.planStatusDB[window.genereerUniekId(a)]||{}).tijd) - window.tijdNaarMinuten((window.planStatusDB[window.genereerUniekId(b)]||{}).tijd));
 
-            kandidatenLijst.forEach(kandidaat => {
-                let score = 0; let uitleg = [];
+        dagMatches.forEach(match => {
+            let matchId = window.genereerUniekId(match);
+            let matchStatus = window.planStatusDB[matchId];
+            if(!matchStatus) return;
 
-                let conflictCheck = window.checkConflicten(kandidaat.naam, startMin, eindMin, speelDatum, dagMatches.map(m => ({
-                    uniekId: window.genereerUniekId(m), Thuisteam: m.Thuisteam, geplandeTijd: window.planStatusDB[window.genereerUniekId(m)].tijd,
-                    duur: m.handmatigeDuur || window.bepaalWedstrijdDuur(m.Thuisteam.replace('Black Shots ',''))
-                })), matchId, {...taken});
+            let startMin = window.tijdNaarMinuten(matchStatus.tijd);
+            let wedstrijdNaam = (match.Thuisteam || '').replace('Black Shots ', '').trim();
+            let matchNiveau = window.bepaalNiveau(wedstrijdNaam);
+            let taken = window.takenDB[matchId] || { sA: "", sB: "", tab: "", sco: "" };
+            let matchDuur = match.handmatigeDuur ? match.handmatigeDuur : window.bepaalWedstrijdDuur(wedstrijdNaam);
+            let eindMin = startMin + matchDuur;
 
-                if (conflictCheck.status === 'rood') return; 
+            let analyseerVakje = (vakjeKey, taakTypeLabel) => {
+                if (taken[vakjeKey] && taken[vakjeKey] !== "Vrij") return;
 
-                let heeftWedstrijdVandaag = thuisteamsVandaag.some(t => kandidaat.naam.includes(t) || t.includes(kandidaat.naam));
-                if (kandidaat.type === 'team' && !heeftWedstrijdVandaag) {
-                    score -= set.nietThuis; uitleg.push(`Niet thuis (-${set.nietThuis})`);
-                }
+                let besteKandidaat = null; let hoogsteScore = -9999; let besteUitleg = [];
 
-                let eerdereTaken = taakTeller[kandidaat.naam] || 0;
-                if (eerdereTaken > 0) {
-                    score -= (eerdereTaken * set.eerlijkheid);
-                    uitleg.push(`Al ${eerdereTaken}x (-${eerdereTaken*set.eerlijkheid})`);
-                }
+                kandidatenLijst.forEach(kandidaat => {
+                    let score = 0; let uitleg = [];
 
-                let kandidaatNiveau = window.bepaalNiveau(kandidaat.naam);
+                    let conflictCheck = window.checkConflicten(kandidaat.naam, startMin, eindMin, speelDatum, dagMatches.map(m => ({
+                        uniekId: window.genereerUniekId(m), Thuisteam: m.Thuisteam || '', geplandeTijd: (window.planStatusDB[window.genereerUniekId(m)]||{}).tijd,
+                        duur: m.handmatigeDuur || window.bepaalWedstrijdDuur((m.Thuisteam||'').replace('Black Shots ',''))
+                    })), matchId, {...taken});
 
-                if (vakjeKey === 'tab' || vakjeKey === 'sco') {
-                    if (kandidaat.type === 'scheids') { 
-                        score -= set.srTafelStraf; uitleg.push(`Scheids achter tafel (-${set.srTafelStraf})`); 
+                    if (conflictCheck.status === 'rood') return; 
+
+                    let heeftWedstrijdVandaag = thuisteamsVandaag.some(t => kandidaat.naam.includes(t) || t.includes(kandidaat.naam));
+                    if (kandidaat.type === 'team' && !heeftWedstrijdVandaag) {
+                        score -= (set.nietThuis || 0); uitleg.push(`Niet thuis (-${set.nietThuis || 0})`);
                     }
-                    if (matchNiveau <= 1 && kandidaat.naam.toLowerCase().includes('ouders')) { 
-                        score += 1000; uitleg.push("Ouders U12 (+1000)"); 
-                    }
-                    if (kandidaatNiveau >= 5 && kandidaat.type === 'team') { 
-                        score -= set.oudTafelStraf; uitleg.push(`Ouder team tafelt (-${set.oudTafelStraf})`); 
-                    }
-                }
 
-                if (vakjeKey === 'sA' || vakjeKey === 'sB') {
-                    if (kandidaat.type === 'scheids') { 
-                        score += set.srBonus; uitleg.push(`Vaste Scheids (+${set.srBonus})`); 
-                        let dagTaken = dagTellerRef[kandidaat.naam] || 0;
-                        if (dagTaken >= 2) {
-                            score -= set.srMaxStraf; uitleg.push(`Burn-out: >2x fluiten (-${set.srMaxStraf})`);
+                    let eerdereTaken = taakTeller[kandidaat.naam] || 0;
+                    if (eerdereTaken > 0) {
+                        score -= (eerdereTaken * (set.eerlijkheid || 0));
+                        uitleg.push(`Al ${eerdereTaken}x (-${eerdereTaken*(set.eerlijkheid || 0)})`);
+                    }
+
+                    let kandidaatNiveau = window.bepaalNiveau(kandidaat.naam);
+
+                    if (vakjeKey === 'tab' || vakjeKey === 'sco') {
+                        if (kandidaat.type === 'scheids') { 
+                            score -= (set.srTafelStraf || 0); uitleg.push(`Scheids achter tafel (-${set.srTafelStraf || 0})`); 
+                        }
+                        if (matchNiveau <= 1 && kandidaat.naam.toLowerCase().includes('ouders')) { 
+                            score += 1000; uitleg.push("Ouders U12 (+1000)"); 
+                        }
+                        if (kandidaatNiveau >= 5 && kandidaat.type === 'team') { 
+                            score -= (set.oudTafelStraf || 0); uitleg.push(`Ouder team tafelt (-${set.oudTafelStraf || 0})`); 
                         }
                     }
-                    
-                    if (kandidaat.type === 'team') {
-                        let verschil = matchNiveau - kandidaatNiveau;
-                        if (verschil > 0) {
-                            score -= (verschil * set.niveau); uitleg.push(`Niveau trap (-${verschil*set.niveau})`);
-                        }
-                        if (kandidaatNiveau >= 5) {
-                            score += set.oudFluitBonus; uitleg.push(`Ouder team fluit (+${set.oudFluitBonus})`);
-                        }
-                    }
-                }
 
-                dagMatches.forEach(eigenMatch => {
-                    let eigenThuisteam = eigenMatch.Thuisteam.replace('Black Shots ', '').trim();
-                    if (kandidaat.naam.includes(eigenThuisteam) || eigenThuisteam.includes(kandidaat.naam)) {
-                        let eigenStatus = window.planStatusDB[window.genereerUniekId(eigenMatch)];
-                        let eigenStart = window.tijdNaarMinuten(eigenStatus.tijd);
-                        let eigenDuur = eigenMatch.handmatigeDuur || window.bepaalWedstrijdDuur(eigenThuisteam);
-                        let eigenEind = eigenStart + eigenDuur;
-
-                        let verschilMinuten = 999; let isVoor = false;
-
-                        if (startMin < eigenStart) { verschilMinuten = eigenStart - eindMin; isVoor = true; } 
-                        else if (startMin >= eigenEind) { verschilMinuten = startMin - eigenEind; isVoor = false; } 
-
-                        if (verschilMinuten >= 0) {
-                            let wachttijdKwartieren = Math.floor(verschilMinuten / 15);
-                            if (wachttijdKwartieren > 0) {
-                                score -= (wachttijdKwartieren * set.wachten);
-                                uitleg.push(`Wachttijd: ${verschilMinuten}m (-${wachttijdKwartieren*set.wachten})`);
+                    if (vakjeKey === 'sA' || vakjeKey === 'sB') {
+                        if (kandidaat.type === 'scheids') { 
+                            score += (set.srBonus || 0); uitleg.push(`Vaste Scheids (+${set.srBonus || 0})`); 
+                            let dagTaken = dagTellerRef[kandidaat.naam] || 0;
+                            if (dagTaken >= 2) {
+                                score -= (set.srMaxStraf || 0); uitleg.push(`Burn-out: >2x fluiten (-${set.srMaxStraf || 0})`);
                             }
-
-                            if (verschilMinuten <= 15) {
-                                if (eigenStatus.veld === matchStatus.veld) { score += set.zelfdeVeld; uitleg.push(`Aansluiting zelfde veld (+${set.zelfdeVeld})`); } 
-                                else { score += set.anderVeld; uitleg.push(`Aansluiting ander veld (+${set.anderVeld})`); }
+                        }
+                        
+                        if (kandidaat.type === 'team') {
+                            let verschil = matchNiveau - kandidaatNiveau;
+                            if (verschil > 0) {
+                                score -= (verschil * (set.niveau || 0)); uitleg.push(`Niveau trap (-${verschil*(set.niveau || 0)})`);
                             }
-
-                            let voorkeurObj = set.voorkeuren.find(v => v.team === eigenThuisteam);
-                            if (voorkeurObj) {
-                                if (voorkeurObj.type === 'voor' && isVoor) { score += 80; uitleg.push("Voorkeur VÓÓR match (+80)"); }
-                                if (voorkeurObj.type === 'na' && !isVoor) { score += 80; uitleg.push("Voorkeur NÁ match (+80)"); }
+                            if (kandidaatNiveau >= 5) {
+                                score += (set.oudFluitBonus || 0); uitleg.push(`Ouder team fluit (+${set.oudFluitBonus || 0})`);
                             }
                         }
                     }
+
+                    dagMatches.forEach(eigenMatch => {
+                        let eigenThuisteam = (eigenMatch.Thuisteam || '').replace('Black Shots ', '').trim();
+                        if (kandidaat.naam.includes(eigenThuisteam) || eigenThuisteam.includes(kandidaat.naam)) {
+                            let eigenStatus = window.planStatusDB[window.genereerUniekId(eigenMatch)];
+                            if(!eigenStatus) return;
+
+                            let eigenStart = window.tijdNaarMinuten(eigenStatus.tijd);
+                            let eigenDuur = eigenMatch.handmatigeDuur || window.bepaalWedstrijdDuur(eigenThuisteam);
+                            let eigenEind = eigenStart + eigenDuur;
+
+                            let verschilMinuten = 999; let isVoor = false;
+
+                            if (startMin < eigenStart) { verschilMinuten = eigenStart - eindMin; isVoor = true; } 
+                            else if (startMin >= eigenEind) { verschilMinuten = startMin - eigenEind; isVoor = false; } 
+
+                            if (verschilMinuten >= 0) {
+                                let wachttijdKwartieren = Math.floor(verschilMinuten / 15);
+                                if (wachttijdKwartieren > 0) {
+                                    score -= (wachttijdKwartieren * (set.wachten || 0));
+                                    uitleg.push(`Wachttijd: ${verschilMinuten}m (-${wachttijdKwartieren*(set.wachten || 0)})`);
+                                }
+
+                                if (verschilMinuten <= 15) {
+                                    if (eigenStatus.veld === matchStatus.veld) { score += (set.zelfdeVeld || 0); uitleg.push(`Aansluiting zelfde veld (+${set.zelfdeVeld || 0})`); } 
+                                    else { score += (set.anderVeld || 0); uitleg.push(`Aansluiting ander veld (+${set.anderVeld || 0})`); }
+                                }
+
+                                let voorkeurObj = (set.voorkeuren || []).find(v => v && v.team === eigenThuisteam);
+                                if (voorkeurObj) {
+                                    if (voorkeurObj.type === 'voor' && isVoor) { score += 80; uitleg.push("Voorkeur VÓÓR match (+80)"); }
+                                    if (voorkeurObj.type === 'na' && !isVoor) { score += 80; uitleg.push("Voorkeur NÁ match (+80)"); }
+                                }
+                            }
+                        }
+                    });
+
+                    if (score > hoogsteScore) { hoogsteScore = score; besteKandidaat = kandidaat.naam; besteUitleg = uitleg; }
                 });
 
-                if (score > hoogsteScore) { hoogsteScore = score; besteKandidaat = kandidaat.naam; besteUitleg = uitleg; }
-            });
-
-            if (besteKandidaat) {
-                taken[vakjeKey] = besteKandidaat;
-                taakTeller[besteKandidaat] = (taakTeller[besteKandidaat] || 0) + 1; 
-                if (kandidatenLijst.find(k => k.naam === besteKandidaat) && kandidatenLijst.find(k => k.naam === besteKandidaat).type === 'scheids') {
-                    dagTellerRef[besteKandidaat] = (dagTellerRef[besteKandidaat] || 0) + 1;
+                if (besteKandidaat) {
+                    taken[vakjeKey] = besteKandidaat;
+                    taakTeller[besteKandidaat] = (taakTeller[besteKandidaat] || 0) + 1; 
+                    if (kandidatenLijst.find(k => k.naam === besteKandidaat) && kandidatenLijst.find(k => k.naam === besteKandidaat).type === 'scheids') {
+                        dagTellerRef[besteKandidaat] = (dagTellerRef[besteKandidaat] || 0) + 1;
+                    }
+                    toegewezenAantal++;
+                    
+                    let uitlegTekst = besteUitleg.length > 0 ? besteUitleg.join(', ') : "Basis invulling";
+                    smartFillLog += `<div style="border-bottom:1px solid #ccc; padding:8px 0;"><strong style="color:#2c3e50;">${wedstrijdNaam} (${matchStatus.tijd}) - ${taakTypeLabel}:</strong> <span style="color:#27ae60; font-weight:bold;">${besteKandidaat}</span> <span style="color:#7f8c8d; font-size:0.8rem; margin-left:10px;">[Score: ${hoogsteScore}] ➔ ${uitlegTekst}</span></div>`;
                 }
-                toegewezenAantal++;
-                
-                let uitlegTekst = besteUitleg.length > 0 ? besteUitleg.join(', ') : "Basis invulling";
-                smartFillLog += `<div style="border-bottom:1px solid #ccc; padding:8px 0;"><strong style="color:#2c3e50;">${wedstrijdNaam} (${matchStatus.tijd}) - ${taakTypeLabel}:</strong> <span style="color:#27ae60; font-weight:bold;">${besteKandidaat}</span> <span style="color:#7f8c8d; font-size:0.8rem; margin-left:10px;">[Score: ${hoogsteScore}] ➔ ${uitlegTekst}</span></div>`;
-            }
-        };
+            };
 
-        analyseerVakje('sA', 'Scheids A'); analyseerVakje('sB', 'Scheids B'); analyseerVakje('tab', 'Tablet'); analyseerVakje('sco', 'Scorebord');
-        window.takenDB[matchId] = taken;
-    });
+            analyseerVakje('sA', 'Scheids A'); analyseerVakje('sB', 'Scheids B'); analyseerVakje('tab', 'Tablet'); analyseerVakje('sco', 'Scorebord');
+            window.takenDB[matchId] = taken;
+        });
 
-    if (toegewezenAantal === 0) return alert("Het bord is al helemaal vol of er zijn geen logische kandidaten meer over!");
+        if (toegewezenAantal === 0) return alert("Het bord is al helemaal vol of er zijn geen logische kandidaten meer over!");
 
-    document.getElementById('smart-fill-log-container').innerHTML = smartFillLog;
-    document.getElementById('smart-fill-rapport-modal').style.display = 'flex';
-    window.slaPlannerDataOp();
+        let logContainer = document.getElementById('smart-fill-log-container');
+        let modal = document.getElementById('smart-fill-rapport-modal');
+        
+        if(logContainer && modal) {
+            logContainer.innerHTML = smartFillLog;
+            modal.style.display = 'flex';
+        } else {
+            alert(`✅ Succes! ${toegewezenAantal} taken ingevuld. (Rapport kon niet geladen worden)`);
+        }
+        
+        window.slaPlannerDataOp();
+        window.laadPlanbord(); // Direct het bord updaten op de achtergrond
+
+    } catch (error) {
+        alert("CRASH DETECTOR 🚨: Er ging iets fout tijdens het berekenen. Stuur dit naar je bouwer: " + error.message);
+        console.error(error);
+    }
 };
