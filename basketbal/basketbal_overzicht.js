@@ -1,4 +1,4 @@
-// --- BASKETBAL_OVERZICHT.JS: VOLLEDIGE VERSIE INCL. SCHEIDSRECHTER BALANS ---
+// --- BASKETBAL_OVERZICHT.JS: GEPANTSERDE VERSIE (CRASH-PROOF) ---
 
 window.speeldagenDB = JSON.parse(localStorage.getItem('blackshots_speeldagen')) || [];
 window.nbbWedstrijden = JSON.parse(localStorage.getItem('blackshots_wedstrijden_json')) || [];
@@ -53,22 +53,28 @@ window.openWedstrijddagModal = function() {
     document.getElementById('wday-datum').value = vandaag.toISOString().split('T')[0];
 
     let html = '';
-    window.teamsDB.forEach(t => {
+    let veiligeTeams = Array.isArray(window.teamsDB) ? window.teamsDB : [];
+    
+    veiligeTeams.forEach(t => {
         if (!t.isVrijwilliger && !t.isRecreant) {
+            let veiligeNaam = t.naam ? t.naam.replace(/\s+/g, '') : 'onbekend';
             html += `
                 <div class="team-grid-row">
                     <label style="display:flex; align-items:center; gap:8px; font-weight:bold; cursor:pointer;">
-                        <input type="checkbox" class="wday-team-checkbox" value="${t.naam}" style="transform: scale(1.2);">
-                        🏀 ${t.naam}
+                        <input type="checkbox" class="wday-team-checkbox" value="${t.naam || ''}" style="transform: scale(1.2);">
+                        🏀 ${t.naam || 'Onbekend Team'}
                     </label>
                     <div>
                         <span style="font-size:0.75rem; color:#7f8c8d; margin-right:5px;">Tijd:</span>
-                        <input type="time" id="wday-time-${t.naam.replace(/\s+/g, '')}" style="padding:4px; border:1px solid #bdc3c7; border-radius:4px; font-weight:bold;">
+                        <input type="time" id="wday-time-${veiligeNaam}" style="padding:4px; border:1px solid #bdc3c7; border-radius:4px; font-weight:bold;">
                     </div>
                 </div>
             `;
         }
     });
+    
+    if(html === '') html = '<p style="color:#7f8c8d; font-style:italic;">Geen teams gevonden. Voeg deze eerst toe in Clubbeheer.</p>';
+    
     container.innerHTML = html;
     document.getElementById('wedstrijddag-modal').style.display = 'flex';
 };
@@ -87,9 +93,10 @@ window.slaCompleteWedstrijddagOp = function() {
 
     checkboxes.forEach(chk => {
         if (chk.checked) {
-            let teamNaam = chk.value;
+            let teamNaam = chk.value || '';
             let timeId = `wday-time-${teamNaam.replace(/\s+/g, '')}`;
-            let ingevuldeTijd = document.getElementById(timeId).value;
+            let timeEl = document.getElementById(timeId);
+            let ingevuldeTijd = timeEl ? timeEl.value : '';
 
             let uniekId = 'custom_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
             let naamUpper = teamNaam.toUpperCase();
@@ -116,38 +123,49 @@ window.slaCompleteWedstrijddagOp = function() {
 };
 
 // ============================================================================
-// 🎨 RENDERING EN SEIZOENSBEREKENINGEN (NU OOK MET SCHEIDSRECHTERS)
-// ============================================================================
-w// ============================================================================
-// 🎨 RENDERING EN SEIZOENSBEREKENINGEN (NU OOK MET SCHEIDSRECHTERS & SLIMME MATCHING)
+// 🎨 RENDERING EN SEIZOENSBEREKENINGEN (CRASH PROOF)
 // ============================================================================
 window.berekenEnRenderOverzicht = function() {
-    let alleWedstrijden = [...window.nbbWedstrijden, ...window.customWedstrijden];
+    let alleWedstrijden = [...(window.nbbWedstrijden || []), ...(window.customWedstrijden || [])];
     
     // MODEL 1: De Teams
     let teamModel = {};
-    window.teamsDB.forEach(t => {
-        if (!t.isVrijwilliger && !t.isRecreant) teamModel[t.naam] = 0;
+    (window.teamsDB || []).forEach(t => {
+        if (t && !t.isVrijwilliger && !t.isRecreant && t.naam) {
+            teamModel[t.naam] = 0;
+        }
     });
 
     // MODEL 2: De Individuele Scheidsrechters
     let scheidsModel = {};
-    window.scheidsrechtersDB.forEach(sr => {
-        scheidsModel[sr.naam] = 0;
+    (window.scheidsrechtersDB || []).forEach(sr => {
+        if (sr && sr.naam) scheidsModel[sr.naam] = 0;
     });
 
     let totaalTakenTeller = 0;
     let openTakenTeller = 0;
     let dagStatusMap = {};
 
-    window.speeldagenDB.forEach(datum => {
+    (window.speeldagenDB || []).forEach(datum => {
         dagStatusMap[datum] = { totaal: 0, vrij: 0, wedstrijden: 0 };
-        let dagMatches = alleWedstrijden.filter(w => (w.Datum === datum || w.Datum.includes(datum)) && (w.Thuisteam || '').toLowerCase().includes('black shots'));
+        
+        // VEILIGE FILTER: Controleer of alle velden echt bestaan als string
+        let dagMatches = alleWedstrijden.filter(w => {
+            let matchDatum = w.Datum ? String(w.Datum) : '';
+            let isJuisteDatum = (matchDatum === String(datum) || matchDatum.includes(String(datum)));
+            let isThuis = w.Thuisteam ? String(w.Thuisteam).toLowerCase().includes('black shots') : false;
+            return isJuisteDatum && isThuis;
+        });
+        
         dagStatusMap[datum].wedstrijden = dagMatches.length;
 
         dagMatches.forEach(w => {
-            // FIX: Identieke ID generatie als in planner.js!
-            let cleanNummer = w.Wedstrijdnummer ? String(w.Wedstrijdnummer).replace(/[^a-zA-Z0-9]/g, '') : (w.Thuisteam+w.Uitteam).replace(/[^a-zA-Z0-9]/g, '');
+            let thuisteam = w.Thuisteam ? String(w.Thuisteam) : '';
+            let uitteam = w.Uitteam ? String(w.Uitteam) : '';
+            let wedstrijdNummer = w.Wedstrijdnummer ? String(w.Wedstrijdnummer) : '';
+            
+            let wedstrijdNaam = thuisteam.replace('Black Shots ', '').trim();
+            let cleanNummer = wedstrijdNummer ? wedstrijdNummer.replace(/[^a-zA-Z0-9]/g, '') : (thuisteam + uitteam).replace(/[^a-zA-Z0-9]/g, '');
             let uniekId = w.id || `match-${cleanNummer}`;
             
             let taken = window.takenDB[uniekId] || { sA: "", sB: "", tab: "", sco: "" };
@@ -157,25 +175,27 @@ window.berekenEnRenderOverzicht = function() {
                 dagStatusMap[datum].totaal++;
                 totaalTakenTeller++;
                 
-                if (!vakje || vakje.trim() === "" || vakje === "Vrij") {
+                // Veilige string check voor het vakje
+                let vakjeStr = vakje ? String(vakje).trim() : "";
+
+                if (vakjeStr === "" || vakjeStr === "Vrij") {
                     dagStatusMap[datum].vrij++; 
                     openTakenTeller++;
                 } else {
-                    // FIX: Slimmere tekst-herkenning
                     let isToegewezen = false;
 
-                    // A. Kijk eerst of het een van onze Scheidsrechters is
+                    // A. Check in scheidsrechters
                     Object.keys(scheidsModel).forEach(naam => {
-                        if (vakje === naam) {
+                        if (vakjeStr === naam) {
                             scheidsModel[naam]++;
                             isToegewezen = true;
                         }
                     });
 
-                    // B. Zo niet? Dan is het waarschijnlijk een Team. (Checkt ook "Ouders X10")
+                    // B. Check in teams
                     if (!isToegewezen) {
                         Object.keys(teamModel).forEach(team => {
-                            if (vakje === team || vakje.includes(team)) {
+                            if (vakjeStr === team || vakjeStr.includes(team)) {
                                 teamModel[team]++;
                             }
                         });
@@ -185,36 +205,48 @@ window.berekenEnRenderOverzicht = function() {
         });
     });
 
-    // STATS
-    document.getElementById('stat-totaal-dagen').innerText = window.speeldagenDB.length;
-    document.getElementById('stat-totaal-taken').innerText = totaalTakenTeller;
-    document.getElementById('stat-open-taken').innerText = openTakenTeller;
+    // VEILIGE STATS RENDER
+    let elTotDag = document.getElementById('stat-totaal-dagen');
+    if (elTotDag) elTotDag.innerText = (window.speeldagenDB || []).length;
+    
+    let elTotTaak = document.getElementById('stat-totaal-taken');
+    if (elTotTaak) elTotTaak.innerText = totaalTakenTeller;
+    
+    let elTotOpen = document.getElementById('stat-open-taken');
+    if (elTotOpen) elTotOpen.innerText = openTakenTeller;
 
-    let druksteTeam = "--"; let maxTaken = 0;
+    let druksteTeam = "--"; 
+    let maxTaken = 0;
     Object.keys(teamModel).forEach(team => {
         if (teamModel[team] > maxTaken) {
-            maxTaken = teamModel[team]; druksteTeam = `${team} (${maxTaken})`;
+            maxTaken = teamModel[team]; 
+            druksteTeam = `${team} (${maxTaken})`;
         }
     });
-    document.getElementById('stat-drukste-team').innerText = druksteTeam;
+    let elDrukst = document.getElementById('stat-drukste-team');
+    if (elDrukst) elDrukst.innerText = druksteTeam;
 
     // RENDER: TEAMS BALANS
     let balansContainer = document.getElementById('seizoens-balans-container');
     if (balansContainer) {
-        let htmlBalans = '';
-        let gesorteerdeTeams = Object.keys(teamModel).sort((a,b) => teamModel[b] - teamModel[a]);
-        let absoluteMax = Math.max(...Object.values(teamModel), 1);
+        if (Object.keys(teamModel).length === 0) {
+            balansContainer.innerHTML = '<p style="color:#7f8c8d; font-size:0.8rem;">Er zijn nog geen teams toegevoegd of gepland.</p>';
+        } else {
+            let htmlBalans = '';
+            let gesorteerdeTeams = Object.keys(teamModel).sort((a,b) => teamModel[b] - teamModel[a]);
+            let absoluteMax = Math.max(...Object.values(teamModel), 1);
 
-        gesorteerdeTeams.forEach(team => {
-            let percentage = (teamModel[team] / absoluteMax) * 100;
-            htmlBalans += `
-                <div class="balans-regel">
-                    <div class="balans-label"><span>🏀 ${team}</span><strong>${teamModel[team]} taken</strong></div>
-                    <div class="balans-balk-bg"><div class="balans-balk-fill" style="width: ${percentage}%;"></div></div>
-                </div>
-            `;
-        });
-        balansContainer.innerHTML = htmlBalans;
+            gesorteerdeTeams.forEach(team => {
+                let percentage = (teamModel[team] / absoluteMax) * 100;
+                htmlBalans += `
+                    <div class="balans-regel">
+                        <div class="balans-label"><span>🏀 ${team}</span><strong>${teamModel[team]} taken</strong></div>
+                        <div class="balans-balk-bg"><div class="balans-balk-fill" style="width: ${percentage}%;"></div></div>
+                    </div>
+                `;
+            });
+            balansContainer.innerHTML = htmlBalans;
+        }
     }
 
     // RENDER: SCHEIDSRECHTERS BALANS
@@ -243,10 +275,11 @@ window.berekenEnRenderOverzicht = function() {
     // RENDER: KALENDER
     let kalenderContainer = document.getElementById('kalender-lijst-container');
     if (kalenderContainer) {
-        if (window.speeldagenDB.length === 0) {
-            kalenderContainer.innerHTML = '<p style="color:#7f8c8d; font-style:italic;">Geen speeldagen gevonden.</p>';
+        if (!window.speeldagenDB || window.speeldagenDB.length === 0) {
+            kalenderContainer.innerHTML = '<p style="color:#7f8c8d; font-style:italic;">Geen speeldagen gevonden. Maak er één aan met de knop rechtsboven.</p>';
             return;
         }
+        
         let htmlKalender = '';
         window.speeldagenDB.forEach(datum => {
             let statusObj = dagStatusMap[datum] || { totaal: 0, vrij: 0, wedstrijden: 0 };
