@@ -142,46 +142,69 @@ window.renderRegelsLijst = function() {
 // ============================================================================
 // 🚨 CONFLICT ENGINE
 // ============================================================================
+// ============================================================================
+// 🚨 CONFLICT ENGINE (NU MET TEAM-UITZONDERING VOOR DUBBELE TAKEN)
+// ============================================================================
 window.checkConflicten = function(taakPersoon, matchStartMin, matchEindMin, speelDatum, alleDaggeplande, huidigeMatchId, alleTakenHuidigeMatch) {
     let resultaat = { status: 'groen', berichten: [] };
     if (!taakPersoon || taakPersoon === "" || taakPersoon === "Vrij") return resultaat;
 
-    let countInMatch = 0;
-    if(alleTakenHuidigeMatch.sA === taakPersoon) countInMatch++;
-    if(alleTakenHuidigeMatch.sB === taakPersoon) countInMatch++;
-    if(alleTakenHuidigeMatch.tab === taakPersoon) countInMatch++;
-    if(alleTakenHuidigeMatch.sco === taakPersoon) countInMatch++;
-    if(countInMatch > 1) { resultaat.status = 'rood'; resultaat.berichten.push("Dubbel in deze wedstrijd!"); }
+    // 1. Is dit een Team of een Persoon? 
+    // We checken of de naam in de Teams database zit, óf het woordje "Ouders" bevat.
+    let isTeam = window.teamsDB.some(t => taakPersoon.includes(t.naam)) || taakPersoon.toLowerCase().includes('ouders');
 
+    // 2. Dubbel in DEZELFDE wedstrijd (Geldt ALLEEN voor personen, niet voor teams!)
+    if (!isTeam) {
+        let countInMatch = 0;
+        if(alleTakenHuidigeMatch.sA === taakPersoon) countInMatch++;
+        if(alleTakenHuidigeMatch.sB === taakPersoon) countInMatch++;
+        if(alleTakenHuidigeMatch.tab === taakPersoon) countInMatch++;
+        if(alleTakenHuidigeMatch.sco === taakPersoon) countInMatch++;
+        if(countInMatch > 1) { resultaat.status = 'rood'; resultaat.berichten.push("Persoon is dubbel ingedeeld in deze wedstrijd!"); }
+    }
+
+    // 3. Afwezigheid Check (Uit de matrix)
     let sr = window.scheidsrechtersDB.find(s => s.naam === taakPersoon);
     if (sr && window.beschikbaarheidDB[`${sr.id}_${speelDatum}`] === 'af') {
         resultaat.status = 'rood'; resultaat.berichten.push("Afwezig volgens rooster.");
     }
 
+    // 4. Zachte waarschuwing voor jonge jeugd die zelf moet tafelen
     if ((taakPersoon.toUpperCase().includes('X10') || taakPersoon.toUpperCase().includes('X12')) && !taakPersoon.toLowerCase().includes('ouders')) {
         if (resultaat.status !== 'rood') resultaat.status = 'oranje';
         resultaat.berichten.push("X10/X12 tafelen/fluiten niet zelf. Gebruik 'Ouders X10'.");
     }
 
+    // 5. Overlap met andere wedstrijden op het bord
     alleDaggeplande.forEach(andereMatch => {
         let aStart = window.tijdNaarMinuten(andereMatch.geplandeTijd);
         if (aStart === 0) return;
         let aEind = aStart + andereMatch.duur;
 
+        // Is er een tijds-overlap?
         if (matchStartMin < aEind && matchEindMin > aStart) {
-            if (andereMatch.uniekId !== huidigeMatchId) {
+            
+            // A. Al ingedeeld bij een ANDERE wedstrijd? (Geldt ALLEEN voor personen, niet voor teams!)
+            if (!isTeam && andereMatch.uniekId !== huidigeMatchId) {
                 let andereTaken = window.takenDB[andereMatch.uniekId] || {};
                 if (Object.values(andereTaken).includes(taakPersoon)) {
                     resultaat.status = 'rood'; resultaat.berichten.push(`Al ingedeeld bij andere wedstrijd.`);
                 }
             }
+            
             let anderThuisteam = andereMatch.Thuisteam.replace('Black Shots ', '').trim();
+            
+            // B. Speelt dit team nu zelf een wedstrijd? (Geldt WEL voor teams)
             if (taakPersoon === anderThuisteam || taakPersoon.includes(anderThuisteam)) {
-                resultaat.status = 'rood'; resultaat.berichten.push(`Dit team speelt zelf!`);
+                resultaat.status = 'rood'; resultaat.berichten.push(`Dit team speelt nu zelf!`);
             }
+            
+            // C. Speelt de scheidsrechter zelf met zijn/haar eigen team?
             if (sr && sr.gekoppeldTeam && sr.gekoppeldTeam === anderThuisteam) {
                 resultaat.status = 'rood'; resultaat.berichten.push(`Speelt nu zelf bij ${sr.gekoppeldTeam}.`);
             }
+            
+            // D. Is deze persoon nu aan het coachen?
             let spelendTeamDb = window.teamsDB.find(t => t.naam === anderThuisteam);
             if (spelendTeamDb && spelendTeamDb.coach && spelendTeamDb.coach.includes(taakPersoon)) {
                 resultaat.status = 'rood'; resultaat.berichten.push(`Is aan het coachen bij dit team.`);
