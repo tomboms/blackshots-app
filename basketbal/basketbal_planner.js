@@ -588,8 +588,70 @@ window.verwijderCustomWedstrijd = function(id) {
 };
 
 // ============================================================================
-// ✨ SMART FILL ENGINE (V 2.0 MET TRANSPARANTIE)
+// ⚙️ SMART FILL INSTELLINGEN & ENGINE (V 3.0 DYNAMISCH)
 // ============================================================================
+
+// Haal instellingen op of gebruik de standaard waarden
+window.sfSettingsDB = JSON.parse(localStorage.getItem('blackshots_smartfill_settings')) || {
+    zelfdeVeld: 150, anderVeld: 130, wachten: 30, niveau: 200, nietThuis: 500, eerlijkheid: 20, voorkeuren: []
+};
+
+window.openSmartFillSettings = function() {
+    document.getElementById('sf-set-zelfde').value = window.sfSettingsDB.zelfdeVeld;
+    document.getElementById('sf-set-ander').value = window.sfSettingsDB.anderVeld;
+    document.getElementById('sf-set-wachten').value = window.sfSettingsDB.wachten;
+    document.getElementById('sf-set-niveau').value = window.sfSettingsDB.niveau;
+    document.getElementById('sf-set-thuis').value = window.sfSettingsDB.nietThuis;
+    document.getElementById('sf-set-eerlijk').value = window.sfSettingsDB.eerlijkheid;
+
+    let opts = '<option value="">-- Kies Team --</option>';
+    window.teamsDB.forEach(t => { if(!t.isRecreant && !t.isVrijwilliger) opts += `<option value="${t.naam}">${t.naam}</option>`; });
+    document.getElementById('sf-voorkeur-team').innerHTML = opts;
+
+    window.renderSfVoorkeuren();
+    document.getElementById('smart-fill-settings-modal').style.display = 'flex';
+};
+
+window.renderSfVoorkeuren = function() {
+    let lijst = document.getElementById('sf-voorkeuren-lijst');
+    if (window.sfSettingsDB.voorkeuren.length === 0) {
+        lijst.innerHTML = '<span style="color:#7f8c8d; font-style:italic;">Geen teamvoorkeuren ingesteld.</span>'; return;
+    }
+    let html = '';
+    window.sfSettingsDB.voorkeuren.forEach((v, index) => {
+        let tekst = v.type === 'voor' ? 'vóór hun eigen wedstrijd' : 'ná hun eigen wedstrijd';
+        html += `<div style="display:flex; justify-content:space-between; background:#eef2f5; padding:5px 10px; border-radius:4px;">
+            <span>🏀 <strong>${v.team}</strong> wil het liefst taken <strong>${tekst}</strong>.</span>
+            <button onclick="window.verwijderSfVoorkeur(${index})" style="background:none; border:none; color:#e74c3c; cursor:pointer;">🗑️</button>
+        </div>`;
+    });
+    lijst.innerHTML = html;
+};
+
+window.voegSfVoorkeurToe = function() {
+    let t = document.getElementById('sf-voorkeur-team').value;
+    let type = document.getElementById('sf-voorkeur-type').value;
+    if (!t) return;
+    window.sfSettingsDB.voorkeuren.push({ team: t, type: type });
+    window.renderSfVoorkeuren();
+};
+
+window.verwijderSfVoorkeur = function(index) {
+    window.sfSettingsDB.voorkeuren.splice(index, 1);
+    window.renderSfVoorkeuren();
+};
+
+window.slaSmartFillSettingsOp = function() {
+    window.sfSettingsDB.zelfdeVeld = parseInt(document.getElementById('sf-set-zelfde').value) || 0;
+    window.sfSettingsDB.anderVeld = parseInt(document.getElementById('sf-set-ander').value) || 0;
+    window.sfSettingsDB.wachten = parseInt(document.getElementById('sf-set-wachten').value) || 0;
+    window.sfSettingsDB.niveau = parseInt(document.getElementById('sf-set-niveau').value) || 0;
+    window.sfSettingsDB.nietThuis = parseInt(document.getElementById('sf-set-thuis').value) || 0;
+    window.sfSettingsDB.eerlijkheid = parseInt(document.getElementById('sf-set-eerlijk').value) || 0;
+
+    localStorage.setItem('blackshots_smartfill_settings', JSON.stringify(window.sfSettingsDB));
+    document.getElementById('smart-fill-settings-modal').style.display = 'none';
+};
 
 window.bepaalNiveau = function(naam) {
     if (!naam) return 0;
@@ -600,24 +662,24 @@ window.bepaalNiveau = function(naam) {
     if (up.includes('M18') || up.includes('V18')) return 4;
     if (up.includes('M20') || up.includes('V20') || up.includes('M22') || up.includes('V22')) return 5;
     if (up.includes('HEREN') || up.includes('DAMES') || up.includes('SE')) return 6;
-    return 3; // Standaard gemiddeld niveau
+    return 3;
 };
 
+// DE AANGEPASTE BOT ENGINE (Kijkt nu naar de instellingen!)
 window.startSmartFill = function() {
     let speelDatum = window.normaalDatum(document.getElementById('plan-datum').value);
     if (!speelDatum) return alert("Kies eerst een datum.");
 
     if (!confirm("De Smart Fill Bot gaat nu proberen alle lege vakjes eerlijk in te vullen op het bord. Doorgaan?")) return;
 
+    let set = window.sfSettingsDB; // Kort linkje naar de instellingen
     let alleWedstrijden = [...window.nbbWedstrijden, ...window.customWedstrijden];
     let dagMatches = alleWedstrijden.filter(w => window.normaalDatum(w.Datum) === speelDatum && window.planStatusDB[window.genereerUniekId(w)]);
     
-    // Verzamel alle kandidaten
     let kandidatenLijst = [];
     window.teamsDB.forEach(t => { if(!t.isRecreant && !t.isVrijwilliger) kandidatenLijst.push({ naam: t.naam, type: 'team' }); });
     window.scheidsrechtersDB.forEach(s => { kandidatenLijst.push({ naam: s.naam, type: 'scheids' }); });
 
-    // Huidige seizoensteller voor eerlijkheid
     let taakTeller = {};
     Object.values(window.takenDB).forEach(taken => {
         ['sA', 'sB', 'tab', 'sco'].forEach(slot => {
@@ -625,18 +687,10 @@ window.startSmartFill = function() {
         });
     });
 
-    // Helper om thuisteams van vandaag op te zoeken (voor de -500 straf)
     let thuisteamsVandaag = dagMatches.map(m => m.Thuisteam.replace('Black Shots ', '').trim());
+    let smartFillLog = ''; let toegewezenAantal = 0;
 
-    let smartFillLog = '';
-    let toegewezenAantal = 0;
-
-    // We sorteren de wedstrijden op tijd (vroeg naar laat)
-    dagMatches.sort((a, b) => {
-        let tA = window.tijdNaarMinuten(window.planStatusDB[window.genereerUniekId(a)].tijd);
-        let tB = window.tijdNaarMinuten(window.planStatusDB[window.genereerUniekId(b)].tijd);
-        return tA - tB;
-    });
+    dagMatches.sort((a, b) => window.tijdNaarMinuten(window.planStatusDB[window.genereerUniekId(a)].tijd) - window.tijdNaarMinuten(window.planStatusDB[window.genereerUniekId(b)].tijd));
 
     dagMatches.forEach(match => {
         let matchId = window.genereerUniekId(match);
@@ -649,67 +703,52 @@ window.startSmartFill = function() {
         let eindMin = startMin + matchDuur;
 
         let analyseerVakje = (vakjeKey, taakTypeLabel) => {
-            if (taken[vakjeKey] && taken[vakjeKey] !== "Vrij") return; // Al gevuld!
+            if (taken[vakjeKey] && taken[vakjeKey] !== "Vrij") return;
 
-            let besteKandidaat = null;
-            let hoogsteScore = -9999;
-            let besteUitleg = [];
+            let besteKandidaat = null; let hoogsteScore = -9999; let besteUitleg = [];
 
             kandidatenLijst.forEach(kandidaat => {
-                let score = 0;
-                let uitleg = [];
+                let score = 0; let uitleg = [];
 
-                // 1. HARDE ZEEF (Check Conflicten code)
-                let tempTaken = {...taken};
                 let conflictCheck = window.checkConflicten(kandidaat.naam, startMin, eindMin, speelDatum, dagMatches.map(m => ({
                     uniekId: window.genereerUniekId(m), Thuisteam: m.Thuisteam, geplandeTijd: window.planStatusDB[window.genereerUniekId(m)].tijd,
                     duur: m.handmatigeDuur || window.bepaalWedstrijdDuur(m.Thuisteam.replace('Black Shots ',''))
-                })), matchId, tempTaken);
+                })), matchId, {...taken});
 
-                if (conflictCheck.status === 'rood') return; // Absolute blokkade, skip deze persoon!
+                if (conflictCheck.status === 'rood') return; 
 
-                // 2. BASIS PUNTEN & STRAFFEN
+                // 2. DYNAMISCHE STRAFFEN
                 let heeftWedstrijdVandaag = thuisteamsVandaag.some(t => kandidaat.naam.includes(t) || t.includes(kandidaat.naam));
                 if (kandidaat.type === 'team' && !heeftWedstrijdVandaag) {
-                    score -= 500; uitleg.push("Niet thuis spelen (-500)");
+                    score -= set.nietThuis; uitleg.push(`Niet thuis spelen (-${set.nietThuis})`);
                 }
 
-                // Eerlijkheidsverdeling (Seizoensbalans)
                 let eerdereTaken = taakTeller[kandidaat.naam] || 0;
-                score -= (eerdereTaken * 20);
-                if (eerdereTaken > 0) uitleg.push(`Al ${eerdereTaken} taken dit seizoen (-${eerdereTaken*20})`);
+                score -= (eerdereTaken * set.eerlijkheid);
+                if (eerdereTaken > 0) uitleg.push(`Al ${eerdereTaken} taken dit seizoen (-${eerdereTaken*set.eerlijkheid})`);
 
                 // 3. JURYTAFEL SPECIFIEK
                 if (vakjeKey === 'tab' || vakjeKey === 'sco') {
                     if (kandidaat.type === 'scheids') { score -= 100; uitleg.push("Vaste scheids achter tafel (-100)"); }
                     if (matchNiveau <= 1 && kandidaat.naam.toLowerCase().includes('ouders')) { score += 1000; uitleg.push("Ouders voor U12 (+1000)"); }
-                    
-                    let kandidaatNiveau = window.bepaalNiveau(kandidaat.naam);
-                    if (kandidaatNiveau >= 5) { score -= 50; uitleg.push("Senioren/M22 tafelen liever niet (-50)"); }
+                    if (window.bepaalNiveau(kandidaat.naam) >= 5) { score -= 50; uitleg.push("Senioren/M22 tafelen liever niet (-50)"); }
                 }
 
                 // 4. SCHEIDSRECHTER SPECIFIEK
                 if (vakjeKey === 'sA' || vakjeKey === 'sB') {
                     let kandidaatNiveau = window.bepaalNiveau(kandidaat.naam);
-                    
                     if (kandidaat.type === 'scheids') { score += 150; uitleg.push("Vaste Scheidsrechter (+150)"); }
                     
                     if (kandidaat.type === 'team') {
-                        // De Trap: Mag deze persoon dit fluiten?
                         let verschil = matchNiveau - kandidaatNiveau;
                         if (verschil > 0) {
-                            score -= (verschil * 200);
-                            uitleg.push(`Niveau te hoog: ${verschil} treden (-${verschil*200})`);
+                            score -= (verschil * set.niveau);
+                            uitleg.push(`Niveau te hoog: ${verschil} treden (-${verschil*set.niveau})`);
                         }
-                        
-                        // Fluit-bonus voor oudere teams
-                        if (kandidaatNiveau === 5) { score += 80; uitleg.push("M22/U22 fluit-bonus (+80)"); }
-                        if (kandidaatNiveau === 4) { score += 60; uitleg.push("M18 fluit-bonus (+60)"); }
                     }
                 }
 
-                // 5. DE VOOR/NA & WACHTTIJD LOGICA (Zeer cruciaal)
-                // Zoek of de kandidaat zelf speelt vandaag en hoe laat
+                // 5. DYNAMISCHE AANSLUITING & VOORKEUREN
                 dagMatches.forEach(eigenMatch => {
                     let eigenThuisteam = eigenMatch.Thuisteam.replace('Black Shots ', '').trim();
                     if (kandidaat.naam.includes(eigenThuisteam) || eigenThuisteam.includes(kandidaat.naam)) {
@@ -718,78 +757,53 @@ window.startSmartFill = function() {
                         let eigenDuur = eigenMatch.handmatigeDuur || window.bepaalWedstrijdDuur(eigenThuisteam);
                         let eigenEind = eigenStart + eigenDuur;
 
-                        let verschilMinuten = 999;
-                        let isVoor = false;
+                        let verschilMinuten = 999; let isVoor = false;
 
-                        // Speelt de kandidaat direct NÁ deze taak? (Taak is vóór eigen wedstrijd)
-                        if (startMin < eigenStart) {
-                            verschilMinuten = eigenStart - eindMin;
-                            isVoor = true;
-                        } 
-                        // Speelt de kandidaat direct VÓÓR deze taak? (Taak is na eigen wedstrijd)
-                        else if (startMin >= eigenEind) {
-                            verschilMinuten = startMin - eigenEind;
-                        }
+                        if (startMin < eigenStart) { verschilMinuten = eigenStart - eindMin; isVoor = true; } // Taak Vóór eigen wedstrijd
+                        else if (startMin >= eigenEind) { verschilMinuten = startMin - eigenEind; isVoor = false; } // Taak Ná eigen wedstrijd
 
                         if (verschilMinuten >= 0) {
-                            // Gaten-Straf: -30 punten per 15 minuten wachten (max 2 uur berekenen)
                             let wachttijdKwartieren = Math.floor(verschilMinuten / 15);
                             if (wachttijdKwartieren > 0) {
-                                score -= (wachttijdKwartieren * 30);
-                                uitleg.push(`Gat van ${verschilMinuten} min. (-${wachttijdKwartieren*30})`);
+                                score -= (wachttijdKwartieren * set.wachten);
+                                uitleg.push(`Gat van ${verschilMinuten} min. (-${wachttijdKwartieren*set.wachten})`);
                             }
 
-                            // Aansluitingsbonus
                             if (verschilMinuten <= 15) {
-                                if (eigenStatus.veld === matchStatus.veld) {
-                                    score += 150; uitleg.push("Sluit direct aan op zelfde veld (+150)");
-                                } else {
-                                    score += 130; uitleg.push("Sluit direct aan op ander veld (+130)");
-                                }
+                                if (eigenStatus.veld === matchStatus.veld) { score += set.zelfdeVeld; uitleg.push(`Aansluiting zelfde veld (+${set.zelfdeVeld})`); } 
+                                else { score += set.anderVeld; uitleg.push(`Aansluiting ander veld (+${set.anderVeld})`); }
+                            }
+
+                            // TEAM VOORKEUREN CHECK (Bijv: M22 wil VÓÓR spelen)
+                            let voorkeurObj = set.voorkeuren.find(v => v.team === eigenThuisteam);
+                            if (voorkeurObj) {
+                                if (voorkeurObj.type === 'voor' && isVoor) { score += 80; uitleg.push("Voorkeur: Taak vóór match vervuld (+80)"); }
+                                if (voorkeurObj.type === 'na' && !isVoor) { score += 80; uitleg.push("Voorkeur: Taak ná match vervuld (+80)"); }
                             }
                         }
                     }
                 });
 
-                if (score > hoogsteScore) {
-                    hoogsteScore = score;
-                    besteKandidaat = kandidaat.naam;
-                    besteUitleg = uitleg;
-                }
+                if (score > hoogsteScore) { hoogsteScore = score; besteKandidaat = kandidaat.naam; besteUitleg = uitleg; }
             });
 
             if (besteKandidaat) {
                 taken[vakjeKey] = besteKandidaat;
-                taakTeller[besteKandidaat] = (taakTeller[besteKandidaat] || 0) + 1; // Direct updaten voor volgende run!
+                taakTeller[besteKandidaat] = (taakTeller[besteKandidaat] || 0) + 1; 
                 toegewezenAantal++;
                 
                 let uitlegTekst = besteUitleg.length > 0 ? besteUitleg.join(', ') : "Basis invulling";
-                smartFillLog += `
-                    <div style="border-bottom:1px solid #ccc; padding:8px 0;">
-                        <strong style="color:#2c3e50;">${wedstrijdNaam} (${matchStatus.tijd}) - ${taakTypeLabel}:</strong> 
-                        <span style="color:#27ae60; font-weight:bold;">${besteKandidaat}</span> 
-                        <span style="color:#7f8c8d; font-size:0.8rem; margin-left:10px;">[Score: ${hoogsteScore}] ➔ ${uitlegTekst}</span>
-                    </div>`;
+                smartFillLog += `<div style="border-bottom:1px solid #ccc; padding:8px 0;"><strong style="color:#2c3e50;">${wedstrijdNaam} (${matchStatus.tijd}) - ${taakTypeLabel}:</strong> <span style="color:#27ae60; font-weight:bold;">${besteKandidaat}</span> <span style="color:#7f8c8d; font-size:0.8rem; margin-left:10px;">[Score: ${hoogsteScore}] ➔ ${uitlegTekst}</span></div>`;
             }
         };
 
-        analyseerVakje('sA', 'Scheids A');
-        analyseerVakje('sB', 'Scheids B');
-        analyseerVakje('tab', 'Tablet');
-        analyseerVakje('sco', 'Scorebord');
-
-        window.takenDB[matchId] = taken; // Opslaan in het grote geheugen
+        analyseerVakje('sA', 'Scheids A'); analyseerVakje('sB', 'Scheids B'); analyseerVakje('tab', 'Tablet'); analyseerVakje('sco', 'Scorebord');
+        window.takenDB[matchId] = taken;
     });
 
-    if (toegewezenAantal === 0) {
-        alert("Het bord is al helemaal vol of er zijn geen logische kandidaten meer over!");
-        return;
-    }
+    if (toegewezenAantal === 0) return alert("Het bord is al helemaal vol of er zijn geen logische kandidaten meer over!");
 
-    // Laat het transparantie rapport zien!
     document.getElementById('smart-fill-log-container').innerHTML = smartFillLog;
     document.getElementById('smart-fill-rapport-modal').style.display = 'flex';
-    
-    // Sla op naar de database
     window.slaPlannerDataOp();
 };
