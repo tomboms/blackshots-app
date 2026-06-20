@@ -1,4 +1,4 @@
-// --- BASKETBAL_PLANNER.JS: 100% COMPLETE VERSIE (INCLUSIEF CLUBREGELS & TELLER) ---
+// --- BASKETBAL_PLANNER.JS: MET DATUM STOFZUIGER ---
 
 window.nbbWedstrijden = JSON.parse(localStorage.getItem('blackshots_wedstrijden_json')) || [];
 window.customWedstrijden = JSON.parse(localStorage.getItem('blackshots_custom_wedstrijden')) || [];
@@ -14,6 +14,17 @@ const START_UUR = 9;
 const EIND_UUR = 22; 
 const PIXEL_SCALE = 2; 
 const SNAP_MINUTEN = 15; 
+
+// 🧹 DE DATUM STOFZUIGER
+window.normaalDatum = function(d) {
+    if(!d) return "";
+    let str = String(d).trim().substring(0, 10); 
+    if (/^\d{2}-\d{2}-\d{4}$/.test(str)) {
+        let delen = str.split('-');
+        return `${delen[2]}-${delen[1]}-${delen[0]}`;
+    }
+    return str;
+};
 
 // ============================================================================
 // ☁️ CLOUD SYNC
@@ -48,10 +59,18 @@ window.ontvangCloudData = function(sleutel, data) {
 
 window.initPlanner = function() {
     let datumInput = document.getElementById('plan-datum');
-    let vandaag = new Date();
-    let verschilZaterdag = (vandaag.getDay() <= 6) ? (6 - vandaag.getDay()) : 6;
-    vandaag.setDate(vandaag.getDate() + verschilZaterdag);
-    datumInput.value = vandaag.toISOString().split('T')[0];
+    
+    // Check of we door het dashboard gestuurd zijn
+    let opgeslagenDatum = localStorage.getItem('blackshots_actieve_datum');
+    if (opgeslagenDatum) {
+        datumInput.value = window.normaalDatum(opgeslagenDatum);
+        localStorage.removeItem('blackshots_actieve_datum');
+    } else {
+        let vandaag = new Date();
+        let verschilZaterdag = (vandaag.getDay() <= 6) ? (6 - vandaag.getDay()) : 6;
+        vandaag.setDate(vandaag.getDate() + verschilZaterdag);
+        datumInput.value = vandaag.toISOString().split('T')[0];
+    }
     
     let opts = '<option value="">-- Selecteer team --</option>';
     window.teamsDB.forEach(t => { opts += `<option value="${t.naam}">${t.naam}</option>`; });
@@ -121,7 +140,7 @@ window.renderRegelsLijst = function() {
 };
 
 // ============================================================================
-// 🚨 CONFLICT ENGINE (TAKEN & TOOLTIPS)
+// 🚨 CONFLICT ENGINE
 // ============================================================================
 window.checkConflicten = function(taakPersoon, matchStartMin, matchEindMin, speelDatum, alleDaggeplande, huidigeMatchId, alleTakenHuidigeMatch) {
     let resultaat = { status: 'groen', berichten: [] };
@@ -209,12 +228,12 @@ window.werkTellerBij = function(dagWedstrijden) {
 };
 
 // ============================================================================
-// 🎨 BORD RENDERING MET CLUBREGELS
+// 🎨 BORD RENDERING 
 // ============================================================================
 window.laadPlanbord = function() {
     let bord = document.getElementById('planner-bord-container');
     let locatie = document.getElementById('plan-locatie').value;
-    let speelDatum = document.getElementById('plan-datum').value;
+    let speelDatum = window.normaalDatum(document.getElementById('plan-datum').value);
     if(!bord || !speelDatum) return;
 
     let html = `<div class="tijd-as"><div class="veld-header">Tijd</div>`;
@@ -239,11 +258,12 @@ window.laadPlanbord = function() {
 };
 
 window.plaatsWedstrijdenInWachtkamer = function(datum) {
+    let schoneDatum = window.normaalDatum(datum);
     let container = document.getElementById('te-plannen-container');
     Array.from(container.children).forEach(child => { if (!child.classList.contains('wachtkamer-header') && child.id !== 'wachtkamer-leeg') child.remove(); });
 
     let alleWedstrijden = [...window.nbbWedstrijden, ...window.customWedstrijden];
-    let dagWedstrijden = alleWedstrijden.filter(w => (w.Datum === datum || w.Datum.includes(datum)) && (w.Thuisteam || '').toLowerCase().includes('black shots'));
+    let dagWedstrijden = alleWedstrijden.filter(w => (window.normaalDatum(w.Datum) === schoneDatum) && (w.Thuisteam || '').toLowerCase().includes('black shots'));
 
     document.getElementById('aantal-te-plannen').innerText = dagWedstrijden.length;
     document.getElementById('wachtkamer-leeg').style.display = dagWedstrijden.length === 0 ? 'block' : 'none';
@@ -300,7 +320,7 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
 
         let aantalConflicten = 0;
         let checkTaak = (naam) => {
-            let conflictObj = dbStatus ? window.checkConflicten(naam, startMinuten, startMinuten + duurMinuten, datum, geplandeDataLijst, uniekId, taken) : { status: 'groen', berichten: [] };
+            let conflictObj = dbStatus ? window.checkConflicten(naam, startMinuten, startMinuten + duurMinuten, schoneDatum, geplandeDataLijst, uniekId, taken) : { status: 'groen', berichten: [] };
             let cssTaak = naam ? "taak-gevuld" : ""; let cssTekst = ""; let icoon = ""; let tooltip = "";
 
             if (conflictObj.status === 'rood') {
@@ -345,9 +365,6 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
     });
 };
 
-// ============================================================================
-// 📋 TAKEN TOEWIJZEN MODAL
-// ============================================================================
 window.genereerDropdownOpties = function(huidigeWaarde) {
     let html = `<option value="">-- Vrij --</option>`;
     html += `<optgroup label="👨‍⚖️ Scheidsrechters (Matrix)">`;
@@ -476,7 +493,7 @@ window.onDropTePlannen = function(e) {
 // 🤖 HANDMATIGE WEDSTRIJDEN & GENERATOR
 // ============================================================================
 window.genereerAlleTeams = function() {
-    let speelDatum = document.getElementById('plan-datum').value;
+    let speelDatum = window.normaalDatum(document.getElementById('plan-datum').value);
     if(!speelDatum) return alert("Kies eerst een datum!");
 
     if(!confirm(`Alle competitieteams toevoegen op ${speelDatum}?`)) return;
@@ -514,7 +531,7 @@ window.updateDuurSuggestie = function() {
 window.slaNieuweWedstrijdOp = function() {
     let teamNaam = document.getElementById('nw-match-team').value;
     let tegenstander = document.getElementById('nw-match-tegenstander').value.trim();
-    let speelDatum = document.getElementById('plan-datum').value;
+    let speelDatum = window.normaalDatum(document.getElementById('plan-datum').value);
     let duur = parseInt(document.getElementById('nw-match-duur').value);
     let type = document.getElementById('nw-match-type').value;
 
