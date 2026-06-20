@@ -1,4 +1,4 @@
-// --- BASKETBAL_OVERZICHT.JS: GEPANTSERDE VERSIE (CRASH-PROOF) ---
+// --- BASKETBAL_OVERZICHT.JS: DIRECTE READ & SLIMME MATCHING ---
 
 window.speeldagenDB = JSON.parse(localStorage.getItem('blackshots_speeldagen')) || [];
 window.nbbWedstrijden = JSON.parse(localStorage.getItem('blackshots_wedstrijden_json')) || [];
@@ -37,12 +37,10 @@ window.ontvangCloudData = function(sleutel, data) {
     if (sleutel === 'blackshots_plan_status') window.planStatusDB = data;
     if (sleutel === 'blackshots_scheidsrechters') window.scheidsrechtersDB = Array.isArray(data) ? data : Object.values(data);
     
+    // Voorkom dat een lege cloud-sync de lokale data weggooit tijdens het laden
     window.berekenEnRenderOverzicht();
 };
 
-// ============================================================================
-// ➕ CENTRALIZED SPEELDAG WIZARD ENGINE
-// ============================================================================
 window.openWedstrijddagModal = function() {
     let container = document.getElementById('wday-teams-lijst');
     if(!container) return;
@@ -123,12 +121,16 @@ window.slaCompleteWedstrijddagOp = function() {
 };
 
 // ============================================================================
-// 🎨 RENDERING EN SEIZOENSBEREKENINGEN (CRASH PROOF)
+// 🎨 RENDERING EN SEIZOENSBEREKENINGEN (DIRECT UIT LOCALSTORAGE)
 // ============================================================================
 window.berekenEnRenderOverzicht = function() {
-    let alleWedstrijden = [...(window.nbbWedstrijden || []), ...(window.customWedstrijden || [])];
+    // FORCEER DE DIRECTE READ VANUIT DE HARDESCHIJF OM CLOUD-LAG TE VOORKOMEN
+    let ruweTakenDB = JSON.parse(localStorage.getItem('blackshots_wedstrijd_taken')) || window.takenDB || {};
+    let ruweWedstrijden = JSON.parse(localStorage.getItem('blackshots_wedstrijden_json')) || window.nbbWedstrijden || [];
+    let ruweCustom = JSON.parse(localStorage.getItem('blackshots_custom_wedstrijden')) || window.customWedstrijden || [];
     
-    // MODEL 1: De Teams
+    let alleWedstrijden = [...ruweWedstrijden, ...ruweCustom];
+    
     let teamModel = {};
     (window.teamsDB || []).forEach(t => {
         if (t && !t.isVrijwilliger && !t.isRecreant && t.naam) {
@@ -136,7 +138,6 @@ window.berekenEnRenderOverzicht = function() {
         }
     });
 
-    // MODEL 2: De Individuele Scheidsrechters
     let scheidsModel = {};
     (window.scheidsrechtersDB || []).forEach(sr => {
         if (sr && sr.naam) scheidsModel[sr.naam] = 0;
@@ -149,7 +150,6 @@ window.berekenEnRenderOverzicht = function() {
     (window.speeldagenDB || []).forEach(datum => {
         dagStatusMap[datum] = { totaal: 0, vrij: 0, wedstrijden: 0 };
         
-        // VEILIGE FILTER: Controleer of alle velden echt bestaan als string
         let dagMatches = alleWedstrijden.filter(w => {
             let matchDatum = w.Datum ? String(w.Datum) : '';
             let isJuisteDatum = (matchDatum === String(datum) || matchDatum.includes(String(datum)));
@@ -166,16 +166,18 @@ window.berekenEnRenderOverzicht = function() {
             
             let wedstrijdNaam = thuisteam.replace('Black Shots ', '').trim();
             let cleanNummer = wedstrijdNummer ? wedstrijdNummer.replace(/[^a-zA-Z0-9]/g, '') : (thuisteam + uitteam).replace(/[^a-zA-Z0-9]/g, '');
+            
+            // Dezelfde onbreekbare ID opbouw als in de planner
             let uniekId = w.id || `match-${cleanNummer}`;
             
-            let taken = window.takenDB[uniekId] || { sA: "", sB: "", tab: "", sco: "" };
+            // Haal de taken op uit de geforceerde lokale geheugen check
+            let taken = ruweTakenDB[uniekId] || { sA: "", sB: "", tab: "", sco: "" };
             let slots = [taken.sA, taken.sB, taken.tab, taken.sco];
 
             slots.forEach(vakje => {
                 dagStatusMap[datum].totaal++;
                 totaalTakenTeller++;
                 
-                // Veilige string check voor het vakje
                 let vakjeStr = vakje ? String(vakje).trim() : "";
 
                 if (vakjeStr === "" || vakjeStr === "Vrij") {
@@ -184,7 +186,7 @@ window.berekenEnRenderOverzicht = function() {
                 } else {
                     let isToegewezen = false;
 
-                    // A. Check in scheidsrechters
+                    // A. Check in Vaste Scheidsrechters
                     Object.keys(scheidsModel).forEach(naam => {
                         if (vakjeStr === naam) {
                             scheidsModel[naam]++;
@@ -192,10 +194,13 @@ window.berekenEnRenderOverzicht = function() {
                         }
                     });
 
-                    // B. Check in teams
+                    // B. Check in Teams (Met slimme herkenning voor bijv. "Ouders X10")
                     if (!isToegewezen) {
                         Object.keys(teamModel).forEach(team => {
-                            if (vakjeStr === team || vakjeStr.includes(team)) {
+                            // "X10-1" omzetten naar "X10" voor bredere herkenning
+                            let teamBase = team.split('-')[0].trim(); 
+                            
+                            if (vakjeStr === team || vakjeStr.includes(team) || vakjeStr.includes(teamBase)) {
                                 teamModel[team]++;
                             }
                         });
