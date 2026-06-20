@@ -588,21 +588,29 @@ window.verwijderCustomWedstrijd = function(id) {
 };
 
 // ============================================================================
-// ⚙️ SMART FILL INSTELLINGEN & ENGINE (V 3.0 DYNAMISCH)
+// ⚙️ SMART FILL INSTELLINGEN & ENGINE (V 3.1 VOLLEDIG DYNAMISCH)
 // ============================================================================
 
-// Haal instellingen op of gebruik de standaard waarden
 window.sfSettingsDB = JSON.parse(localStorage.getItem('blackshots_smartfill_settings')) || {
-    zelfdeVeld: 150, anderVeld: 130, wachten: 30, niveau: 200, nietThuis: 500, eerlijkheid: 20, voorkeuren: []
+    zelfdeVeld: 150, anderVeld: 130, wachten: 30, niveau: 200, nietThuis: 500, eerlijkheid: 20, 
+    srBonus: 150, srTafelStraf: 100, srMaxStraf: 500, oudFluitBonus: 80, oudTafelStraf: 50, voorkeuren: []
 };
 
 window.openSmartFillSettings = function() {
-    document.getElementById('sf-set-zelfde').value = window.sfSettingsDB.zelfdeVeld;
-    document.getElementById('sf-set-ander').value = window.sfSettingsDB.anderVeld;
-    document.getElementById('sf-set-wachten').value = window.sfSettingsDB.wachten;
-    document.getElementById('sf-set-niveau').value = window.sfSettingsDB.niveau;
-    document.getElementById('sf-set-thuis').value = window.sfSettingsDB.nietThuis;
-    document.getElementById('sf-set-eerlijk').value = window.sfSettingsDB.eerlijkheid;
+    let s = window.sfSettingsDB;
+    document.getElementById('sf-set-zelfde').value = s.zelfdeVeld;
+    document.getElementById('sf-set-ander').value = s.anderVeld;
+    document.getElementById('sf-set-wachten').value = s.wachten;
+    document.getElementById('sf-set-niveau').value = s.niveau;
+    document.getElementById('sf-set-thuis').value = s.nietThuis;
+    document.getElementById('sf-set-eerlijk').value = s.eerlijkheid;
+    
+    // De nieuwe velden
+    if(document.getElementById('sf-set-sr-bonus')) document.getElementById('sf-set-sr-bonus').value = s.srBonus || 150;
+    if(document.getElementById('sf-set-sr-tafel')) document.getElementById('sf-set-sr-tafel').value = s.srTafelStraf || 100;
+    if(document.getElementById('sf-set-sr-max')) document.getElementById('sf-set-sr-max').value = s.srMaxStraf || 500;
+    if(document.getElementById('sf-set-oud-fluit')) document.getElementById('sf-set-oud-fluit').value = s.oudFluitBonus || 80;
+    if(document.getElementById('sf-set-oud-tafel')) document.getElementById('sf-set-oud-tafel').value = s.oudTafelStraf || 50;
 
     let opts = '<option value="">-- Kies Team --</option>';
     window.teamsDB.forEach(t => { if(!t.isRecreant && !t.isVrijwilliger) opts += `<option value="${t.naam}">${t.naam}</option>`; });
@@ -612,59 +620,24 @@ window.openSmartFillSettings = function() {
     document.getElementById('smart-fill-settings-modal').style.display = 'flex';
 };
 
-window.renderSfVoorkeuren = function() {
-    let lijst = document.getElementById('sf-voorkeuren-lijst');
-    if (window.sfSettingsDB.voorkeuren.length === 0) {
-        lijst.innerHTML = '<span style="color:#7f8c8d; font-style:italic;">Geen teamvoorkeuren ingesteld.</span>'; return;
-    }
-    let html = '';
-    window.sfSettingsDB.voorkeuren.forEach((v, index) => {
-        let tekst = v.type === 'voor' ? 'vóór hun eigen wedstrijd' : 'ná hun eigen wedstrijd';
-        html += `<div style="display:flex; justify-content:space-between; background:#eef2f5; padding:5px 10px; border-radius:4px;">
-            <span>🏀 <strong>${v.team}</strong> wil het liefst taken <strong>${tekst}</strong>.</span>
-            <button onclick="window.verwijderSfVoorkeur(${index})" style="background:none; border:none; color:#e74c3c; cursor:pointer;">🗑️</button>
-        </div>`;
-    });
-    lijst.innerHTML = html;
-};
-
-window.voegSfVoorkeurToe = function() {
-    let t = document.getElementById('sf-voorkeur-team').value;
-    let type = document.getElementById('sf-voorkeur-type').value;
-    if (!t) return;
-    window.sfSettingsDB.voorkeuren.push({ team: t, type: type });
-    window.renderSfVoorkeuren();
-};
-
-window.verwijderSfVoorkeur = function(index) {
-    window.sfSettingsDB.voorkeuren.splice(index, 1);
-    window.renderSfVoorkeuren();
-};
-
 window.slaSmartFillSettingsOp = function() {
-    window.sfSettingsDB.zelfdeVeld = parseInt(document.getElementById('sf-set-zelfde').value) || 0;
-    window.sfSettingsDB.anderVeld = parseInt(document.getElementById('sf-set-ander').value) || 0;
-    window.sfSettingsDB.wachten = parseInt(document.getElementById('sf-set-wachten').value) || 0;
-    window.sfSettingsDB.niveau = parseInt(document.getElementById('sf-set-niveau').value) || 0;
-    window.sfSettingsDB.nietThuis = parseInt(document.getElementById('sf-set-thuis').value) || 0;
-    window.sfSettingsDB.eerlijkheid = parseInt(document.getElementById('sf-set-eerlijk').value) || 0;
+    let s = window.sfSettingsDB;
+    s.zelfdeVeld = parseInt(document.getElementById('sf-set-zelfde').value) || 0;
+    s.anderVeld = parseInt(document.getElementById('sf-set-ander').value) || 0;
+    s.wachten = parseInt(document.getElementById('sf-set-wachten').value) || 0;
+    s.niveau = parseInt(document.getElementById('sf-set-niveau').value) || 0;
+    s.nietThuis = parseInt(document.getElementById('sf-set-thuis').value) || 0;
+    s.eerlijkheid = parseInt(document.getElementById('sf-set-eerlijk').value) || 0;
+    
+    s.srBonus = parseInt(document.getElementById('sf-set-sr-bonus').value) || 0;
+    s.srTafelStraf = parseInt(document.getElementById('sf-set-sr-tafel').value) || 0;
+    s.srMaxStraf = parseInt(document.getElementById('sf-set-sr-max').value) || 0;
+    s.oudFluitBonus = parseInt(document.getElementById('sf-set-oud-fluit').value) || 0;
+    s.oudTafelStraf = parseInt(document.getElementById('sf-set-oud-tafel').value) || 0;
 
-    localStorage.setItem('blackshots_smartfill_settings', JSON.stringify(window.sfSettingsDB));
+    localStorage.setItem('blackshots_smartfill_settings', JSON.stringify(s));
     document.getElementById('smart-fill-settings-modal').style.display = 'none';
 };
-
-window.bepaalNiveau = function(naam) {
-    if (!naam) return 0;
-    let up = naam.toUpperCase();
-    if (up.includes('X10') || up.includes('X12')) return 1;
-    if (up.includes('X14') || up.includes('M14') || up.includes('V14')) return 2;
-    if (up.includes('M16') || up.includes('V16')) return 3;
-    if (up.includes('M18') || up.includes('V18')) return 4;
-    if (up.includes('M20') || up.includes('V20') || up.includes('M22') || up.includes('V22')) return 5;
-    if (up.includes('HEREN') || up.includes('DAMES') || up.includes('SE')) return 6;
-    return 3;
-};
-
 // DE AANGEPASTE BOT ENGINE (Kijkt nu naar de instellingen!)
 window.startSmartFill = function() {
     let speelDatum = window.normaalDatum(document.getElementById('plan-datum').value);
@@ -672,7 +645,7 @@ window.startSmartFill = function() {
 
     if (!confirm("De Smart Fill Bot gaat nu proberen alle lege vakjes eerlijk in te vullen op het bord. Doorgaan?")) return;
 
-    let set = window.sfSettingsDB; // Kort linkje naar de instellingen
+    let set = window.sfSettingsDB; 
     let alleWedstrijden = [...window.nbbWedstrijden, ...window.customWedstrijden];
     let dagMatches = alleWedstrijden.filter(w => window.normaalDatum(w.Datum) === speelDatum && window.planStatusDB[window.genereerUniekId(w)]);
     
@@ -680,16 +653,27 @@ window.startSmartFill = function() {
     window.teamsDB.forEach(t => { if(!t.isRecreant && !t.isVrijwilliger) kandidatenLijst.push({ naam: t.naam, type: 'team' }); });
     window.scheidsrechtersDB.forEach(s => { kandidatenLijst.push({ naam: s.naam, type: 'scheids' }); });
 
+    // Tellers voor eerlijkheid EN burn-out
     let taakTeller = {};
+    let dagTellerRef = {}; 
+    
     Object.values(window.takenDB).forEach(taken => {
         ['sA', 'sB', 'tab', 'sco'].forEach(slot => {
             if (taken[slot] && taken[slot] !== "Vrij") taakTeller[taken[slot]] = (taakTeller[taken[slot]] || 0) + 1;
         });
     });
 
+    dagMatches.forEach(m => {
+        let t = window.takenDB[window.genereerUniekId(m)] || {};
+        ['sA', 'sB', 'tab', 'sco'].forEach(slot => {
+            if (t[slot] && t[slot] !== "Vrij") dagTellerRef[t[slot]] = (dagTellerRef[t[slot]] || 0) + 1;
+        });
+    });
+
     let thuisteamsVandaag = dagMatches.map(m => m.Thuisteam.replace('Black Shots ', '').trim());
     let smartFillLog = ''; let toegewezenAantal = 0;
 
+    // Sorteer van vroeg naar laat
     dagMatches.sort((a, b) => window.tijdNaarMinuten(window.planStatusDB[window.genereerUniekId(a)].tijd) - window.tijdNaarMinuten(window.planStatusDB[window.genereerUniekId(b)].tijd));
 
     dagMatches.forEach(match => {
@@ -717,33 +701,58 @@ window.startSmartFill = function() {
 
                 if (conflictCheck.status === 'rood') return; 
 
-                // 2. DYNAMISCHE STRAFFEN
                 let heeftWedstrijdVandaag = thuisteamsVandaag.some(t => kandidaat.naam.includes(t) || t.includes(kandidaat.naam));
                 if (kandidaat.type === 'team' && !heeftWedstrijdVandaag) {
                     score -= set.nietThuis; uitleg.push(`Niet thuis spelen (-${set.nietThuis})`);
                 }
 
                 let eerdereTaken = taakTeller[kandidaat.naam] || 0;
-                score -= (eerdereTaken * set.eerlijkheid);
-                if (eerdereTaken > 0) uitleg.push(`Al ${eerdereTaken} taken dit seizoen (-${eerdereTaken*set.eerlijkheid})`);
+                if (eerdereTaken > 0) {
+                    score -= (eerdereTaken * set.eerlijkheid);
+                    uitleg.push(`Al ${eerdereTaken} taken in seizoen (-${eerdereTaken*set.eerlijkheid})`);
+                }
+
+                let kandidaatNiveau = window.bepaalNiveau(kandidaat.naam);
 
                 // 3. JURYTAFEL SPECIFIEK
                 if (vakjeKey === 'tab' || vakjeKey === 'sco') {
-                    if (kandidaat.type === 'scheids') { score -= 100; uitleg.push("Vaste scheids achter tafel (-100)"); }
-                    if (matchNiveau <= 1 && kandidaat.naam.toLowerCase().includes('ouders')) { score += 1000; uitleg.push("Ouders voor U12 (+1000)"); }
-                    if (window.bepaalNiveau(kandidaat.naam) >= 5) { score -= 50; uitleg.push("Senioren/M22 tafelen liever niet (-50)"); }
+                    if (kandidaat.type === 'scheids') { 
+                        score -= set.srTafelStraf; 
+                        uitleg.push(`Vaste scheids achter tafel (-${set.srTafelStraf})`); 
+                    }
+                    if (matchNiveau <= 1 && kandidaat.naam.toLowerCase().includes('ouders')) { 
+                        score += 1000; 
+                        uitleg.push("Ouders voor U12 (+1000)"); 
+                    }
+                    if (kandidaatNiveau >= 5 && kandidaat.type === 'team') { 
+                        score -= set.oudTafelStraf; 
+                        uitleg.push(`Ouder team (Senioren/M22) tafelt (-${set.oudTafelStraf})`); 
+                    }
                 }
 
                 // 4. SCHEIDSRECHTER SPECIFIEK
                 if (vakjeKey === 'sA' || vakjeKey === 'sB') {
-                    let kandidaatNiveau = window.bepaalNiveau(kandidaat.naam);
-                    if (kandidaat.type === 'scheids') { score += 150; uitleg.push("Vaste Scheidsrechter (+150)"); }
+                    if (kandidaat.type === 'scheids') { 
+                        score += set.srBonus; 
+                        uitleg.push(`Vaste Scheids (+${set.srBonus})`); 
+                        
+                        // BURN-OUT CHECK
+                        let dagTaken = dagTellerRef[kandidaat.naam] || 0;
+                        if (dagTaken >= 2) {
+                            score -= set.srMaxStraf;
+                            uitleg.push(`Burn-out: Al ${dagTaken}x gepland vandaag (-${set.srMaxStraf})`);
+                        }
+                    }
                     
                     if (kandidaat.type === 'team') {
                         let verschil = matchNiveau - kandidaatNiveau;
                         if (verschil > 0) {
                             score -= (verschil * set.niveau);
                             uitleg.push(`Niveau te hoog: ${verschil} treden (-${verschil*set.niveau})`);
+                        }
+                        if (kandidaatNiveau >= 5) {
+                            score += set.oudFluitBonus;
+                            uitleg.push(`Ouder team fluit-bonus (+${set.oudFluitBonus})`);
                         }
                     }
                 }
@@ -774,11 +783,11 @@ window.startSmartFill = function() {
                                 else { score += set.anderVeld; uitleg.push(`Aansluiting ander veld (+${set.anderVeld})`); }
                             }
 
-                            // TEAM VOORKEUREN CHECK (Bijv: M22 wil VÓÓR spelen)
+                            // TEAM VOORKEUREN CHECK
                             let voorkeurObj = set.voorkeuren.find(v => v.team === eigenThuisteam);
                             if (voorkeurObj) {
-                                if (voorkeurObj.type === 'voor' && isVoor) { score += 80; uitleg.push("Voorkeur: Taak vóór match vervuld (+80)"); }
-                                if (voorkeurObj.type === 'na' && !isVoor) { score += 80; uitleg.push("Voorkeur: Taak ná match vervuld (+80)"); }
+                                if (voorkeurObj.type === 'voor' && isVoor) { score += 80; uitleg.push("Voorkeur: Taak vóór match (+80)"); }
+                                if (voorkeurObj.type === 'na' && !isVoor) { score += 80; uitleg.push("Voorkeur: Taak ná match (+80)"); }
                             }
                         }
                     }
@@ -790,6 +799,9 @@ window.startSmartFill = function() {
             if (besteKandidaat) {
                 taken[vakjeKey] = besteKandidaat;
                 taakTeller[besteKandidaat] = (taakTeller[besteKandidaat] || 0) + 1; 
+                if (kandidatenLijst.find(k => k.naam === besteKandidaat).type === 'scheids') {
+                    dagTellerRef[besteKandidaat] = (dagTellerRef[besteKandidaat] || 0) + 1;
+                }
                 toegewezenAantal++;
                 
                 let uitlegTekst = besteUitleg.length > 0 ? besteUitleg.join(', ') : "Basis invulling";
