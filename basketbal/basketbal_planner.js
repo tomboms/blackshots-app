@@ -905,3 +905,13 @@ window.startSmartFill = function() {
         console.error(error);
     }
 };
+
+
+// 🛡️ DE KOGELVRIJE ID GENERATOR (Die was even kwijt!)
+window.genereerUniekId = function(w) {
+    if (w.id) return w.id; // Voor custom wedstrijden
+    let thuisteam = w.Thuisteam ? String(w.Thuisteam) : '';
+    let uitteam = w.Uitteam ? String(w.Uitteam) : '';
+    let clean = w.Wedstrijdnummer ? String(w.Wedstrijdnummer).replace(/[^a-zA-Z0-9]/g, '') : (thuisteam + uitteam).replace(/[^a-zA-Z0-9]/g, '');
+    return `match-${window.normaalDatum(w.Datum)}-${clean}`;
+};
