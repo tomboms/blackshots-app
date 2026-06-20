@@ -1,6 +1,6 @@
-// --- FIREBASE_MOTOR.JS: LIVE SYNC & KOGELVRIJE OPSLAG ---
+// --- FIREBASE_MOTOR.JS: LIVE SYNC & KOGELVRIJE OPSLAG (GEÜPDATET VOOR PLANNER) ---
 
-const APP_VERSIE = "v.321";
+const APP_VERSIE = "v.322"; // Versie eentje omhoog gezet voor de nieuwe planner!
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
 import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
@@ -67,12 +67,16 @@ window.autoUpload = async function(key, value) {
 window.startLiveSync = function() {
     if (!navigator.onLine) return;
     
+    // NIEUW: Alle nieuwe planner, matrix en overzicht databases zijn hier toegevoegd!
     const onderdelen = [
         'blackshots_teams', 'blackshots_spelers', 'blackshots_oefeningen', 
         'blackshots_toernooi', 'blackshots_trainingen', 'blackshots_gebruikers', 
         'blackshots_bestuur', 'blackshots_jaarplanning_data', 
         'blackshots_zaalhuur_data', 'blackshots_jaarplanning_categorieen',
-        'blackshots_poule_teams', 'blackshots_wedstrijden_json'
+        'blackshots_poule_teams', 'blackshots_wedstrijden_json',
+        'blackshots_scheidsrechters', 'blackshots_speeldagen', 
+        'blackshots_custom_wedstrijden', 'blackshots_wedstrijd_taken', 
+        'blackshots_plan_status', 'blackshots_clubregels', 'blackshots_beschikbaarheid'
     ];
 
     onderdelen.forEach(key => {
@@ -87,15 +91,21 @@ window.startLiveSync = function() {
                     
                     let parsedData = JSON.parse(cloudData);
                     
+                    // Oude koppelingen
                     if (key === 'blackshots_teams') window.teamsDB = parsedData;
                     if (key === 'blackshots_spelers') window.spelersDB = parsedData;
                     if (key === 'blackshots_trainingen') window.geplandeTrainingenDB = parsedData;
                     if (key === 'blackshots_oefeningen') window.oefeningenDB = parsedData;
                     if (key === 'blackshots_toernooi') window.toernooiDB = parsedData;
                     
-                    if (key === 'blackshots_jaarplanning_data' || key === 'blackshots_jaarplanning_categorieen') {
+                    // Nieuwe koppelingen: Geef het door via ontvangCloudData (Voor Planner & Overzicht)
+                    if (['blackshots_jaarplanning_data', 'blackshots_jaarplanning_categorieen', 
+                         'blackshots_scheidsrechters', 'blackshots_speeldagen', 
+                         'blackshots_custom_wedstrijden', 'blackshots_wedstrijd_taken', 
+                         'blackshots_plan_status', 'blackshots_clubregels', 'blackshots_beschikbaarheid'].includes(key)) {
                         if (typeof window.ontvangCloudData === 'function') window.ontvangCloudData(key, parsedData);
                     }
+
                     if (key === 'blackshots_zaalhuur_data') {
                         if (typeof window.ontvangCloudDataZaalhuur === 'function') window.ontvangCloudDataZaalhuur(key, parsedData);
                     }
@@ -105,6 +115,7 @@ window.startLiveSync = function() {
                     
                     updateStatus('bijgewerkt');
                     
+                    // Herlaad de schermen als de functies bestaan
                     if(typeof window.laadDashboardData === 'function') window.laadDashboardData();
                     if(typeof window.renderTeamBeheer === 'function') window.renderTeamBeheer();
                     if(typeof window.renderSpelers === 'function') window.renderSpelers();
@@ -113,16 +124,21 @@ window.startLiveSync = function() {
                     if(typeof window.tekenKalender === 'function') window.tekenKalender();
                     if(typeof window.tekenZaalhuurResultaten === 'function') window.tekenZaalhuurResultaten();
                     if(typeof window.tekenPouleResultaten === 'function') window.tekenPouleResultaten();
+                    
+                    // NIEUW: Ververs de Planner, Overzicht en Matrix live
+                    if(typeof window.laadPlanbord === 'function') window.laadPlanbord();
+                    if(typeof window.berekenEnRenderOverzicht === 'function') window.berekenEnRenderOverzicht();
+                    if(typeof window.renderMatrix === 'function') window.renderMatrix();
                 }
             }
         });
     });
 };
 
-// KOGELVRIJE OPSLAG INTERCEPTIE
+// KOGELVRIJE OPSLAG INTERCEPTIE (Jouw eigen briljante code!)
 const origineleSetItem = localStorage.setItem;
 localStorage.setItem = function(key, value) {
-    origineleSetItem.call(localStorage, key, value); // Altijd veilige context gebruiken!
+    origineleSetItem.call(localStorage, key, value); 
     if (window.isDownloading || !key.startsWith('blackshots_')) return;
     try {
         window.autoUpload(key, JSON.parse(value));
