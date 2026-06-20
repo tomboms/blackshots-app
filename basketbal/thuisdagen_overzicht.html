@@ -15,7 +15,6 @@
         .main-content { flex: 2; min-width: 600px; }
         .side-content { flex: 1; min-width: 350px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-top: 4px solid #8e44ad; }
 
-        /* Kalender Kaarten */
         .dag-kaart { background: white; padding: 15px 20px; border-radius: 8px; margin-bottom: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); border: 1px solid #cbd5e1; border-left: 5px solid #3498db; display: flex; justify-content: space-between; align-items: center; transition: transform 0.1s, box-shadow 0.2s; }
         .dag-kaart:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.08); }
         .dag-info { display: flex; flex-direction: column; gap: 3px; }
@@ -25,7 +24,6 @@
         .status-compleet { background: #d4efdf; color: #27ae60; }
         .status-open { background: #fdebd0; color: #e67e22; }
 
-        /* Seizoens-Balans Balken */
         .balans-regel { margin-bottom: 15px; }
         .balans-label { display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: bold; color: #34495e; margin-bottom: 4px; }
         .balans-balk-bg { background: #e2e8f0; height: 10px; border-radius: 10px; overflow: hidden; }
@@ -33,6 +31,10 @@
         
         .open-btn { background: var(--primary-color); color: white; border: none; padding: 8px 15px; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.2s; text-decoration: none; font-size: 0.85rem; }
         .open-btn:hover { background: #d35400; }
+
+        /* Team Selector Grid in Modal */
+        .team-grid-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }
+        .team-grid-row:last-child { border-bottom: none; }
     </style>
 </head>
 <body style="overflow-y: auto;">
@@ -46,9 +48,12 @@
 
     <main class="content-sectie active" style="max-width: 1400px; margin: 20px auto; padding: 0 15px;">
         
-        <div style="margin-bottom: 20px;">
-            <h2 style="margin: 0; color: var(--secondary-color);">📅 Seizoens-Dashboard & Thuisdagen</h2>
-            <p style="color: #7f8c8d; margin: 5px 0 0 0; font-size: 0.95rem;">Helikopterview over alle speeldagen en de totale lastenverdeling van de vereniging.</p>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px;">
+            <div>
+                <h2 style="margin: 0; color: var(--secondary-color);">📅 Seizoens-Dashboard & Thuisdagen</h2>
+                <p style="color: #7f8c8d; margin: 5px 0 0 0; font-size: 0.95rem;">Helikopterview over alle speeldagen en de totale lastenverdeling van de vereniging.</p>
+            </div>
+            <button onclick="window.openWedstrijddagModal()" style="background:#27ae60; color:white; border:none; padding:10px 20px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.95rem; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">➕ Wedstrijddag Aanmaken</button>
         </div>
 
         <div class="stats-grid">
@@ -73,20 +78,37 @@
         <div class="overzicht-layout">
             <div class="main-content">
                 <h3 style="color: var(--secondary-color); margin-top: 0; border-bottom: 2px solid #cbd5e1; padding-bottom: 8px;">📆 Wedstrijdagenda Archive</h3>
-                <div id="kalender-lijst-container">
-                    </div>
+                <div id="kalender-lijst-container"></div>
             </div>
 
             <div class="side-content">
                 <h3 style="color: var(--secondary-color); margin-top: 0; margin-bottom: 5px;">📊 De Seizoens-Balans</h3>
                 <p style="font-size: 0.75rem; color: #7f8c8d; margin-bottom: 15px; margin-top: 0;">Cumulatief overzicht van alle geleverde arbitrage- en tafeltaken van dit seizoen.</p>
-                
-                <div id="seizoens-balans-container">
-                    </div>
+                <div id="seizoens-balans-container"></div>
             </div>
         </div>
-
     </main>
+
+    <div id="wedstrijddag-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:99999; justify-content:center; align-items:center;">
+        <div style="background:white; padding:25px; border-radius:12px; width:95%; max-width:500px; box-shadow:0 10px 30px rgba(0,0,0,0.3); position:relative; display:flex; flex-direction:column; max-height:85vh;">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #eee; padding-bottom:10px; margin-bottom:15px; flex-shrink:0;">
+                <h3 style="margin:0; color:var(--secondary-color);">➕ Nieuwe Wedstrijddag Genereren</h3>
+                <button onclick="document.getElementById('wedstrijddag-modal').style.display='none'" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
+            </div>
+            
+            <div style="margin-bottom:15px; flex-shrink:0;">
+                <label style="font-weight:bold; font-size:0.9rem; color:#34495e; display:block; margin-bottom:5px;">1. Kies de Datum:</label>
+                <input type="date" id="wday-datum" style="width:100%; padding:10px; border:2px solid #3498db; border-radius:6px; font-weight:bold; font-size:1rem;">
+            </div>
+
+            <label style="font-weight:bold; font-size:0.9rem; color:#34495e; display:block; margin-bottom:5px; flex-shrink:0;">2. Selecteer Thuisspelende Teams & Voorkeurstijd:</label>
+            
+            <div id="wday-teams-lijst" style="flex:1; overflow-y:auto; border:1px solid #cbd5e1; border-radius:6px; padding:10px; background:#fdfdfd; margin-bottom:20px;">
+                </div>
+
+            <button onclick="window.slaCompleteWedstrijddagOp()" style="width:100%; padding:12px; background:#27ae60; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold; font-size:1rem; flex-shrink:0; box-shadow:0 3px 6px rgba(0,0,0,0.1);">🚀 Wedstrijddag & Matrix Aanmaken</button>
+        </div>
+    </div>
 
     <script src="basketbal_auth.js"></script>
     <script src="basketbal_overzicht.js"></script>

@@ -1,4 +1,4 @@
-// --- BASKETBAL_OVERZICHT.JS: DE SEIZOENS-BALANS ENGINE ---
+// --- BASKETBAL_OVERZICHT.JS: VOLLEDIGE VERSIE MET CENTRALE SPEELDAG GENERATOR ---
 
 window.speeldagenDB = JSON.parse(localStorage.getItem('blackshots_speeldagen')) || [];
 window.nbbWedstrijden = JSON.parse(localStorage.getItem('blackshots_wedstrijden_json')) || [];
@@ -11,7 +11,22 @@ window.initSeizoensOverzicht = function() {
     window.berekenEnRenderOverzicht();
 };
 
-// Ontvangt updates vanuit Firebase Cloud
+window.slaOverzichtDataOp = function() {
+    localStorage.setItem('blackshots_speeldagen', JSON.stringify(window.speeldagenDB));
+    localStorage.setItem('blackshots_custom_wedstrijden', JSON.stringify(window.customWedstrijden));
+    localStorage.setItem('blackshots_plan_status', JSON.stringify(window.planStatusDB));
+
+    if (typeof window.opslaanInFirebase === 'function') {
+        window.opslaanInFirebase('blackshots_speeldagen', window.speeldagenDB);
+        window.opslaanInFirebase('blackshots_custom_wedstrijden', window.customWedstrijden);
+        window.opslaanInFirebase('blackshots_plan_status', window.planStatusDB);
+    } else {
+        document.dispatchEvent(new CustomEvent('cloudSync', { detail: { sleutel: 'blackshots_speeldagen', data: window.speeldagenDB } }));
+        document.dispatchEvent(new CustomEvent('cloudSync', { detail: { sleutel: 'blackshots_custom_wedstrijden', data: window.customWedstrijden } }));
+        document.dispatchEvent(new CustomEvent('cloudSync', { detail: { sleutel: 'blackshots_plan_status', data: window.planStatusDB } }));
+    }
+};
+
 window.ontvangCloudData = function(sleutel, data) {
     if (!data) return;
     if (sleutel === 'blackshots_speeldagen') window.speeldagenDB = Array.isArray(data) ? data : Object.values(data);
@@ -23,26 +38,116 @@ window.ontvangCloudData = function(sleutel, data) {
     window.berekenEnRenderOverzicht();
 };
 
+// ============================================================================
+// ➕ CENTRALIZED SPEELDAG WIZARD ENGINE
+// ============================================================================
+window.openWedstrijddagModal = function() {
+    let container = document.getElementById('wday-teams-lijst');
+    if(!container) return;
+
+    // Stel datum standaard in op eerstvolgende zaterdag
+    let vandaag = new Date();
+    let verschilZaterdag = (vandaag.getDay() <= 6) ? (6 - vandaag.getDay()) : 6;
+    vandaag.setDate(vandaag.getDate() + verschilZaterdag);
+    document.getElementById('wday-datum').value = vandaag.toISOString().split('T')[0];
+
+    // Bouw de lijst met actieve competitieteams op
+    let html = '';
+    window.teamsDB.forEach(t => {
+        if (!t.isVrijwilliger && !t.isRecreant) {
+            html += `
+                <div class="team-grid-row">
+                    <label style="display:flex; align-items:center; gap:8px; font-weight:bold; cursor:pointer;">
+                        <input type="checkbox" class="wday-team-checkbox" value="${t.naam}" style="transform: scale(1.2);">
+                        🏀 ${t.naam}
+                    </label>
+                    <div>
+                        <span style="font-size:0.75rem; color:#7f8c8d; margin-right:5px;">Tijd:</span>
+                        <input type="time" id="wday-time-${t.naam.replace(/\s+/g, '')}" style="padding:4px; border:1px solid #bdc3c7; border-radius:4px; font-weight:bold;">
+                    </div>
+                </div>
+            `;
+        }
+    });
+    container.innerHTML = html;
+    document.getElementById('wedstrijddag-modal').style.display = 'flex';
+};
+
+window.slaCompleteWedstrijddagOp = function() {
+    let gekozenDatum = document.getElementById('wday-datum').value;
+    if (!gekozenDatum) return alert("Selecteer een geldige datum.");
+
+    // 1. Voeg de datum direct toe aan de Scheidsrechters matrix (indien nieuw)
+    if (!window.speeldagenDB.includes(gekozenDatum)) {
+        window.speeldagenDB.push(gekozenDatum);
+        window.speeldagenDB.sort();
+    }
+
+    let checkboxes = document.querySelectorAll('.wday-team-checkbox');
+    let aantalToegevoegd = 0;
+
+    checkboxes.forEach(chk => {
+        if (chk.checked) {
+            let teamNaam = chk.value;
+            let timeId = `wday-time-${teamNaam.replace(/\s+/g, '')}`;
+            let ingevuldeTijd = document.getElementById(timeId).value;
+
+            let uniekId = 'custom_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
+            
+            // Bepaal de lengte (X12 = 90, M16 = 105)
+            let naamUpper = teamNaam.toUpperCase();
+            let duur = (naamUpper.includes('14') || naamUpper.includes('16') || naamUpper.includes('18') || 
+                        naamUpper.includes('20') || naamUpper.includes('22') || naamUpper.includes('SE')) ? 105 : 90;
+
+            // 2. Maak de wedstrijd aan in het systeem
+            let nwMatch = {
+                id: uniekId,
+                Datum: gekozenDatum,
+                Thuisteam: "Black Shots " + teamNaam,
+                Uitteam: "Tegenstander " + teamNaam,
+                Tijd: ingevuldeTijd ? ingevuldeTijd : "Te plannen",
+                Status: "Te plannen",
+                Wedstrijdnummer: "Competitie",
+                handmatigeDuur: duur
+            };
+            window.customWedstrijden.push(nwMatch);
+
+            // 3. SLIM: Als er een tijd is ingevuld, zet hem dan direct vast op Veld 1 van de planner!
+            if (ingevuldeTijd) {
+                window.planStatusDB[uniekId] = {
+                    veld: 1, // Standaard veld 1, verplaatsen kan altijd via de planner
+                    tijd: ingevuldeTijd
+                };
+            }
+            aantalToegevoegd++;
+        }
+    });
+
+    // Sla alles centraal op & schiet door naar Firebase Cloud
+    window.slaOverzichtDataOp();
+    document.getElementById('wedstrijddag-modal').style.display = 'none';
+    window.berekenEnRenderOverzicht();
+
+    alert(`✅ Succes! Datum toegevoegd aan de matrix en ${aantalToegevoegd} wedstrijden klaargezet.`);
+};
+
+// ============================================================================
+// 🎨 RENDERING EN SEIZOENSBEREKENINGEN
+// ============================================================================
 window.berekenEnRenderOverzicht = function() {
     let alleWedstrijden = [...window.nbbWedstrijden, ...window.customWedstrijden];
     let teamModel = {};
     
-    // Bereid tellers voor elk clubteam voor
     window.teamsDB.forEach(t => {
-        if (!t.isVrijwilliger && !t.isRecreant) {
-            teamModel[t.naam] = 0;
-        }
+        if (!t.isVrijwilliger && !t.isRecreant) teamModel[t.naam] = 0;
     });
 
     let totaalTakenTeller = 0;
     let openTakenTeller = 0;
-    let dagStatusMap = {}; // Slaat op hoeveel open taken er per speeldatum zijn
+    let dagStatusMap = {};
 
-    // 1. SCANNEN VAN DE COMPLETE DATABASE OVER HET HELE SEIZOEN
     window.speeldagenDB.forEach(datum => {
         dagStatusMap[datum] = { totaal: 0, vrij: 0, wedstrijden: 0 };
-
-        // Filter alle thuiswedstrijden van deze specifieke datum
         let dagMatches = alleWedstrijden.filter(w => (w.Datum === datum || w.Datum.includes(datum)) && (w.Thuisteam || '').toLowerCase().includes('black shots'));
         
         dagStatusMap[datum].wedstrijden = dagMatches.length;
@@ -52,97 +157,68 @@ window.berekenEnRenderOverzicht = function() {
             let cleanNummer = w.Wedstrijdnummer ? String(w.Wedstrijdnummer).replace(/[^a-zA-Z0-9]/g, '') : (wedstrijdNaam + w.Uitteam).replace(/[^a-zA-Z0-9]/g, '');
             let uniekId = w.id || `match-${cleanNummer}`;
             
-            // Haal de opgeslagen taken op
             let taken = window.takenDB[uniekId] || { sA: "", sB: "", tab: "", sco: "" };
             let slots = [taken.sA, taken.sB, taken.tab, taken.sco];
 
             slots.forEach(vakje => {
                 dagStatusMap[datum].totaal++;
                 totaalTakenTeller++;
-
                 if (!vakje || vakje.trim() === "" || vakje === "Vrij") {
-                    dagStatusMap[datum].vrij++;
-                    openTakenTeller++;
+                    dagStatusMap[datum].vrij++; openTakenTeller++;
                 } else {
-                    // Als het een bekend clubteam is, tel mee voor de Seizoens-Balans!
-                    if (teamModel[vakje] !== undefined) {
-                        teamModel[vakje]++;
-                    }
+                    if (teamModel[vakje] !== undefined) teamModel[vakje]++;
                 }
             });
         });
     });
 
-    // 2. BOVENSTE STATS UPADATEN
     document.getElementById('stat-totaal-dagen').innerText = window.speeldagenDB.length;
     document.getElementById('stat-totaal-taken').innerText = totaalTakenTeller;
     document.getElementById('stat-open-taken').innerText = openTakenTeller;
 
-    // Bereken het drukste team
-    let druksteTeam = "--";
-    let maxTaken = 0;
+    let druksteTeam = "--"; let maxTaken = 0;
     Object.keys(teamModel).forEach(team => {
         if (teamModel[team] > maxTaken) {
-            maxTaken = teamModel[team];
-            druksteTeam = `${team} (${maxTaken})`;
+            maxTaken = teamModel[team]; druksteTeam = `${team} (${maxTaken})`;
         }
     });
     document.getElementById('stat-drukste-team').innerText = druksteTeam;
 
-    // 3. RENDER DE SEIZOENS-BALANS (RECHTS)
     let balansContainer = document.getElementById('seizoens-balans-container');
     if (balansContainer) {
         let htmlBalans = '';
-        // Sorteer teams zodat het zwaarst belaste team bovenaan staat
         let gesorteerdeTeams = Object.keys(teamModel).sort((a,b) => teamModel[b] - teamModel[a]);
-        
-        // Bepaal de max waarde voor de 100% breedte van de voortgangsbalk
         let absoluteMax = Math.max(...Object.values(teamModel), 1);
 
         gesorteerdeTeams.forEach(team => {
-            let behaaldeTaken = teamModel[team];
-            let percentage = (behaaldeTaken / absoluteMax) * 100;
-
+            let percentage = (teamModel[team] / absoluteMax) * 100;
             htmlBalans += `
                 <div class="balans-regel">
-                    <div class="balans-label">
-                        <span>🏀 ${team}</span>
-                        <strong>${behaaldeTaken} taken</strong>
-                    </div>
-                    <div class="balans-balk-bg">
-                        <div class="balans-balk-fill" style="width: ${percentage}%;"></div>
-                    </div>
+                    <div class="balans-label"><span>🏀 ${team}</span><strong>${teamModel[team]} taken</strong></div>
+                    <div class="balans-balk-bg"><div class="balans-balk-fill" style="width: ${percentage}%;"></div></div>
                 </div>
             `;
         });
         balansContainer.innerHTML = htmlBalans;
     }
 
-    // 4. RENDER DE SPEELDAGEN AGENDA (LINKS)
     let kalenderContainer = document.getElementById('kalender-lijst-container');
     if (kalenderContainer) {
         if (window.speeldagenDB.length === 0) {
-            kalenderContainer.innerHTML = '<p style="color:#7f8c8d; font-style:italic;">Er staan nog geen speeldagen in je systeem. Ga naar de Scheidsrechters pagina om thuisdagen op te halen.</p>';
+            kalenderContainer.innerHTML = '<p style="color:#7f8c8d; font-style:italic;">Geen speeldagen gevonden.</p>';
             return;
         }
-
         let htmlKalender = '';
         window.speeldagenDB.forEach(datum => {
             let statusObj = dagStatusMap[datum] || { totaal: 0, vrij: 0, wedstrijden: 0 };
-            
             let d = new Date(datum);
-            let opties = { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' };
             let netteDatum = isNaN(d) ? datum : d.toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit' }) + ' - ' + d.toLocaleDateString('nl-NL', { weekday: 'short' });
-
             let badgeKleurClass = statusObj.vrij === 0 ? 'status-compleet' : 'status-open';
             let badgeTekst = statusObj.vrij === 0 ? '✅ Rond' : `⏳ ${statusObj.vrij} open taken`;
 
             htmlKalender += `
                 <div class="dag-kaart">
-                    <div class="dag-info">
-                        <span class="dag-datum">📅 ${netteDatum}</span>
-                        <span class="dag-meta">🏟️ ${statusObj.wedstrijden} thuiswedstrijden gepland</span>
-                    </div>
+                    <div class="dag-info"><span class="dag-datum">📅 ${netteDatum}</span><span class="dag-meta">🏟️ ${statusObj.wedstrijden} thuiswedstrijden</span></div>
                     <div style="display:flex; align-items:center; gap:15px;">
                         <span class="dag-status-badge ${badgeKleurClass}">${badgeTekst}</span>
                         <button onclick="window.stuurDoorNaarPlanner('${datum}')" class="open-btn">🧩 Open Planner</button>
@@ -155,7 +231,6 @@ window.berekenEnRenderOverzicht = function() {
 };
 
 window.stuurDoorNaarPlanner = function(datum) {
-    // Sla de geselecteerde datum op in het geheugen, zodat planner.html weet welke dag hij moet openen!
     localStorage.setItem('blackshots_actieve_datum', datum);
     window.location.href = 'planner.html';
 };
