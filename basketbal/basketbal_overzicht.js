@@ -123,19 +123,20 @@ window.slaCompleteWedstrijddagOp = function() {
 // ============================================================================
 // 🎨 RENDERING EN SEIZOENSBEREKENINGEN (DIRECT UIT LOCALSTORAGE)
 // ============================================================================
+// ============================================================================
+// 🎨 RENDERING EN SEIZOENSBEREKENINGEN (FORCEER ACTUELE LOKALE DATA)
+// ============================================================================
 window.berekenEnRenderOverzicht = function() {
-    // FORCEER DE DIRECTE READ VANUIT DE HARDESCHIJF OM CLOUD-LAG TE VOORKOMEN
-    let ruweTakenDB = JSON.parse(localStorage.getItem('blackshots_wedstrijd_taken')) || window.takenDB || {};
-    let ruweWedstrijden = JSON.parse(localStorage.getItem('blackshots_wedstrijden_json')) || window.nbbWedstrijden || [];
-    let ruweCustom = JSON.parse(localStorage.getItem('blackshots_custom_wedstrijden')) || window.customWedstrijden || [];
+    // 1. FORCEER EEN VERSE DOWNLOAD UIT HET GEHEUGEN (NEGEERT CACHE/CLOUD LAG)
+    let actueleTakenDB = JSON.parse(localStorage.getItem('blackshots_wedstrijd_taken')) || {};
+    let actueleWedstrijden = JSON.parse(localStorage.getItem('blackshots_wedstrijden_json')) || [];
+    let actueleCustom = JSON.parse(localStorage.getItem('blackshots_custom_wedstrijden')) || [];
     
-    let alleWedstrijden = [...ruweWedstrijden, ...ruweCustom];
+    let alleWedstrijden = [...actueleWedstrijden, ...actueleCustom];
     
     let teamModel = {};
     (window.teamsDB || []).forEach(t => {
-        if (t && !t.isVrijwilliger && !t.isRecreant && t.naam) {
-            teamModel[t.naam] = 0;
-        }
+        if (t && !t.isVrijwilliger && !t.isRecreant && t.naam) teamModel[t.naam] = 0;
     });
 
     let scheidsModel = {};
@@ -166,12 +167,10 @@ window.berekenEnRenderOverzicht = function() {
             
             let wedstrijdNaam = thuisteam.replace('Black Shots ', '').trim();
             let cleanNummer = wedstrijdNummer ? wedstrijdNummer.replace(/[^a-zA-Z0-9]/g, '') : (thuisteam + uitteam).replace(/[^a-zA-Z0-9]/g, '');
-            
-            // Dezelfde onbreekbare ID opbouw als in de planner
             let uniekId = w.id || `match-${cleanNummer}`;
             
-            // Haal de taken op uit de geforceerde lokale geheugen check
-            let taken = ruweTakenDB[uniekId] || { sA: "", sB: "", tab: "", sco: "" };
+            // GEBRUIK DE ACTUELE DATABASE, NIET DE CACHE!
+            let taken = actueleTakenDB[uniekId] || { sA: "", sB: "", tab: "", sco: "" };
             let slots = [taken.sA, taken.sB, taken.tab, taken.sco];
 
             slots.forEach(vakje => {
@@ -185,25 +184,25 @@ window.berekenEnRenderOverzicht = function() {
                     openTakenTeller++;
                 } else {
                     let isToegewezen = false;
+                    let vakjeLow = vakjeStr.toLowerCase();
 
                     // A. Check in Vaste Scheidsrechters
-                    Object.keys(scheidsModel).forEach(naam => {
-                        if (vakjeStr === naam) {
-                            scheidsModel[naam]++;
-                            isToegewezen = true;
-                        }
-                    });
+                    let matchScheids = Object.keys(scheidsModel).find(naam => vakjeLow === naam.toLowerCase() || vakjeLow.includes(naam.toLowerCase()));
+                    if (matchScheids) {
+                        scheidsModel[matchScheids]++;
+                        isToegewezen = true;
+                    }
 
-                    // B. Check in Teams (Met slimme herkenning voor bijv. "Ouders X10")
+                    // B. Check in Teams (Slimme logica voor "M18" vs "M18-1" vs "Ouders X10")
                     if (!isToegewezen) {
-                        Object.keys(teamModel).forEach(team => {
-                            // "X10-1" omzetten naar "X10" voor bredere herkenning
-                            let teamBase = team.split('-')[0].trim(); 
-                            
-                            if (vakjeStr === team || vakjeStr.includes(team) || vakjeStr.includes(teamBase)) {
-                                teamModel[team]++;
-                            }
+                        let matchTeam = Object.keys(teamModel).find(team => {
+                            let teamBase = team.split('-')[0].toLowerCase().trim(); // Maakt van "M18-1" even "m18"
+                            return vakjeLow === team.toLowerCase() || vakjeLow.includes(team.toLowerCase()) || vakjeLow.includes(teamBase);
                         });
+                        
+                        if (matchTeam) {
+                            teamModel[matchTeam]++;
+                        }
                     }
                 }
             });
