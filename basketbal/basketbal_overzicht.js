@@ -367,3 +367,4 @@ window.stuurDoorNaarPlanner = function(datum) {
     localStorage.setItem('blackshots_actieve_datum', datum);
     window.location.href = 'planner.html';
 };
+
