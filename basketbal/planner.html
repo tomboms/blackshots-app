@@ -72,6 +72,7 @@
             <h2 style="margin:0; color:var(--secondary-color);">🧩 Thuiswedstrijd Planner</h2>
             <div style="display:flex; gap:10px;">
                 <button onclick="window.openRegelsModal()" style="background:#8e44ad; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">📜 Clubregels</button>
+                <button onclick="window.triggerJsonUpload()" style="background:#2980b9; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; margin-right:10px;">📥 Upload NBB Schema (JSON)</button>
                 <button onclick="window.genereerAlleTeams()" style="background:#34495e; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">⚡ Genereer Alle Teams</button>
                 <button onclick="window.startSmartFill()" style="background: linear-gradient(135deg, #8e44ad, #3498db); color: white; border: none; padding: 10px 15px; border-radius: 4px; font-weight: bold; cursor: pointer; margin-left: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: transform 0.2s;">✨ Vul Automatisch (Smart Fill)</button>
                 <button onclick="window.openSmartFillSettings()" style="background: #34495e; color: white; border: none; padding: 10px 15px; border-radius: 4px; font-weight: bold; cursor: pointer; margin-left: 5px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: transform 0.2s;">⚙️ Instellingen</button> 
@@ -144,29 +145,24 @@
     </div>
 
     <!-- TAKEN MODAL -->
-    <div id="taken-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:99999; justify-content:center; align-items:center;">
-        <div style="background:white; padding:25px; border-radius:12px; width:90%; max-width:450px; box-shadow:0 10px 30px rgba(0,0,0,0.3); position:relative;">
-            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #eee; padding-bottom:10px; margin-bottom:15px;">
-                <h3 style="margin:0; color:var(--secondary-color);">📋 Taken Toewijzen</h3>
-                <button onclick="document.getElementById('taken-modal').style.display='none'" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
-            </div>
-            <input type="hidden" id="taak-match-id">
-            <div style="margin-bottom:15px; background:#f8f9fa; padding:10px; border-radius:6px; border:1px solid #e2e8f0;">
-                <strong style="color:#d35400;" id="taak-match-titel">Titel</strong>
-                <div style="font-size:0.8rem; color:#7f8c8d;" id="taak-match-meta">Meta</div>
-            </div>
-            <div style="display:flex; gap:10px; margin-bottom:15px;">
-                <div style="flex:1;"><label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">👨‍⚖️ Scheids A:</label><select id="taak-scheids-a" onchange="window.checkHandmatigeInvoer(this)" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;"></select></div>
-                <div style="flex:1;"><label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">👨‍⚖️ Scheids B:</label><select id="taak-scheids-b" onchange="window.checkHandmatigeInvoer(this)" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;"></select></div>
-            </div>
-            <div style="display:flex; gap:10px; margin-bottom:20px;">
-                <div style="flex:1;"><label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">💻 Tablet (DWF):</label><select id="taak-tablet" onchange="window.checkHandmatigeInvoer(this)" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;"></select></div>
-                <div style="flex:1;"><label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">⏱️ Scorebord:</label><select id="taak-score" onchange="window.checkHandmatigeInvoer(this)" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;"></select></div>
-            </div>
-            <button onclick="window.slaTakenOp()" style="width:100%; padding:12px; background:var(--primary-color); color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold; font-size:1rem;">✅ Opslaan</button>
+<div id="taken-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:99999; justify-content:center; align-items:center;">
+    <div style="background:white; padding:25px; border-radius:12px; width:90%; max-width:450px; box-shadow:0 10px 30px rgba(0,0,0,0.3); position:relative;">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #eee; padding-bottom:10px; margin-bottom:15px;">
+            <h3 style="margin:0; color:var(--secondary-color);" id="taak-modal-header">📋 Toewijzingen</h3>
+            <button onclick="document.getElementById('taken-modal').style.display='none'" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
         </div>
+        <input type="hidden" id="taak-match-id">
+        <div style="margin-bottom:15px; background:#f8f9fa; padding:10px; border-radius:6px; border:1px solid #e2e8f0;">
+            <strong style="color:#d35400;" id="taak-match-titel">Titel</strong>
+            <div style="font-size:0.8rem; color:#7f8c8d;" id="taak-match-meta">Meta</div>
+        </div>
+        
+        <!-- HIER SPUUGT DE JAVASCRIPT STRAKS DE VELDEN IN -->
+        <div id="dynamische-taken-velden"></div>
+        
+        <button onclick="window.slaTakenOp()" style="width:100%; padding:12px; background:var(--primary-color); color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold; font-size:1rem;">✅ Opslaan</button>
     </div>
-
+</div>
     <!-- NIEUW WEDSTRIJD MODAL -->
     <div id="nieuw-wedstrijd-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:99999; justify-content:center; align-items:center;">
         <div style="background:white; padding:25px; border-radius:12px; width:90%; max-width:450px; box-shadow:0 10px 30px rgba(0,0,0,0.3); position:relative;">
