@@ -50,18 +50,23 @@
         
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px;">
             <div>
-                <h2 style="margin: 0; color: var(--secondary-color);">📅 Seizoens-Dashboard & Thuisdagen</h2>
-                <p style="color: #7f8c8d; margin: 5px 0 0 0; font-size: 0.95rem;">Helikopterview over alle speeldagen en de totale lastenverdeling van de vereniging.</p>
+                <h2 style="margin: 0; color: var(--secondary-color);">📅 Seizoens-Dashboard & Speeldagen</h2>
+                <p style="color: #7f8c8d; margin: 5px 0 0 0; font-size: 0.95rem;">Helikopterview over alle speeldagen (Thuis & Uit) en de totale lastenverdeling.</p>
             </div>
-            <button onclick="window.openWedstrijddagModal()" style="background:#27ae60; color:white; border:none; padding:10px 20px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.95rem; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">➕ Wedstrijddag Aanmaken</button>
+            <div style="display:flex; gap:10px;">
+                <button onclick="window.triggerJsonUpload()" style="background:#2980b9; color:white; border:none; padding:10px 20px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.95rem; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">📥 Upload NBB Schema (JSON)</button>
+                <button onclick="window.openWedstrijddagModal()" style="background:#27ae60; color:white; border:none; padding:10px 20px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.95rem; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">➕ Wedstrijddag Aanmaken</button>
+            </div>
         </div>
 
         <div class="stats-grid">
-            <div class="stats-card"><h3>Thuis-Speeldagen</h3><div class="stats-number" id="stat-totaal-dagen">0</div></div>
+            <div class="stats-card"><h3>Alle Speeldagen</h3><div class="stats-number" id="stat-totaal-dagen">0</div></div>
             <div class="stats-card" style="border-top-color: #27ae60;"><h3>Totaal Aantal Taken</h3><div class="stats-number" id="stat-totaal-taken">0</div></div>
             <div class="stats-card" style="border-top-color: #e67e22;"><h3>Open / Vrije Taken</h3><div class="stats-number" id="stat-open-taken">0</div></div>
             <div class="stats-card" style="border-top-color: #c0392b;"><h3>Meest Belaste Team</h3><div class="stats-number" id="stat-drukste-team" style="font-size: 1.4rem; padding-top: 5px;">--</div></div>
         </div>
+
+
 
         <div class="overzicht-layout">
             <!-- LINKS: KALENDER -->
