@@ -27,8 +27,15 @@ window.normaalDatum = function(d) {
     return str;
 };
 
+// 🛡️ DE KOGELVRIJE ID GENERATOR (Nu met NBB Tracking!)
 window.genereerUniekId = function(w) {
+    // 1. Heeft de bond een officieel ID meegegeven? Gebruik die!
+    if (w.ID) return `nbb-${w.ID}`; 
+    
+    // 2. Is het een handmatige wedstrijd? Gebruik jouw eigen ID.
     if (w.id) return w.id; 
+
+    // 3. Nood-vangnet (Voor het geval een bestand corrupt is)
     let thuisteam = w.Thuisteam ? String(w.Thuisteam) : '';
     let uitteam = w.Uitteam ? String(w.Uitteam) : '';
     let clean = w.Wedstrijdnummer ? String(w.Wedstrijdnummer).replace(/[^a-zA-Z0-9]/g, '') : (thuisteam + uitteam).replace(/[^a-zA-Z0-9]/g, '');
