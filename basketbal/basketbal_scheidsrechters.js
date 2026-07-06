@@ -1,9 +1,10 @@
-// --- BASKETBAL_SCHIDSRECHTERS.JS: ENGINE MET TEAMKOPPELING & CLOUD SYNC ---
+// --- BASKETBAL_SCHEIDSRECHTERS.JS ---
+window.veiligeArray = function(key) { try { let d = JSON.parse(localStorage.getItem(key)); return d ? (Array.isArray(d) ? d : Object.values(d)) : []; } catch(e) { return []; } };
+window.veiligObject = function(key) { try { let d = JSON.parse(localStorage.getItem(key)); return (d && typeof d === 'object' && !Array.isArray(d)) ? d : {}; } catch(e) { return {}; } };
 
-window.scheidsrechtersDB = JSON.parse(localStorage.getItem('blackshots_scheidsrechters')) || [];
-window.speeldagenDB = JSON.parse(localStorage.getItem('blackshots_speeldagen')) || [];
-window.beschikbaarheidDB = JSON.parse(localStorage.getItem('blackshots_beschikbaarheid')) || {};
-
+window.scheidsrechtersDB = window.veiligeArray('blackshots_scheidsrechters');
+window.speeldagenDB = window.veiligeArray('blackshots_speeldagen');
+window.beschikbaarheidDB = window.veiligObject('blackshots_beschikbaarheid');
 window.initScheidsMatrix = function() {
     window.renderMatrix();
 };

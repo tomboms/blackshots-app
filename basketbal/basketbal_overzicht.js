@@ -1,12 +1,14 @@
-// --- BASKETBAL_OVERZICHT.JS: INCLUSIEF NBB UPLOAD, THUIS & UITWEDSTRIJDEN ---
+// --- BASKETBAL_OVERZICHT.JS ---
+window.veiligeArray = function(key) { try { let d = JSON.parse(localStorage.getItem(key)); return d ? (Array.isArray(d) ? d : Object.values(d)) : []; } catch(e) { return []; } };
+window.veiligObject = function(key) { try { let d = JSON.parse(localStorage.getItem(key)); return (d && typeof d === 'object' && !Array.isArray(d)) ? d : {}; } catch(e) { return {}; } };
 
-window.speeldagenDB = JSON.parse(localStorage.getItem('blackshots_speeldagen')) || [];
-window.nbbWedstrijden = JSON.parse(localStorage.getItem('blackshots_wedstrijden_json')) || [];
-window.customWedstrijden = JSON.parse(localStorage.getItem('blackshots_custom_wedstrijden')) || [];
-window.teamsDB = JSON.parse(localStorage.getItem('blackshots_teams')) || [];
-window.scheidsrechtersDB = JSON.parse(localStorage.getItem('blackshots_scheidsrechters')) || [];
-window.takenDB = JSON.parse(localStorage.getItem('blackshots_wedstrijd_taken')) || {};
-window.planStatusDB = JSON.parse(localStorage.getItem('blackshots_plan_status')) || {};
+window.speeldagenDB = window.veiligeArray('blackshots_speeldagen');
+window.nbbWedstrijden = window.veiligeArray('blackshots_wedstrijden_json');
+window.customWedstrijden = window.veiligeArray('blackshots_custom_wedstrijden');
+window.teamsDB = window.veiligeArray('blackshots_teams');
+window.scheidsrechtersDB = window.veiligeArray('blackshots_scheidsrechters');
+window.takenDB = window.veiligObject('blackshots_wedstrijd_taken');
+window.planStatusDB = window.veiligObject('blackshots_plan_status');
 
 window.normaalDatum = function(d) {
     if(!d) return "";
@@ -367,4 +369,5 @@ window.stuurDoorNaarPlanner = function(datum) {
     localStorage.setItem('blackshots_actieve_datum', datum);
     window.location.href = 'planner.html';
 };
+
 

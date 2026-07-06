@@ -1,18 +1,24 @@
-// --- BASKETBAL_PLANNER.JS: MET AUTO-PLANNER, UIT-KOLOM & VERWIJDER FUNCTIES ---
+window.veiligeArray = function(key) { try { let d = JSON.parse(localStorage.getItem(key)); return d ? (Array.isArray(d) ? d : Object.values(d)) : []; } catch(e) { return []; } };
+window.veiligObject = function(key) { try { let d = JSON.parse(localStorage.getItem(key)); return (d && typeof d === 'object' && !Array.isArray(d)) ? d : {}; } catch(e) { return {}; } };
 
-window.nbbWedstrijden = JSON.parse(localStorage.getItem('blackshots_wedstrijden_json')) || [];
-window.customWedstrijden = JSON.parse(localStorage.getItem('blackshots_custom_wedstrijden')) || [];
-window.teamsDB = JSON.parse(localStorage.getItem('blackshots_teams')) || [];
-window.scheidsrechtersDB = JSON.parse(localStorage.getItem('blackshots_scheidsrechters')) || [];
-window.beschikbaarheidDB = JSON.parse(localStorage.getItem('blackshots_beschikbaarheid')) || {};
-window.takenDB = JSON.parse(localStorage.getItem('blackshots_wedstrijd_taken')) || {};
-window.planStatusDB = JSON.parse(localStorage.getItem('blackshots_plan_status')) || {}; 
-window.clubRegelsDB = JSON.parse(localStorage.getItem('blackshots_clubregels')) || [];
+window.nbbWedstrijden = window.veiligeArray('blackshots_wedstrijden_json');
+window.customWedstrijden = window.veiligeArray('blackshots_custom_wedstrijden');
+window.teamsDB = window.veiligeArray('blackshots_teams');
+window.scheidsrechtersDB = window.veiligeArray('blackshots_scheidsrechters');
+window.clubRegelsDB = window.veiligeArray('blackshots_clubregels');
+window.verborgenDB = window.veiligeArray('blackshots_verborgen_wedstrijden');
+window.takenDB = window.veiligObject('blackshots_wedstrijd_taken');
+window.planStatusDB = window.veiligObject('blackshots_plan_status');
+window.beschikbaarheidDB = window.veiligObject('blackshots_beschikbaarheid');
+
+const START_UUR = 9; 
+const EIND_UUR = 22; 
+const PIXEL_SCALE = 2; 
+const SNAP_MINUTEN = 15;
 
 // NIEUW: Database om NBB wedstrijden te verbergen als je ze verwijdert
 window.verborgenDB = JSON.parse(localStorage.getItem('blackshots_verborgen_wedstrijden')) || [];
 
-const START_UUR = 9; const EIND_UUR = 22; const PIXEL_SCALE = 2; const SNAP_MINUTEN = 15; 
 
 window.normaalDatum = function(d) {
     if(!d) return "";
