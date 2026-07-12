@@ -250,6 +250,18 @@ window.checkConflicten = function(taakPersoon, matchStartMin, matchEindMin, spee
         if (resultaat.status !== 'rood') resultaat.status = 'oranje'; resultaat.berichten.push("Te jong voor taken.");
     }
 
+    let alleWedstrijden = [...(window.nbbWedstrijden || []), ...(window.customWedstrijden || [])];
+    let huidigeMatch = alleWedstrijden.find(w => window.genereerUniekId(w) === huidigeMatchId);
+    if (huidigeMatch) {
+        let isHuidigeThuis = (huidigeMatch.Thuisteam || '').toLowerCase().includes('black shots');
+        let huidigeTeamNaam = isHuidigeThuis ? huidigeMatch.Thuisteam.replace('Black Shots ', '').trim() : huidigeMatch.Uitteam.replace('Black Shots ', '').trim();
+        let huidigeTeamDb = (window.teamsDB || []).find(t => t && t.naam === huidigeTeamNaam);
+        // Alleen de COACH wordt geblokkeerd voor zijn eigen wedstrijd
+        if (huidigeTeamDb && huidigeTeamDb.coach && huidigeTeamDb.coach.includes(veiligeNaam)) {
+            resultaat.status = 'rood'; resultaat.berichten.push(`Is coach van dit team!`); return resultaat;
+        }
+    }
+
     (alleDaggeplande || []).forEach(andereMatch => {
         let aStart = window.tijdNaarMinuten(andereMatch.geplandeTijd);
         if (aStart === 0) return; let aEind = aStart + andereMatch.duur;
@@ -262,11 +274,16 @@ window.checkConflicten = function(taakPersoon, matchStartMin, matchEindMin, spee
             let anderThuisteam = (andereMatch.Thuisteam || '').replace('Black Shots ', '').trim();
             if (veiligeNaam === anderThuisteam || veiligeNaam.includes(anderThuisteam)) { resultaat.status = 'rood'; resultaat.berichten.push(`Team speelt zelf.`); }
             if (sr && sr.gekoppeldTeam && sr.gekoppeldTeam === anderThuisteam) { resultaat.status = 'rood'; resultaat.berichten.push(`Speelt nu zelf bij ${sr.gekoppeldTeam}.`); }
+            
+            // Coach mag niet fluiten als zijn team tegelijkertijd speelt
+            let overlappendTeamDb = (window.teamsDB || []).find(t => t && t.naam === anderThuisteam);
+            if (overlappendTeamDb && overlappendTeamDb.coach && overlappendTeamDb.coach.includes(veiligeNaam)) { 
+                resultaat.status = 'rood'; resultaat.berichten.push(`Is aan het coachen bij ander team.`); 
+            }
         }
     });
     return resultaat;
 };
-
 window.werkTellerBij = function(dagWedstrijden) {
     let counts = {};
     dagWedstrijden.forEach(w => {
@@ -418,10 +435,20 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
             let tTab = window.checkConflicten(taken.tab, startMinuten, startMinuten + duurMinuten, schoneDatum, geplandeDataLijst, uniekId, taken);
             let tSco = window.checkConflicten(taken.sco, startMinuten, startMinuten + duurMinuten, schoneDatum, geplandeDataLijst, uniekId, taken);
             
+            // DE HERSTELDE CONFLICT TELLER & BANNER
+            let aantalConflicten = 0;
+            if(tA.status === 'rood') aantalConflicten++;
+            if(tB.status === 'rood') aantalConflicten++;
+            if(tTab.status === 'rood') aantalConflicten++;
+            if(tSco.status === 'rood') aantalConflicten++;
+            let conflictBanner = aantalConflicten > 0 ? `<div class="conflict-banner">⚠️ ${aantalConflicten} Taak Conflict(en)!</div>` : '';
+
             let formatTaak = (naam, obj) => { let css = naam ? "taak-gevuld" : ""; let out = naam || "Vrij"; if(obj.status === 'rood') css = "conflict-text"; else if(obj.status === 'oranje') css = "warning-text"; return { out: out, css: css }; };
             let fA = formatTaak(taken.sA, tA); let fB = formatTaak(taken.sB, tB); let fT = formatTaak(taken.tab, tTab); let fS = formatTaak(taken.sco, tSco);
             
-            htmlTakenBlok = `<div style="display:flex; gap:5px;"><div class="taak-regel" style="flex:1;"><span class="taak-label">A:</span> <span class="taak-waarde ${fA.css}">${fA.out}</span></div><div class="taak-regel" style="flex:1;"><span class="taak-label">B:</span> <span class="taak-waarde ${fB.css}">${fB.out}</span></div></div><div style="display:flex; gap:5px;"><div class="taak-regel" style="flex:1;"><span class="taak-label">💻:</span> <span class="taak-waarde ${fT.css}">${fT.out}</span></div><div class="taak-regel" style="flex:1;"><span class="taak-label">⏱️:</span> <span class="taak-waarde ${fS.css}">${fS.out}</span></div></div>`;
+            htmlTakenBlok = `
+                ${conflictBanner}
+                <div style="display:flex; gap:5px;"><div class="taak-regel" style="flex:1;"><span class="taak-label">A:</span> <span class="taak-waarde ${fA.css}">${fA.out}</span></div><div class="taak-regel" style="flex:1;"><span class="taak-label">B:</span> <span class="taak-waarde ${fB.css}">${fB.out}</span></div></div><div style="display:flex; gap:5px;"><div class="taak-regel" style="flex:1;"><span class="taak-label">💻:</span> <span class="taak-waarde ${fT.css}">${fT.out}</span></div><div class="taak-regel" style="flex:1;"><span class="taak-label">⏱️:</span> <span class="taak-waarde ${fS.css}">${fS.out}</span></div></div>`;
         } else {
             let a1 = taken.auto1 || "Vrij"; let a2 = taken.auto2 || "Vrij"; let a3 = taken.auto3 || "Vrij";
             let c1 = a1 !== "Vrij" ? "taak-gevuld" : ""; let c2 = a2 !== "Vrij" ? "taak-gevuld" : ""; let c3 = a3 !== "Vrij" ? "taak-gevuld" : "";
