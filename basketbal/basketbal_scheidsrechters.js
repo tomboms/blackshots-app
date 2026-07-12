@@ -195,40 +195,37 @@ window.toggleStatus = function(srId, datum) {
 };
 
 // ============================================================================
-// 🎨 RENDER DE MATRIX TABEL (NU GEFILTERD OP THUISDAGEN!)
+// 🎨 RENDER DE MATRIX TABEL
 // ============================================================================
 window.renderMatrix = function() {
     let tabel = document.getElementById('beschikbaarheid-tabel');
     if (!tabel) return;
 
-    // Bepaal welke dagen we in de matrix willen zien (Alleen Thuisdagen of Lege/Handmatige dagen)
-    let alleWedstrijden = [...(JSON.parse(localStorage.getItem('blackshots_wedstrijden_json')) || []), ...(JSON.parse(localStorage.getItem('blackshots_custom_wedstrijden')) || [])];
-    
-    let thuisDagenFilter = window.speeldagenDB.filter(datum => {
-        let matchesOpDatum = alleWedstrijden.filter(w => window.normaalDatum(w.Datum) === datum);
-        let heeftThuis = matchesOpDatum.some(w => (w.Thuisteam || '').toLowerCase().includes('black shots'));
-        // Laat de dag zien als er thuiswedstrijden zijn, of als het een lege (handmatig toegevoegde) dag is
-        return heeftThuis || matchesOpDatum.length === 0; 
-    });
-
-    if (window.scheidsrechtersDB.length === 0 && thuisDagenFilter.length === 0) {
+    if (window.scheidsrechtersDB.length === 0 && window.speeldagenDB.length === 0) {
         tabel.innerHTML = '<tr><td style="padding:20px; color:#7f8c8d; font-style:italic;">Voeg hierboven een scheidsrechter en/of een speeldag toe om te beginnen.</td></tr>';
         return;
     }
 
-    let html = '<thead><tr><th>Scheidsrechter info</th>';
+    let html = '<thead><tr>';
+    html += '<th>Scheidsrechter info</th>';
     
-    thuisDagenFilter.forEach(datum => {
+    // Kop-kolommen met de datums
+    window.speeldagenDB.forEach(datum => {
         let d = new Date(datum);
         let weergaveDatum = isNaN(d) ? datum : d.toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit' });
-        html += `<th style="min-width:130px;">${weergaveDatum}<button class="actie-btn" style="color:#e74c3c;" onclick="window.verwijderSpeeldag('${datum}')" title="Verwijder datum">🗑️</button></th>`;
+        html += `<th style="min-width:130px;">
+                    ${weergaveDatum}
+                    <button class="actie-btn" style="color:#e74c3c;" onclick="window.verwijderSpeeldag('${datum}')" title="Verwijder datum">🗑️</button>
+                 </th>`;
     });
     html += '</tr></thead><tbody>';
 
+    // Rijen met de scheidsrechters
     window.scheidsrechtersDB.forEach(sr => {
         let teamWeergave = sr.gekoppeldTeam ? `<span style="color:#c0392b; font-weight:bold;">${sr.gekoppeldTeam}</span>` : 'geen';
         
-        html += `<tr><td style="border-left: 5px solid #3498db; background:#fdfefe;">
+        html += `<tr>`;
+        html += `<td style="border-left: 5px solid #3498db; background:#fdfefe;">
                     <div style="display:flex; justify-content:space-between; align-items:flex-start;">
                         <strong style="font-size:1.05rem; color:var(--secondary-color);">${sr.naam}</strong>
                         <div>
@@ -242,7 +239,8 @@ window.renderMatrix = function() {
                     </div>
                  </td>`;
         
-        thuisDagenFilter.forEach(datum => {
+        // Status knoppen per datumcel
+        window.speeldagenDB.forEach(datum => {
             let key = `${sr.id}_${datum}`;
             let status = window.beschikbaarheidDB[key] || 'nnb';
             
@@ -250,10 +248,13 @@ window.renderMatrix = function() {
             if (status === 'aan') { btnClass = 'status-aan'; btnText = '🟢 Aanwezig'; }
             if (status === 'af') { btnClass = 'status-af'; btnText = '🔴 Afwezig'; }
 
-            html += `<td><button id="btn-${key}" class="status-btn ${btnClass}" onclick="window.toggleStatus('${sr.id}', '${datum}')">${btnText}</button></td>`;
+            html += `<td>
+                        <button id="btn-${key}" class="status-btn ${btnClass}" onclick="window.toggleStatus('${sr.id}', '${datum}')">${btnText}</button>
+                     </td>`;
         });
         html += `</tr>`;
     });
+
     html += '</tbody>';
     tabel.innerHTML = html;
 };
