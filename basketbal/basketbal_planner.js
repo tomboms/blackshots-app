@@ -227,7 +227,10 @@ window.verwijderHuidigeDag = function() {
 // ============================================================================
 // 🚨 CONFLICT ENGINE & TELLERS
 // ============================================================================
-window.checkConflicten = function(taakPersoon, matchStartMin, matchEindMin, speelDatum, alleDaggeplande, huidigeMatchId, alleTakenHuidigeMatch) {
+// ============================================================================
+// 🚨 CONFLICT ENGINE (UITGEBREID MET HOVER-TITELS & ANTI-KLOON)
+// ============================================================================
+window.checkConflicten = function(taakPersoon, matchStartMin, matchEindMin, speelDatum, alleDaggeplande, huidigeMatchId, alleTakenHuidigeMatch, vakjeKey) {
     let resultaat = { status: 'groen', berichten: [] };
     if (!taakPersoon || taakPersoon === "" || taakPersoon === "Vrij") return resultaat;
 
@@ -235,19 +238,25 @@ window.checkConflicten = function(taakPersoon, matchStartMin, matchEindMin, spee
     let isTeam = (window.teamsDB || []).some(t => t && t.naam && veiligeNaam.includes(t.naam)) || veiligeNaam.toLowerCase().includes('ouders');
 
     if (!isTeam) {
-        let countInMatch = 0;
-        if(alleTakenHuidigeMatch.sA === taakPersoon) countInMatch++;
-        if(alleTakenHuidigeMatch.sB === taakPersoon) countInMatch++;
-        if(alleTakenHuidigeMatch.tab === taakPersoon) countInMatch++;
-        if(alleTakenHuidigeMatch.sco === taakPersoon) countInMatch++;
-        if(countInMatch >= 1) { resultaat.status = 'rood'; resultaat.berichten.push("Al ingedeeld in deze wedstrijd!"); return resultaat; }
+        let countInOtherSlots = 0;
+        // Kijk naar alle ANDERE vakjes dan het vakje dat we nu controleren
+        if(vakjeKey !== 'sA' && alleTakenHuidigeMatch.sA === taakPersoon) countInOtherSlots++;
+        if(vakjeKey !== 'sB' && alleTakenHuidigeMatch.sB === taakPersoon) countInOtherSlots++;
+        if(vakjeKey !== 'tab' && alleTakenHuidigeMatch.tab === taakPersoon) countInOtherSlots++;
+        if(vakjeKey !== 'sco' && alleTakenHuidigeMatch.sco === taakPersoon) countInOtherSlots++;
+        
+        if(countInOtherSlots > 0) { 
+            resultaat.status = 'rood'; 
+            resultaat.berichten.push("Al ingedeeld in een andere rol bij deze wedstrijd!"); 
+            return resultaat; 
+        }
     }
 
     let sr = (window.scheidsrechtersDB || []).find(s => s && s.naam === taakPersoon);
     if (sr && window.beschikbaarheidDB && window.beschikbaarheidDB[`${sr.id}_${speelDatum}`] === 'af') { resultaat.status = 'rood'; resultaat.berichten.push("Afwezig volgens rooster."); }
 
     if ((veiligeNaam.toUpperCase().includes('X10') || veiligeNaam.toUpperCase().includes('X12')) && !veiligeNaam.toLowerCase().includes('ouders')) {
-        if (resultaat.status !== 'rood') resultaat.status = 'oranje'; resultaat.berichten.push("Te jong voor taken.");
+        if (resultaat.status !== 'rood') resultaat.status = 'oranje'; resultaat.berichten.push("Te jong voor taken (Gebruik Ouders).");
     }
 
     let alleWedstrijden = [...(window.nbbWedstrijden || []), ...(window.customWedstrijden || [])];
@@ -256,7 +265,6 @@ window.checkConflicten = function(taakPersoon, matchStartMin, matchEindMin, spee
         let isHuidigeThuis = (huidigeMatch.Thuisteam || '').toLowerCase().includes('black shots');
         let huidigeTeamNaam = isHuidigeThuis ? huidigeMatch.Thuisteam.replace('Black Shots ', '').trim() : huidigeMatch.Uitteam.replace('Black Shots ', '').trim();
         let huidigeTeamDb = (window.teamsDB || []).find(t => t && t.naam === huidigeTeamNaam);
-        // Alleen de COACH wordt geblokkeerd voor zijn eigen wedstrijd
         if (huidigeTeamDb && huidigeTeamDb.coach && huidigeTeamDb.coach.includes(veiligeNaam)) {
             resultaat.status = 'rood'; resultaat.berichten.push(`Is coach van dit team!`); return resultaat;
         }
@@ -269,13 +277,12 @@ window.checkConflicten = function(taakPersoon, matchStartMin, matchEindMin, spee
         if (matchStartMin < aEind && matchEindMin > aStart) {
             if (!isTeam && andereMatch.uniekId !== huidigeMatchId) {
                 let andereTaken = window.takenDB[andereMatch.uniekId] || {};
-                if (Object.values(andereTaken).includes(taakPersoon)) { resultaat.status = 'rood'; resultaat.berichten.push(`Overlap andere match.`); }
+                if (Object.values(andereTaken).includes(taakPersoon)) { resultaat.status = 'rood'; resultaat.berichten.push(`Overlap met andere match.`); }
             }
             let anderThuisteam = (andereMatch.Thuisteam || '').replace('Black Shots ', '').trim();
             if (veiligeNaam === anderThuisteam || veiligeNaam.includes(anderThuisteam)) { resultaat.status = 'rood'; resultaat.berichten.push(`Team speelt zelf.`); }
             if (sr && sr.gekoppeldTeam && sr.gekoppeldTeam === anderThuisteam) { resultaat.status = 'rood'; resultaat.berichten.push(`Speelt nu zelf bij ${sr.gekoppeldTeam}.`); }
             
-            // Coach mag niet fluiten als zijn team tegelijkertijd speelt
             let overlappendTeamDb = (window.teamsDB || []).find(t => t && t.naam === anderThuisteam);
             if (overlappendTeamDb && overlappendTeamDb.coach && overlappendTeamDb.coach.includes(veiligeNaam)) { 
                 resultaat.status = 'rood'; resultaat.berichten.push(`Is aan het coachen bij ander team.`); 
@@ -350,7 +357,9 @@ window.laadPlanbord = function() {
     bord.innerHTML = html;
     window.plaatsWedstrijdenInWachtkamer(speelDatum);
 };
-
+// ============================================================================
+// 🎨 BORD RENDERING & HOVER TOOLTIPS
+// ============================================================================
 window.plaatsWedstrijdenInWachtkamer = function(datum) {
     let schoneDatum = window.normaalDatum(datum);
     let container = document.getElementById('te-plannen-container');
@@ -362,7 +371,6 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
         let matchDatum = window.normaalDatum(w.Datum);
         let isThuis = (w.Thuisteam || '').toLowerCase().includes('black shots');
         let isUit = (w.Uitteam || '').toLowerCase().includes('black shots');
-        // Negeer verborgen wedstrijden
         return matchDatum === schoneDatum && (isThuis || isUit) && !window.verborgenDB.includes(window.genereerUniekId(w));
     });
 
@@ -372,7 +380,7 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
     window.werkTellerBij(dagWedstrijden);
 
     let geplandeDataLijst = []; let teamStartTijden = {}; 
-    let uitOverlaps = {}; // Houdt bij hoeveel uitwedstrijden er tegelijk vallen
+    let uitOverlaps = {}; 
 
     dagWedstrijden.forEach(w => {
         let uniekId = window.genereerUniekId(w);
@@ -402,7 +410,6 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
         
         let cssPositie = `position: relative;`;
         if (dbStatus) {
-            // Waaiereffect voor uitwedstrijden die tegelijk starten!
             if (dbStatus.veld === 'uit') {
                 let overlapIndex = uitOverlaps[startMinuten] || 0;
                 cssPositie = `position: absolute; top: ${topPixels}px; left: ${5 + (overlapIndex * 35)}px; right: 5px; width: calc(100% - ${10 + overlapIndex * 35}px); z-index: ${10 + overlapIndex};`;
@@ -430,12 +437,12 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
         let badgeBg = dbStatus ? (isThuis ? '#27ae60' : '#2980b9') : (isThuis ? '#e67e22' : '#7f8c8d');
 
         if (isThuis) {
-            let tA = window.checkConflicten(taken.sA, startMinuten, startMinuten + duurMinuten, schoneDatum, geplandeDataLijst, uniekId, taken);
-            let tB = window.checkConflicten(taken.sB, startMinuten, startMinuten + duurMinuten, schoneDatum, geplandeDataLijst, uniekId, taken);
-            let tTab = window.checkConflicten(taken.tab, startMinuten, startMinuten + duurMinuten, schoneDatum, geplandeDataLijst, uniekId, taken);
-            let tSco = window.checkConflicten(taken.sco, startMinuten, startMinuten + duurMinuten, schoneDatum, geplandeDataLijst, uniekId, taken);
+            // Let op! We geven nu ook de naam van het vakje mee aan de engine ('sA', 'sB', etc.)
+            let tA = window.checkConflicten(taken.sA, startMinuten, startMinuten + duurMinuten, schoneDatum, geplandeDataLijst, uniekId, taken, 'sA');
+            let tB = window.checkConflicten(taken.sB, startMinuten, startMinuten + duurMinuten, schoneDatum, geplandeDataLijst, uniekId, taken, 'sB');
+            let tTab = window.checkConflicten(taken.tab, startMinuten, startMinuten + duurMinuten, schoneDatum, geplandeDataLijst, uniekId, taken, 'tab');
+            let tSco = window.checkConflicten(taken.sco, startMinuten, startMinuten + duurMinuten, schoneDatum, geplandeDataLijst, uniekId, taken, 'sco');
             
-            // DE HERSTELDE CONFLICT TELLER & BANNER
             let aantalConflicten = 0;
             if(tA.status === 'rood') aantalConflicten++;
             if(tB.status === 'rood') aantalConflicten++;
@@ -443,12 +450,31 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
             if(tSco.status === 'rood') aantalConflicten++;
             let conflictBanner = aantalConflicten > 0 ? `<div class="conflict-banner">⚠️ ${aantalConflicten} Taak Conflict(en)!</div>` : '';
 
-            let formatTaak = (naam, obj) => { let css = naam ? "taak-gevuld" : ""; let out = naam || "Vrij"; if(obj.status === 'rood') css = "conflict-text"; else if(obj.status === 'oranje') css = "warning-text"; return { out: out, css: css }; };
-            let fA = formatTaak(taken.sA, tA); let fB = formatTaak(taken.sB, tB); let fT = formatTaak(taken.tab, tTab); let fS = formatTaak(taken.sco, tSco);
+            // HIER ZIT DE HOVER-TITEL LOGICA:
+            let formatTaak = (naam, obj) => { 
+                let css = naam ? "taak-gevuld" : ""; 
+                let out = naam || "Vrij"; 
+                let tooltip = obj.berichten.length > 0 ? `title="${obj.berichten.join(' | ')}"` : "";
+                
+                if(obj.status === 'rood') css = "conflict-text"; 
+                else if(obj.status === 'oranje') css = "warning-text"; 
+                
+                return { out: out, css: css, tooltip: tooltip }; 
+            };
+            
+            let fA = formatTaak(taken.sA, tA); let fB = formatTaak(taken.sB, tB); 
+            let fT = formatTaak(taken.tab, tTab); let fS = formatTaak(taken.sco, tSco);
             
             htmlTakenBlok = `
                 ${conflictBanner}
-                <div style="display:flex; gap:5px;"><div class="taak-regel" style="flex:1;"><span class="taak-label">A:</span> <span class="taak-waarde ${fA.css}">${fA.out}</span></div><div class="taak-regel" style="flex:1;"><span class="taak-label">B:</span> <span class="taak-waarde ${fB.css}">${fB.out}</span></div></div><div style="display:flex; gap:5px;"><div class="taak-regel" style="flex:1;"><span class="taak-label">💻:</span> <span class="taak-waarde ${fT.css}">${fT.out}</span></div><div class="taak-regel" style="flex:1;"><span class="taak-label">⏱️:</span> <span class="taak-waarde ${fS.css}">${fS.out}</span></div></div>`;
+                <div style="display:flex; gap:5px;">
+                    <div class="taak-regel" style="flex:1;" ${fA.tooltip}><span class="taak-label">A:</span> <span class="taak-waarde ${fA.css}">${fA.out}</span></div>
+                    <div class="taak-regel" style="flex:1;" ${fB.tooltip}><span class="taak-label">B:</span> <span class="taak-waarde ${fB.css}">${fB.out}</span></div>
+                </div>
+                <div style="display:flex; gap:5px;">
+                    <div class="taak-regel" style="flex:1;" ${fT.tooltip}><span class="taak-label">💻:</span> <span class="taak-waarde ${fT.css}">${fT.out}</span></div>
+                    <div class="taak-regel" style="flex:1;" ${fS.tooltip}><span class="taak-label">⏱️:</span> <span class="taak-waarde ${fS.css}">${fS.out}</span></div>
+                </div>`;
         } else {
             let a1 = taken.auto1 || "Vrij"; let a2 = taken.auto2 || "Vrij"; let a3 = taken.auto3 || "Vrij";
             let c1 = a1 !== "Vrij" ? "taak-gevuld" : ""; let c2 = a2 !== "Vrij" ? "taak-gevuld" : ""; let c3 = a3 !== "Vrij" ? "taak-gevuld" : "";
