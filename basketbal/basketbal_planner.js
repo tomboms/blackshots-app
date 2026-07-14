@@ -234,12 +234,15 @@ window.checkConflicten = function(taakPersoon, matchStartMin, matchEindMin, spee
     let resultaat = { status: 'groen', berichten: [] };
     if (!taakPersoon || taakPersoon === "" || taakPersoon === "Vrij") return resultaat;
 
-    let veiligeNaam = String(taakPersoon);
-    let isTeam = (window.teamsDB || []).some(t => t && t.naam && veiligeNaam.includes(t.naam)) || veiligeNaam.toLowerCase().includes('ouders');
+    let veiligeNaam = String(taakPersoon).trim();
+    let veiligeNaamLow = veiligeNaam.toLowerCase();
+    
+    // Check of het een team is of "Ouders ..."
+    let isTeam = (window.teamsDB || []).some(t => t && t.naam && veiligeNaamLow.includes(t.naam.toLowerCase())) || veiligeNaamLow.includes('ouders');
 
+    // 1. Anti-Kloon Check (Alleen voor personen, niet voor teams/ouders)
     if (!isTeam) {
         let countInOtherSlots = 0;
-        // Kijk naar alle ANDERE vakjes dan het vakje dat we nu controleren
         if(vakjeKey !== 'sA' && alleTakenHuidigeMatch.sA === taakPersoon) countInOtherSlots++;
         if(vakjeKey !== 'sB' && alleTakenHuidigeMatch.sB === taakPersoon) countInOtherSlots++;
         if(vakjeKey !== 'tab' && alleTakenHuidigeMatch.tab === taakPersoon) countInOtherSlots++;
@@ -252,45 +255,82 @@ window.checkConflicten = function(taakPersoon, matchStartMin, matchEindMin, spee
         }
     }
 
-    let sr = (window.scheidsrechtersDB || []).find(s => s && s.naam === taakPersoon);
-    if (sr && window.beschikbaarheidDB && window.beschikbaarheidDB[`${sr.id}_${speelDatum}`] === 'af') { resultaat.status = 'rood'; resultaat.berichten.push("Afwezig volgens rooster."); }
+    let sr = (window.scheidsrechtersDB || []).find(s => s && s.naam.toLowerCase() === veiligeNaamLow);
 
-    if ((veiligeNaam.toUpperCase().includes('X10') || veiligeNaam.toUpperCase().includes('X12')) && !veiligeNaam.toLowerCase().includes('ouders')) {
-        if (resultaat.status !== 'rood') resultaat.status = 'oranje'; resultaat.berichten.push("Te jong voor taken (Gebruik Ouders).");
+    // 2. Afwezig volgens rooster matrix
+    if (sr && window.beschikbaarheidDB && window.beschikbaarheidDB[`${sr.id}_${speelDatum}`] === 'af') { 
+        resultaat.status = 'rood'; resultaat.berichten.push("Afwezig volgens rooster."); 
     }
 
+    // 3. Te jong voor taken (U10 / U12)
+    if ((veiligeNaamLow.includes('x10') || veiligeNaamLow.includes('x12')) && !veiligeNaamLow.includes('ouders')) {
+        if (resultaat.status !== 'rood') resultaat.status = 'oranje'; 
+        resultaat.berichten.push("Te jong voor taken (Gebruik 'Ouders X10/X12').");
+    }
+
+    // --- CHECK TEGEN HUIDIGE MATCH (Waar we nu in zitten) ---
     let alleWedstrijden = [...(window.nbbWedstrijden || []), ...(window.customWedstrijden || [])];
     let huidigeMatch = alleWedstrijden.find(w => window.genereerUniekId(w) === huidigeMatchId);
+    
     if (huidigeMatch) {
         let isHuidigeThuis = (huidigeMatch.Thuisteam || '').toLowerCase().includes('black shots');
-        let huidigeTeamNaam = isHuidigeThuis ? huidigeMatch.Thuisteam.replace('Black Shots ', '').trim() : huidigeMatch.Uitteam.replace('Black Shots ', '').trim();
-        let huidigeTeamDb = (window.teamsDB || []).find(t => t && t.naam === huidigeTeamNaam);
-        if (huidigeTeamDb && huidigeTeamDb.coach && huidigeTeamDb.coach.includes(veiligeNaam)) {
-            resultaat.status = 'rood'; resultaat.berichten.push(`Is coach van dit team!`); return resultaat;
+        let huidigeTeamNaam = isHuidigeThuis ? huidigeMatch.Thuisteam.replace(/Black Shots /i, '').trim() : huidigeMatch.Uitteam.replace(/Black Shots /i, '').trim();
+        
+        // Is deze persoon de coach van het huidige team?
+        let huidigeTeamDb = (window.teamsDB || []).find(t => t && t.naam.toLowerCase() === huidigeTeamNaam.toLowerCase());
+        if (huidigeTeamDb && huidigeTeamDb.coach && huidigeTeamDb.coach.toLowerCase().includes(veiligeNaamLow)) {
+            resultaat.status = 'rood'; resultaat.berichten.push(`Is coach van dit team!`);
+        }
+        
+        // Speelt deze persoon zelf mee in dit team? (Via scheidsrechter profiel)
+        if (sr && sr.gekoppeldTeam && sr.gekoppeldTeam.toLowerCase() === huidigeTeamNaam.toLowerCase()) {
+            resultaat.status = 'rood'; resultaat.berichten.push(`Speelt nu zelf mee in dit team.`);
         }
     }
 
+    // --- CHECK TEGEN ANDERE MATCHES (Op andere velden/tijden) ---
     (alleDaggeplande || []).forEach(andereMatch => {
         let aStart = window.tijdNaarMinuten(andereMatch.geplandeTijd);
-        if (aStart === 0) return; let aEind = aStart + andereMatch.duur;
+        if (aStart === 0) return; 
+        let aEind = aStart + andereMatch.duur;
 
+        // Controleer op tijds-overlap:
         if (matchStartMin < aEind && matchEindMin > aStart) {
+            
+            // Heeft deze persoon toevallig al een taak bij de overlap-wedstrijd?
             if (!isTeam && andereMatch.uniekId !== huidigeMatchId) {
                 let andereTaken = window.takenDB[andereMatch.uniekId] || {};
-                if (Object.values(andereTaken).includes(taakPersoon)) { resultaat.status = 'rood'; resultaat.berichten.push(`Overlap met andere match.`); }
+                if (Object.values(andereTaken).some(t => t && t.toLowerCase() === veiligeNaamLow)) { 
+                    resultaat.status = 'rood'; resultaat.berichten.push(`Overlap met taak bij andere match.`); 
+                }
             }
-            let anderThuisteam = (andereMatch.Thuisteam || '').replace('Black Shots ', '').trim();
-            if (veiligeNaam === anderThuisteam || veiligeNaam.includes(anderThuisteam)) { resultaat.status = 'rood'; resultaat.berichten.push(`Team speelt zelf.`); }
-            if (sr && sr.gekoppeldTeam && sr.gekoppeldTeam === anderThuisteam) { resultaat.status = 'rood'; resultaat.berichten.push(`Speelt nu zelf bij ${sr.gekoppeldTeam}.`); }
             
-            let overlappendTeamDb = (window.teamsDB || []).find(t => t && t.naam === anderThuisteam);
-            if (overlappendTeamDb && overlappendTeamDb.coach && overlappendTeamDb.coach.includes(veiligeNaam)) { 
-                resultaat.status = 'rood'; resultaat.berichten.push(`Is aan het coachen bij ander team.`); 
+            let anderThuisteam = (andereMatch.Thuisteam || '').replace(/Black Shots /i, '').trim();
+            let anderUitTeam = (andereMatch.Uitteam || '').replace(/Black Shots /i, '').trim();
+            let anderTeamIsVanOns = (andereMatch.Thuisteam || '').toLowerCase().includes('black shots') ? anderThuisteam : anderUitTeam;
+
+            // 1. Is het team dat ik nu inplan zelf ergens anders aan het spelen?
+            if (veiligeNaamLow === anderTeamIsVanOns.toLowerCase() || veiligeNaamLow.includes(anderTeamIsVanOns.toLowerCase())) { 
+                resultaat.status = 'rood'; resultaat.berichten.push(`Team speelt nu zelf op ander veld.`); 
+            }
+            
+            // 2. Is deze persoon speler bij het team dat ergens anders speelt?
+            if (sr && sr.gekoppeldTeam && sr.gekoppeldTeam.toLowerCase() === anderTeamIsVanOns.toLowerCase()) { 
+                resultaat.status = 'rood'; resultaat.berichten.push(`Speelt nu zelf wedstrijd met ${sr.gekoppeldTeam}.`); 
+            }
+            
+            // 3. Is deze persoon de coach van het team dat ergens anders speelt?
+            let overlappendTeamDb = (window.teamsDB || []).find(t => t && t.naam.toLowerCase() === anderTeamIsVanOns.toLowerCase());
+            if (overlappendTeamDb && overlappendTeamDb.coach && overlappendTeamDb.coach.toLowerCase().includes(veiligeNaamLow)) { 
+                resultaat.status = 'rood'; resultaat.berichten.push(`Is aan het coachen bij ${anderTeamIsVanOns}.`); 
             }
         }
     });
+    
     return resultaat;
 };
+
+
 window.werkTellerBij = function(dagWedstrijden) {
     let counts = {};
     dagWedstrijden.forEach(w => {
@@ -298,8 +338,16 @@ window.werkTellerBij = function(dagWedstrijden) {
         let taken = window.takenDB[uniekId] || {};
         let isThuis = (w.Thuisteam || '').toLowerCase().includes('black shots');
         let aanwezigeTaken = isThuis ? [taken.sA, taken.sB, taken.tab, taken.sco] : [taken.auto1, taken.auto2, taken.auto3];
+        
         aanwezigeTaken.forEach(persoonOfTeam => {
-            if (persoonOfTeam && persoonOfTeam.trim() !== "" && persoonOfTeam !== "Vrij") { counts[persoonOfTeam] = (counts[persoonOfTeam] || 0) + 1; }
+            if (persoonOfTeam && persoonOfTeam.trim() !== "" && persoonOfTeam !== "Vrij") { 
+                // Vertaal "Ouders X10-1" terug naar "X10-1" zodat het team de strafpunten/telling krijgt
+                let telNaam = persoonOfTeam.trim();
+                if (telNaam.toLowerCase().startsWith('ouders ')) {
+                    telNaam = telNaam.substring(7).trim(); 
+                }
+                counts[telNaam] = (counts[telNaam] || 0) + 1; 
+            }
         });
     });
 
@@ -507,10 +555,25 @@ window.genereerDropdownOpties = function(huidigeWaarde) {
     let html = `<option value="">-- Vrij --</option><optgroup label="👨‍⚖️ Scheidsrechters (Matrix)">`;
     window.scheidsrechtersDB.forEach(sr => html += `<option value="${sr.naam}">${sr.naam}</option>`);
     html += `</optgroup><optgroup label="🏀 Club Teams">`;
-    window.teamsDB.forEach(t => html += `<option value="${t.naam}">${t.naam}</option>`);
+    
+    // Voeg teams toe + virtuele Ouders voor jongste jeugd
+    window.teamsDB.forEach(t => { 
+        html += `<option value="${t.naam}">${t.naam}</option>`;
+        let up = t.naam.toUpperCase();
+        if (up.includes('X10') || up.includes('X12')) {
+            html += `<option value="Ouders ${t.naam}">Ouders ${t.naam}</option>`;
+        }
+    });
+    
     html += `</optgroup><optgroup label="Overig"><option value="handmatig">✏️ Handmatig typen...</option></optgroup>`;
+    
+    // Zorg dat geselecteerde custom waarden niet onzichtbaar worden
     let bekende = window.scheidsrechtersDB.map(s => s.naam).concat(window.teamsDB.map(t => t.naam));
-    if (huidigeWaarde && huidigeWaarde !== "" && !bekende.includes(huidigeWaarde)) { html += `<option value="${huidigeWaarde}" style="display:none;">${huidigeWaarde}</option>`; }
+    window.teamsDB.forEach(t => { if(t.naam.toUpperCase().includes('X10') || t.naam.toUpperCase().includes('X12')) bekende.push(`Ouders ${t.naam}`); });
+
+    if (huidigeWaarde && huidigeWaarde !== "" && !bekende.includes(huidigeWaarde)) { 
+        html += `<option value="${huidigeWaarde}" style="display:none;">${huidigeWaarde}</option>`; 
+    }
     return html;
 };
 
@@ -815,4 +878,52 @@ window.startSmartFill = function() {
         window.laadPlanbord();
 
     } catch (error) { alert("CRASH DETECTOR 🚨: Er ging iets fout. Stuur dit door: " + error.message); }
+};
+
+// ============================================================================
+// 📜 VASTE CLUBREGELS / VOLGORDE LOGICA
+// ============================================================================
+window.openRegelsModal = function() {
+    window.renderRegelsLijst();
+    document.getElementById('regels-modal').style.display = 'flex';
+};
+
+window.sluitRegelsModal = function() {
+    document.getElementById('regels-modal').style.display = 'none';
+};
+
+window.voegRegelToe = function() {
+    let voor = document.getElementById('regel-team-voor').value;
+    let na = document.getElementById('regel-team-na').value;
+    
+    if (!voor || !na) return alert("Selecteer twee teams.");
+    if (voor === na) return alert("De teams moeten verschillend zijn.");
+    
+    window.clubRegelsDB.push({ id: Date.now(), teamVoor: voor, teamNa: na });
+    window.slaPlannerDataOp();
+    window.renderRegelsLijst();
+    window.laadPlanbord(); // Herlaad bord zodat paarse banners direct verschijnen
+};
+
+window.verwijderRegel = function(index) {
+    window.clubRegelsDB.splice(index, 1);
+    window.slaPlannerDataOp();
+    window.renderRegelsLijst();
+    window.laadPlanbord();
+};
+
+window.renderRegelsLijst = function() {
+    let container = document.getElementById('huidige-regels-lijst');
+    if (!container) return;
+    
+    let html = '';
+    window.clubRegelsDB.forEach((regel, index) => {
+        html += `<div style="display:flex; justify-content:space-between; align-items:center; background:#f8f9fa; padding:10px; border-radius:4px; border:1px solid #ddd; margin-bottom:5px;">
+            <span>🏀 <strong>${regel.teamVoor}</strong> moet altijd vóór <strong>${regel.teamNa}</strong></span>
+            <button onclick="window.verwijderRegel(${index})" style="background:none; border:none; color:#e74c3c; cursor:pointer; font-weight:bold; font-size:1.1rem;">X</button>
+        </div>`;
+    });
+    
+    if (html === '') html = '<p style="color:#7f8c8d; font-size:0.85rem;">Je hebt nog geen vaste team-volgorde ingesteld.</p>';
+    container.innerHTML = html;
 };
