@@ -511,7 +511,14 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
         let startMin = dbStatus ? window.tijdNaarMinuten(dbStatus.tijd) : 0;
         
         if (dbStatus) {
-            geplandeDataLijst.push({ uniekId: uniekId, Thuisteam: w.Thuisteam, geplandeTijd: dbStatus.tijd, duur: w.handmatigeDuur ? w.handmatigeDuur : window.bepaalWedstrijdDuur(wedstrijdNaamStr) });
+            // HIER ZAT DE FOUT! Uitteam is toegevoegd zodat het overlap-schema weer feilloos werkt.
+            geplandeDataLijst.push({ 
+                uniekId: uniekId, 
+                Thuisteam: w.Thuisteam, 
+                Uitteam: w.Uitteam, 
+                geplandeTijd: dbStatus.tijd, 
+                duur: w.handmatigeDuur ? w.handmatigeDuur : window.bepaalWedstrijdDuur(wedstrijdNaamStr) 
+            });
             if (canon) teamStartTijden[canon.id] = startMin; 
         }
     });
@@ -543,7 +550,7 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
         let tijdWeergave = dbStatus ? dbStatus.tijd : (w.Tijd && w.Tijd !== "00:00:00" ? w.Tijd.substring(0,5) : 'Te plannen');
         let taken = window.takenDB[uniekId] || {};
 
-        // VASTE CLUBREGELS CONTROLEREN (Via de getCanonicalTeam check)
+        // VASTE CLUBREGELS CONTROLEREN
         let regelBanners = [];
         if (dbStatus && isThuis) { 
             let huidigeCanon = window.getCanonicalTeam(wedstrijdNaam);
@@ -761,18 +768,22 @@ window.checkConflicten = function(taakPersoon, matchStartMin, matchEindMin, spee
     let veiligeNaam = String(taakPersoon).trim();
     let veiligeNaamLow = veiligeNaam.toLowerCase();
     
-    // Zoek het ECHTE team op basis van de alias-database
     let canonicalPersoonTeam = window.getCanonicalTeam(veiligeNaam.replace(/ouders/i, '').trim());
     let isTeam = canonicalPersoonTeam !== undefined && canonicalPersoonTeam !== null;
     let isOuders = veiligeNaamLow.includes('ouders');
 
-    // 1. Anti-Kloon Check (Teams mogen wél 2 taken draaien, personen niet)
+    // 1. Anti-Kloon Check (Volledig hoofdletterongevoelig!)
     if (!isTeam && !isOuders) {
         let countInOtherSlots = 0;
-        if(vakjeKey !== 'sA' && alleTakenHuidigeMatch.sA === taakPersoon) countInOtherSlots++;
-        if(vakjeKey !== 'sB' && alleTakenHuidigeMatch.sB === taakPersoon) countInOtherSlots++;
-        if(vakjeKey !== 'tab' && alleTakenHuidigeMatch.tab === taakPersoon) countInOtherSlots++;
-        if(vakjeKey !== 'sco' && alleTakenHuidigeMatch.sco === taakPersoon) countInOtherSlots++;
+        let tA = String(alleTakenHuidigeMatch.sA || "").toLowerCase().trim();
+        let tB = String(alleTakenHuidigeMatch.sB || "").toLowerCase().trim();
+        let tTab = String(alleTakenHuidigeMatch.tab || "").toLowerCase().trim();
+        let tSco = String(alleTakenHuidigeMatch.sco || "").toLowerCase().trim();
+
+        if(vakjeKey !== 'sA' && tA === veiligeNaamLow) countInOtherSlots++;
+        if(vakjeKey !== 'sB' && tB === veiligeNaamLow) countInOtherSlots++;
+        if(vakjeKey !== 'tab' && tTab === veiligeNaamLow) countInOtherSlots++;
+        if(vakjeKey !== 'sco' && tSco === veiligeNaamLow) countInOtherSlots++;
         
         if(countInOtherSlots > 0) { 
             resultaat.status = 'rood'; 
@@ -788,7 +799,7 @@ window.checkConflicten = function(taakPersoon, matchStartMin, matchEindMin, spee
         resultaat.status = 'rood'; resultaat.berichten.push("Afwezig volgens rooster."); 
     }
 
-    // 3. Te jong voor taken (U10 / U12) -> HARD ROOD
+    // 3. Te jong voor taken
     if (canonicalPersoonTeam && (canonicalPersoonTeam.naam.toLowerCase().includes('10') || canonicalPersoonTeam.naam.toLowerCase().includes('12')) && !isOuders) {
         resultaat.status = 'rood'; 
         resultaat.berichten.push("Te jong voor taken (Gebruik 'Ouders " + canonicalPersoonTeam.naam + "').");
@@ -803,7 +814,8 @@ window.checkConflicten = function(taakPersoon, matchStartMin, matchEindMin, spee
     try { actueleSpelers = JSON.parse(localStorage.getItem('blackshots_spelers')) || []; } catch(e) {}
 
     actueleSpelers.forEach(s => {
-        if (s && s.naam && s.naam.toLowerCase().includes(veiligeNaamLow)) {
+        // EXACTE match (voorkomt dat "Tom" triggert op "Tommie")
+        if (s && s.naam && String(s.naam).toLowerCase().trim() === veiligeNaamLow) { 
             let sTeam = window.getCanonicalTeam(s.teamId);
             if (sTeam) isSpelerVanTeamId[sTeam.id] = true;
         }
@@ -816,8 +828,12 @@ window.checkConflicten = function(taakPersoon, matchStartMin, matchEindMin, spee
 
     (window.teamsDB || []).forEach(t => {
         if (!t) return;
-        if (t.coach && t.coach.toLowerCase().includes(veiligeNaamLow)) isCoachVanTeamId[t.id] = true;
-        if (t.trainer && t.trainer.toLowerCase().includes(veiligeNaamLow)) isTrainerVanTeamId[t.id] = true;
+        // Coaches splitsen op komma om veilige match te maken (e.g. "Tom, Kristy")
+        let coaches = (t.coach || "").toLowerCase().split(',').map(x => x.trim());
+        if (coaches.includes(veiligeNaamLow)) isCoachVanTeamId[t.id] = true;
+        
+        let trainers = (t.trainer || "").toLowerCase().split(',').map(x => x.trim());
+        if (trainers.includes(veiligeNaamLow)) isTrainerVanTeamId[t.id] = true;
     });
 
     // --- CHECK TEGEN HUIDIGE MATCH ---
@@ -847,7 +863,7 @@ window.checkConflicten = function(taakPersoon, matchStartMin, matchEindMin, spee
         }
     }
 
-    // --- CHECK TEGEN ANDERE MATCHES ---
+    // --- CHECK TEGEN ANDERE MATCHES OP HET BORD ---
     (alleDaggeplande || []).forEach(andereMatch => {
         let aStart = window.tijdNaarMinuten(andereMatch.geplandeTijd);
         if (aStart === 0) return; 
@@ -862,9 +878,11 @@ window.checkConflicten = function(taakPersoon, matchStartMin, matchEindMin, spee
             if (anderCanonicalTeam) {
                 let anderTeamId = anderCanonicalTeam.id;
 
+                // Anti-kloon check over het hele bord
                 if (!isTeam && !isOuders) {
                     let andereTaken = window.takenDB[andereMatch.uniekId] || {};
-                    if (Object.values(andereTaken).some(t => t && t.toLowerCase() === veiligeNaamLow)) { 
+                    let alEldersBezig = Object.values(andereTaken).some(t => t && String(t).trim().toLowerCase() === veiligeNaamLow);
+                    if (alEldersBezig) { 
                         resultaat.status = 'rood'; resultaat.berichten.push(`Overlap: Heeft al een taak op dit moment.`); 
                     }
                 }
