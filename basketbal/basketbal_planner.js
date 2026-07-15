@@ -504,12 +504,12 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
 
     dagWedstrijden.forEach(w => {
         let status = w.Status ? w.Status.toLowerCase() : '';
-        if (status.includes('teruggetrokken')) return; // Teruggetrokken wedstrijden tellen we nergens voor mee!
+        if (status.includes('teruggetrokken')) return;
 
         let uniekId = window.genereerUniekId(w);
         let dbStatus = window.planStatusDB[uniekId];
         let isThuis = (w.Thuisteam || '').toLowerCase().includes('black shots');
-        let wedstrijdNaamStr = isThuis ? (w.Thuisteam || '').replace(/Black Shots /i, '').trim() : (w.Uitteam || '').replace(/Black Shots /i, '').trim();
+        let wedstrijdNaamStr = isThuis ? (w.Thuisteam || '').replace(/Black Shots\s*-?\s*/i, '').trim() : (w.Uitteam || '').replace(/Black Shots\s*-?\s*/i, '').trim();
         let canon = window.getCanonicalTeam(wedstrijdNaamStr);
         let startMin = dbStatus ? window.tijdNaarMinuten(dbStatus.tijd) : 0;
         
@@ -531,9 +531,14 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
         let isUitgespeeld = nbbStatus.includes('uitgespeeld');
 
         let isThuis = (w.Thuisteam || '').toLowerCase().includes('black shots');
-        let wedstrijdNaam = isThuis ? (w.Thuisteam || '').replace(/Black Shots /i, '').trim() : (w.Uitteam || '').replace(/Black Shots /i, '').trim();
-        let tegenstander = isThuis ? w.Uitteam : w.Thuisteam;
         
+        // Zelfde agressieve schoonmaak-actie als in de modal
+        let wedstrijdNaam = isThuis ? (w.Thuisteam || '').replace(/Black Shots\s*-?\s*/i, '').trim() : (w.Uitteam || '').replace(/Black Shots\s*-?\s*/i, '').trim();
+        let tegenstander = isThuis ? (w.Uitteam || '').replace(/Black Shots\s*-?\s*/i, '').trim() : (w.Thuisteam || '').replace(/Black Shots\s*-?\s*/i, '').trim();
+        
+        // Zoek naar alle mogelijke ID/Nummer varianten
+        let matchNummer = w.Wedstrijdnummer || w.wedstrijdnummer || w.ID || w.id || '?';
+
         let uniekId = window.genereerUniekId(w);
         let duurMinuten = w.handmatigeDuur ? w.handmatigeDuur : window.bepaalWedstrijdDuur(wedstrijdNaam);
         let pixelHoogte = duurMinuten * PIXEL_SCALE;
@@ -585,7 +590,6 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
         let htmlTakenBlok = '';
 
         if (isTeruggetrokken) {
-            // TERUGGETROKKEN: Blokeer de input en verberg de velden
             htmlTakenBlok = `<div style="padding:10px; color:#c0392b; font-weight:bold; text-align:center; background:rgba(255,255,255,0.7); border-radius:4px; margin-top:5px; border: 1px dashed #c0392b;">🚫 Wedstrijd Teruggetrokken</div>`;
         } else if (isThuis) {
             let tA = window.checkConflicten(taken.sA, startMinuten, startMinuten + duurMinuten, schoneDatum, geplandeDataLijst, uniekId, taken, 'sA');
@@ -633,14 +637,13 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
             htmlTakenBlok = `<div style="display:flex; gap:5px; flex-direction:column; border-top:1px dashed #3498db; padding-top:5px;"><div class="taak-regel" style="border-color:#3498db; background:rgba(255,255,255,0.9);"><span class="taak-label">🚗 1:</span> <span class="taak-waarde ${c1}">${a1}</span></div><div style="display:flex; gap:5px;"><div class="taak-regel" style="flex:1; border-color:#3498db; background:rgba(255,255,255,0.9);"><span class="taak-label">🚗 2:</span> <span class="taak-waarde ${c2}">${a2}</span></div><div class="taak-regel" style="flex:1; border-color:#3498db; background:rgba(255,255,255,0.9);"><span class="taak-label">🚗 3:</span> <span class="taak-waarde ${c3}">${a3}</span></div></div></div>`;
         }
 
-        let typeBadge = (w.id && w.id.includes('custom')) ? `<span style="background:#8e44ad; color:white; padding:1px 4px; border-radius:3px; font-size:0.65rem;">${w.Wedstrijdnummer}</span>` : '';
+        let typeBadge = (w.id && w.id.includes('custom')) ? `<span style="background:#8e44ad; color:white; padding:1px 4px; border-radius:3px; font-size:0.65rem;">Custom</span>` : '';
         if (isUitgespeeld) typeBadge += ` <span style="background:#27ae60; color:white; padding:1px 4px; border-radius:3px; font-size:0.65rem;">Uitgespeeld</span>`;
         if (isTeruggetrokken) typeBadge += ` <span style="background:#c0392b; color:white; padding:1px 4px; border-radius:3px; font-size:0.65rem;">Geannuleerd</span>`;
 
         let titelKleur = isTeruggetrokken ? '#c0392b' : (isUitgespeeld ? '#27ae60' : (isThuis ? '#d35400' : '#2980b9')); 
         let icoon = isThuis ? '🏠' : '🚌';
         
-        // Zorg dat we het modal niet openen bij een teruggetrokken wedstrijd
         let openModalAction = isTeruggetrokken ? "" : `onclick="window.openTakenModal('${uniekId}')"`;
 
         let html = `
@@ -652,7 +655,7 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
                 </div>
                 <div class="wb-meta">
                     <span class="wb-tijd-badge" id="tijd-label-${uniekId}" onmousedown="event.stopPropagation();" onclick="window.wijzigTijdHandmatig('${uniekId}')" style="background:${badgeBg};">⏱️ ${tijdWeergave}</span> 
-                    <span>| NBB: ${w.Wedstrijdnummer || '?'} ${typeBadge}</span>
+                    <span>| NBB: ${matchNummer} ${typeBadge}</span>
                 </div>
                 <div class="wb-taken" ${openModalAction}>${htmlTakenBlok}</div>
             </div>
@@ -697,11 +700,18 @@ window.openTakenModal = function(matchId) {
 
     let isThuis = (match.Thuisteam || '').toLowerCase().includes('black shots');
     
+    // SLIMMER SCHOONMAKEN: Knipt 'Black Shots' weg INCLUSIEF eventuele streepjes en spaties
+    let thuisNaam = (match.Thuisteam || '').replace(/Black Shots\s*-?\s*/i, '').trim();
+    let uitNaam = (match.Uitteam || '').replace(/Black Shots\s*-?\s*/i, '').trim();
+    
+    // Check alle mogelijke plekken waar de bond het nummer kan verstoppen
+    let matchNummer = match.Wedstrijdnummer || match.wedstrijdnummer || match.ID || match.id || 'Custom';
+
     document.getElementById('taak-match-id').value = matchId;
-    document.getElementById('taak-match-titel').innerText = `${isThuis ? '🏠 Thuis:' : '🚌 Uit:'} ${match.Thuisteam.replace('Black Shots ', '')} vs ${match.Uitteam.replace('Black Shots ', '')}`;
+    document.getElementById('taak-match-titel').innerText = `${isThuis ? '🏠 Thuis:' : '🚌 Uit:'} ${thuisNaam} vs ${uitNaam}`;
     
     let dbStatus = window.planStatusDB[matchId];
-    document.getElementById('taak-match-meta').innerText = `Tijdstip: ${dbStatus ? dbStatus.tijd : (match.Tijd || 'Te plannen')} | NBB: ${match.Wedstrijdnummer || 'Custom'}`;
+    document.getElementById('taak-match-meta').innerText = `Tijdstip: ${dbStatus ? dbStatus.tijd : (match.Tijd || 'Te plannen')} | NBB: ${matchNummer}`;
 
     let taken = window.takenDB[matchId] || {};
     let veldenHtml = '';
