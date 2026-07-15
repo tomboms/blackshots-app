@@ -59,51 +59,40 @@
 
     </style>
 </head>
-<body style="overflow-y: auto;">
-    <div id="cloud-status-indicator" style="position: fixed; bottom: 20px; right: 20px; background: #27ae60; color: white; padding: 10px 20px; border-radius: 30px; font-weight: bold; font-size: 0.9rem; z-index: 99999; opacity: 0; pointer-events: none;">☁️ Cloud Actief</div>
-
-    <nav class="top-nav">
-        <h1>🏀 Black Shots Clubbeheer</h1>
-        <a href="dashboard.html" class="terug-knop">🏠 Dashboard</a>
-    </nav>
-
-    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid var(--border-color); padding-bottom: 15px; margin-bottom: 15px; flex-wrap:wrap; gap:10px;">
-    <div style="display:flex; align-items:center; gap:15px;">
-        <h2 style="margin:0; color:var(--secondary-color);">🧩 Thuiswedstrijd Planner</h2>
+<main class="content-sectie active" style="max-width: 1500px; margin: 20px auto; padding: 0 15px;">
         
-        <!-- Navigatie tussen Dagen -->
-        <div style="display:flex; background:#eef2f5; border-radius:6px; border:1px solid #cbd5e1; overflow:hidden;">
-            <button onclick="window.navigeerSpeeldag(-1)" style="background:transparent; border:none; border-right:1px solid #cbd5e1; padding:6px 12px; cursor:pointer; font-weight:bold; color:var(--secondary-color); transition:0.2s;" onmouseover="this.style.background='#dde4e9'" onmouseout="this.style.background='transparent'">◀ Vorige</button>
-            <button onclick="window.navigeerSpeeldag(1)" style="background:transparent; border:none; padding:6px 12px; cursor:pointer; font-weight:bold; color:var(--secondary-color); transition:0.2s;" onmouseover="this.style.background='#dde4e9'" onmouseout="this.style.background='transparent'">Volgende ▶</button>
+        <!-- TOP RIJ: Titel, Navigatie & Alle Knoppen netjes op 1 rij -->
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px; border-bottom: 2px solid var(--border-color); padding-bottom: 15px;">
+            
+            <div style="display:flex; align-items:center; gap:15px;">
+                <h2 style="margin:0; color:var(--secondary-color);">🧩 Thuiswedstrijd Planner</h2>
+                <!-- Navigatie tussen Dagen -->
+                <div style="display:flex; background:#eef2f5; border-radius:6px; border:1px solid #cbd5e1; overflow:hidden;">
+                    <button onclick="window.navigeerSpeeldag(-1)" style="background:transparent; border:none; border-right:1px solid #cbd5e1; padding:6px 12px; cursor:pointer; font-weight:bold; color:var(--secondary-color); transition:0.2s;" onmouseover="this.style.background='#dde4e9'" onmouseout="this.style.background='transparent'">◀ Vorige</button>
+                    <button onclick="window.navigeerSpeeldag(1)" style="background:transparent; border:none; padding:6px 12px; cursor:pointer; font-weight:bold; color:var(--secondary-color); transition:0.2s;" onmouseover="this.style.background='#dde4e9'" onmouseout="this.style.background='transparent'">Volgende ▶</button>
+                </div>
+            </div>
+
+            <!-- Alle Knoppen op 1 rij -->
+            <div style="display:flex; gap:10px; align-items:center; flex-wrap: wrap;">
+                
+                <!-- Bot Groepje -->
+                <div style="display:flex; align-items:center; gap:5px; background:#fbf5ff; padding:4px 8px; border-radius:6px; border:1px dashed #8e44ad;">
+                    <span style="font-weight:bold; color:#8e44ad; font-size:0.85rem; margin-right:5px;">🤖 Bot:</span>
+                    <button onclick="window.startSmartFill()" style="background: linear-gradient(135deg, #8e44ad, #3498db); color: white; border: none; padding:6px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1); font-size:0.85rem;" title="Vul overgebleven lege vakjes automatisch in">✨ Vul in</button>
+                    <button onclick="window.herberekenSmartFill()" style="background:#9b59b6; color:white; border:none; padding:6px 12px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.85rem;" title="Bord leegmaken en opnieuw berekenen">🔄 Herbereken</button>
+                    <button onclick="window.openSmartFillSettings()" style="background:transparent; color:#8e44ad; border:1px solid #8e44ad; padding:6px 12px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.85rem;" title="Instellingen">⚙️</button>
+                </div>
+
+                <!-- Overige Acties -->
+                <button onclick="window.openNieuweWedstrijdModal()" style="background:#f39c12; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.85rem;">➕ Handmatige Match</button>
+                <button onclick="window.kopieerSchemaTekst()" style="background:#34495e; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.85rem;">📋 WhatsApp Kopie</button>
+                <button onclick="window.verwijderHuidigeDag()" style="background:transparent; color:#e74c3c; border:1px solid #e74c3c; padding:6px 12px; border-radius:4px; font-weight:bold; cursor:pointer; transition:0.2s; font-size:0.85rem;" onmouseover="this.style.background='#fadbd8'" onmouseout="this.style.background='transparent'">🗑️ Wis Dag</button>
+                <button onclick="window.slaOpEnTerug()" style="background:#27ae60; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.1); font-size:0.85rem;">💾 Opslaan & Terug</button>
+            </div>
         </div>
-    </div>
 
-    <!-- Hoofd Acties -->
-    <div style="display:flex; gap:10px;">
-        <button onclick="window.verwijderHuidigeDag()" style="background:transparent; color:#e74c3c; border:1px solid #e74c3c; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; transition:0.2s;" onmouseover="this.style.background='#fadbd8'" onmouseout="this.style.background='transparent'">🗑️ Wis Dag</button>
-        <button onclick="window.slaOpEnTerug()" style="background:#27ae60; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.1);">💾 Opslaan & Terug</button>
-    </div>
-</div>
-
-<!-- GEREEDSCHAPSKIST (Toolbar) -->
-<div style="display:flex; justify-content:space-between; align-items:center; background:white; padding:12px; border-radius:8px; border:1px solid #cbd5e1; box-shadow:0 2px 5px rgba(0,0,0,0.02); margin-bottom:20px; flex-wrap:wrap; gap:10px;">
-    
-    <!-- De Bot Pod -->
-    <div style="display:flex; align-items:center; gap:10px; background:#fbf5ff; padding:8px 12px; border-radius:6px; border:1px dashed #8e44ad;">
-        <span style="font-weight:bold; color:#8e44ad; font-size:0.9rem;">🤖 Bot:</span>
-        <button onclick="window.startSmartFill()" style="background: linear-gradient(135deg, #8e44ad, #3498db); color: white; border: none; padding:6px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1); font-size:0.85rem;" title="Vul overgebleven lege vakjes automatisch in">✨ Vul in</button>
-        <button onclick="window.herberekenSmartFill()" style="background:#9b59b6; color:white; border:none; padding:6px 12px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.85rem;" title="Bord leegmaken en helemaal opnieuw berekenen">🔄 Denk Opnieuw</button>
-        <button onclick="window.openSmartFillSettings()" style="background:transparent; color:#8e44ad; border:1px solid #8e44ad; padding:6px 12px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.85rem;">⚙️ Instellingen</button>
-    </div>
-
-    <!-- Extra Tools -->
-    <div style="display:flex; gap:10px;">
-        <button onclick="window.openNieuweWedstrijdModal()" style="background:#f39c12; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.85rem;">➕ Handmatige Match</button>
-        <button onclick="window.kopieerSchemaTekst()" style="background:#34495e; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.85rem;">📋 Kopieer voor WhatsApp</button>
-    </div>
-</div>
-
-        
+        <!-- DATUM & ZAAL SELECTIE -->
         <div class="planner-controls">
             <div>
                 <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d; display:block;">Speeldatum:</label>
@@ -118,15 +107,14 @@
             </div>
         </div>
 
+        <!-- LINKER KOLOM (Wachtkamer/Teller) + RECHTER KOLOM (Planbord) -->
         <div class="planner-wrapper">
-            <!-- LINKER KOLOM -->
             <div class="linker-kolom">
                 <div class="wachtkamer" id="te-plannen-container" style="min-height: 400px;" ondragover="window.onDragOver(event)" ondrop="window.onDropTePlannen(event)">
                     <div class="wachtkamer-header">📋 Te Plannen (<span id="aantal-te-plannen">0</span>)</div>
                     <p style="font-size:0.8rem; color:#7f8c8d; font-style:italic; text-align:center; margin:0;" id="wachtkamer-leeg">Sleep blokken terug hierheen.</p>
                 </div>
                 
-                <!-- NIEUW: DE TELLER -->
                 <div class="wachtkamer" style="min-height: 200px;">
                     <div class="wachtkamer-header">📊 Toewijzingen Teller</div>
                     <p style="font-size:0.75rem; color:#7f8c8d; text-align:center; margin-bottom:10px; margin-top:0;">Totaal aantal taken op deze dag</p>
@@ -136,12 +124,9 @@
                 </div>
             </div>
 
-            <!-- PLANBORD -->
             <div class="planner-bord" id="planner-bord-container"></div>
         </div>
-    </main>
-
-    <!-- MODALS (TAKEN & NIEUWE WEDSTRIJD) -->
+    </main>DALS (TAKEN & NIEUWE WEDSTRIJD) -->
     <!-- ... (Zelfde als vorige keer, ik hou ze kort in dit HTML voorbeeld om ruimte te besparen, zorg dat je jouw oude modal code hieronder laat staan of kopieert!) ... -->
     <!-- Voor de volledigheid hieronder de Modals: -->
     
