@@ -17,31 +17,30 @@ const PIXEL_SCALE = 2;
 const SNAP_MINUTEN = 15;
 
 // ============================================================================
-// 🛡️ UNIVERSELE ALIAS VERTALER FALLBACK (Voorkomt crashes als team.js mist)
+// 🛡️ UNIVERSELE ALIAS VERTALER (Negeert spaties & streepjes uit NBB JSON!)
 // ============================================================================
-if (typeof window.getCanonicalTeam !== 'function') {
-    window.getCanonicalTeam = function(identifier) {
-        if (!identifier) return null;
-        let zoekTerm = String(identifier).toLowerCase().trim();
-        let teams = window.teamsDB || [];
-        if (!Array.isArray(teams)) return null;
+window.getCanonicalTeam = function(identifier) {
+    if (!identifier) return null;
+    // Strip ALLES wat geen letter of cijfer is weg voor een perfecte match
+    let cleanZoek = String(identifier).toLowerCase().replace(/[-\s]/g, '');
+    let teams = window.teamsDB || [];
+    if (!Array.isArray(teams)) return null;
 
-        return teams.find(team => {
-            let tId = String(team.id || '').toLowerCase().trim();
-            let tNaam = String(team.naam || '').toLowerCase().trim();
-            
-            // 1. 100% match op ID of naam
-            if (zoekTerm === tId || zoekTerm === tNaam) return true;
-            
-            // 2. Match op aliassen
-            if (team.aliassen) {
-                let aliasArray = team.aliassen.toLowerCase().split(',').map(a => a.trim()).filter(Boolean);
-                if (aliasArray.includes(zoekTerm)) return true;
-            }
-            return false;
-        });
-    };
-}
+    return teams.find(team => {
+        let tId = String(team.id || '').toLowerCase().replace(/[-\s]/g, '');
+        let tNaam = String(team.naam || '').toLowerCase().replace(/[-\s]/g, '');
+        
+        // 1. Match op ID of naam (bijv "x141" === "x141")
+        if (cleanZoek === tId || cleanZoek === tNaam) return true;
+        
+        // 2. Match op aliassen
+        if (team.aliassen) {
+            let aliasArray = team.aliassen.toLowerCase().split(',').map(a => a.replace(/[-\s]/g, ''));
+            if (aliasArray.includes(cleanZoek)) return true;
+        }
+        return false;
+    });
+};
 
 // NIEUW: Database om NBB wedstrijden te verbergen als je ze verwijdert
 window.verborgenDB = JSON.parse(localStorage.getItem('blackshots_verborgen_wedstrijden')) || [];
@@ -405,6 +404,9 @@ window.checkConflicten = function(taakPersoon, matchStartMin, matchEindMin, spee
 window.werkTellerBij = function(dagWedstrijden) {
     let counts = {};
     dagWedstrijden.forEach(w => {
+        let status = w.Status ? w.Status.toLowerCase() : '';
+        if (status.includes('teruggetrokken')) return; // Teruggetrokken telt niet mee!
+
         let uniekId = window.genereerUniekId(w);
         let taken = window.takenDB[uniekId] || {};
         let isThuis = (w.Thuisteam || '').toLowerCase().includes('black shots');
@@ -412,15 +414,22 @@ window.werkTellerBij = function(dagWedstrijden) {
         
         aanwezigeTaken.forEach(persoonOfTeam => {
             if (persoonOfTeam && persoonOfTeam.trim() !== "" && persoonOfTeam !== "Vrij") { 
-                // Vertaal "Ouders X10-1" terug naar "X10-1" zodat het team de strafpunten/telling krijgt
                 let telNaam = persoonOfTeam.trim();
-                if (telNaam.toLowerCase().startsWith('ouders ')) {
-                    telNaam = telNaam.substring(7).trim(); 
-                }
+                if (telNaam.toLowerCase().startsWith('ouders ')) telNaam = telNaam.substring(7).trim(); 
                 counts[telNaam] = (counts[telNaam] || 0) + 1; 
             }
         });
     });
+
+    let gesorteerd = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+    let lijstContainer = document.getElementById('teller-lijst-container');
+    if (!lijstContainer) return;
+    if (gesorteerd.length === 0) { lijstContainer.innerHTML = '<div style="color:#7f8c8d; font-size:0.8rem; text-align:center;">Nog geen toewijzingen.</div>'; return; }
+
+    let html = '';
+    gesorteerd.forEach(naam => { html += `<div class="teller-item"><span>${naam}</span> <strong>${counts[naam]}</strong></div>`; });
+    lijstContainer.innerHTML = html;
+};
 
     let gesorteerd = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
     let lijstContainer = document.getElementById('teller-lijst-container');
@@ -502,6 +511,9 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
     let uitOverlaps = {}; 
 
     dagWedstrijden.forEach(w => {
+        let status = w.Status ? w.Status.toLowerCase() : '';
+        if (status.includes('teruggetrokken')) return; // Teruggetrokken wedstrijden tellen we nergens voor mee!
+
         let uniekId = window.genereerUniekId(w);
         let dbStatus = window.planStatusDB[uniekId];
         let isThuis = (w.Thuisteam || '').toLowerCase().includes('black shots');
@@ -510,7 +522,6 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
         let startMin = dbStatus ? window.tijdNaarMinuten(dbStatus.tijd) : 0;
         
         if (dbStatus) {
-            // HIER ZAT DE FOUT! Uitteam is toegevoegd zodat het overlap-schema weer feilloos werkt.
             geplandeDataLijst.push({ 
                 uniekId: uniekId, 
                 Thuisteam: w.Thuisteam, 
@@ -523,6 +534,10 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
     });
 
     dagWedstrijden.forEach((w) => {
+        let nbbStatus = w.Status ? w.Status.toLowerCase() : '';
+        let isTeruggetrokken = nbbStatus.includes('teruggetrokken');
+        let isUitgespeeld = nbbStatus.includes('uitgespeeld');
+
         let isThuis = (w.Thuisteam || '').toLowerCase().includes('black shots');
         let wedstrijdNaam = isThuis ? (w.Thuisteam || '').replace(/Black Shots /i, '').trim() : (w.Uitteam || '').replace(/Black Shots /i, '').trim();
         let tegenstander = isThuis ? w.Uitteam : w.Thuisteam;
@@ -549,9 +564,8 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
         let tijdWeergave = dbStatus ? dbStatus.tijd : (w.Tijd && w.Tijd !== "00:00:00" ? w.Tijd.substring(0,5) : 'Te plannen');
         let taken = window.takenDB[uniekId] || {};
 
-        // VASTE CLUBREGELS CONTROLEREN
         let regelBanners = [];
-        if (dbStatus && isThuis) { 
+        if (dbStatus && isThuis && !isTeruggetrokken) { 
             let huidigeCanon = window.getCanonicalTeam(wedstrijdNaam);
             if (huidigeCanon) {
                 (window.clubRegelsDB || []).forEach(regel => {
@@ -566,12 +580,22 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
         }
         let clubRegelHtml = regelBanners.map(msg => `<div class="regel-banner">🟪 ${msg}</div>`).join('');
 
-        let htmlTakenBlok = '';
-        let randKleur = isThuis ? '#e67e22' : '#3498db';
         let bgKleur = isThuis ? '#fff3e0' : '#ebf5fb';
+        let randKleur = isThuis ? '#e67e22' : '#3498db';
         let badgeBg = dbStatus ? (isThuis ? '#27ae60' : '#2980b9') : (isThuis ? '#e67e22' : '#7f8c8d');
 
-        if (isThuis) {
+        if (isTeruggetrokken) {
+            bgKleur = '#fadbd8'; randKleur = '#c0392b'; badgeBg = '#e74c3c';
+        } else if (isUitgespeeld) {
+            bgKleur = '#d4efdf'; randKleur = '#27ae60'; badgeBg = '#27ae60';
+        }
+
+        let htmlTakenBlok = '';
+
+        if (isTeruggetrokken) {
+            // TERUGGETROKKEN: Blokeer de input en verberg de velden
+            htmlTakenBlok = `<div style="padding:10px; color:#c0392b; font-weight:bold; text-align:center; background:rgba(255,255,255,0.7); border-radius:4px; margin-top:5px; border: 1px dashed #c0392b;">🚫 Wedstrijd Teruggetrokken</div>`;
+        } else if (isThuis) {
             let tA = window.checkConflicten(taken.sA, startMinuten, startMinuten + duurMinuten, schoneDatum, geplandeDataLijst, uniekId, taken, 'sA');
             let tB = window.checkConflicten(taken.sB, startMinuten, startMinuten + duurMinuten, schoneDatum, geplandeDataLijst, uniekId, taken, 'sB');
             let tTab = window.checkConflicten(taken.tab, startMinuten, startMinuten + duurMinuten, schoneDatum, geplandeDataLijst, uniekId, taken, 'tab');
@@ -586,11 +610,16 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
 
             let formatTaak = (naam, obj) => { 
                 let css = naam ? "taak-gevuld" : ""; 
+                let inline = "";
                 let out = naam || "Vrij"; 
                 let tooltip = obj.berichten.length > 0 ? `title="${obj.berichten.join(' | ')}"` : "";
+                
                 if(obj.status === 'rood') css = "conflict-text"; 
                 else if(obj.status === 'oranje') css = "warning-text"; 
-                return { out: out, css: css, tooltip: tooltip }; 
+                else if(obj.status === 'blauw') {
+                    css = "taak-gevuld"; inline = "color: #2980b9; font-weight: bold;"; out = "ℹ️ " + out; 
+                }
+                return { out: out, css: css, inline: inline, tooltip: tooltip }; 
             };
             
             let fA = formatTaak(taken.sA, tA); let fB = formatTaak(taken.sB, tB); 
@@ -599,12 +628,12 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
             htmlTakenBlok = `
                 ${conflictBanner}
                 <div style="display:flex; gap:5px;">
-                    <div class="taak-regel" style="flex:1;" ${fA.tooltip}><span class="taak-label">A:</span> <span class="taak-waarde ${fA.css}">${fA.out}</span></div>
-                    <div class="taak-regel" style="flex:1;" ${fB.tooltip}><span class="taak-label">B:</span> <span class="taak-waarde ${fB.css}">${fB.out}</span></div>
+                    <div class="taak-regel" style="flex:1;" ${fA.tooltip}><span class="taak-label">A:</span> <span class="taak-waarde ${fA.css}" style="${fA.inline}">${fA.out}</span></div>
+                    <div class="taak-regel" style="flex:1;" ${fB.tooltip}><span class="taak-label">B:</span> <span class="taak-waarde ${fB.css}" style="${fB.inline}">${fB.out}</span></div>
                 </div>
                 <div style="display:flex; gap:5px;">
-                    <div class="taak-regel" style="flex:1;" ${fT.tooltip}><span class="taak-label">💻:</span> <span class="taak-waarde ${fT.css}">${fT.out}</span></div>
-                    <div class="taak-regel" style="flex:1;" ${fS.tooltip}><span class="taak-label">⏱️:</span> <span class="taak-waarde ${fS.css}">${fS.out}</span></div>
+                    <div class="taak-regel" style="flex:1;" ${fT.tooltip}><span class="taak-label">💻:</span> <span class="taak-waarde ${fT.css}" style="${fT.inline}">${fT.out}</span></div>
+                    <div class="taak-regel" style="flex:1;" ${fS.tooltip}><span class="taak-label">⏱️:</span> <span class="taak-waarde ${fS.css}" style="${fS.inline}">${fS.out}</span></div>
                 </div>`;
         } else {
             let a1 = taken.auto1 || "Vrij"; let a2 = taken.auto2 || "Vrij"; let a3 = taken.auto3 || "Vrij";
@@ -613,7 +642,14 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
         }
 
         let typeBadge = (w.id && w.id.includes('custom')) ? `<span style="background:#8e44ad; color:white; padding:1px 4px; border-radius:3px; font-size:0.65rem;">${w.Wedstrijdnummer}</span>` : '';
-        let titelKleur = isThuis ? '#d35400' : '#2980b9'; let icoon = isThuis ? '🏠' : '🚌';
+        if (isUitgespeeld) typeBadge += ` <span style="background:#27ae60; color:white; padding:1px 4px; border-radius:3px; font-size:0.65rem;">Uitgespeeld</span>`;
+        if (isTeruggetrokken) typeBadge += ` <span style="background:#c0392b; color:white; padding:1px 4px; border-radius:3px; font-size:0.65rem;">Geannuleerd</span>`;
+
+        let titelKleur = isTeruggetrokken ? '#c0392b' : (isUitgespeeld ? '#27ae60' : (isThuis ? '#d35400' : '#2980b9')); 
+        let icoon = isThuis ? '🏠' : '🚌';
+        
+        // Zorg dat we het modal niet openen bij een teruggetrokken wedstrijd
+        let openModalAction = isTeruggetrokken ? "" : `onclick="window.openTakenModal('${uniekId}')"`;
 
         let html = `
             <div class="wedstrijd-blok" id="${uniekId}" draggable="true" ondragstart="window.onDragStart(event)" ondragend="window.onDragEnd(event)" style="background:${bgKleur}; border-color:${randKleur}; ${cssPositie} height: ${pixelHoogte}px;">
@@ -626,7 +662,7 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
                     <span class="wb-tijd-badge" id="tijd-label-${uniekId}" onmousedown="event.stopPropagation();" onclick="window.wijzigTijdHandmatig('${uniekId}')" style="background:${badgeBg};">⏱️ ${tijdWeergave}</span> 
                     <span>| NBB: ${w.Wedstrijdnummer || '?'} ${typeBadge}</span>
                 </div>
-                <div class="wb-taken" onclick="window.openTakenModal('${uniekId}')">${htmlTakenBlok}</div>
+                <div class="wb-taken" ${openModalAction}>${htmlTakenBlok}</div>
             </div>
         `;
         let targetDiv = document.getElementById(dbStatus ? `wedstrijd-container-${dbStatus.veld}` : 'te-plannen-container');
@@ -639,21 +675,20 @@ window.genereerDropdownOpties = function(huidigeWaarde) {
     window.scheidsrechtersDB.forEach(sr => html += `<option value="${sr.naam}">${sr.naam}</option>`);
     html += `</optgroup><optgroup label="🏀 Club Teams">`;
     
-    // Voeg teams toe + virtuele Ouders voor jongste jeugd
+    let bekende = window.scheidsrechtersDB.map(s => s.naam);
+
+    // Voeg nu ALLE teams + de Ouders van die teams toe
     window.teamsDB.forEach(t => { 
-        html += `<option value="${t.naam}">${t.naam}</option>`;
-        let up = t.naam.toUpperCase();
-        if (up.includes('X10') || up.includes('X12')) {
+        if (!t.isVrijwilliger && !t.isRecreant) {
+            html += `<option value="${t.naam}">${t.naam}</option>`;
             html += `<option value="Ouders ${t.naam}">Ouders ${t.naam}</option>`;
+            bekende.push(t.naam);
+            bekende.push(`Ouders ${t.naam}`);
         }
     });
     
     html += `</optgroup><optgroup label="Overig"><option value="handmatig">✏️ Handmatig typen...</option></optgroup>`;
     
-    // Zorg dat geselecteerde custom waarden niet onzichtbaar worden
-    let bekende = window.scheidsrechtersDB.map(s => s.naam).concat(window.teamsDB.map(t => t.naam));
-    window.teamsDB.forEach(t => { if(t.naam.toUpperCase().includes('X10') || t.naam.toUpperCase().includes('X12')) bekende.push(`Ouders ${t.naam}`); });
-
     if (huidigeWaarde && huidigeWaarde !== "" && !bekende.includes(huidigeWaarde)) { 
         html += `<option value="${huidigeWaarde}" style="display:none;">${huidigeWaarde}</option>`; 
     }
