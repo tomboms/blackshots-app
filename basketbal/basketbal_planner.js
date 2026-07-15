@@ -16,6 +16,33 @@ const EIND_UUR = 22;
 const PIXEL_SCALE = 2; 
 const SNAP_MINUTEN = 15;
 
+// ============================================================================
+// 🛡️ UNIVERSELE ALIAS VERTALER FALLBACK (Voorkomt crashes als team.js mist)
+// ============================================================================
+if (typeof window.getCanonicalTeam !== 'function') {
+    window.getCanonicalTeam = function(identifier) {
+        if (!identifier) return null;
+        let zoekTerm = String(identifier).toLowerCase().trim();
+        let teams = window.teamsDB || [];
+        if (!Array.isArray(teams)) return null;
+
+        return teams.find(team => {
+            let tId = String(team.id || '').toLowerCase().trim();
+            let tNaam = String(team.naam || '').toLowerCase().trim();
+            
+            // 1. 100% match op ID of naam
+            if (zoekTerm === tId || zoekTerm === tNaam) return true;
+            
+            // 2. Match op aliassen
+            if (team.aliassen) {
+                let aliasArray = team.aliassen.toLowerCase().split(',').map(a => a.trim()).filter(Boolean);
+                if (aliasArray.includes(zoekTerm)) return true;
+            }
+            return false;
+        });
+    };
+}
+
 // NIEUW: Database om NBB wedstrijden te verbergen als je ze verwijdert
 window.verborgenDB = JSON.parse(localStorage.getItem('blackshots_verborgen_wedstrijden')) || [];
 
@@ -426,7 +453,7 @@ window.laadPlanbord = function() {
 // ============================================================================
 // 🎨 BORD RENDERING & HOVER TOOLTIPS
 // ============================================================================
-window.plaatsWedstrijdenInWachtkamer = function(datum) {
+wwindow.plaatsWedstrijdenInWachtkamer = function(datum) {
     let schoneDatum = window.normaalDatum(datum);
     let container = document.getElementById('te-plannen-container');
     Array.from(container.children).forEach(child => { if (!child.classList.contains('wachtkamer-header') && child.id !== 'wachtkamer-leeg') child.remove(); });
@@ -448,12 +475,11 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
     let geplandeDataLijst = []; let teamStartTijden = {}; 
     let uitOverlaps = {}; 
 
-    // Eerst alle starttijden ophalen via het officiële 'getCanonicalTeam' (Voorkomt alias fouten in de regels!)
     dagWedstrijden.forEach(w => {
         let uniekId = window.genereerUniekId(w);
         let dbStatus = window.planStatusDB[uniekId];
         let isThuis = (w.Thuisteam || '').toLowerCase().includes('black shots');
-        let wedstrijdNaamStr = isThuis ? w.Thuisteam.replace(/Black Shots /i, '').trim() : w.Uitteam.replace(/Black Shots /i, '').trim();
+        let wedstrijdNaamStr = isThuis ? (w.Thuisteam || '').replace(/Black Shots /i, '').trim() : (w.Uitteam || '').replace(/Black Shots /i, '').trim();
         let canon = window.getCanonicalTeam(wedstrijdNaamStr);
         let startMin = dbStatus ? window.tijdNaarMinuten(dbStatus.tijd) : 0;
         
@@ -465,7 +491,7 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
 
     dagWedstrijden.forEach((w) => {
         let isThuis = (w.Thuisteam || '').toLowerCase().includes('black shots');
-        let wedstrijdNaam = isThuis ? w.Thuisteam.replace(/Black Shots /i, '').trim() : w.Uitteam.replace(/Black Shots /i, '').trim();
+        let wedstrijdNaam = isThuis ? (w.Thuisteam || '').replace(/Black Shots /i, '').trim() : (w.Uitteam || '').replace(/Black Shots /i, '').trim();
         let tegenstander = isThuis ? w.Uitteam : w.Thuisteam;
         
         let uniekId = window.genereerUniekId(w);
@@ -490,7 +516,7 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
         let tijdWeergave = dbStatus ? dbStatus.tijd : (w.Tijd && w.Tijd !== "00:00:00" ? w.Tijd.substring(0,5) : 'Te plannen');
         let taken = window.takenDB[uniekId] || {};
 
-        // VASTE CLUBREGELS CONTROLEREN (Via de veilige alias check)
+        // VASTE CLUBREGELS CONTROLEREN (Via de getCanonicalTeam check)
         let regelBanners = [];
         if (dbStatus && isThuis) { 
             let huidigeCanon = window.getCanonicalTeam(wedstrijdNaam);
