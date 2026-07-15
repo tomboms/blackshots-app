@@ -117,6 +117,17 @@ window.ontvangCloudData = function(sleutel, data) {
     window.laadPlanbord();
 };
 
+// ============================================================================
+// 🗂️ WEERGAVE SCHAKELAAR (Blokkenschema vs Lijstweergave)
+// ============================================================================
+window.huidigeWeergave = localStorage.getItem('blackshots_weergave') || 'grid';
+
+window.toggleWeergave = function() {
+    window.huidigeWeergave = window.huidigeWeergave === 'grid' ? 'lijst' : 'grid';
+    localStorage.setItem('blackshots_weergave', window.huidigeWeergave);
+    window.laadPlanbord();
+};
+
 window.initPlanner = function() {
     let datumInput = document.getElementById('plan-datum');
     let opgeslagenDatum = localStorage.getItem('blackshots_actieve_datum');
