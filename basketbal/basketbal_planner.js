@@ -1387,3 +1387,30 @@ window.slaSmartFillSettingsOp = function() {
     document.getElementById('smart-fill-settings-modal').style.display = 'none';
     alert("✅ Instellingen succesvol opgeslagen!");
 };
+
+
+
+window.herberekenSmartFill = function() {
+    if(confirm("Wil je alle huidige toewijzingen op het bord wissen en de bot helemaal opnieuw laten beginnen? (Handige tip: pas eerst je instellingen aan!)")) {
+        let speelDatum = window.normaalDatum(document.getElementById('plan-datum').value);
+        let alleWedstrijden = [...(window.nbbWedstrijden || []), ...(window.customWedstrijden || [])];
+        let dagMatches = alleWedstrijden.filter(w => window.normaalDatum(w.Datum) === speelDatum && !window.verborgenDB.includes(window.genereerUniekId(w)));
+
+        // Wis alleen de taken van de Thuiswedstrijden (Uitwedstrijd chauffeurs blijven staan)
+        dagMatches.forEach(m => {
+            let id = window.genereerUniekId(m);
+            if(window.takenDB[id]) {
+                let isThuis = (m.Thuisteam || '').toLowerCase().includes('black shots');
+                if (isThuis) {
+                    window.takenDB[id] = { sA: "", sB: "", tab: "", sco: "" };
+                }
+            }
+        });
+        
+        window.slaPlannerDataOp();
+        window.laadPlanbord();
+        
+        // Start de Auto-Planner direct na het schoonmaken
+        setTimeout(window.startSmartFill, 300);
+    }
+};
