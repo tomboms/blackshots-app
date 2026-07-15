@@ -264,18 +264,21 @@ window.checkConflicten = function(taakPersoon, matchStartMin, matchEindMin, spee
     let veiligeNaam = String(taakPersoon).trim();
     let veiligeNaamLow = veiligeNaam.toLowerCase();
     
-    // Zoek het ECHTE team op basis van de alias-database
     let canonicalPersoonTeam = window.getCanonicalTeam(veiligeNaam.replace(/ouders/i, '').trim());
     let isTeam = canonicalPersoonTeam !== undefined && canonicalPersoonTeam !== null;
     let isOuders = veiligeNaamLow.includes('ouders');
 
-    // 1. Anti-Kloon Check (Teams mogen wél 2 taken draaien, personen niet)
     if (!isTeam && !isOuders) {
         let countInOtherSlots = 0;
-        if(vakjeKey !== 'sA' && alleTakenHuidigeMatch.sA === taakPersoon) countInOtherSlots++;
-        if(vakjeKey !== 'sB' && alleTakenHuidigeMatch.sB === taakPersoon) countInOtherSlots++;
-        if(vakjeKey !== 'tab' && alleTakenHuidigeMatch.tab === taakPersoon) countInOtherSlots++;
-        if(vakjeKey !== 'sco' && alleTakenHuidigeMatch.sco === taakPersoon) countInOtherSlots++;
+        let tA = String(alleTakenHuidigeMatch.sA || "").toLowerCase().trim();
+        let tB = String(alleTakenHuidigeMatch.sB || "").toLowerCase().trim();
+        let tTab = String(alleTakenHuidigeMatch.tab || "").toLowerCase().trim();
+        let tSco = String(alleTakenHuidigeMatch.sco || "").toLowerCase().trim();
+
+        if(vakjeKey !== 'sA' && tA === veiligeNaamLow) countInOtherSlots++;
+        if(vakjeKey !== 'sB' && tB === veiligeNaamLow) countInOtherSlots++;
+        if(vakjeKey !== 'tab' && tTab === veiligeNaamLow) countInOtherSlots++;
+        if(vakjeKey !== 'sco' && tSco === veiligeNaamLow) countInOtherSlots++;
         
         if(countInOtherSlots > 0) { 
             resultaat.status = 'rood'; 
@@ -286,48 +289,43 @@ window.checkConflicten = function(taakPersoon, matchStartMin, matchEindMin, spee
 
     let sr = (window.scheidsrechtersDB || []).find(s => s && s.naam.toLowerCase() === veiligeNaamLow);
 
-    // 2. Afwezig volgens rooster matrix
     if (sr && window.beschikbaarheidDB && window.beschikbaarheidDB[`${sr.id}_${speelDatum}`] === 'af') { 
         resultaat.status = 'rood'; resultaat.berichten.push("Afwezig volgens rooster."); 
     }
 
-    // 3. Te jong voor taken (U10 / U12) -> HARD ROOD
     if (canonicalPersoonTeam && (canonicalPersoonTeam.naam.toLowerCase().includes('10') || canonicalPersoonTeam.naam.toLowerCase().includes('12')) && !isOuders) {
         resultaat.status = 'rood'; 
         resultaat.berichten.push("Te jong voor taken (Gebruik 'Ouders " + canonicalPersoonTeam.naam + "').");
     }
 
-    // --- DE ECHTE DATA-KOPPELING: SpelersDB en TeamsDB ---
     let isSpelerVanTeamId = {};
     let isCoachVanTeamId = {};
     let isTrainerVanTeamId = {};
 
-    // A. Haal actuele spelers op uit local storage (fallback naar lege array)
     let actueleSpelers = [];
     try { actueleSpelers = JSON.parse(localStorage.getItem('blackshots_spelers')) || []; } catch(e) {}
 
-    // B. Check of deze persoon in een team speelt
     actueleSpelers.forEach(s => {
-        if (s && s.naam && s.naam.toLowerCase().includes(veiligeNaamLow)) {
+        if (s && s.naam && String(s.naam).toLowerCase().trim() === veiligeNaamLow) { 
             let sTeam = window.getCanonicalTeam(s.teamId);
             if (sTeam) isSpelerVanTeamId[sTeam.id] = true;
         }
     });
 
-    // Voeg ook het handmatige scheidsrechter gekoppeldTeam toe voor de zekerheid
     if (sr && sr.gekoppeldTeam) {
         let srTeam = window.getCanonicalTeam(sr.gekoppeldTeam);
         if (srTeam) isSpelerVanTeamId[srTeam.id] = true;
     }
 
-    // C. Check of deze persoon in de TeamsDB staat als coach of trainer
     (window.teamsDB || []).forEach(t => {
         if (!t) return;
-        if (t.coach && t.coach.toLowerCase().includes(veiligeNaamLow)) isCoachVanTeamId[t.id] = true;
-        if (t.trainer && t.trainer.toLowerCase().includes(veiligeNaamLow)) isTrainerVanTeamId[t.id] = true;
+        let coaches = (t.coach || "").toLowerCase().split(',').map(x => x.trim());
+        if (coaches.includes(veiligeNaamLow)) isCoachVanTeamId[t.id] = true;
+        
+        let trainers = (t.trainer || "").toLowerCase().split(',').map(x => x.trim());
+        if (trainers.includes(veiligeNaamLow)) isTrainerVanTeamId[t.id] = true;
     });
 
-    // --- CHECK TEGEN HUIDIGE MATCH ---
     let alleWedstrijden = [...(window.nbbWedstrijden || []), ...(window.customWedstrijden || [])];
     let huidigeMatch = alleWedstrijden.find(w => window.genereerUniekId(w) === huidigeMatchId);
     let huidigeCanonicalTeam = null;
@@ -340,31 +338,34 @@ window.checkConflicten = function(taakPersoon, matchStartMin, matchEindMin, spee
         if (huidigeCanonicalTeam) {
             let huidigeTeamId = huidigeCanonicalTeam.id;
 
-            // Is deze persoon de Coach?
-            if (isCoachVanTeamId[huidigeTeamId]) {
-                resultaat.status = 'rood'; resultaat.berichten.push(`Is coach van dit team!`);
-            }
-            
-            // Is deze persoon Speler? (Trainers mogen wél fluiten bij hun eigen team als ze niet coachen/spelen)
+            if (isCoachVanTeamId[huidigeTeamId]) { resultaat.status = 'rood'; resultaat.berichten.push(`Is coach van dit team!`); }
             if (isSpelerVanTeamId[huidigeTeamId] && !isCoachVanTeamId[huidigeTeamId] && !isTrainerVanTeamId[huidigeTeamId]) {
                 resultaat.status = 'rood'; resultaat.berichten.push(`Speelt nu zelf mee in dit team.`);
             }
-
-            // Eigen team indelen bij eigen wedstrijd?
             if (canonicalPersoonTeam && canonicalPersoonTeam.id === huidigeTeamId && !isOuders) {
                 resultaat.status = 'rood'; resultaat.berichten.push(`Een team kan zijn eigen wedstrijd niet draaien.`);
             }
         }
     }
 
-    // --- CHECK TEGEN ANDERE MATCHES (Op andere velden/tijden) ---
+    // --- CHECK TEGEN ANDERE MATCHES (Inclusief de blauwe max per dag teller) ---
+    let maxTaken = sr && sr.maxPerDag !== undefined ? parseInt(sr.maxPerDag) : 2;
+    let aantalTakenVandaag = 0;
+
     (alleDaggeplande || []).forEach(andereMatch => {
         let aStart = window.tijdNaarMinuten(andereMatch.geplandeTijd);
         if (aStart === 0) return; 
         let aEind = aStart + andereMatch.duur;
 
+        // 1. MAX PER DAG TELLER
+        if (andereMatch.uniekId !== huidigeMatchId && !isTeam && !isOuders) {
+            let andereTaken = window.takenDB[andereMatch.uniekId] || {};
+            let isEldersBezig = Object.values(andereTaken).some(t => t && String(t).trim().toLowerCase() === veiligeNaamLow);
+            if (isEldersBezig) aantalTakenVandaag++;
+        }
+
+        // 2. OVERLAP TEGENLIJKERTIJD
         if (andereMatch.uniekId !== huidigeMatchId && matchStartMin < aEind && matchEindMin > aStart) {
-            
             let anderThuisteamStr = (andereMatch.Thuisteam || '').replace(/Black Shots /i, '').trim();
             let anderUitTeamStr = (andereMatch.Uitteam || '').replace(/Black Shots /i, '').trim();
             let isAnderThuis = (andereMatch.Thuisteam || '').toLowerCase().includes('black shots');
@@ -373,35 +374,33 @@ window.checkConflicten = function(taakPersoon, matchStartMin, matchEindMin, spee
             if (anderCanonicalTeam) {
                 let anderTeamId = anderCanonicalTeam.id;
 
-                // 1. Persoon is al ergens anders ingedeeld
                 if (!isTeam && !isOuders) {
                     let andereTaken = window.takenDB[andereMatch.uniekId] || {};
-                    if (Object.values(andereTaken).some(t => t && t.toLowerCase() === veiligeNaamLow)) { 
-                        resultaat.status = 'rood'; resultaat.berichten.push(`Overlap: Heeft al een taak op dit moment.`); 
-                    }
+                    let alEldersBezig = Object.values(andereTaken).some(t => t && String(t).trim().toLowerCase() === veiligeNaamLow);
+                    if (alEldersBezig) { resultaat.status = 'rood'; resultaat.berichten.push(`Overlap: Heeft al een taak op dit moment.`); }
                 }
                 
-                // 2. Geselecteerde team speelt zelf op ander veld
                 if (canonicalPersoonTeam && canonicalPersoonTeam.id === anderTeamId && !isOuders) { 
                     resultaat.status = 'rood'; resultaat.berichten.push(`Team speelt zelf op ander veld.`); 
                 }
-                
-                // 3. Persoon is speler en speelt zelf op ander veld
                 if (isSpelerVanTeamId[anderTeamId] && !isCoachVanTeamId[anderTeamId] && !isTrainerVanTeamId[anderTeamId]) {
                     resultaat.status = 'rood'; resultaat.berichten.push(`Overlap: Speelt zelf met ${anderCanonicalTeam.naam}.`); 
                 }
-                
-                // 4. Persoon coacht een ander team op dit moment
                 if (isCoachVanTeamId[anderTeamId]) { 
                     resultaat.status = 'rood'; resultaat.berichten.push(`Overlap: Is coach bij ${anderCanonicalTeam.naam} op dit moment.`); 
                 }
             }
         }
     });
+
+    // Toepassen van de Blauwe Max Per Dag status
+    if (!isTeam && !isOuders && aantalTakenVandaag >= maxTaken) {
+        if (resultaat.status === 'groen') resultaat.status = 'blauw';
+        resultaat.berichten.push(`ℹ️ Let op: Heeft vandaag al ${aantalTakenVandaag} andere ta(a)k(en) (Max is ${maxTaken}).`);
+    }
     
     return resultaat;
 };
-
 
 window.werkTellerBij = function(dagWedstrijden) {
     let counts = {};
