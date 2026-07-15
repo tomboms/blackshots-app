@@ -504,7 +504,7 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
 
     dagWedstrijden.forEach(w => {
         let status = w.Status ? w.Status.toLowerCase() : '';
-        if (status.includes('teruggetrokken')) return;
+        if (status.includes('teruggetrokken')) return; // Gecancelde tellen niet mee voor de engine
 
         let uniekId = window.genereerUniekId(w);
         let dbStatus = window.planStatusDB[uniekId];
@@ -529,19 +529,24 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
         let nbbStatus = w.Status ? w.Status.toLowerCase() : '';
         let isTeruggetrokken = nbbStatus.includes('teruggetrokken');
         let isUitgespeeld = nbbStatus.includes('uitgespeeld');
+        let uniekId = window.genereerUniekId(w);
+
+        // 🚨 DE MAGISCHE FIX: Schop gecancelde wedstrijden van het fysieke bord af!
+        if (isTeruggetrokken && window.planStatusDB[uniekId]) {
+            delete window.planStatusDB[uniekId]; // Haal locatie weg
+            if (window.takenDB[uniekId]) delete window.takenDB[uniekId]; // Haal eventuele ingedeelde personen weg
+            window.slaPlannerDataOp(); // Sla dit direct op!
+        }
 
         let isThuis = (w.Thuisteam || '').toLowerCase().includes('black shots');
-        
-        // Zelfde agressieve schoonmaak-actie als in de modal
         let wedstrijdNaam = isThuis ? (w.Thuisteam || '').replace(/Black Shots\s*-?\s*/i, '').trim() : (w.Uitteam || '').replace(/Black Shots\s*-?\s*/i, '').trim();
         let tegenstander = isThuis ? (w.Uitteam || '').replace(/Black Shots\s*-?\s*/i, '').trim() : (w.Thuisteam || '').replace(/Black Shots\s*-?\s*/i, '').trim();
         
-        // Zoek naar alle mogelijke ID/Nummer varianten
         let matchNummer = w.Wedstrijdnummer || w.wedstrijdnummer || w.ID || w.id || '?';
-
-        let uniekId = window.genereerUniekId(w);
         let duurMinuten = w.handmatigeDuur ? w.handmatigeDuur : window.bepaalWedstrijdDuur(wedstrijdNaam);
-        let pixelHoogte = duurMinuten * PIXEL_SCALE;
+        
+        // Gecancelde wedstrijden in de wachtkamer maken we mooi smal zodat ze niet in de weg staan
+        let pixelHoogte = isTeruggetrokken ? 65 : (duurMinuten * PIXEL_SCALE);
 
         let dbStatus = window.planStatusDB[uniekId];
         let startMinuten = dbStatus ? window.tijdNaarMinuten(dbStatus.tijd) : 0;
@@ -590,7 +595,8 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
         let htmlTakenBlok = '';
 
         if (isTeruggetrokken) {
-            htmlTakenBlok = `<div style="padding:10px; color:#c0392b; font-weight:bold; text-align:center; background:rgba(255,255,255,0.7); border-radius:4px; margin-top:5px; border: 1px dashed #c0392b;">🚫 Wedstrijd Teruggetrokken</div>`;
+            // Geen gigantische rode banner meer, maar subtiel
+            htmlTakenBlok = `<div style="padding:4px; color:#c0392b; font-weight:bold; font-size:0.8rem; text-align:center; background:rgba(255,255,255,0.7); border-radius:4px; margin-top:5px;">🚫 Geannuleerd</div>`;
         } else if (isThuis) {
             let tA = window.checkConflicten(taken.sA, startMinuten, startMinuten + duurMinuten, schoneDatum, geplandeDataLijst, uniekId, taken, 'sA');
             let tB = window.checkConflicten(taken.sB, startMinuten, startMinuten + duurMinuten, schoneDatum, geplandeDataLijst, uniekId, taken, 'sB');
@@ -639,7 +645,6 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
 
         let typeBadge = (w.id && w.id.includes('custom')) ? `<span style="background:#8e44ad; color:white; padding:1px 4px; border-radius:3px; font-size:0.65rem;">Custom</span>` : '';
         if (isUitgespeeld) typeBadge += ` <span style="background:#27ae60; color:white; padding:1px 4px; border-radius:3px; font-size:0.65rem;">Uitgespeeld</span>`;
-        if (isTeruggetrokken) typeBadge += ` <span style="background:#c0392b; color:white; padding:1px 4px; border-radius:3px; font-size:0.65rem;">Geannuleerd</span>`;
 
         let titelKleur = isTeruggetrokken ? '#c0392b' : (isUitgespeeld ? '#27ae60' : (isThuis ? '#d35400' : '#2980b9')); 
         let icoon = isThuis ? '🏠' : '🚌';
