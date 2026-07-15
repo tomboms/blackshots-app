@@ -453,39 +453,54 @@ window.laadPlanbord = function() {
     let speelDatum = window.normaalDatum(document.getElementById('plan-datum').value);
     if(!bord || !speelDatum) return;
 
-    // Voer de auto-planner uit voordat we het bord tekenen
+    let toggleBtn = document.getElementById('btn-weergave-toggle');
+    if(toggleBtn) toggleBtn.innerHTML = window.huidigeWeergave === 'grid' ? '🗂️ Lijstweergave' : '📅 Blokkenschema';
+
     window.autoPlanBekendeTijden(speelDatum);
 
-    let html = `<div class="tijd-as"><div class="veld-header">Tijd</div>`;
-    for(let u = START_UUR; u < EIND_UUR; u++) html += `<div class="tijd-slot">${String(u).padStart(2, '0')}:00</div>`;
-    html += `</div>`;
+    if (window.huidigeWeergave === 'lijst') {
+        // LIJSTWEERGAVE LAYOUT
+        bord.innerHTML = `
+            <div style="background:white; border-radius:8px; border:1px solid #cbd5e1; padding:20px; width:100%; box-shadow:0 2px 5px rgba(0,0,0,0.02);">
+                <h3 style="margin-top:0; color:#e67e22; border-bottom:2px solid #e67e22; padding-bottom:10px; font-size:1.2rem;">🏠 Geplande Thuiswedstrijden</h3>
+                <div id="lijst-container-thuis" style="display:flex; flex-direction:column; gap:15px; margin-bottom:30px;"></div>
+                
+                <h3 style="margin-top:0; color:#2980b9; border-bottom:2px solid #2980b9; padding-bottom:10px; font-size:1.2rem;">🚌 Geplande Uitwedstrijden</h3>
+                <div id="lijst-container-uit" style="display:flex; flex-direction:column; gap:15px;"></div>
+            </div>`;
+    } else {
+        // HET OUDE VERTROUWDE BLOKKENSCHEMA
+        let html = `<div class="tijd-as"><div class="veld-header">Tijd</div>`;
+        for(let u = START_UUR; u < EIND_UUR; u++) html += `<div class="tijd-slot">${String(u).padStart(2, '0')}:00</div>`;
+        html += `</div>`;
 
-    let aantalVelden = locatie === 'veka' ? 2 : 1;
-    let veldNamen = locatie === 'veka' ? ['Veld 1', 'Veld 2'] : ['De Veste Hoofdveld'];
+        let aantalVelden = locatie === 'veka' ? 2 : 1;
+        let veldNamen = locatie === 'veka' ? ['Veld 1', 'Veld 2'] : ['De Veste Hoofdveld'];
 
-    for(let v = 0; v < aantalVelden; v++) {
-        let gridLijnenHtml = `<div class="grid-lijnen">`;
-        for(let u = START_UUR; u < EIND_UUR; u++) gridLijnenHtml += `<div class="grid-lijn-15m"></div><div class="grid-lijn-30m"></div><div class="grid-lijn-15m"></div><div class="grid-lijn-60m"></div>`;
-        gridLijnenHtml += `</div>`;
-        html += `<div class="veld-kolom" id="veld-kolom-${v+1}" ondragover="window.onDragOver(event)" ondrop="window.onDropVeld(event, ${v+1})">
-                    <div class="veld-header">${veldNamen[v]}</div>
-                    ${gridLijnenHtml}
-                    <div id="wedstrijd-container-${v+1}" style="position:absolute; top:42px; left:0; right:0; bottom:0;"></div>
+        for(let v = 0; v < aantalVelden; v++) {
+            let gridLijnenHtml = `<div class="grid-lijnen">`;
+            for(let u = START_UUR; u < EIND_UUR; u++) gridLijnenHtml += `<div class="grid-lijn-15m"></div><div class="grid-lijn-30m"></div><div class="grid-lijn-15m"></div><div class="grid-lijn-60m"></div>`;
+            gridLijnenHtml += `</div>`;
+            html += `<div class="veld-kolom" id="veld-kolom-${v+1}" ondragover="window.onDragOver(event)" ondrop="window.onDropVeld(event, ${v+1})">
+                        <div class="veld-header">${veldNamen[v]}</div>
+                        ${gridLijnenHtml}
+                        <div id="wedstrijd-container-${v+1}" style="position:absolute; top:42px; left:0; right:0; bottom:0;"></div>
+                     </div>`;
+        }
+
+        let gridLijnenUit = `<div class="grid-lijnen">`;
+        for(let u = START_UUR; u < EIND_UUR; u++) gridLijnenUit += `<div class="grid-lijn-15m"></div><div class="grid-lijn-30m"></div><div class="grid-lijn-15m"></div><div class="grid-lijn-60m"></div>`;
+        gridLijnenUit += `</div>`;
+        
+        html += `<div class="veld-kolom" id="veld-kolom-uit" ondragover="window.onDragOver(event)" ondrop="window.onDropVeld(event, 'uit')" style="background: rgba(41, 128, 185, 0.05);">
+                    <div class="veld-header" style="background:#2980b9;">🚌 Uitwedstrijden</div>
+                    ${gridLijnenUit}
+                    <div id="wedstrijd-container-uit" style="position:absolute; top:42px; left:0; right:0; bottom:0;"></div>
                  </div>`;
+
+        bord.innerHTML = html;
     }
 
-    // NIEUW: De 3e kolom speciaal voor Uitwedstrijden!
-    let gridLijnenUit = `<div class="grid-lijnen">`;
-    for(let u = START_UUR; u < EIND_UUR; u++) gridLijnenUit += `<div class="grid-lijn-15m"></div><div class="grid-lijn-30m"></div><div class="grid-lijn-15m"></div><div class="grid-lijn-60m"></div>`;
-    gridLijnenUit += `</div>`;
-    
-    html += `<div class="veld-kolom" id="veld-kolom-uit" ondragover="window.onDragOver(event)" ondrop="window.onDropVeld(event, 'uit')" style="background: rgba(41, 128, 185, 0.05);">
-                <div class="veld-header" style="background:#2980b9;">🚌 Uitwedstrijden</div>
-                ${gridLijnenUit}
-                <div id="wedstrijd-container-uit" style="position:absolute; top:42px; left:0; right:0; bottom:0;"></div>
-             </div>`;
-
-    bord.innerHTML = html;
     window.plaatsWedstrijdenInWachtkamer(speelDatum);
 };
 // ============================================================================
