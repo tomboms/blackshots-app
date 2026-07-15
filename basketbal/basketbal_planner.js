@@ -1191,3 +1191,199 @@ window.renderRegelsLijst = function() {
     if (html === '') html = '<p style="color:#7f8c8d; font-size:0.85rem;">Je hebt nog geen vaste team-volgorde ingesteld.</p>';
     container.innerHTML = html;
 };
+
+// ============================================================================
+// 🖱️ BEDIENING, EXPORT & NAVIGATIE (NIEUW)
+// ============================================================================
+
+// 1. Opslaan en terugkeren naar het seizoensoverzicht
+window.slaOpEnTerug = function() {
+    window.slaPlannerDataOp();
+    window.location.href = 'thuisdagen_overzicht.html';
+};
+
+// 2. Navigeren naar de Vorige/Volgende speeldag in de kalender
+window.navigeerSpeeldag = function(richting) {
+    let huidigeDatum = window.normaalDatum(document.getElementById('plan-datum').value);
+    let dagen = JSON.parse(localStorage.getItem('blackshots_speeldagen')) || [];
+    if(dagen.length === 0) return;
+    
+    dagen.sort();
+    let index = dagen.indexOf(huidigeDatum);
+    if (index === -1) index = 0; // Fallback als de huidige datum niet bestaat
+    
+    let nwIndex = index + richting;
+    if (nwIndex >= 0 && nwIndex < dagen.length) {
+        document.getElementById('plan-datum').value = dagen[nwIndex];
+        window.laadPlanbord();
+    } else {
+        alert("Geen " + (richting > 0 ? "volgende" : "vorige") + " speeldag gevonden in het rooster.");
+    }
+};
+
+// 3. Genereren van een mooi WhatsApp/Kopieer schema
+window.kopieerSchemaTekst = function() {
+    let speelDatum = window.normaalDatum(document.getElementById('plan-datum').value);
+    let alleWedstrijden = [...(window.nbbWedstrijden || []), ...(window.customWedstrijden || [])];
+    
+    let dagWedstrijden = alleWedstrijden.filter(w => window.normaalDatum(w.Datum) === speelDatum && !window.verborgenDB.includes(window.genereerUniekId(w)));
+    
+    // Sorteer op tijdstip zodat het logisch leest
+    dagWedstrijden.sort((a,b) => {
+        let timeA = window.planStatusDB[window.genereerUniekId(a)] ? window.tijdNaarMinuten(window.planStatusDB[window.genereerUniekId(a)].tijd) : 9999;
+        let timeB = window.planStatusDB[window.genereerUniekId(b)] ? window.tijdNaarMinuten(window.planStatusDB[window.genereerUniekId(b)].tijd) : 9999;
+        return timeA - timeB;
+    });
+
+    let tekst = `🏀 Schema voor Black Shots (${speelDatum})\n\n`;
+    let aantalGepland = 0;
+    
+    dagWedstrijden.forEach(w => {
+        let id = window.genereerUniekId(w);
+        let status = window.planStatusDB[id];
+        if(!status) return; // Negeer wedstrijden in de wachtkamer
+        
+        let isThuis = (w.Thuisteam || '').toLowerCase().includes('black shots');
+        let matchNummer = w.Wedstrijdnummer || w.wedstrijdnummer || w.ID || w.id || 'Custom';
+        let thuisNaam = (w.Thuisteam || '').replace(/Black Shots\s*-?\s*/i, '').trim();
+        let uitNaam = (w.Uitteam || '').replace(/Black Shots\s*-?\s*/i, '').trim();
+        
+        let taken = window.takenDB[id] || {};
+        
+        tekst += `Datum+tijd: ${speelDatum} ${status.tijd}\n`;
+        tekst += `Wedstrijd: ${thuisNaam} - ${uitNaam} (${matchNummer})\n`;
+        
+        if (isThuis) {
+            tekst += `Scheidsrechter: ${taken.sA || 'Vrij'} + ${taken.sB || 'Vrij'}\n`;
+            tekst += `Tafel: ${taken.tab || 'Vrij'} (Tablet) + ${taken.sco || 'Vrij'} (Scorebord)\n\n`;
+        } else {
+            tekst += `Chauffeurs: ${taken.auto1 || 'Vrij'}, ${taken.auto2 || 'Vrij'}, ${taken.auto3 || 'Vrij'}\n\n`;
+        }
+        aantalGepland++;
+    });
+
+    if (aantalGepland === 0) return alert("Er staan nog geen wedstrijden op het bord om te kopiëren!");
+
+    navigator.clipboard.writeText(tekst).then(() => {
+        alert("✅ Schema gekopieerd naar klembord! Je kunt het nu direct in WhatsApp plakken.");
+    }).catch(err => alert("Fout bij kopiëren: " + err));
+};
+
+// 4. Diepe verwijdering van een Speeldag (Nu wordt alles écht gewist)
+window.verwijderHuidigeDag = function() {
+    let datum = document.getElementById('plan-datum').value;
+    let schoneDatum = window.normaalDatum(datum);
+    if(!confirm(`⚠️ Let op: Weet je zeker dat je HEEL ${schoneDatum} wilt wissen uit het rooster?`)) return;
+
+    // Verwijder de speeldag uit het grote overzicht
+    let speeldagen = JSON.parse(localStorage.getItem('blackshots_speeldagen')) || [];
+    speeldagen = speeldagen.filter(d => d !== schoneDatum);
+    window.speeldagenDB = speeldagen;
+    localStorage.setItem('blackshots_speeldagen', JSON.stringify(speeldagen));
+    
+    if (typeof window.opslaanInFirebase === 'function') window.opslaanInFirebase('blackshots_speeldagen', speeldagen);
+    
+    // Wis alle statussen en taken die gekoppeld zijn aan wedstrijden op deze dag
+    let alleWedstrijden = [...(window.nbbWedstrijden || []), ...(window.customWedstrijden || [])];
+    alleWedstrijden.forEach(w => {
+        if(window.normaalDatum(w.Datum) === schoneDatum) {
+            let id = window.genereerUniekId(w);
+            delete window.planStatusDB[id];
+            delete window.takenDB[id];
+            // Als het een handmatige wedstrijd was, gooi hem dan ook fysiek weg
+            if (id.includes('custom_')) {
+                window.customWedstrijden = window.customWedstrijden.filter(cw => cw.id !== id);
+            }
+        }
+    });
+
+    window.slaPlannerDataOp();
+    alert("Dag is verwijderd. Je wordt nu teruggestuurd naar het overzicht.");
+    window.location.href = 'thuisdagen_overzicht.html';
+};
+
+// 5. Nieuwe / Custom Wedstrijd reparatie
+window.openNieuweWedstrijdModal = function() {
+    let opts = '<option value="">-- Selecteer team --</option>';
+    (window.teamsDB || []).forEach(t => { 
+        if(!t.isVrijwilliger && !t.isRecreant) opts += `<option value="${t.naam}">${t.naam}</option>`; 
+    });
+    
+    let selectEl = document.getElementById('nw-match-team');
+    if (selectEl) selectEl.innerHTML = opts;
+    
+    document.getElementById('nieuw-wedstrijd-modal').style.display = 'flex';
+};
+
+window.slaNieuweWedstrijdOp = function() {
+    let datum = document.getElementById('plan-datum').value;
+    if (!datum) return alert("Selecteer eerst een datum in de balk.");
+    let speelDatum = window.normaalDatum(datum);
+    
+    let teamNaam = document.getElementById('nw-match-team').value;
+    let tegenstander = document.getElementById('nw-match-tegenstander').value.trim();
+    let type = document.getElementById('nw-match-type').value;
+    let duur = parseInt(document.getElementById('nw-match-duur').value) || 90;
+    
+    if(!teamNaam || !tegenstander) return alert("Vul minimaal een team en tegenstander in.");
+
+    let uniekId = 'custom_' + Date.now();
+    let nwMatch = {
+        id: uniekId, 
+        Datum: speelDatum, 
+        Thuisteam: "Black Shots " + teamNaam, 
+        Uitteam: tegenstander,
+        Tijd: "Te plannen", 
+        Status: "Te plannen", 
+        Wedstrijdnummer: type, 
+        handmatigeDuur: duur
+    };
+    
+    window.customWedstrijden.push(nwMatch);
+    window.slaPlannerDataOp();
+    document.getElementById('nieuw-wedstrijd-modal').style.display = 'none';
+    window.laadPlanbord();
+};
+
+// 6. Instellingen Smart Fill Modal Reparatie (Zodat ze niet meer leeg zijn)
+window.sfSettingsDB = JSON.parse(localStorage.getItem('blackshots_smartfill_settings')) || {
+    zelfdeVeld: 150, anderVeld: 130, wachten: 30, niveau: 200, nietThuis: 500, eerlijkheid: 20, 
+    srBonus: 150, srTafelStraf: 100, srMaxStraf: 500, oudFluitBonus: 80, oudTafelStraf: 50, voorkeuren: []
+};
+
+window.openSmartFillSettings = function() {
+    let s = window.sfSettingsDB;
+    document.getElementById('sf-set-zelfde').value = s.zelfdeVeld || 150;
+    document.getElementById('sf-set-ander').value = s.anderVeld || 130;
+    document.getElementById('sf-set-wachten').value = s.wachten || 30;
+    document.getElementById('sf-set-thuis').value = s.nietThuis || 500;
+    document.getElementById('sf-set-eerlijk').value = s.eerlijkheid || 20;
+    document.getElementById('sf-set-sr-bonus').value = s.srBonus || 150;
+    document.getElementById('sf-set-sr-tafel').value = s.srTafelStraf || 100;
+    document.getElementById('sf-set-sr-max').value = s.srMaxStraf || 500;
+    document.getElementById('sf-set-oud-fluit').value = s.oudFluitBonus || 80;
+    document.getElementById('sf-set-oud-tafel').value = s.oudTafelStraf || 50;
+    document.getElementById('sf-set-niveau').value = s.niveau || 200;
+    
+    document.getElementById('smart-fill-settings-modal').style.display = 'flex';
+};
+
+window.slaSmartFillSettingsOp = function() {
+    window.sfSettingsDB = {
+        zelfdeVeld: parseInt(document.getElementById('sf-set-zelfde').value),
+        anderVeld: parseInt(document.getElementById('sf-set-ander').value),
+        wachten: parseInt(document.getElementById('sf-set-wachten').value),
+        nietThuis: parseInt(document.getElementById('sf-set-thuis').value),
+        eerlijkheid: parseInt(document.getElementById('sf-set-eerlijk').value),
+        srBonus: parseInt(document.getElementById('sf-set-sr-bonus').value),
+        srTafelStraf: parseInt(document.getElementById('sf-set-sr-tafel').value),
+        srMaxStraf: parseInt(document.getElementById('sf-set-sr-max').value),
+        oudFluitBonus: parseInt(document.getElementById('sf-set-oud-fluit').value),
+        oudTafelStraf: parseInt(document.getElementById('sf-set-oud-tafel').value),
+        niveau: parseInt(document.getElementById('sf-set-niveau').value),
+        voorkeuren: window.sfSettingsDB.voorkeuren || []
+    };
+    localStorage.setItem('blackshots_smartfill_settings', JSON.stringify(window.sfSettingsDB));
+    document.getElementById('smart-fill-settings-modal').style.display = 'none';
+    alert("✅ Instellingen succesvol opgeslagen!");
+};

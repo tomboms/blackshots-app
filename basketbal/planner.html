@@ -67,20 +67,27 @@
         <a href="dashboard.html" class="terug-knop">🏠 Dashboard</a>
     </nav>
 
-    <main class="content-sectie active" style="max-width: 1500px; margin: 20px auto; padding: 0 15px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
-            <h2 style="margin:0; color:var(--secondary-color);">🧩 Thuiswedstrijd Planner</h2>
-            <div style="display:flex; gap:10px;">
-                <button onclick="window.openRegelsModal()" style="background:#8e44ad; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">📜 Clubregels</button>
-                <button onclick="window.triggerJsonUpload()" style="background:#2980b9; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; margin-right:10px;">📥 Upload NBB Schema (JSON)</button>
-                <button onclick="window.genereerAlleTeams()" style="background:#34495e; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">⚡ Genereer Alle Teams</button>
-                <button onclick="window.startSmartFill()" style="background: linear-gradient(135deg, #8e44ad, #3498db); color: white; border: none; padding: 10px 15px; border-radius: 4px; font-weight: bold; cursor: pointer; margin-left: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: transform 0.2s;">✨ Vul Automatisch (Smart Fill)</button>
-                <button onclick="window.openSmartFillSettings()" style="background: #34495e; color: white; border: none; padding: 10px 15px; border-radius: 4px; font-weight: bold; cursor: pointer; margin-left: 5px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: transform 0.2s;">⚙️ Instellingen</button> 
-                <button onclick="window.openNieuweWedstrijdModal()" style="background:#3498db; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">+ Nieuwe Wedstrijd</button>
-                <button onclick="window.verwijderHuidigeDag()" style="background:#c0392b; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; margin-left: auto;">🗑️ Wis Speeldag</button>
-                <button style="background:#27ae60; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">💾 Concept Opslaan</button>
-            </div>
-        </div>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
+    <h2 style="margin:0; color:var(--secondary-color);">🧩 Thuiswedstrijd Planner</h2>
+    
+    <!-- Navigatie tussen Dagen -->
+    <div style="display:flex; gap:5px; background:#f8f9fa; padding:5px; border-radius:6px; border:1px solid #cbd5e1;">
+        <button onclick="window.navigeerSpeeldag(-1)" style="background:transparent; border:none; cursor:pointer; font-weight:bold; color:var(--secondary-color);" title="Vorige Speeldag">◀ Vorige</button>
+        <button onclick="window.navigeerSpeeldag(1)" style="background:transparent; border:none; cursor:pointer; font-weight:bold; color:var(--secondary-color);" title="Volgende Speeldag">Volgende ▶</button>
+    </div>
+
+    <!-- Hoofd Acties -->
+    <div style="display:flex; gap:10px;">
+        <button onclick="window.openSmartFillSettings()" style="background:#34495e; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">⚙️ Auto-Planner Instellingen</button> 
+        <button onclick="window.startSmartFill()" style="background: linear-gradient(135deg, #8e44ad, #3498db); color: white; border: none; padding:8px 15px; border-radius: 4px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">✨ Vul Automatisch in</button>
+        
+        <button onclick="window.openNieuweWedstrijdModal()" style="background:#f39c12; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; margin-left:10px;">➕ Custom Wedstrijd</button>
+        <button onclick="window.kopieerSchemaTekst()" style="background:#2ecc71; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">📋 Kopieer voor WhatsApp</button>
+        
+        <button onclick="window.verwijderHuidigeDag()" style="background:#c0392b; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; margin-left: 10px;">🗑️ Wis Gehele Dag</button>
+        <button onclick="window.slaOpEnTerug()" style="background:#27ae60; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">💾 Opslaan & Terug</button>
+    </div>
+</div>
 
         
         <div class="planner-controls">
