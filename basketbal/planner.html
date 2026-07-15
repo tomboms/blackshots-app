@@ -59,7 +59,17 @@
 
     </style>
 </head>
-<main class="content-sectie active" style="max-width: 1500px; margin: 20px auto; padding: 0 15px;">
+<body style="overflow-y: auto;">
+    <div id="cloud-status-indicator" style="position: fixed; bottom: 20px; right: 20px; background: #27ae60; color: white; padding: 10px 20px; border-radius: 30px; font-weight: bold; font-size: 0.9rem; z-index: 99999; opacity: 0; pointer-events: none;">☁️ Cloud Actief</div>
+
+    <nav class="top-nav">
+        <h1>🏀 Black Shots Clubbeheer</h1>
+        <a href="dashboard.html" class="terug-knop">🏠 Dashboard</a>
+    </nav>
+
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
+    <h2 style="margin:0; color:var(--secondary-color);">🧩 Thuiswedstrijd Planner</h2>
+   <main class="content-sectie active" style="max-width: 1500px; margin: 20px auto; padding: 0 15px;">
         
         <!-- TOP RIJ: Titel, Navigatie & Alle Knoppen netjes op 1 rij -->
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px; border-bottom: 2px solid var(--border-color); padding-bottom: 15px;">
@@ -126,7 +136,8 @@
 
             <div class="planner-bord" id="planner-bord-container"></div>
         </div>
-    </main>DALS (TAKEN & NIEUWE WEDSTRIJD) -->
+    </main>
+    <!-- MODALS (TAKEN & NIEUWE WEDSTRIJD) -->
     <!-- ... (Zelfde als vorige keer, ik hou ze kort in dit HTML voorbeeld om ruimte te besparen, zorg dat je jouw oude modal code hieronder laat staan of kopieert!) ... -->
     <!-- Voor de volledigheid hieronder de Modals: -->
     
