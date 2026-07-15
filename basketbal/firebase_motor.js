@@ -1,6 +1,6 @@
 // --- FIREBASE_MOTOR.JS: LIVE SYNC & KOGELVRIJE OPSLAG (GEÜPDATET VOOR PLANNER) ---
 
-const APP_VERSIE = "15-7 20:41 "; // Versie eentje omhoog gezet voor de nieuwe planner!
+const APP_VERSIE = "15-7 20:46 "; // Versie eentje omhoog gezet voor de nieuwe planner!
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
 import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";

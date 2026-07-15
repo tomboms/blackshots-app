@@ -431,15 +431,7 @@ window.werkTellerBij = function(dagWedstrijden) {
     lijstContainer.innerHTML = html;
 };
 
-    let gesorteerd = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
-    let lijstContainer = document.getElementById('teller-lijst-container');
-    if (!lijstContainer) return;
-    if (gesorteerd.length === 0) { lijstContainer.innerHTML = '<div style="color:#7f8c8d; font-size:0.8rem; text-align:center;">Nog geen toewijzingen.</div>'; return; }
 
-    let html = '';
-    gesorteerd.forEach(naam => { html += `<div class="teller-item"><span>${naam}</span> <strong>${counts[naam]}</strong></div>`; });
-    lijstContainer.innerHTML = html;
-};
 
 // ============================================================================
 // 🎨 BORD RENDERING (MET AUTO-PLANNER EN EXTRA UIT-KOLOM)
