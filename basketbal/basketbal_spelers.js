@@ -1,4 +1,4 @@
-// --- BASKETBAL_SPELERS.JS: MET CUSTOM TEAM REGELS ---
+// --- BASKETBAL_SPELERS.JS: MET TAKEN, GEZINSKOPPELING & ZAALWACHT ---
 
 window.getCanonicalTeam = function(identifier) {
     if (!identifier) return null;
@@ -17,46 +17,33 @@ window.getCanonicalTeam = function(identifier) {
     });
 };
 
-// DE VERNIEUWDE SLIMME CHECKER
 window.checkNBBTeOud = function(geboorteDatum, teamNaam, teamObj) {
     if (!geboorteDatum || !teamNaam || geboorteDatum === "-") return false; 
     let gebJaar = parseInt(geboorteDatum.split('-')[0]); 
     
-    // 1. Controleer of het team een AANGEPASTE regel heeft ingesteld
     if (teamObj && teamObj.leeftijdRegel && teamObj.leeftijdRegel.trim() !== "") {
-        let regel = teamObj.leeftijdRegel.trim().replace(/\s+/g, ''); // Verwijder spaties
+        let regel = teamObj.leeftijdRegel.trim().replace(/\s+/g, ''); 
         
         if (regel.startsWith('-')) {
-            // Bijv: -2019 (Iedereen jonger, dus geboren in 2019, 2020, 2021 etc)
             let grens = parseInt(regel.substring(1));
-            return gebJaar < grens; // Als je geboren bent in 2018 (dus < 2019), vlag je als TE OUD (true)
-            
+            return gebJaar < grens; 
         } else if (regel.startsWith('+')) {
-            // Bijv: +2004 (Iedereen ouder, dus geboren in 2004, 2003, 1999 etc)
             let grens = parseInt(regel.substring(1));
-            return gebJaar > grens; // Als je geboren bent in 2005 (dus > 2004), vlag je als TE JONG (true)
-            
+            return gebJaar > grens; 
         } else {
-            // Bijv: 2013,2014 (Specifieke lijst)
             let toegestaan = regel.split(',').map(y => parseInt(y));
-            return !toegestaan.includes(gebJaar); // Als het jaar er niet in staat, vlaggen (true)
+            return !toegestaan.includes(gebJaar); 
         }
     }
     
-    // 2. Geen aangepaste regel? Gebruik de standaard NBB Formule
     let match = teamNaam.match(/(?:U|X|M|V|J)(\d{2})/i); 
     if (!match) return false; 
     
     let categorie = parseInt(match[1]); 
-    
-    // --- NIEUW: Lees het NBB Peiljaar uit de centrale instellingen ---
     let instellingen = JSON.parse(localStorage.getItem('blackshots_instellingen')) || {};
     let actiefSeizoen = instellingen.seizoen || "2025-2026"; 
     let startJaarNBB = parseInt(actiefSeizoen.split('-')[0]); 
-    
-    // NBB Peiljaar is altijd het tweede jaar van het seizoen (bijv. 2026 voor seizoen 2025-2026)
     let peilJaar = startJaarNBB + 1; 
-    
     let minGeboorteJaar = peilJaar - categorie; 
     
     return gebJaar < minGeboorteJaar;
@@ -79,6 +66,18 @@ window.renderSpelers = function() {
                 if(filterTeam) filterTeam.innerHTML += `<option value="${t.id}">${t.naam}</option>`;
             });
         }
+    }
+
+    // Vul of Ververs de Gezinskoppeling Dropdowns met actuele spelers
+    let nwGezin = document.getElementById('nw-speler-gezin');
+    if (nwGezin) {
+        let huidigeGezinSelectie = nwGezin.value;
+        let gezinOpts = '<option value="">-- Geen (Losse speler) --</option>';
+        window.spelersDB.forEach(s => {
+            gezinOpts += `<option value="${s.id}">${s.naam} (${s.bondsnummer || 'Ouder/Geen'})</option>`;
+        });
+        nwGezin.innerHTML = gezinOpts;
+        nwGezin.value = huidigeGezinSelectie;
     }
 
     let zoekterm = (document.getElementById('zoek-speler') ? document.getElementById('zoek-speler').value.toLowerCase() : "");
@@ -143,7 +142,6 @@ window.renderSpelers = function() {
             let proefBadge = isProef ? `<span style="background:#2ecc71; color:white; padding:2px 6px; border-radius:4px; font-size:0.7rem; font-weight:bold; margin-left:5px;">🟢 PROEF</span>` : '';
             
             let leeftijdWaarschuwing = '';
-            // GEEF HET TEAM OBJECT MEE AAN DE CHECKER!
             if (window.checkNBBTeOud(speler.geboorteDatum, teamNaam, actueelTeamObj)) {
                 if (speler.dispensatie) {
                     leeftijdWaarschuwing = `<button onclick="window.toggleDispensatie('${speler.id}')" title="Dispensatie OK. Klik om in te trekken." style="background:none; border:none; cursor:pointer; padding:0; margin-left:5px;">✅</button>`;
@@ -154,15 +152,27 @@ window.renderSpelers = function() {
 
             let kaderBadge = speler.kaderRol ? `<div style="color:#8e44ad; font-size:0.8rem; font-weight:bold; margin-top:2px;">⭐ ${speler.kaderRol}</div>` : '';
 
+            // HET NIEUWE TAKEN WEERGAVE BLOK (INCL ZAALWACHT)
+            let magF = speler.magFluiten !== false; 
+            let magT = speler.magTafelen !== false; 
+            let heeftA = speler.heeftAuto === true; 
+            let magZ = speler.magZaalwacht !== false; // Bestaande accounts staan standaard op True
+            
+            let taakIcons = `
+                <span title="${magF ? 'Mag Fluiten' : 'Mag NIET Fluiten'}" style="opacity:${magF?1:0.2}; cursor:help;">👨‍⚖️</span>
+                <span title="${magT ? 'Mag Tafelen' : 'Mag NIET Tafelen'}" style="opacity:${magT?1:0.2}; cursor:help;">💻</span>
+                <span title="${heeftA ? 'Heeft Auto / Wil Rijden' : 'Heeft géén auto'}" style="opacity:${heeftA?1:0.2}; cursor:help;">🚗</span>
+                <span title="${magZ ? 'Mag Zaalwacht' : 'Mag NIET Zaalwacht'}" style="opacity:${magZ?1:0.2}; cursor:help;">🔑</span>
+            `;
+            if(speler.gezinKoppeling) taakIcons += ` <span title="Gekoppeld aan broer/zus (Planner checkt dubbele tijden)" style="color:#8e44ad; margin-left:5px; cursor:help;">🔗</span>`;
+
             let weergaveLeeftijd = '-';
             if (speler.geboorteDatum && speler.geboorteDatum !== '-') {
                 let gebDate = new Date(speler.geboorteDatum);
                 let vandaag = new Date();
                 let berekendeLeeftijd = vandaag.getFullYear() - gebDate.getFullYear();
                 let m = vandaag.getMonth() - gebDate.getMonth();
-                if (m < 0 || (m === 0 && vandaag.getDate() < gebDate.getDate())) {
-                    berekendeLeeftijd--; 
-                }
+                if (m < 0 || (m === 0 && vandaag.getDate() < gebDate.getDate())) berekendeLeeftijd--; 
                 
                 let mooieDatum = gebDate.toLocaleDateString('nl-NL');
                 weergaveLeeftijd = `<strong>${berekendeLeeftijd} jr</strong> <span style="font-size:0.75rem; color:#7f8c8d; display:block;">(${mooieDatum})</span>`;
@@ -177,16 +187,13 @@ window.renderSpelers = function() {
                         ${speler.naam} ${proefBadge}
                         ${kaderBadge}
                     </td>
-                    <td style="padding:12px;">${weergaveLeeftijd}</td>
-                    <td style="padding:12px; font-weight:bold; color:#d35400;">${speler.rugnummer ? `#${speler.rugnummer}` : '-'}</td>
                     <td style="padding:12px; white-space:nowrap;">
                         <span style="${teamBadge} padding:4px 8px; border-radius:4px; font-size:0.85rem;">${teamNaam}</span>${leeftijdWaarschuwing}${recBadge}
                     </td>
-                    <td style="padding:12px; color:#7f8c8d; font-size:0.85rem;">${speler.lidSinds || '-'}</td>
-                    <td style="padding:12px; font-size:0.85rem; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-                        <div style="font-weight:bold; color:#2c3e50;" title="${speler.clubLidmaatschap || '-'}">🏠 ${speler.clubLidmaatschap || '-'}</div>
-                        <div style="color:#7f8c8d; font-style:italic;" title="${speler.bondLidmaatschap || '-'}">🏀 ${speler.bondLidmaatschap || '-'}</div>
+                    <td style="padding:12px; font-size:1.1rem; letter-spacing:2px; white-space:nowrap; text-align:center;">
+                        ${taakIcons}
                     </td>
+                    <td style="padding:12px;">${weergaveLeeftijd}</td>
                     <td style="padding:12px; white-space:nowrap;">
                         ${maakLidKnop}
                         <button onclick="window.openBewerkSpelerModal(${speler.origineleIndex})" style="background:#f39c12; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:0.8rem; margin-right:5px;">✏️</button>
@@ -201,7 +208,7 @@ window.renderSpelers = function() {
     tbody.innerHTML = html;
 };
 
-// --- NIEUWE FUNCTIES VOOR TEAM LEEFTIJD REGELS MODAL ---
+// --- FUNCTIES VOOR TEAM LEEFTIJD REGELS MODAL ---
 window.openLeeftijdRegelsModal = function() {
     let lijstDiv = document.getElementById('leeftijd-regels-lijst');
     lijstDiv.innerHTML = '';
@@ -225,29 +232,20 @@ window.openLeeftijdRegelsModal = function() {
     document.getElementById('leeftijd-regels-modal').style.display = 'flex';
 };
 
-window.sluitLeeftijdRegelsModal = function() {
-    document.getElementById('leeftijd-regels-modal').style.display = 'none';
-};
+window.sluitLeeftijdRegelsModal = function() { document.getElementById('leeftijd-regels-modal').style.display = 'none'; };
 
 window.slaLeeftijdRegelsOp = function() {
     let inputs = document.querySelectorAll('.team-regel-input');
     inputs.forEach(input => {
         let tId = input.getAttribute('data-teamid');
         let regel = input.value.trim();
-        
-        // Zoek het team in de database en update het
         let team = window.teamsDB.find(t => t.id === tId);
-        if (team) {
-            team.leeftijdRegel = regel;
-        }
+        if (team) team.leeftijdRegel = regel;
     });
 
-    // Opslaan in localstorage
     localStorage.setItem('blackshots_teams', JSON.stringify(window.teamsDB));
-    
     window.sluitLeeftijdRegelsModal();
-    window.renderSpelers(); // Tabel herladen om de nieuwe regels toe te passen
-    
+    window.renderSpelers(); 
     alert("✅ Teamregels opgeslagen! De waarschuwingsicoontjes (⚠️) zijn direct bijgewerkt.");
 };
 
@@ -275,21 +273,32 @@ window.openBewerkSpelerModal = function(index) {
     document.getElementById('bewerk-speler-naam').value = speler.naam || "";
     document.getElementById('bewerk-speler-gebdatum').value = (speler.geboorteDatum && speler.geboorteDatum !== '-') ? speler.geboorteDatum : "";
     document.getElementById('bewerk-speler-rugnr').value = speler.rugnummer || "";
-    document.getElementById('bewerk-speler-rol').value = speler.kaderRol || "";
     document.getElementById('bewerk-speler-rec').checked = speler.isRecreant === true;
     
     let proefCheck = document.getElementById('bewerk-speler-proef');
     if(proefCheck) proefCheck.checked = speler.isProeflid === true;
 
-    document.getElementById('bewerk-speler-clublid').value = speler.clubLidmaatschap || "";
-    document.getElementById('bewerk-speler-bondlid').value = speler.bondLidmaatschap || "";
+    // VINKJES & GEZIN INLADEN
+    document.getElementById('bewerk-speler-fluit').checked = speler.magFluiten !== false;
+    document.getElementById('bewerk-speler-tafel').checked = speler.magTafelen !== false;
+    document.getElementById('bewerk-speler-auto').checked = speler.heeftAuto === true;
+    document.getElementById('bewerk-speler-zaalwacht').checked = speler.magZaalwacht !== false;
+
+    let gezinSelect = document.getElementById('bewerk-speler-gezin');
+    if (gezinSelect) {
+        gezinSelect.innerHTML = '<option value="">-- Geen koppeling --</option>';
+        window.spelersDB.forEach(s => {
+            if (s.id !== speler.id) { 
+                gezinSelect.innerHTML += `<option value="${s.id}">${s.naam} (${s.bondsnummer || 'geen'})</option>`;
+            }
+        });
+        gezinSelect.value = speler.gezinKoppeling || "";
+    }
 
     let teamSelect = document.getElementById('bewerk-speler-team');
     teamSelect.innerHTML = '<option value="">-- Geen (Vrije Speler) --</option>';
     if (Array.isArray(window.teamsDB)) {
-        window.teamsDB.forEach(t => {
-            teamSelect.innerHTML += `<option value="${t.id}">${t.naam}</option>`;
-        });
+        window.teamsDB.forEach(t => { teamSelect.innerHTML += `<option value="${t.id}">${t.naam}</option>`; });
     }
     
     let matchedTeam = window.getCanonicalTeam(speler.teamId);
@@ -298,9 +307,7 @@ window.openBewerkSpelerModal = function(index) {
     document.getElementById('bewerk-speler-modal').style.display = 'flex';
 };
 
-window.sluitBewerkSpelerModal = function() {
-    document.getElementById('bewerk-speler-modal').style.display = 'none';
-};
+window.sluitBewerkSpelerModal = function() { document.getElementById('bewerk-speler-modal').style.display = 'none'; };
 
 window.slaBewerkteSpelerOp = function() {
     let index = document.getElementById('bewerk-speler-index').value;
@@ -313,33 +320,38 @@ window.slaBewerkteSpelerOp = function() {
     speler.naam = nwNaam;
     speler.geboorteDatum = document.getElementById('bewerk-speler-gebdatum').value || "-";
     speler.rugnummer = document.getElementById('bewerk-speler-rugnr').value;
-    speler.kaderRol = document.getElementById('bewerk-speler-rol').value.trim();
     speler.teamId = document.getElementById('bewerk-speler-team').value;
     speler.isRecreant = document.getElementById('bewerk-speler-rec').checked;
     
     let proefCheck = document.getElementById('bewerk-speler-proef');
     if(proefCheck) speler.isProeflid = proefCheck.checked;
     
-    speler.clubLidmaatschap = document.getElementById('bewerk-speler-clublid').value.trim() || "-";
-    speler.bondLidmaatschap = document.getElementById('bewerk-speler-bondlid').value.trim() || "-";
+    // TAKEN & GEZIN OPSLAAN
+    speler.magFluiten = document.getElementById('bewerk-speler-fluit').checked;
+    speler.magTafelen = document.getElementById('bewerk-speler-tafel').checked;
+    speler.heeftAuto = document.getElementById('bewerk-speler-auto').checked;
+    speler.magZaalwacht = document.getElementById('bewerk-speler-zaalwacht').checked;
+    speler.gezinKoppeling = document.getElementById('bewerk-speler-gezin').value;
 
     localStorage.setItem('blackshots_spelers', JSON.stringify(window.spelersDB));
     window.sluitBewerkSpelerModal();
     window.renderSpelers();
 };
+
 window.voegSpelerToe = function() {
     let naam = document.getElementById('nw-speler-naam').value.trim();
     let gebDatum = document.getElementById('nw-speler-gebdatum').value;
-    let rugnr = document.getElementById('nw-speler-rugnr').value;
-    
-    // FIX: Controleer of het rol-veld bestaat, anders is het gewoon leeg
-    let rolVeld = document.getElementById('nw-speler-rol');
-    let rol = rolVeld ? rolVeld.value.trim() : "";
-    
     let teamId = document.getElementById('nw-speler-team').value;
     
     let isRec = document.getElementById('nw-speler-rec') ? document.getElementById('nw-speler-rec').checked : false;
     let isProef = document.getElementById('nw-speler-proef') ? document.getElementById('nw-speler-proef').checked : false;
+
+    // NIEUWE VELDEN
+    let magF = document.getElementById('nw-speler-fluit') ? document.getElementById('nw-speler-fluit').checked : true;
+    let magT = document.getElementById('nw-speler-tafel') ? document.getElementById('nw-speler-tafel').checked : true;
+    let auto = document.getElementById('nw-speler-auto') ? document.getElementById('nw-speler-auto').checked : false;
+    let magZ = document.getElementById('nw-speler-zaalwacht') ? document.getElementById('nw-speler-zaalwacht').checked : true;
+    let gezin = document.getElementById('nw-speler-gezin') ? document.getElementById('nw-speler-gezin').value : "";
 
     if(naam) {
         window.spelersDB.push({
@@ -347,24 +359,27 @@ window.voegSpelerToe = function() {
             bondsnummer: '',
             naam: naam,
             geboorteDatum: gebDatum || '-',
-            rugnummer: rugnr,
-            kaderRol: rol,
+            rugnummer: '',
             teamId: teamId,
             isRecreant: isRec,
             isProeflid: isProef,
+            magFluiten: magF,
+            magTafelen: magT,
+            heeftAuto: auto,
+            magZaalwacht: magZ,
+            gezinKoppeling: gezin,
             dispensatie: false,
             lidSinds: isProef ? 'Proefperiode' : new Date().toLocaleDateString('nl-NL'),
-            clubLidmaatschap: isProef ? 'Proeftrainer' : (isRec ? 'Recreant (Handmatig)' : 'Spelend lid (Handmatig)'),
+            clubLidmaatschap: isProef ? 'Proeftrainer' : (isRec ? 'Recreant' : 'Spelend lid'),
             bondLidmaatschap: 'Niet-spelend'
         });
         localStorage.setItem('blackshots_spelers', JSON.stringify(window.spelersDB));
         
         document.getElementById('nw-speler-naam').value = '';
         document.getElementById('nw-speler-gebdatum').value = '';
-        document.getElementById('nw-speler-rugnr').value = '';
-        if(rolVeld) rolVeld.value = '';
         if(document.getElementById('nw-speler-rec')) document.getElementById('nw-speler-rec').checked = false;
         if(document.getElementById('nw-speler-proef')) document.getElementById('nw-speler-proef').checked = true;
+        if(document.getElementById('nw-speler-gezin')) document.getElementById('nw-speler-gezin').value = "";
         window.renderSpelers();
     } else {
         alert("Vul minimaal een naam in!");
@@ -462,15 +477,6 @@ window.importeerBondCSV = function(event) {
                 if (isRec !== bestaandeSpeler.isRecreant) {
                     bestaandeSpeler.isRecreant = isRec; wijzigingen.push("recreant-status");
                 }
-                if (nwClubLid !== "" && bestaandeSpeler.clubLidmaatschap !== nwClubLid) {
-                    bestaandeSpeler.clubLidmaatschap = nwClubLid; wijzigingen.push("clubcontributie");
-                }
-                if (nwBondLid !== "" && bestaandeSpeler.bondLidmaatschap !== nwBondLid) {
-                    bestaandeSpeler.bondLidmaatschap = nwBondLid; wijzigingen.push("bondcontributie");
-                }
-                if (nwRugnummer !== "" && bestaandeSpeler.rugnummer !== nwRugnummer) {
-                    bestaandeSpeler.rugnummer = nwRugnummer; wijzigingen.push(`rugnummer (#${nwRugnummer})`);
-                }
 
                 if (wijzigingen.length > 0) {
                     rapportAangepast.push(`- ${volledigeNaam} (${wijzigingen.join(', ')})`);
@@ -486,8 +492,12 @@ window.importeerBondCSV = function(event) {
                     teamId: finalTeamId,
                     isRecreant: isRec,
                     isProeflid: false, 
+                    magFluiten: true,  
+                    magTafelen: true,  
+                    heeftAuto: false,  
+                    magZaalwacht: true, // Ook Zaalwacht gaat standaard op True bij nieuwe import
+                    gezinKoppeling: "",
                     dispensatie: false, 
-                    kaderRol: "", 
                     lidSinds: idxLidSinds !== -1 && row[idxLidSinds] ? row[idxLidSinds].trim() : "",
                     clubLidmaatschap: nwClubLid,
                     bondLidmaatschap: nwBondLid

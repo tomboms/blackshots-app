@@ -15,8 +15,6 @@
         <a href="../index.html" class="terug-knop">🏠 Terug naar Portaal</a>
     </nav>
 
-    
-
     <main class="content-sectie active">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
             <div style="background:#f8f9fa; padding:5px 10px; border-radius:6px; border:1px solid #ddd; display:flex; align-items:center; gap:10px;">
@@ -41,15 +39,22 @@
                     <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">Geboortedatum:</label>
                     <input type="date" id="nw-speler-gebdatum" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;">
                 </div>
-                <div style="flex:1; min-width:80px;">
-                    <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">Rugnr:</label>
-                    <input type="number" id="nw-speler-rugnr" placeholder="23" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;">
-                </div>
                 <div style="flex:2; min-width:150px;">
                     <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">Koppel aan Team:</label>
                     <select id="nw-speler-team" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px; font-weight:bold;"></select>
                 </div>
+                <div style="flex:2; min-width:150px;">
+                    <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">🔗 Broer/Zus (Gezin):</label>
+                    <select id="nw-speler-gezin" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px; font-weight:bold;"></select>
+                </div>
                 
+                <div style="background:#f8f9fa; border:1px solid #bdc3c7; border-radius:6px; padding:10px; display:flex; flex-direction:column; gap:8px; min-width:150px;">
+                    <label style="display:flex; align-items:center; gap:5px; font-size:0.85rem; font-weight:bold; color:#2c3e50;"><input type="checkbox" id="nw-speler-fluit" checked style="width:16px; height:16px;"> 👨‍⚖️ Mag Fluiten</label>
+                    <label style="display:flex; align-items:center; gap:5px; font-size:0.85rem; font-weight:bold; color:#2c3e50;"><input type="checkbox" id="nw-speler-tafel" checked style="width:16px; height:16px;"> 💻 Mag Tafelen</label>
+                    <label style="display:flex; align-items:center; gap:5px; font-size:0.85rem; font-weight:bold; color:#2c3e50;"><input type="checkbox" id="nw-speler-auto" style="width:16px; height:16px;"> 🚗 Heeft Auto</label>
+                    <label style="display:flex; align-items:center; gap:5px; font-size:0.85rem; font-weight:bold; color:#2c3e50;"><input type="checkbox" id="nw-speler-zaalwacht" checked style="width:16px; height:16px;"> 🔑 Mag Zaalwacht</label>
+                </div>
+
                 <div style="display:flex; flex-direction:column; gap:5px; margin-bottom:5px;">
                     <div style="display:flex; align-items:center; gap:5px;">
                         <input type="checkbox" id="nw-speler-proef" style="width:18px; height:18px;" checked>
@@ -82,11 +87,9 @@
                     <tr>
                         <th style="padding:12px;">Bondsnummer</th>
                         <th style="padding:12px;">Naam</th>
-                        <th style="padding:12px;">Leeftijd</th>
-                        <th style="padding:12px;">Rugnr</th>
                         <th style="padding:12px;">Gekoppeld Team</th>
-                        <th style="padding:12px;">Lid Sinds</th>
-                        <th style="padding:12px;">Lidmaatschap</th>
+                        <th style="padding:12px; text-align:center;">Taken / Beschikbaarheid</th>
+                        <th style="padding:12px;">Leeftijd</th>
                         <th style="padding:12px;">Acties</th>
                     </tr>
                 </thead>
@@ -101,13 +104,13 @@
     <script type="module" src="firebase_motor.js"></script>
     <script>document.addEventListener('DOMContentLoaded', () => { if(window.renderSpelers) window.renderSpelers(); });</script>
 
-<div id="bewerk-speler-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:2000; justify-content:center; align-items:center; font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
-        <div style="background:white; width:90%; max-width:500px; border-radius:12px; overflow:hidden; box-shadow:0 15px 30px rgba(0,0,0,0.3); position:relative; animation: modalSlideDown 0.3s ease-out;">
+    <div id="bewerk-speler-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:2000; justify-content:center; align-items:center; font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+        <div style="background:white; width:90%; max-width:550px; border-radius:12px; overflow:hidden; box-shadow:0 15px 30px rgba(0,0,0,0.3); position:relative; animation: modalSlideDown 0.3s ease-out;">
             <div style="background:#f39c12; color:white; padding:15px 20px; display:flex; justify-content:space-between; align-items:center;">
-                <h3 style="margin:0; font-size:1.2rem;">✏️ Speler Bewerken</h3>
+                <h3 style="margin:0; font-size:1.2rem;">✏️ Speler / Ouder Bewerken</h3>
                 <button onclick="window.sluitBewerkSpelerModal()" style="background:none; border:none; color:white; font-size:1.5rem; cursor:pointer;">&times;</button>
             </div>
-            <div style="padding:20px;">
+            <div style="padding:20px; max-height: 70vh; overflow-y:auto;">
                 <input type="hidden" id="bewerk-speler-index">
                 
                 <div style="margin-bottom:15px;">
@@ -121,8 +124,8 @@
                         <input type="date" id="bewerk-speler-gebdatum" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;">
                     </div>
                     <div style="flex:1;">
-                        <label style="display:block; font-weight:bold; font-size:0.85rem; color:#7f8c8d; margin-bottom:5px;">Rugnummer:</label>
-                        <input type="number" id="bewerk-speler-rugnr" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;">
+                        <label style="display:block; font-weight:bold; font-size:0.85rem; color:#7f8c8d; margin-bottom:5px;">Rugnummer / Info:</label>
+                        <input type="text" id="bewerk-speler-rugnr" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;">
                     </div>
                 </div>
 
@@ -131,24 +134,24 @@
                         <label style="display:block; font-weight:bold; font-size:0.85rem; color:#7f8c8d; margin-bottom:5px;">Team:</label>
                         <select id="bewerk-speler-team" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;"></select>
                     </div>
-                    <div style="flex:1;">
-                        <label style="display:block; font-weight:bold; font-size:0.85rem; color:#7f8c8d; margin-bottom:5px;">Kader/Rol (Optioneel):</label>
-                        <input type="text" id="bewerk-speler-rol" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;">
-                    </div>
                 </div>
 
-                <div style="display:flex; gap:10px; margin-bottom:15px;">
-                    <div style="flex:1;">
-                        <label style="display:block; font-weight:bold; font-size:0.85rem; color:#7f8c8d; margin-bottom:5px;">🏠 Club Contributie:</label>
-                        <input type="text" id="bewerk-speler-clublid" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px; font-size:0.85rem;">
+                <div style="background:#f8f9fa; border:1px solid #bdc3c7; border-radius:6px; padding:15px; margin-bottom:15px;">
+                    <h4 style="margin-top:0; margin-bottom:10px; color:#2c3e50; font-size:0.95rem;">📋 Taken & Beschikbaarheid</h4>
+                    <div style="display:flex; gap:15px; margin-bottom:15px; flex-wrap:wrap;">
+                        <label style="display:flex; align-items:center; gap:5px; font-size:0.85rem; font-weight:bold; color:#34495e;"><input type="checkbox" id="bewerk-speler-fluit" style="width:18px; height:18px;"> 👨‍⚖️ Mag Fluiten</label>
+                        <label style="display:flex; align-items:center; gap:5px; font-size:0.85rem; font-weight:bold; color:#34495e;"><input type="checkbox" id="bewerk-speler-tafel" style="width:18px; height:18px;"> 💻 Mag Tafelen</label>
+                        <label style="display:flex; align-items:center; gap:5px; font-size:0.85rem; font-weight:bold; color:#34495e;"><input type="checkbox" id="bewerk-speler-auto" style="width:18px; height:18px;"> 🚗 Heeft Auto (Rijden)</label>
+                        <label style="display:flex; align-items:center; gap:5px; font-size:0.85rem; font-weight:bold; color:#34495e;"><input type="checkbox" id="bewerk-speler-zaalwacht" style="width:18px; height:18px;"> 🔑 Mag Zaalwacht</label>
                     </div>
-                    <div style="flex:1;">
-                        <label style="display:block; font-weight:bold; font-size:0.85rem; color:#7f8c8d; margin-bottom:5px;">🏀 Bond Contributie:</label>
-                        <input type="text" id="bewerk-speler-bondlid" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px; font-size:0.85rem;">
+                    <div>
+                        <label style="display:block; font-weight:bold; font-size:0.85rem; color:#7f8c8d; margin-bottom:5px;">🔗 Gezinskoppeling (Broer/Zus):</label>
+                        <select id="bewerk-speler-gezin" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;"></select>
+                        <p style="font-size:0.75rem; color:#7f8c8d; margin:5px 0 0 0;"><i>(Dit zorgt dat de planner de ouder niet tegelijkertijd inplant als het broertje/zusje óók speelt!)</i></p>
                     </div>
                 </div>
                 
-                <div style="display:flex; align-items:center; gap:5px; margin-bottom:20px;">
+                <div style="display:flex; align-items:center; gap:5px; margin-bottom:10px;">
                     <input type="checkbox" id="bewerk-speler-rec" style="width:18px; height:18px;">
                     <label style="font-weight:bold; font-size:0.85rem; color:#e67e22;">Is Recreant (Geen competitie)</label>
                 </div>
@@ -156,6 +159,7 @@
                     <input type="checkbox" id="bewerk-speler-proef" style="width:18px; height:18px;">
                     <label style="font-weight:bold; font-size:0.85rem; color:#27ae60;">Is Proeflid (Tijdelijk)</label>
                 </div>
+
                 <div style="display:flex; gap:10px;">
                     <button onclick="window.sluitBewerkSpelerModal()" style="flex:1; padding:12px; border:1px solid #bdc3c7; background:#f8f9fa; border-radius:6px; cursor:pointer; font-weight:bold;">Annuleren</button>
                     <button onclick="window.slaBewerkteSpelerOp()" style="flex:2; padding:12px; background:#f39c12; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold; font-size:1rem;">💾 Wijzigingen Opslaan</button>
@@ -164,7 +168,7 @@
         </div>
     </div>   
 
-<div id="leeftijd-regels-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:2500; justify-content:center; align-items:center; font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+    <div id="leeftijd-regels-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:2500; justify-content:center; align-items:center; font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
         <div style="background:white; width:90%; max-width:600px; max-height:80vh; border-radius:12px; overflow:hidden; box-shadow:0 15px 30px rgba(0,0,0,0.3); display:flex; flex-direction:column;">
             <div style="background:#e67e22; color:white; padding:15px 20px; display:flex; justify-content:space-between; align-items:center;">
                 <h3 style="margin:0; font-size:1.2rem;">⚙️ Aangepaste Leeftijdsregels per Team</h3>
