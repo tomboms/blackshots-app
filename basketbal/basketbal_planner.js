@@ -1469,3 +1469,83 @@ window.herberekenSmartFill = function() {
         setTimeout(window.startSmartFill, 300);
     }
 };
+
+window.downloadSchemaPDF = function() {
+    let speelDatum = window.normaalDatum(document.getElementById('plan-datum').value);
+    let alleWedstrijden = [...(window.nbbWedstrijden || []), ...(window.customWedstrijden || [])];
+    let dagWedstrijden = alleWedstrijden.filter(w => window.normaalDatum(w.Datum) === speelDatum && !window.verborgenDB.includes(window.genereerUniekId(w)));
+
+    if (dagWedstrijden.length === 0) return alert("Er staan nog geen wedstrijden op het bord om te downloaden.");
+
+    // Sorteer op tijd voor een logische leesvolgorde
+    dagWedstrijden.sort((a,b) => {
+        let tA = window.planStatusDB[window.genereerUniekId(a)] ? window.tijdNaarMinuten(window.planStatusDB[window.genereerUniekId(a)].tijd) : 9999;
+        let tB = window.planStatusDB[window.genereerUniekId(b)] ? window.tijdNaarMinuten(window.planStatusDB[window.genereerUniekId(b)].tijd) : 9999;
+        return tA - tB;
+    });
+
+    // Maak een tijdelijk, onzichtbaar element voor de PDF-layout
+    let printDiv = document.createElement('div');
+    printDiv.style.padding = '20px';
+    printDiv.style.fontFamily = 'Arial, sans-serif';
+    printDiv.style.color = '#2c3e50';
+
+    let html = `
+        <div style="text-align:center; margin-bottom: 20px;">
+            <h1 style="color:#e67e22; margin:0;">Black Shots - Wedstrijdschema</h1>
+            <h3 style="color:#7f8c8d; margin:5px 0 0 0;">Speeldatum: ${speelDatum}</h3>
+        </div>
+        <table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; text-align: left;">
+            <thead>
+                <tr style="background-color: #2c3e50; color: white;">
+                    <th style="padding: 10px; border: 1px solid #bdc3c7;">Tijd</th>
+                    <th style="padding: 10px; border: 1px solid #bdc3c7;">Wedstrijd</th>
+                    <th style="padding: 10px; border: 1px solid #bdc3c7;">Scheidsrechters</th>
+                    <th style="padding: 10px; border: 1px solid #bdc3c7;">Tafel / Vervoer</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    dagWedstrijden.forEach(w => {
+        let id = window.genereerUniekId(w);
+        let status = window.planStatusDB[id];
+        if(!status) return;
+
+        let isThuis = (w.Thuisteam || '').toLowerCase().includes('black shots');
+        let thuisNaam = (w.Thuisteam || '').replace(/Black Shots\s*-?\s*/i, '').trim();
+        let uitNaam = (w.Uitteam || '').replace(/Black Shots\s*-?\s*/i, '').trim();
+        let taken = window.takenDB[id] || {};
+
+        let arbitrage = isThuis ? `${taken.sA || '-'} & ${taken.sB || '-'}` : '-';
+        let tafel = isThuis ? `💻 ${taken.tab || '-'} | ⏱️ ${taken.sco || '-'}` : `🚗 ${taken.auto1||'-'}, ${taken.auto2||'-'}, ${taken.auto3||'-'}`;
+        let bgKleur = isThuis ? '#fff3e0' : '#ebf5fb';
+
+        html += `
+            <tr style="background-color: ${bgKleur};">
+                <td style="padding: 10px; border: 1px solid #bdc3c7; font-weight: bold;">${status.tijd}</td>
+                <td style="padding: 10px; border: 1px solid #bdc3c7;"><strong>${thuisNaam}</strong> vs ${uitNaam}</td>
+                <td style="padding: 10px; border: 1px solid #bdc3c7;">${arbitrage}</td>
+                <td style="padding: 10px; border: 1px solid #bdc3c7;">${tafel}</td>
+            </tr>
+        `;
+    });
+
+    html += `</tbody></table><div style="margin-top:20px; font-size:10px; color:#7f8c8d; text-align:right;">Gegenereerd via Black Shots Clubbeheer</div>`;
+    printDiv.innerHTML = html;
+
+    // html2pdf instellingen (Liggend A4-formaat voor de beste tabel-weergave)
+    let opties = {
+        margin:       10,
+        filename:     `BlackShots_Schema_${speelDatum}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2 },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
+    };
+
+    // Genereer de PDF en gooi de tijdelijke div daarna weg
+    document.body.appendChild(printDiv);
+    html2pdf().set(opties).from(printDiv).save().then(() => {
+        document.body.removeChild(printDiv);
+    });
+};

@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="nl">
 <head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Black Shots - Wedstrijd Planner</title>
@@ -96,6 +97,7 @@
                 <!-- Overige Acties -->
 <button onclick="window.openNieuweWedstrijdModal()" style="background:#f39c12; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.85rem;">➕ Handmatige Match</button>
 <button onclick="window.kopieerSchemaTekst()" style="background:#34495e; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.85rem;">📋 WhatsApp Kopie</button>
+<button onclick="window.downloadSchemaPDF()" style="background:#c0392b; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.85rem;">📄 Download PDF</button>
 <button onclick="window.toggleWeergave()" id="btn-weergave-toggle" style="background:#2c3e50; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.85rem;">🗂️ Lijstweergave</button>
 <button onclick="window.verwijderHuidigeDag()" style="background:transparent; color:#e74c3c; border:1px solid #e74c3c; padding:6px 12px; border-radius:4px; font-weight:bold; cursor:pointer; transition:0.2s; font-size:0.85rem;" onmouseover="this.style.background='#fadbd8'" onmouseout="this.style.background='transparent'">🗑️ Wis Dag</button>
             </div>
