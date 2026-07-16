@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Black Shots - Individuele Namen Plannen</title>
+    <link rel="stylesheet" href="basketbal.css">
+    <style>
+        .planner-controls { background: white; padding: 15px; border-radius: 8px; border-top: 4px solid #3498db; box-shadow: 0 2px 5px rgba(0,0,0,0.05); display: flex; gap: 15px; flex-wrap: wrap; align-items: center; margin-bottom: 20px; }
+        .planner-wrapper { display: flex; gap: 20px; align-items: flex-start; }
+        
+        .linker-kolom { display: flex; flex-direction: column; gap: 20px; width: 300px; }
+        .wachtkamer { background: #fdfdfd; border: 2px solid #cbd5e1; border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 10px; }
+        .wachtkamer-header { font-weight: bold; color: var(--secondary-color); font-size: 1.1rem; margin-bottom: 10px; border-bottom: 2px solid #eee; padding-bottom: 5px; text-align: center; }
+        
+        .teller-lijst { display: flex; flex-direction: column; gap: 5px; max-height: 600px; overflow-y: auto; }
+        .teller-item { display: flex; justify-content: space-between; align-items:center; background: #eef2f5; padding: 6px 10px; border-radius: 4px; font-size: 0.85rem; border-left: 3px solid #3498db; }
+        .teller-item strong { color: white; background:#3498db; padding:2px 6px; border-radius:12px; font-size:0.75rem; }
+
+        .planner-bord { flex: 1; display: flex; background: #f8f9fa; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; position: relative; min-height: 1600px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.02); }
+        .tijd-as { width: 60px; background: #e2e8f0; border-right: 1px solid #cbd5e1; display: flex; flex-direction: column; }
+        .tijd-slot { height: 120px; border-bottom: 1px solid #cbd5e1; display: flex; align-items: flex-start; justify-content: center; padding-top: 5px; font-size: 0.75rem; color: #7f8c8d; font-weight: bold; box-sizing: border-box; }
+        .veld-kolom { flex: 1; border-right: 1px dashed #cbd5e1; position: relative; min-width: 250px; }
+        .veld-kolom:last-child { border-right: none; }
+        .veld-header { background: #34495e; color: white; text-align: center; padding: 10px; font-weight: bold; position: sticky; top: 0; z-index: 10; border-bottom: 2px solid #2c3e50; }
+        
+        .grid-lijnen { position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; }
+        .grid-lijn-15m { border-bottom: 1px dotted #cbd5e1; height: 30px; box-sizing: border-box; opacity: 0.5; }
+        .grid-lijn-30m { border-bottom: 1px dashed #cbd5e1; height: 30px; box-sizing: border-box; }
+        .grid-lijn-60m { border-bottom: 1px solid #95a5a6; height: 30px; box-sizing: border-box; }
+        
+        .wedstrijd-blok { background: #fff3e0; border: 2px solid #e67e22; border-radius: 6px; padding: 8px; font-size: 0.85rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); display: flex; flex-direction: column; overflow: hidden; z-index: 5; transition: 0.2s; cursor:pointer; }
+        .wedstrijd-blok:hover { box-shadow: 0 6px 12px rgba(0,0,0,0.15); z-index: 10; transform: translateY(-2px); border-color:#d35400; }
+        
+        .wb-titel { font-weight: bold; color: #d35400; margin-bottom: 5px; font-size: 1rem; display: flex; justify-content: space-between; align-items: flex-start; }
+        .wb-meta { color: #7f8c8d; font-size: 0.8rem; display: flex; align-items: center; gap: 5px; margin-bottom: 8px; }
+        .wb-tijd-badge { background: #e67e22; color: white; padding: 3px 8px; border-radius: 4px; font-weight: bold; }
+        
+        .wb-taken { margin-top: auto; border-top: 1px dashed #f39c12; padding-top: 8px; display: flex; flex-direction: column; gap: 4px; border-radius: 4px; }
+        .taak-regel { background: rgba(255,255,255,0.8); border: 1px solid #f39c12; border-radius: 4px; padding: 4px 6px; display: flex; align-items: center; gap: 5px; font-size: 0.8rem; }
+        .taak-label { font-weight: bold; color: #2c3e50; min-width: 25px; text-align: center; }
+        .taak-waarde { flex: 1; color: #e74c3c; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .taak-gevuld { color: #27ae60; }
+    </style>
+</head>
+<body style="overflow-y: auto;">
+    <div id="cloud-status-indicator" style="position: fixed; bottom: 20px; right: 20px; background: #27ae60; color: white; padding: 10px 20px; border-radius: 30px; font-weight: bold; font-size: 0.9rem; z-index: 99999; opacity: 0; pointer-events: none;">☁️ Cloud Actief</div>
+
+    <nav class="top-nav">
+        <h1>🏀 Black Shots Clubbeheer</h1>
+        <a href="dashboard.html" class="terug-knop">🏠 Dashboard</a>
+    </nav>
+
+    <main class="content-sectie active" style="max-width: 1500px; margin: 20px auto; padding: 0 15px;">
+        
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px; border-bottom: 2px solid var(--border-color); padding-bottom: 15px;">
+            <div style="display:flex; align-items:center; gap:15px;">
+                <h2 style="margin:0; color:var(--secondary-color);">👤 Individuele Namen Invullen</h2>
+                <div style="display:flex; background:#eef2f5; border-radius:6px; border:1px solid #cbd5e1; overflow:hidden;">
+                    <button onclick="window.navigeerSpeeldag(-1)" style="background:transparent; border:none; border-right:1px solid #cbd5e1; padding:6px 12px; cursor:pointer; font-weight:bold; color:var(--secondary-color);">◀ Vorige</button>
+                    <button onclick="window.navigeerSpeeldag(1)" style="background:transparent; border:none; padding:6px 12px; cursor:pointer; font-weight:bold; color:var(--secondary-color);">Volgende ▶</button>
+                </div>
+            </div>
+
+            <div style="display:flex; gap:10px; align-items:center; flex-wrap: wrap;">
+                <div style="display:flex; align-items:center; gap:5px; background:#f0fbf4; padding:4px 8px; border-radius:6px; border:1px dashed #27ae60;">
+                    <span style="font-weight:bold; color:#27ae60; font-size:0.85rem; margin-right:5px;">🤖 Namen Bots:</span>
+                    <button onclick="window.botVulThuisIn()" style="background:#27ae60; color:white; border:none; padding:6px 12px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.85rem;">🏠 Vul Thuis In (Tafel/Fluit)</button>
+                    <button onclick="window.botVulUitIn()" style="background:#2980b9; color:white; border:none; padding:6px 12px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.85rem;">🚌 Vul Uit In (Auto's)</button>
+                </div>
+                <button onclick="window.kopieerNamenSchema()" style="background:#34495e; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.85rem;">📋 WhatsApp Kopie</button>
+            </div>
+        </div>
+
+        <div class="planner-controls">
+            <div>
+                <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d; display:block;">Speeldatum:</label>
+                <input type="date" id="plan-datum" onchange="window.laadNamenBord()" style="padding:8px; border:1px solid #bdc3c7; border-radius:4px; font-weight:bold;">
+            </div>
+            <div style="margin-left:auto; color:#7f8c8d; font-size:0.85rem;">
+                <i>Tip: Klik op een wedstrijd om specifieke personen toe te wijzen. Tijden aanpassen doe je in de Team Planner.</i>
+            </div>
+        </div>
+
+        <div class="planner-wrapper">
+            <div class="linker-kolom">
+                <div class="wachtkamer" style="min-height: 400px;">
+                    <div class="wachtkamer-header">📊 Seizoens Taak-Teller</div>
+                    <p style="font-size:0.75rem; color:#7f8c8d; text-align:center; margin-bottom:10px; margin-top:0;">Totaal aantal taken over het HELE seizoen (Rijden = Tafelen = Fluiten)</p>
+                    <div class="teller-lijst" id="seizoen-teller-container">
+                        <!-- Wordt gevuld door JS -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="planner-bord" id="planner-bord-container"></div>
+        </div>
+    </main>
+
+    <!-- NAMEN MODAL -->
+    <div id="namen-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:99999; justify-content:center; align-items:center;">
+        <div style="background:white; padding:25px; border-radius:12px; width:90%; max-width:550px; box-shadow:0 10px 30px rgba(0,0,0,0.3); position:relative;">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #eee; padding-bottom:10px; margin-bottom:15px;">
+                <h3 style="margin:0; color:var(--secondary-color);" id="namen-modal-header">👤 Personen Toewijzen</h3>
+                <button onclick="document.getElementById('namen-modal').style.display='none'" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
+            </div>
+            <input type="hidden" id="namen-match-id">
+            
+            <div style="margin-bottom:15px; background:#f8f9fa; padding:10px; border-radius:6px; border:1px solid #e2e8f0;">
+                <strong style="color:#d35400;" id="namen-match-titel">Titel</strong>
+                <div style="font-size:0.8rem; color:#7f8c8d;" id="namen-match-meta">Meta</div>
+            </div>
+            
+            <div id="dynamische-namen-velden"></div>
+            
+            <button onclick="window.slaNamenOp()" style="width:100%; padding:12px; background:#3498db; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold; font-size:1rem; margin-top:15px;">✅ Personen Opslaan</button>
+        </div>
+    </div>
+
+    <script src="basketbal_auth.js"></script>
+    <script src="basketbal_namen_invullen.js"></script>
+    <script type="module" src="firebase_motor.js"></script>
+    <script>document.addEventListener('DOMContentLoaded', () => { setTimeout(() => { window.initNamenPlanner(); }, 200); });</script>
+</body>
+</html>
