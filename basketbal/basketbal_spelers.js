@@ -68,7 +68,6 @@ window.renderSpelers = function() {
         }
     }
 
-    // Vul of Ververs de Gezinskoppeling Dropdowns met actuele spelers
     let nwGezin = document.getElementById('nw-speler-gezin');
     if (nwGezin) {
         let huidigeGezinSelectie = nwGezin.value;
@@ -152,19 +151,19 @@ window.renderSpelers = function() {
 
             let kaderBadge = speler.kaderRol ? `<div style="color:#8e44ad; font-size:0.8rem; font-weight:bold; margin-top:2px;">⭐ ${speler.kaderRol}</div>` : '';
 
-            // HET NIEUWE TAKEN WEERGAVE BLOK (INCL ZAALWACHT)
-            let magF = speler.magFluiten !== false; 
+            // HET NIEUWE TAKEN WEERGAVE BLOK MET DE NIEUWE STANDAARDEN (Cursor: default voorkomt het vraagteken icoon!)
+            let magF = speler.magFluiten === true; 
             let magT = speler.magTafelen !== false; 
-            let heeftA = speler.heeftAuto === true; 
-            let magZ = speler.magZaalwacht !== false; // Bestaande accounts staan standaard op True
+            let heeftA = speler.heeftAuto !== false; 
+            let magZ = speler.magZaalwacht === true; 
             
             let taakIcons = `
-                <span title="${magF ? 'Mag Fluiten' : 'Mag NIET Fluiten'}" style="opacity:${magF?1:0.2}; cursor:help;">👨‍⚖️</span>
-                <span title="${magT ? 'Mag Tafelen' : 'Mag NIET Tafelen'}" style="opacity:${magT?1:0.2}; cursor:help;">💻</span>
-                <span title="${heeftA ? 'Heeft Auto / Wil Rijden' : 'Heeft géén auto'}" style="opacity:${heeftA?1:0.2}; cursor:help;">🚗</span>
-                <span title="${magZ ? 'Mag Zaalwacht' : 'Mag NIET Zaalwacht'}" style="opacity:${magZ?1:0.2}; cursor:help;">🔑</span>
+                <span title="${magF ? 'Mag Fluiten' : 'Mag NIET Fluiten'}" style="opacity:${magF?1:0.2}; cursor:default;">👨‍⚖️</span>
+                <span title="${magT ? 'Mag Tafelen' : 'Mag NIET Tafelen'}" style="opacity:${magT?1:0.2}; cursor:default;">💻</span>
+                <span title="${heeftA ? 'Heeft Auto / Wil Rijden' : 'Heeft géén auto'}" style="opacity:${heeftA?1:0.2}; cursor:default;">🚗</span>
+                <span title="${magZ ? 'Mag Zaalwacht' : 'Mag NIET Zaalwacht'}" style="opacity:${magZ?1:0.2}; cursor:default;">🔑</span>
             `;
-            if(speler.gezinKoppeling) taakIcons += ` <span title="Gekoppeld aan broer/zus (Planner checkt dubbele tijden)" style="color:#8e44ad; margin-left:5px; cursor:help;">🔗</span>`;
+            if(speler.gezinKoppeling) taakIcons += ` <span title="Gekoppeld aan broer/zus (Planner checkt dubbele tijden)" style="color:#8e44ad; margin-left:5px; cursor:default;">🔗</span>`;
 
             let weergaveLeeftijd = '-';
             if (speler.geboorteDatum && speler.geboorteDatum !== '-') {
@@ -249,7 +248,6 @@ window.slaLeeftijdRegelsOp = function() {
     alert("✅ Teamregels opgeslagen! De waarschuwingsicoontjes (⚠️) zijn direct bijgewerkt.");
 };
 
-// --- BESTAANDE MODAL / ACTIE FUNCTIES ---
 window.maakOfficieelLid = function(index) {
     let speler = window.spelersDB[index];
     if(!speler) return;
@@ -278,11 +276,11 @@ window.openBewerkSpelerModal = function(index) {
     let proefCheck = document.getElementById('bewerk-speler-proef');
     if(proefCheck) proefCheck.checked = speler.isProeflid === true;
 
-    // VINKJES & GEZIN INLADEN
-    document.getElementById('bewerk-speler-fluit').checked = speler.magFluiten !== false;
+    // VINKJES & GEZIN INLADEN (Met de nieuwe defaults!)
+    document.getElementById('bewerk-speler-fluit').checked = speler.magFluiten === true;
     document.getElementById('bewerk-speler-tafel').checked = speler.magTafelen !== false;
-    document.getElementById('bewerk-speler-auto').checked = speler.heeftAuto === true;
-    document.getElementById('bewerk-speler-zaalwacht').checked = speler.magZaalwacht !== false;
+    document.getElementById('bewerk-speler-auto').checked = speler.heeftAuto !== false;
+    document.getElementById('bewerk-speler-zaalwacht').checked = speler.magZaalwacht === true;
 
     let gezinSelect = document.getElementById('bewerk-speler-gezin');
     if (gezinSelect) {
@@ -346,11 +344,11 @@ window.voegSpelerToe = function() {
     let isRec = document.getElementById('nw-speler-rec') ? document.getElementById('nw-speler-rec').checked : false;
     let isProef = document.getElementById('nw-speler-proef') ? document.getElementById('nw-speler-proef').checked : false;
 
-    // NIEUWE VELDEN
-    let magF = document.getElementById('nw-speler-fluit') ? document.getElementById('nw-speler-fluit').checked : true;
+    // NIEUWE VELDEN MET DE GEVRAAGDE DEFAULTS
+    let magF = document.getElementById('nw-speler-fluit') ? document.getElementById('nw-speler-fluit').checked : false;
     let magT = document.getElementById('nw-speler-tafel') ? document.getElementById('nw-speler-tafel').checked : true;
-    let auto = document.getElementById('nw-speler-auto') ? document.getElementById('nw-speler-auto').checked : false;
-    let magZ = document.getElementById('nw-speler-zaalwacht') ? document.getElementById('nw-speler-zaalwacht').checked : true;
+    let auto = document.getElementById('nw-speler-auto') ? document.getElementById('nw-speler-auto').checked : true;
+    let magZ = document.getElementById('nw-speler-zaalwacht') ? document.getElementById('nw-speler-zaalwacht').checked : false;
     let gezin = document.getElementById('nw-speler-gezin') ? document.getElementById('nw-speler-gezin').value : "";
 
     if(naam) {
@@ -379,7 +377,15 @@ window.voegSpelerToe = function() {
         document.getElementById('nw-speler-gebdatum').value = '';
         if(document.getElementById('nw-speler-rec')) document.getElementById('nw-speler-rec').checked = false;
         if(document.getElementById('nw-speler-proef')) document.getElementById('nw-speler-proef').checked = true;
+        
+        // Reset checkboxjes naar default
+        if(document.getElementById('nw-speler-fluit')) document.getElementById('nw-speler-fluit').checked = false;
+        if(document.getElementById('nw-speler-tafel')) document.getElementById('nw-speler-tafel').checked = true;
+        if(document.getElementById('nw-speler-auto')) document.getElementById('nw-speler-auto').checked = true;
+        if(document.getElementById('nw-speler-zaalwacht')) document.getElementById('nw-speler-zaalwacht').checked = false;
+        
         if(document.getElementById('nw-speler-gezin')) document.getElementById('nw-speler-gezin').value = "";
+        
         window.renderSpelers();
     } else {
         alert("Vul minimaal een naam in!");
@@ -492,10 +498,13 @@ window.importeerBondCSV = function(event) {
                     teamId: finalTeamId,
                     isRecreant: isRec,
                     isProeflid: false, 
-                    magFluiten: true,  
+                    
+                    // STANDAARD IMPORT INSTELLINGEN
+                    magFluiten: false,  
                     magTafelen: true,  
-                    heeftAuto: false,  
-                    magZaalwacht: true, // Ook Zaalwacht gaat standaard op True bij nieuwe import
+                    heeftAuto: true,  
+                    magZaalwacht: false, 
+                    
                     gezinKoppeling: "",
                     dispensatie: false, 
                     lidSinds: idxLidSinds !== -1 && row[idxLidSinds] ? row[idxLidSinds].trim() : "",
