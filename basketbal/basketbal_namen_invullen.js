@@ -152,6 +152,119 @@ window.laadNamenBord = function() {
     let speelDatum = window.normaalDatum(document.getElementById('plan-datum').value);
     if(!bord || !speelDatum) return;
 
+    // ========================================================================
+    // 🗂️ MODUS 1: DE SLIMME LIJSTWEERGAVE
+    // ========================================================================
+    if (window.huidigeWeergave === 'lijst') {
+        let periode = document.getElementById('filter-periode') ? document.getElementById('filter-periode').value : 'dag';
+        let locatie = document.getElementById('filter-locatie') ? document.getElementById('filter-locatie').value : 'alles';
+        let filterTeamId = document.getElementById('filter-team') ? document.getElementById('filter-team').value : 'alles';
+        let filterTeamCanon = filterTeamId !== 'alles' ? window.teamsDB.find(t => t.id === filterTeamId) : null;
+
+        let alleWedstrijden = [...window.nbbWedstrijden, ...window.customWedstrijden];
+        
+        // Pas de filters toe
+        let toonWedstrijden = alleWedstrijden.filter(w => {
+            let id = window.genereerUniekId(w);
+            if (window.verborgenDB.includes(id)) return false;
+            
+            if (periode === 'dag') {
+                if (window.normaalDatum(w.Datum) !== speelDatum) return false;
+                if (!window.planStatusDB[id]) return false; 
+            } else {
+                if (!window.planStatusDB[id]) return false; // In "Hele Seizoen" modus tonen we alleen wat in de planner staat
+            }
+
+            let isThuis = (w.Thuisteam || '').toLowerCase().includes('black shots');
+            if (locatie === 'thuis' && !isThuis) return false;
+            if (locatie === 'uit' && isThuis) return false;
+
+            if (filterTeamCanon) {
+                let wCanon = window.getCanonicalTeam(isThuis ? w.Thuisteam.replace(/Black Shots\s*-?\s*/i, '') : w.Uitteam.replace(/Black Shots\s*-?\s*/i, ''));
+                if (!wCanon || wCanon.id !== filterTeamCanon.id) return false;
+            }
+            return true;
+        });
+
+        // Sorteer netjes: Eerst op datum, dan op tijd
+        toonWedstrijden.sort((a, b) => {
+            let dA = window.normaalDatum(a.Datum); let dB = window.normaalDatum(b.Datum);
+            if (dA !== dB) return dA.localeCompare(dB);
+            let tA = window.planStatusDB[window.genereerUniekId(a)] ? window.tijdNaarMinuten(window.planStatusDB[window.genereerUniekId(a)].tijd) : 9999;
+            let tB = window.planStatusDB[window.genereerUniekId(b)] ? window.tijdNaarMinuten(window.planStatusDB[window.genereerUniekId(b)].tijd) : 9999;
+            return tA - tB;
+        });
+
+        let html = `<div style="background:white; border-radius:8px; padding:20px; width:100%;"><h3 style="margin-top:0; color:#8e44ad;">🗂️ Overzichtslijst (${toonWedstrijden.length} gevonden)</h3><div style="display:flex; flex-direction:column; gap:15px;">`;
+
+        toonWedstrijden.forEach(w => {
+            let uniekId = window.genereerUniekId(w);
+            let dbStatus = window.planStatusDB[uniekId];
+            let teamTaken = window.teamTakenDB[uniekId] || {};     
+            let persTaken = window.persoonsTakenDB[uniekId] || {}; 
+
+            let isThuis = (w.Thuisteam || '').toLowerCase().includes('black shots');
+            let wedstrijdNaam = isThuis ? (w.Thuisteam || '').replace(/Black Shots\s*-?\s*/i, '').trim() : (w.Uitteam || '').replace(/Black Shots\s*-?\s*/i, '').trim();
+            let tegenstander = isThuis ? (w.Uitteam || '').replace(/Black Shots\s*-?\s*/i, '').trim() : (w.Thuisteam || '').replace(/Black Shots\s*-?\s*/i, '').trim();
+            
+            let renderTaak = (pId, defaultTeam) => {
+                let css = ""; let text = "";
+                if (pId && pId !== "Vrij" && pId !== "") {
+                    css = "taak-gevuld"; 
+                    let s = window.spelersDB.find(x => x.id === pId);
+                    let sr = window.scheidsrechtersDB.find(x => x.id === pId);
+                    text = s ? s.naam : (sr ? sr.naam : pId);
+                } else {
+                    text = (!defaultTeam || defaultTeam === "Vrij" || defaultTeam === "") ? "Vrij" : `[${defaultTeam}]`; 
+                }
+                return { css, text };
+            };
+
+            let htmlTakenBlok = '';
+            if (isThuis) {
+                let pA = renderTaak(persTaken.sA, teamTaken.sA); let pB = renderTaak(persTaken.sB, teamTaken.sB);
+                let pT = renderTaak(persTaken.tab, teamTaken.tab); let pS = renderTaak(persTaken.sco, teamTaken.sco);
+                htmlTakenBlok = `
+                    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:5px;">
+                        <div class="taak-regel" style="min-width:160px; flex:1;"><span class="taak-label">A:</span> <span class="taak-waarde ${pA.css}">${pA.text}</span></div>
+                        <div class="taak-regel" style="min-width:160px; flex:1;"><span class="taak-label">B:</span> <span class="taak-waarde ${pB.css}">${pB.text}</span></div>
+                        <div class="taak-regel" style="min-width:160px; flex:1;"><span class="taak-label">💻:</span> <span class="taak-waarde ${pT.css}">${pT.text}</span></div>
+                        <div class="taak-regel" style="min-width:160px; flex:1;"><span class="taak-label">⏱️:</span> <span class="taak-waarde ${pS.css}">${pS.text}</span></div>
+                    </div>`;
+            } else {
+                let p1 = renderTaak(persTaken.auto1, "Auto 1"); let p2 = renderTaak(persTaken.auto2, "Auto 2"); let p3 = renderTaak(persTaken.auto3, "Auto 3");
+                htmlTakenBlok = `
+                    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:5px; border-top:1px dashed #3498db; padding-top:5px;">
+                        <div class="taak-regel" style="min-width:160px; flex:1; border-color:#3498db;"><span class="taak-label">🚗 1:</span> <span class="taak-waarde ${p1.css}">${p1.text}</span></div>
+                        <div class="taak-regel" style="min-width:160px; flex:1; border-color:#3498db;"><span class="taak-label">🚗 2:</span> <span class="taak-waarde ${p2.css}">${p2.text}</span></div>
+                        <div class="taak-regel" style="min-width:160px; flex:1; border-color:#3498db;"><span class="taak-label">🚗 3:</span> <span class="taak-waarde ${p3.css}">${p3.text}</span></div>
+                    </div>`;
+            }
+
+            let bgKleur = isThuis ? '#fff3e0' : '#ebf5fb';
+            let randKleur = isThuis ? '#e67e22' : '#3498db';
+            let titelKleur = isThuis ? '#d35400' : '#2980b9';
+            let datumWeergave = periode === 'alles' ? ` | 📅 ${window.normaalDatum(w.Datum)}` : '';
+
+            html += `
+                <div class="wedstrijd-blok" onclick="window.openNamenModal('${uniekId}')" style="background:${bgKleur}; border-color:${randKleur}; position:relative; height:auto; padding-bottom:10px;">
+                    <div class="wb-titel" style="color:${titelKleur};">
+                        <span>${isThuis?'🏠':'🚌'} ${wedstrijdNaam} <span style="color:#7f8c8d; font-size:0.75rem;">vs ${tegenstander}</span></span>
+                    </div>
+                    <div class="wb-meta"><span class="wb-tijd-badge">⏱️ ${dbStatus.tijd}</span>${datumWeergave}</div>
+                    <div class="wb-taken">${htmlTakenBlok}</div>
+                </div>
+            `;
+        });
+
+        html += `</div></div>`;
+        bord.innerHTML = html;
+        return; // EINDIG HIER ALS WE IN LIJSTWEERGAVE ZITTEN
+    }
+
+    // ========================================================================
+    // 📅 MODUS 2: HET VERTROUWDE BLOKKENSCHEMA (GRID)
+    // ========================================================================
     let html = `<div class="tijd-as"><div class="veld-header">Tijd</div>`;
     for(let u = START_UUR; u < EIND_UUR; u++) html += `<div class="tijd-slot">${String(u).padStart(2, '0')}:00</div>`;
     html += `</div>`;
@@ -545,6 +658,29 @@ window.navigeerSpeeldag = function(richting) {
         window.berekenGlobaleScores();
         window.laadNamenBord();
     }
+};
+
+
+window.huidigeWeergave = 'grid';
+
+window.toggleLijstWeergave = function() {
+    window.huidigeWeergave = window.huidigeWeergave === 'grid' ? 'lijst' : 'grid';
+    let btn = document.getElementById('btn-weergave-toggle');
+    if(btn) btn.innerHTML = window.huidigeWeergave === 'grid' ? '🗂️ Lijstweergave' : '📅 Blokkenschema';
+    
+    let filterBar = document.getElementById('lijst-filters');
+    
+    if (window.huidigeWeergave === 'lijst') {
+        if(filterBar) filterBar.style.display = 'flex';
+        // Vul de team filter als hij nog leeg is
+        let tf = document.getElementById('filter-team');
+        if (tf && tf.options.length <= 1) {
+            window.teamsDB.forEach(t => { if(!t.isVrijwilliger) tf.innerHTML += `<option value="${t.id}">${t.naam}</option>`; });
+        }
+    } else {
+        if(filterBar) filterBar.style.display = 'none';
+    }
+    window.laadNamenBord();
 };
 
 window.kopieerNamenSchema = function() { alert("Komt eraan in de volgende update!"); };
