@@ -8,11 +8,8 @@ window.spelersDB = window.veiligeArray('blackshots_spelers');
 window.scheidsrechtersDB = window.veiligeArray('blackshots_scheidsrechters');
 window.verborgenDB = window.veiligeArray('blackshots_verborgen_wedstrijden');
 
-// De databases uit Fase 1 (Tijden, Velden en Toegewezen Teams)
 window.teamTakenDB = window.veiligObject('blackshots_wedstrijd_taken');
 window.planStatusDB = window.veiligObject('blackshots_plan_status');
-
-// DE NIEUWE DATABASE: Hier slaan we de specifieke ID's van de personen op!
 window.persoonsTakenDB = window.veiligObject('blackshots_persoons_taken');
 
 const START_UUR = 9; const EIND_UUR = 22; const PIXEL_SCALE = 2;
@@ -51,6 +48,7 @@ window.tijdNaarMinuten = function(tijdStr) {
     if (!tijdStr || tijdStr.includes('Te plannen') || tijdStr.includes('N.t.b.')) return 0;
     let parts = tijdStr.split(':'); return (parseInt(parts[0]) * 60) + parseInt(parts[1]);
 };
+
 window.bepaalWedstrijdDuur = function(teamNaam) {
     let naam = teamNaam.toUpperCase();
     if (naam.includes('14') || naam.includes('16') || naam.includes('18') || naam.includes('20') || naam.includes('22') || naam.includes('SE')) return 105;
@@ -58,23 +56,68 @@ window.bepaalWedstrijdDuur = function(teamNaam) {
 };
 
 // ============================================================================
-// 🔍 SLIMME NAAM-NAAR-ID ZOEKER (Voor Auto-Migratie uit Fase 1)
+// 🔍 SLIMME NAAM-NAAR-ID ZOEKER (Puur op harde matches)
 // ============================================================================
 window.zoekPersoonIdViaNaam = function(naamStr) {
     if (!naamStr || naamStr === "Vrij") return "";
     let clean = naamStr.toLowerCase().trim();
     
-    // 1. Check scheidsrechters EERST. Als hij een koppeling heeft, pak direct het Leden-ID!
+    // Check EERST de scheidsrechters matrix
     let sr = window.scheidsrechtersDB.find(s => s && s.naam.toLowerCase().trim() === clean);
     if (sr) return sr.gekoppeldLid ? sr.gekoppeldLid : sr.id;
 
-    // 2. Check spelers/ouders
+    // Check DAARNA de SpelersDB
     let sp = window.spelersDB.find(s => s && s.naam.toLowerCase().trim() === clean);
     if (sp) return sp.id;
 
-    return ""; // Geen persoon gevonden, is dus waarschijnlijk een team (bijv. M18-1)
+    return ""; 
 };
 
+// ============================================================================
+// 🧹 SPOOK-JAGER: FORCEER ALLE STRINGS NAAR OFFICIËLE ID'S
+// ============================================================================
+window.schoonPersoonsTakenOp = function() {
+    let gewijzigd = false;
+
+    // 1. Migreer teamTakenDB naar persoonsTakenDB
+    Object.keys(window.teamTakenDB).forEach(matchId => {
+        let tTaken = window.teamTakenDB[matchId];
+        let pTaken = window.persoonsTakenDB[matchId] || {};
+        
+        ['sA', 'sB', 'tab', 'sco', 'auto1', 'auto2', 'auto3'].forEach(rol => {
+            if (!pTaken[rol] && tTaken[rol] && tTaken[rol] !== "Vrij") {
+                let gevondenId = window.zoekPersoonIdViaNaam(tTaken[rol]);
+                if (gevondenId) { pTaken[rol] = gevondenId; gewijzigd = true; }
+            }
+        });
+        if (gewijzigd) window.persoonsTakenDB[matchId] = pTaken;
+    });
+
+    // 2. Ruim spoken op in de persoonsTakenDB zelf
+    Object.keys(window.persoonsTakenDB).forEach(matchId => {
+        let taken = window.persoonsTakenDB[matchId];
+        ['sA', 'sB', 'tab', 'sco', 'auto1', 'auto2', 'auto3'].forEach(rol => {
+            let val = taken[rol];
+            if (val && val !== "Vrij" && val !== "") {
+                let isSpeler = window.spelersDB.some(s => s.id === val);
+                let sr = window.scheidsrechtersDB.find(s => s.id === val);
+                
+                if (sr && sr.gekoppeldLid) {
+                    taken[rol] = sr.gekoppeldLid; // Vertaal oude scheidsID naar SpelerID
+                    gewijzigd = true;
+                } else if (!isSpeler && !sr) {
+                    let gevondenId = window.zoekPersoonIdViaNaam(val); // Vertaal rauwe text "Tom" naar SpelerID
+                    if (gevondenId) {
+                        taken[rol] = gevondenId;
+                        gewijzigd = true;
+                    }
+                }
+            }
+        });
+    });
+
+    if (gewijzigd) localStorage.setItem('blackshots_persoons_taken', JSON.stringify(window.persoonsTakenDB));
+};
 
 // ============================================================================
 // 📊 GLOBALE SEIZOENS TELLER
@@ -84,7 +127,6 @@ window.globaleTakenScore = {};
 window.berekenGlobaleScores = function() {
     window.globaleTakenScore = {};
     
-    // Zet alle spelers EN scheidsrechters standaard op 0
     window.spelersDB.forEach(s => window.globaleTakenScore[s.id] = 0);
     window.scheidsrechtersDB.forEach(sr => window.globaleTakenScore[sr.id] = 0);
 
@@ -119,7 +161,7 @@ window.berekenGlobaleScores = function() {
 };
 
 // ============================================================================
-// 🎨 BORD RENDERING & AUTO-MIGRATIE
+// 🎨 BORD RENDERING & INITIALISATIE
 // ============================================================================
 window.initNamenPlanner = function() {
     let datumInput = document.getElementById('plan-datum');
@@ -128,6 +170,7 @@ window.initNamenPlanner = function() {
     vandaag.setDate(vandaag.getDate() + verschilZaterdag);
     datumInput.value = vandaag.toISOString().split('T')[0];
     
+    window.schoonPersoonsTakenOp();
     window.berekenGlobaleScores();
     window.laadNamenBord();
 };
@@ -178,23 +221,6 @@ window.laadNamenBord = function() {
         let teamTaken = window.teamTakenDB[uniekId] || {};     
         let persTaken = window.persoonsTakenDB[uniekId] || {}; 
 
-        // --- 🚀 AUTO-MIGRATIE: Van Typ-naam (Fase 1) naar ID (Fase 2) ---
-        let heeftMigratieGehad = false;
-        ['sA', 'sB', 'tab', 'sco', 'auto1', 'auto2', 'auto3'].forEach(rol => {
-            if (!persTaken[rol] && teamTaken[rol] && teamTaken[rol] !== "Vrij") {
-                let gevondenId = window.zoekPersoonIdViaNaam(teamTaken[rol]);
-                if (gevondenId) {
-                    persTaken[rol] = gevondenId;
-                    heeftMigratieGehad = true;
-                }
-            }
-        });
-        
-        if (heeftMigratieGehad) {
-            window.persoonsTakenDB[uniekId] = persTaken;
-            localStorage.setItem('blackshots_persoons_taken', JSON.stringify(window.persoonsTakenDB));
-        }
-
         let isThuis = (w.Thuisteam || '').toLowerCase().includes('black shots');
         let wedstrijdNaam = isThuis ? (w.Thuisteam || '').replace(/Black Shots\s*-?\s*/i, '').trim() : (w.Uitteam || '').replace(/Black Shots\s*-?\s*/i, '').trim();
         let tegenstander = isThuis ? (w.Uitteam || '').replace(/Black Shots\s*-?\s*/i, '').trim() : (w.Thuisteam || '').replace(/Black Shots\s*-?\s*/i, '').trim();
@@ -211,19 +237,18 @@ window.laadNamenBord = function() {
             uitOverlaps[startMinuten] = overlapIndex + 1;
         }
 
-        // Helper om de echte naam te tonen, en CSS te bepalen (Rood = Team/Leeg, Groen = Persoon gekoppeld)
         let renderTaak = (pId, defaultTeam) => {
             let css = ""; let text = "";
             if (pId && pId !== "Vrij" && pId !== "") {
-                css = "taak-gevuld"; // GROEN
+                css = "taak-gevuld"; 
                 let s = window.spelersDB.find(x => x.id === pId);
                 let sr = window.scheidsrechtersDB.find(x => x.id === pId);
                 text = s ? s.naam : (sr ? sr.naam : pId);
             } else {
                 if (!defaultTeam || defaultTeam === "Vrij" || defaultTeam === "") {
-                    text = "Vrij"; css = ""; // Geen kleur, neutraal
+                    text = "Vrij"; css = ""; 
                 } else {
-                    text = `[${defaultTeam}]`; css = ""; // ROOD: Er staat alleen nog een teamnaam!
+                    text = `[${defaultTeam}]`; css = ""; 
                 }
             }
             return { css, text };
@@ -274,13 +299,12 @@ window.laadNamenBord = function() {
 };
 
 // ============================================================================
-// 📋 DYNAMISCH NAMEN MODAL (Sorteert op Minste Taken, Voorkomt Dubbele ID's)
+// 📋 DYNAMISCH NAMEN MODAL
 // ============================================================================
 window.genereerPersoonDropdown = function(geselecteerdePersoonId, basisTeamNaam, vereisteTaak) {
     let basisCanon = window.getCanonicalTeam(basisTeamNaam);
     let geschiktePersonen = [];
 
-    // 1. Check Spelers
     window.spelersDB.forEach(s => {
         if (vereisteTaak === 'fluit' && s.magFluiten === false) return;
         if (vereisteTaak === 'tafel' && s.magTafelen === false) return;
@@ -288,13 +312,9 @@ window.genereerPersoonDropdown = function(geselecteerdePersoonId, basisTeamNaam,
         geschiktePersonen.push({ id: s.id, naam: s.naam, teamId: s.teamId });
     });
 
-    // 2. Check Vaste Scheidsrechters (Mogen altijd fluiten en tafelen)
     if (vereisteTaak === 'fluit' || vereisteTaak === 'tafel') {
         window.scheidsrechtersDB.forEach(sr => {
-            // Als hij gekoppeld is aan een lid, gebruik dat Leden-ID
             let targetId = sr.gekoppeldLid ? sr.gekoppeldLid : sr.id;
-            
-            // Voorkom dubbelingen in de lijst als hij via stap 1 al was toegevoegd!
             if (!geschiktePersonen.some(p => p.id === targetId)) {
                 let weergaveNaam = sr.naam + ' (Scheids)';
                 geschiktePersonen.push({ id: targetId, naam: weergaveNaam, teamId: sr.gekoppeldTeam });
@@ -302,7 +322,6 @@ window.genereerPersoonDropdown = function(geselecteerdePersoonId, basisTeamNaam,
         });
     }
 
-    // Sorteer op de globale score (minste taken bovenaan!)
     geschiktePersonen.sort((a, b) => (window.globaleTakenScore[a.id] || 0) - (window.globaleTakenScore[b.id] || 0));
 
     let eigenTeamOpties = '';
@@ -326,7 +345,6 @@ window.genereerPersoonDropdown = function(geselecteerdePersoonId, basisTeamNaam,
     if (basisCanon) html += `<optgroup label="✅ Vanuit ${basisCanon.naam} (Minste taken eerst)">${eigenTeamOpties}</optgroup>`;
     html += `<optgroup label="🌐 Overige geschikte clubleden">${overigeOpties}</optgroup>`;
     
-    // Nood-vangnet: Als de persoon geselecteerd is maar niet in de lijst stond
     if (geselecteerdePersoonId && !html.includes(`value="${geselecteerdePersoonId}"`)) {
         let noodNaam = "Handmatig / Onbekend";
         let fallbackSpeler = window.spelersDB.find(s => s.id === geselecteerdePersoonId);
@@ -409,6 +427,7 @@ window.slaNamenOp = function() {
     localStorage.setItem('blackshots_persoons_taken', JSON.stringify(window.persoonsTakenDB));
     
     document.getElementById('namen-modal').style.display = 'none';
+    window.schoonPersoonsTakenOp();
     window.berekenGlobaleScores();
     window.laadNamenBord();
 };
@@ -425,7 +444,9 @@ window.navigeerSpeeldag = function(richting) {
     let nwIndex = index + richting;
     if (nwIndex >= 0 && nwIndex < dagen.length) {
         document.getElementById('plan-datum').value = dagen[nwIndex];
-        window.initNamenPlanner();
+        window.schoonPersoonsTakenOp();
+        window.berekenGlobaleScores();
+        window.laadNamenBord();
     }
 };
 
