@@ -41,7 +41,22 @@
         .taak-label { font-weight: bold; color: #2c3e50; min-width: 25px; text-align: center; }
         .taak-waarde { flex: 1; color: #e74c3c; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .taak-gevuld { color: #27ae60; }
-    </style>
+ /* NIEUW: Styling voor de Slimme Zoek-Dropdowns */
+        .nz-container { position: relative; width: 100%; font-family: sans-serif; text-align: left; }
+        .nz-header { background: white; border: 1px solid #bdc3c7; padding: 10px; border-radius: 4px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: bold; color: var(--secondary-color); }
+        .nz-body { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #bdc3c7; border-radius: 4px; z-index: 1000; box-shadow: 0 4px 15px rgba(0,0,0,0.15); margin-top: 5px; overflow: hidden; display: none; }
+        .nz-search { width: 100%; padding: 10px; border: none; border-bottom: 1px solid #eee; outline: none; font-size: 0.9rem; box-sizing: border-box; background: #fdfdfd; }
+        .nz-lijst { max-height: 250px; overflow-y: auto; }
+        .nz-item { padding: 8px 10px; border-bottom: 1px solid #f8f9fa; cursor: pointer; display: flex; flex-direction: column; transition: 0.1s; }
+        .nz-item-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+        .nz-item:hover { background: #eef2f5; }
+        .nz-item.is-rood { background: #fadbd8; border-bottom: 1px solid #f5b7b1; }
+        .nz-item.is-rood:hover { background: #f5b7b1; }
+        .nz-badge-team { background: #95a5a6; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; white-space: nowrap; }
+        .nz-badge-score { background: #3498db; color: white; padding: 2px 6px; border-radius: 12px; font-size: 0.7rem; font-weight: bold; }
+        .nz-reden { font-size: 0.75rem; color: #c0392b; font-weight: bold; margin-top: 4px; }
+        .nz-priority-header { background: #d4efdf; padding: 5px 10px; font-size: 0.75rem; font-weight: bold; color: #27ae60; text-transform: uppercase; border-bottom: 1px solid #a9dfbf; }  
+   </style>
 </head>
 <body style="overflow-y: auto;">
     <div id="cloud-status-indicator" style="position: fixed; bottom: 20px; right: 20px; background: #27ae60; color: white; padding: 10px 20px; border-radius: 30px; font-weight: bold; font-size: 0.9rem; z-index: 99999; opacity: 0; pointer-events: none;">☁️ Cloud Actief</div>

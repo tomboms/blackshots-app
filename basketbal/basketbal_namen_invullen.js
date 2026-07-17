@@ -14,6 +14,9 @@ window.persoonsTakenDB = window.veiligObject('blackshots_persoons_taken');
 
 const START_UUR = 9; const EIND_UUR = 22; const PIXEL_SCALE = 2;
 
+// ============================================================================
+// BASIS HELPERS
+// ============================================================================
 window.normaalDatum = function(d) {
     if(!d) return "";
     let str = String(d).trim().substring(0, 10); 
@@ -55,35 +58,24 @@ window.bepaalWedstrijdDuur = function(teamNaam) {
     return 90; 
 };
 
-// ============================================================================
-// 🔍 SLIMME NAAM-NAAR-ID ZOEKER (Puur op harde matches)
-// ============================================================================
 window.zoekPersoonIdViaNaam = function(naamStr) {
     if (!naamStr || naamStr === "Vrij") return "";
     let clean = naamStr.toLowerCase().trim();
-    
-    // Check EERST de scheidsrechters matrix
     let sr = window.scheidsrechtersDB.find(s => s && s.naam.toLowerCase().trim() === clean);
     if (sr) return sr.gekoppeldLid ? sr.gekoppeldLid : sr.id;
-
-    // Check DAARNA de SpelersDB
     let sp = window.spelersDB.find(s => s && s.naam.toLowerCase().trim() === clean);
     if (sp) return sp.id;
-
     return ""; 
 };
 
 // ============================================================================
-// 🧹 SPOOK-JAGER: FORCEER ALLE STRINGS NAAR OFFICIËLE ID'S
+// AUTO-MIGRATIE EN SEIZOENS TELLER
 // ============================================================================
 window.schoonPersoonsTakenOp = function() {
     let gewijzigd = false;
-
-    // 1. Migreer teamTakenDB naar persoonsTakenDB
     Object.keys(window.teamTakenDB).forEach(matchId => {
         let tTaken = window.teamTakenDB[matchId];
         let pTaken = window.persoonsTakenDB[matchId] || {};
-        
         ['sA', 'sB', 'tab', 'sco', 'auto1', 'auto2', 'auto3'].forEach(rol => {
             if (!pTaken[rol] && tTaken[rol] && tTaken[rol] !== "Vrij") {
                 let gevondenId = window.zoekPersoonIdViaNaam(tTaken[rol]);
@@ -93,7 +85,6 @@ window.schoonPersoonsTakenOp = function() {
         if (gewijzigd) window.persoonsTakenDB[matchId] = pTaken;
     });
 
-    // 2. Ruim spoken op in de persoonsTakenDB zelf
     Object.keys(window.persoonsTakenDB).forEach(matchId => {
         let taken = window.persoonsTakenDB[matchId];
         ['sA', 'sB', 'tab', 'sco', 'auto1', 'auto2', 'auto3'].forEach(rol => {
@@ -101,41 +92,28 @@ window.schoonPersoonsTakenOp = function() {
             if (val && val !== "Vrij" && val !== "") {
                 let isSpeler = window.spelersDB.some(s => s.id === val);
                 let sr = window.scheidsrechtersDB.find(s => s.id === val);
-                
                 if (sr && sr.gekoppeldLid) {
-                    taken[rol] = sr.gekoppeldLid; // Vertaal oude scheidsID naar SpelerID
-                    gewijzigd = true;
+                    taken[rol] = sr.gekoppeldLid; gewijzigd = true;
                 } else if (!isSpeler && !sr) {
-                    let gevondenId = window.zoekPersoonIdViaNaam(val); // Vertaal rauwe text "Tom" naar SpelerID
-                    if (gevondenId) {
-                        taken[rol] = gevondenId;
-                        gewijzigd = true;
-                    }
+                    let gevondenId = window.zoekPersoonIdViaNaam(val); 
+                    if (gevondenId) { taken[rol] = gevondenId; gewijzigd = true; }
                 }
             }
         });
     });
-
     if (gewijzigd) localStorage.setItem('blackshots_persoons_taken', JSON.stringify(window.persoonsTakenDB));
 };
 
-// ============================================================================
-// 📊 GLOBALE SEIZOENS TELLER
-// ============================================================================
 window.globaleTakenScore = {}; 
-
 window.berekenGlobaleScores = function() {
     window.globaleTakenScore = {};
-    
     window.spelersDB.forEach(s => window.globaleTakenScore[s.id] = 0);
     window.scheidsrechtersDB.forEach(sr => window.globaleTakenScore[sr.id] = 0);
 
     Object.values(window.persoonsTakenDB).forEach(matchTaken => {
         ['sA', 'sB', 'tab', 'sco', 'auto1', 'auto2', 'auto3'].forEach(rol => {
             let pId = matchTaken[rol];
-            if (pId && pId !== "Vrij" && pId !== "") {
-                window.globaleTakenScore[pId] = (window.globaleTakenScore[pId] || 0) + 1;
-            }
+            if (pId && pId !== "Vrij" && pId !== "") window.globaleTakenScore[pId] = (window.globaleTakenScore[pId] || 0) + 1;
         });
     });
 
@@ -145,23 +123,17 @@ window.berekenGlobaleScores = function() {
     let arrayScores = Object.keys(window.globaleTakenScore).map(id => {
         let s = window.spelersDB.find(x => x.id === id);
         let sr = window.scheidsrechtersDB.find(x => x.id === id);
-        let weergaveNaam = s ? s.naam : (sr ? sr.naam : id);
-        return { id: id, naam: weergaveNaam, score: window.globaleTakenScore[id] };
-    }).filter(x => x.score > 0); 
-
-    arrayScores.sort((a, b) => b.score - a.score); 
+        return { id: id, naam: s ? s.naam : (sr ? sr.naam : id), score: window.globaleTakenScore[id] };
+    }).filter(x => x.score > 0).sort((a, b) => b.score - a.score); 
 
     let html = '';
-    arrayScores.forEach(item => {
-        html += `<div class="teller-item"><span>${item.naam}</span> <strong>${item.score}x</strong></div>`;
-    });
-    
+    arrayScores.forEach(item => html += `<div class="teller-item"><span>${item.naam}</span> <strong>${item.score}x</strong></div>`);
     if(html === '') html = '<div style="color:#7f8c8d; font-size:0.8rem; text-align:center;">Nog niemand is ingedeeld.</div>';
     lijstContainer.innerHTML = html;
 };
 
 // ============================================================================
-// 🎨 BORD RENDERING & INITIALISATIE
+// 🎨 PLANBORD RENDERING
 // ============================================================================
 window.initNamenPlanner = function() {
     let datumInput = document.getElementById('plan-datum');
@@ -245,11 +217,7 @@ window.laadNamenBord = function() {
                 let sr = window.scheidsrechtersDB.find(x => x.id === pId);
                 text = s ? s.naam : (sr ? sr.naam : pId);
             } else {
-                if (!defaultTeam || defaultTeam === "Vrij" || defaultTeam === "") {
-                    text = "Vrij"; css = ""; 
-                } else {
-                    text = `[${defaultTeam}]`; css = ""; 
-                }
+                text = (!defaultTeam || defaultTeam === "Vrij" || defaultTeam === "") ? "Vrij" : `[${defaultTeam}]`; 
             }
             return { css, text };
         };
@@ -299,12 +267,73 @@ window.laadNamenBord = function() {
 };
 
 // ============================================================================
-// 📋 DYNAMISCH NAMEN MODAL
+// 🧠 SLIMME CONFLICT ENGINE & CUSTOM DROPDOWN LOGICA
 // ============================================================================
-window.genereerPersoonDropdown = function(geselecteerdePersoonId, basisTeamNaam, vereisteTaak) {
+window.haalPersoonInfoOp = function(pId) {
+    if (!pId || pId === "" || pId === "Vrij") return { naam: "Kies een persoon...", teamNaam: "", score: 0 };
+    let s = window.spelersDB.find(x => x.id === pId);
+    let sr = window.scheidsrechtersDB.find(x => x.id === pId);
+    if (s) {
+        let tCanon = window.getCanonicalTeam(s.teamId);
+        return { naam: s.naam, teamNaam: tCanon ? tCanon.naam : s.teamId, score: window.globaleTakenScore[pId] || 0 };
+    }
+    if (sr) return { naam: sr.naam + ' (Scheids)', teamNaam: sr.gekoppeldTeam, score: window.globaleTakenScore[pId] || 0 };
+    return { naam: "Onbekend (Handmatig)", teamNaam: "", score: window.globaleTakenScore[pId] || 0 };
+};
+
+window.checkPersoonBeschikbaarheid = function(pId, pTeamId, vereisteTaak, matchStartMin, matchEindMin, huidigeMatchId, speelDatum) {
+    let status = 'groen'; let reden = ''; let isPriority = false;
+    
+    // Check rooster afwezigheid
+    let sr = window.scheidsrechtersDB.find(s => s.id === pId);
+    if (sr && window.beschikbaarheidDB[`${sr.id}_${speelDatum}`] === 'af') return { status: 'rood', reden: 'Afwezig in rooster', isPriority: false };
+
+    let alleWedstrijden = [...window.nbbWedstrijden, ...window.customWedstrijden];
+    let dagWedstrijden = alleWedstrijden.filter(w => window.normaalDatum(w.Datum) === speelDatum && window.planStatusDB[window.genereerUniekId(w)] && !window.verborgenDB.includes(window.genereerUniekId(w)));
+
+    let huidigeMatch = dagWedstrijden.find(m => window.genereerUniekId(m) === huidigeMatchId);
+    let huidigeCanon = huidigeMatch ? window.getCanonicalTeam(huidigeMatch.Thuisteam.includes('Black Shots') ? huidigeMatch.Thuisteam.replace('Black Shots ', '') : huidigeMatch.Uitteam.replace('Black Shots ', '')) : null;
+
+    // Speelt hij ZELF deze specifieke wedstrijd?
+    if (huidigeCanon && pTeamId && huidigeCanon.id === pTeamId) {
+        if (vereisteTaak === 'fluit') {
+            return { status: 'rood', reden: 'Speelt zelf deze wedstrijd', isPriority: false };
+        } else {
+            // Tafelen of Rijden bij eigen team is een BONUS! (Voor ouders)
+            isPriority = true;
+        }
+    }
+
+    // Check overlap met andere wedstrijden op de dag
+    for (let w of dagWedstrijden) {
+        let wId = window.genereerUniekId(w);
+        if (wId === huidigeMatchId) continue;
+        let wStatus = window.planStatusDB[wId];
+        
+        let wStart = window.tijdNaarMinuten(wStatus.tijd);
+        let wDuur = w.handmatigeDuur || window.bepaalWedstrijdDuur((w.Thuisteam||'').replace('Black Shots ',''));
+        let wEind = wStart + wDuur;
+
+        if (matchStartMin < wEind && matchEindMin > wStart) {
+            // 1. Heeft hij hier al een taak?
+            let takenElders = window.persoonsTakenDB[wId] || {};
+            if (Object.values(takenElders).includes(pId)) return { status: 'rood', reden: `Heeft al taak om ${wStatus.tijd}`, isPriority: false };
+            
+            // 2. Speelt zijn team nu?
+            let wCanon = window.getCanonicalTeam(w.Thuisteam.includes('Black Shots') ? w.Thuisteam.replace('Black Shots ', '') : w.Uitteam.replace('Black Shots ', ''));
+            if (wCanon && pTeamId && wCanon.id === pTeamId) return { status: 'rood', reden: `Speelt zelf om ${wStatus.tijd}`, isPriority: false };
+        }
+    }
+
+    return { status, reden, isPriority };
+};
+
+// De bouwer voor het HTML blok van de dropdown
+window.genereerCustomDropdownUI = function(vakjeId, geselecteerdePersoonId, basisTeamNaam, vereisteTaak, startMin, eindMin, speelDatum, matchId) {
     let basisCanon = window.getCanonicalTeam(basisTeamNaam);
     let geschiktePersonen = [];
 
+    // Verzamel spelers die de taak mogen
     window.spelersDB.forEach(s => {
         if (vereisteTaak === 'fluit' && s.magFluiten === false) return;
         if (vereisteTaak === 'tafel' && s.magTafelen === false) return;
@@ -312,91 +341,158 @@ window.genereerPersoonDropdown = function(geselecteerdePersoonId, basisTeamNaam,
         geschiktePersonen.push({ id: s.id, naam: s.naam, teamId: s.teamId });
     });
 
+    // Verzamel scheidsrechters
     if (vereisteTaak === 'fluit' || vereisteTaak === 'tafel') {
         window.scheidsrechtersDB.forEach(sr => {
             let targetId = sr.gekoppeldLid ? sr.gekoppeldLid : sr.id;
             if (!geschiktePersonen.some(p => p.id === targetId)) {
-                let weergaveNaam = sr.naam + ' (Scheids)';
-                geschiktePersonen.push({ id: targetId, naam: weergaveNaam, teamId: sr.gekoppeldTeam });
+                geschiktePersonen.push({ id: targetId, naam: sr.naam + ' (Scheids)', teamId: sr.gekoppeldTeam });
             }
         });
     }
 
-    geschiktePersonen.sort((a, b) => (window.globaleTakenScore[a.id] || 0) - (window.globaleTakenScore[b.id] || 0));
-
-    let eigenTeamOpties = '';
-    let overigeOpties = '';
-
-    geschiktePersonen.forEach(p => {
-        let scoreStr = `(${window.globaleTakenScore[p.id] || 0}x)`;
-        let isGeselecteerd = (p.id === geselecteerdePersoonId) ? 'selected' : '';
-        let pTeam = window.getCanonicalTeam(p.teamId);
+    // Analyseer de status van iedereen (Conflict checker)
+    let lijstData = geschiktePersonen.map(p => {
+        let pCanon = window.getCanonicalTeam(p.teamId);
+        let weergaveTeam = pCanon ? pCanon.naam : (p.teamId || '-');
+        let check = window.checkPersoonBeschikbaarheid(p.id, pCanon ? pCanon.id : null, vereisteTaak, startMin, eindMin, matchId, speelDatum);
         
-        let optHtml = `<option value="${p.id}" ${isGeselecteerd}>${p.naam} ${scoreStr}</option>`;
-        
-        if (basisCanon && pTeam && pTeam.id === basisCanon.id) {
-            eigenTeamOpties += optHtml;
-        } else {
-            overigeOpties += optHtml;
-        }
+        // Extra controle: was dit de 'Basis Team' voorkeur uit fase 1?
+        if (basisCanon && pCanon && pCanon.id === basisCanon.id && check.status === 'groen') check.isPriority = true;
+
+        return { 
+            id: p.id, naam: p.naam, teamNaam: weergaveTeam, score: window.globaleTakenScore[p.id] || 0,
+            status: check.status, reden: check.reden, isPriority: check.isPriority
+        };
     });
 
-    let html = `<option value="">-- Geen persoon geselecteerd --</option>`;
-    if (basisCanon) html += `<optgroup label="✅ Vanuit ${basisCanon.naam} (Minste taken eerst)">${eigenTeamOpties}</optgroup>`;
-    html += `<optgroup label="🌐 Overige geschikte clubleden">${overigeOpties}</optgroup>`;
-    
-    if (geselecteerdePersoonId && !html.includes(`value="${geselecteerdePersoonId}"`)) {
-        let noodNaam = "Handmatig / Onbekend";
-        let fallbackSpeler = window.spelersDB.find(s => s.id === geselecteerdePersoonId);
-        let fallbackSr = window.scheidsrechtersDB.find(sr => sr.id === geselecteerdePersoonId);
-        if(fallbackSpeler) noodNaam = fallbackSpeler.naam;
-        else if(fallbackSr) noodNaam = fallbackSr.naam;
+    // Sorteren: Prioriteit -> Groen -> Minste taken -> Rood
+    lijstData.sort((a, b) => {
+        if (a.isPriority && !b.isPriority) return -1;
+        if (!a.isPriority && b.isPriority) return 1;
+        if (a.status === 'groen' && b.status === 'rood') return -1;
+        if (a.status === 'rood' && b.status === 'groen') return 1;
+        return a.score - b.score; 
+    });
 
-        html += `<option value="${geselecteerdePersoonId}" selected>${noodNaam} (${window.globaleTakenScore[geselecteerdePersoonId]||0}x)</option>`;
-    }
+    // Bouw de lijst items
+    let lijstHtml = `<div class="nz-item" onclick="window.kiesPersoon('${vakjeId}', '', 'Kies een persoon...')"><div class="nz-item-top"><strong>-- Maak leeg (Vrij) --</strong></div></div>`;
+    let getoondAanbevolen = false; let getoondOverig = false; let getoondOnbeschikbaar = false;
 
-    return html;
+    lijstData.forEach(p => {
+        let isGeselecteerd = (p.id === geselecteerdePersoonId) ? 'background:#eef2f5;' : '';
+        let cssRood = p.status === 'rood' ? 'is-rood' : '';
+        let badgeTeam = p.teamNaam !== '-' ? `<span class="nz-badge-team">${p.teamNaam}</span>` : '';
+        let htmlReden = p.status === 'rood' ? `<span class="nz-reden">🚫 ${p.reden}</span>` : '';
+
+        // Tussenkoppen toevoegen voor overzicht
+        if (p.isPriority && p.status === 'groen' && !getoondAanbevolen) { lijstHtml += `<div class="nz-priority-header">🌟 Aanbevolen (Eigen Team)</div>`; getoondAanbevolen = true; }
+        if (!p.isPriority && p.status === 'groen' && !getoondOverig) { lijstHtml += `<div class="nz-priority-header" style="background:#eef2f5; color:#7f8c8d; border-color:#cbd5e1;">🌐 Alle beschikbare leden</div>`; getoondOverig = true; }
+        if (p.status === 'rood' && !getoondOnbeschikbaar) { lijstHtml += `<div class="nz-priority-header" style="background:#fadbd8; color:#c0392b; border-color:#f5b7b1;">🚫 Onbeschikbaar / Overlap</div>`; getoondOnbeschikbaar = true; }
+
+        let escapeNaam = p.naam.replace(/'/g, "\\'");
+        lijstHtml += `
+            <div class="nz-item ${cssRood} search-item" data-search="${p.naam.toLowerCase()} ${p.teamNaam.toLowerCase()}" style="${isGeselecteerd}" onclick="window.kiesPersoon('${vakjeId}', '${p.id}', '${escapeNaam}')">
+                <div class="nz-item-top">
+                    <span><strong>${p.naam}</strong> <span class="nz-badge-score">${p.score}x</span></span>
+                    ${badgeTeam}
+                </div>
+                ${htmlReden}
+            </div>`;
+    });
+
+    let displayInfo = window.haalPersoonInfoOp(geselecteerdePersoonId);
+    let btnText = geselecteerdePersoonId ? `${displayInfo.naam}` : 'Kies een persoon...';
+
+    return `
+        <div class="nz-container" id="nz-${vakjeId}">
+            <div class="nz-header" onclick="window.toggleDropdown('${vakjeId}')">
+                <span id="nz-display-${vakjeId}">${btnText}</span><span>▼</span>
+            </div>
+            <div class="nz-body" id="nz-body-${vakjeId}">
+                <input type="text" class="nz-search" placeholder="🔍 Zoek speler of team..." onkeyup="window.filterDropdown('${vakjeId}', this.value)" onclick="event.stopPropagation();">
+                <div class="nz-lijst" id="nz-lijst-${vakjeId}">${lijstHtml}</div>
+            </div>
+            <input type="hidden" id="pers-${vakjeId}" value="${geselecteerdePersoonId || ''}">
+        </div>
+    `;
 };
 
+// Dropdown interacties
+window.toggleDropdown = function(vakjeId) {
+    let body = document.getElementById(`nz-body-${vakjeId}`);
+    let isZichtbaar = body.style.display === 'block';
+    document.querySelectorAll('.nz-body').forEach(el => el.style.display = 'none'); // Sluit alle andere
+    if (!isZichtbaar) {
+        body.style.display = 'block';
+        body.querySelector('.nz-search').focus();
+    }
+};
+
+window.kiesPersoon = function(vakjeId, pId, pNaam) {
+    document.getElementById(`pers-${vakjeId}`).value = pId;
+    document.getElementById(`nz-display-${vakjeId}`).innerText = pNaam;
+    document.getElementById(`nz-body-${vakjeId}`).style.display = 'none';
+};
+
+window.filterDropdown = function(vakjeId, term) {
+    let lowerTerm = term.toLowerCase();
+    let items = document.querySelectorAll(`#nz-lijst-${vakjeId} .search-item`);
+    items.forEach(el => {
+        if (el.getAttribute('data-search').includes(lowerTerm)) el.style.display = 'flex';
+        else el.style.display = 'none';
+    });
+};
+
+// Sluit menu als je ergens anders klikt
+document.addEventListener('click', function(event) {
+    if (!event.target.closest('.nz-container')) {
+        document.querySelectorAll('.nz-body').forEach(el => el.style.display = 'none');
+    }
+});
+
+// ============================================================================
+// 📋 OPEN MODAL EN OPSLAAN
+// ============================================================================
 window.openNamenModal = function(matchId) {
     let alleWedstrijden = [...window.nbbWedstrijden, ...window.customWedstrijden];
     let match = alleWedstrijden.find(w => window.genereerUniekId(w) === matchId);
     if (!match) return;
 
     let isThuis = (match.Thuisteam || '').toLowerCase().includes('black shots');
-    let thuisNaam = (match.Thuisteam || '').replace(/Black Shots\s*-?\s*/i, '').trim();
-    let uitNaam = (match.Uitteam || '').replace(/Black Shots\s*-?\s*/i, '').trim();
-    let speelTeamNaam = isThuis ? thuisNaam : uitNaam;
+    let speelTeamNaam = isThuis ? (match.Thuisteam || '').replace(/Black Shots\s*-?\s*/i, '').trim() : (match.Uitteam || '').replace(/Black Shots\s*-?\s*/i, '').trim();
+
+    let dbStatus = window.planStatusDB[matchId];
+    let startMin = window.tijdNaarMinuten(dbStatus.tijd);
+    let eindMin = startMin + (match.handmatigeDuur || window.bepaalWedstrijdDuur(speelTeamNaam));
+    let speelDatum = window.normaalDatum(match.Datum);
 
     document.getElementById('namen-match-id').value = matchId;
-    document.getElementById('namen-match-titel').innerText = `${isThuis ? '🏠 Thuis:' : '🚌 Uit:'} ${thuisNaam} vs ${uitNaam}`;
+    document.getElementById('namen-match-titel').innerText = `${isThuis ? '🏠 Thuis:' : '🚌 Uit:'} ${speelTeamNaam} vs ${isThuis?match.Uitteam:match.Thuisteam}`;
     
     let teamTaken = window.teamTakenDB[matchId] || {};
     let persTaken = window.persoonsTakenDB[matchId] || {};
-    
     let veldenHtml = '';
 
     if (isThuis) {
-        let tA_naam = (teamTaken.sA || '').replace(/ouders/i,'').trim();
-        let tB_naam = (teamTaken.sB || '').replace(/ouders/i,'').trim();
-        let tTab_naam = (teamTaken.tab || '').replace(/ouders/i,'').trim();
-        let tSco_naam = (teamTaken.sco || '').replace(/ouders/i,'').trim();
+        let tA_naam = (teamTaken.sA || '').replace(/ouders/i,'').trim(); let tB_naam = (teamTaken.sB || '').replace(/ouders/i,'').trim();
+        let tTab_naam = (teamTaken.tab || '').replace(/ouders/i,'').trim(); let tSco_naam = (teamTaken.sco || '').replace(/ouders/i,'').trim();
 
         veldenHtml = `
             <div style="display:flex; gap:10px; margin-bottom:15px;">
-                <div style="flex:1;"><label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">👨‍⚖️ Scheids A (Team: ${teamTaken.sA||'?'})</label><select id="pers-sA" style="width:100%; padding:10px; border-radius:4px;">${window.genereerPersoonDropdown(persTaken.sA, tA_naam, 'fluit')}</select></div>
-                <div style="flex:1;"><label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">👨‍⚖️ Scheids B (Team: ${teamTaken.sB||'?'})</label><select id="pers-sB" style="width:100%; padding:10px; border-radius:4px;">${window.genereerPersoonDropdown(persTaken.sB, tB_naam, 'fluit')}</select></div>
+                <div style="flex:1;"><label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">👨‍⚖️ Scheids A (Team: ${teamTaken.sA||'?'})</label>${window.genereerCustomDropdownUI('sA', persTaken.sA, tA_naam, 'fluit', startMin, eindMin, speelDatum, matchId)}</div>
+                <div style="flex:1;"><label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">👨‍⚖️ Scheids B (Team: ${teamTaken.sB||'?'})</label>${window.genereerCustomDropdownUI('sB', persTaken.sB, tB_naam, 'fluit', startMin, eindMin, speelDatum, matchId)}</div>
             </div>
             <div style="display:flex; gap:10px; margin-bottom:20px;">
-                <div style="flex:1;"><label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">💻 Tablet (Team: ${teamTaken.tab||'?'})</label><select id="pers-tab" style="width:100%; padding:10px; border-radius:4px;">${window.genereerPersoonDropdown(persTaken.tab, tTab_naam, 'tafel')}</select></div>
-                <div style="flex:1;"><label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">⏱️ Scorebord (Team: ${teamTaken.sco||'?'})</label><select id="pers-sco" style="width:100%; padding:10px; border-radius:4px;">${window.genereerPersoonDropdown(persTaken.sco, tSco_naam, 'tafel')}</select></div>
+                <div style="flex:1;"><label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">💻 Tablet (Team: ${teamTaken.tab||'?'})</label>${window.genereerCustomDropdownUI('tab', persTaken.tab, tTab_naam, 'tafel', startMin, eindMin, speelDatum, matchId)}</div>
+                <div style="flex:1;"><label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">⏱️ Scorebord (Team: ${teamTaken.sco||'?'})</label>${window.genereerCustomDropdownUI('sco', persTaken.sco, tSco_naam, 'tafel', startMin, eindMin, speelDatum, matchId)}</div>
             </div>`;
     } else {
         veldenHtml = `
-            <div style="margin-bottom:15px;"><label style="font-weight:bold; font-size:0.85rem; color:#3498db;">🚗 Chauffeur 1 (Vanuit ${speelTeamNaam})</label><select id="pers-auto1" style="width:100%; padding:10px; border:2px solid #3498db; border-radius:4px;">${window.genereerPersoonDropdown(persTaken.auto1, speelTeamNaam, 'auto')}</select></div>
+            <div style="margin-bottom:15px;"><label style="font-weight:bold; font-size:0.85rem; color:#3498db;">🚗 Chauffeur 1 (Vanuit ${speelTeamNaam})</label>${window.genereerCustomDropdownUI('auto1', persTaken.auto1, speelTeamNaam, 'auto', startMin, eindMin, speelDatum, matchId)}</div>
             <div style="display:flex; gap:10px; margin-bottom:20px;">
-                <div style="flex:1;"><label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">🚗 Chauffeur 2</label><select id="pers-auto2" style="width:100%; padding:10px; border-radius:4px;">${window.genereerPersoonDropdown(persTaken.auto2, speelTeamNaam, 'auto')}</select></div>
-                <div style="flex:1;"><label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">🚗 Chauffeur 3</label><select id="pers-auto3" style="width:100%; padding:10px; border-radius:4px;">${window.genereerPersoonDropdown(persTaken.auto3, speelTeamNaam, 'auto')}</select></div>
+                <div style="flex:1;"><label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">🚗 Chauffeur 2</label>${window.genereerCustomDropdownUI('auto2', persTaken.auto2, speelTeamNaam, 'auto', startMin, eindMin, speelDatum, matchId)}</div>
+                <div style="flex:1;"><label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">🚗 Chauffeur 3</label>${window.genereerCustomDropdownUI('auto3', persTaken.auto3, speelTeamNaam, 'auto', startMin, eindMin, speelDatum, matchId)}</div>
             </div>`;
     }
 
@@ -444,9 +540,7 @@ window.navigeerSpeeldag = function(richting) {
     let nwIndex = index + richting;
     if (nwIndex >= 0 && nwIndex < dagen.length) {
         document.getElementById('plan-datum').value = dagen[nwIndex];
-        window.schoonPersoonsTakenOp();
-        window.berekenGlobaleScores();
-        window.laadNamenBord();
+        window.initNamenPlanner();
     }
 };
 
