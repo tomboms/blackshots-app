@@ -58,17 +58,36 @@ window.bepaalWedstrijdDuur = function(teamNaam) {
 };
 
 // ============================================================================
+// 🔍 SLIMME NAAM-NAAR-ID ZOEKER (Voor Auto-Migratie uit Fase 1)
+// ============================================================================
+window.zoekPersoonIdViaNaam = function(naamStr) {
+    if (!naamStr || naamStr === "Vrij") return "";
+    let clean = naamStr.toLowerCase().trim();
+    
+    // Check scheidsrechters
+    let sr = window.scheidsrechtersDB.find(s => s && s.naam.toLowerCase().trim() === clean);
+    if (sr) return sr.id;
+
+    // Check spelers/ouders
+    let sp = window.spelersDB.find(s => s && s.naam.toLowerCase().trim() === clean);
+    if (sp) return sp.id;
+
+    return ""; // Geen persoon gevonden, is dus waarschijnlijk een team (bijv. M18-1)
+};
+
+
+// ============================================================================
 // 📊 GLOBALE SEIZOENS TELLER
 // ============================================================================
-window.globaleTakenScore = {}; // Houdt per speler.id de score bij
+window.globaleTakenScore = {}; 
 
 window.berekenGlobaleScores = function() {
     window.globaleTakenScore = {};
     
-    // Zet iedereen standaard op 0
+    // Zet alle spelers EN scheidsrechters standaard op 0
     window.spelersDB.forEach(s => window.globaleTakenScore[s.id] = 0);
+    window.scheidsrechtersDB.forEach(sr => window.globaleTakenScore[sr.id] = 0);
 
-    // Loop door ALLE persoonsTaken in het hele seizoen
     Object.values(window.persoonsTakenDB).forEach(matchTaken => {
         ['sA', 'sB', 'tab', 'sco', 'auto1', 'auto2', 'auto3'].forEach(rol => {
             let pId = matchTaken[rol];
@@ -78,16 +97,17 @@ window.berekenGlobaleScores = function() {
         });
     });
 
-    // Teken de lijst in de linkerkolom
     let lijstContainer = document.getElementById('seizoen-teller-container');
     if (!lijstContainer) return;
 
     let arrayScores = Object.keys(window.globaleTakenScore).map(id => {
         let s = window.spelersDB.find(x => x.id === id);
-        return { id: id, naam: s ? s.naam : id, score: window.globaleTakenScore[id] };
-    }).filter(x => x.score > 0); // Laat alleen mensen zien die al wat gedaan hebben
+        let sr = window.scheidsrechtersDB.find(x => x.id === id);
+        let weergaveNaam = s ? s.naam : (sr ? sr.naam : id);
+        return { id: id, naam: weergaveNaam, score: window.globaleTakenScore[id] };
+    }).filter(x => x.score > 0); 
 
-    arrayScores.sort((a, b) => b.score - a.score); // Meeste bovenaan
+    arrayScores.sort((a, b) => b.score - a.score); 
 
     let html = '';
     arrayScores.forEach(item => {
@@ -99,7 +119,7 @@ window.berekenGlobaleScores = function() {
 };
 
 // ============================================================================
-// 🎨 BORD RENDERING
+// 🎨 BORD RENDERING & AUTO-MIGRATIE
 // ============================================================================
 window.initNamenPlanner = function() {
     let datumInput = document.getElementById('plan-datum');
@@ -143,7 +163,6 @@ window.laadNamenBord = function() {
 
     bord.innerHTML = html;
 
-    // Haal wedstrijden op die in de planner zijn vastgezet
     let alleWedstrijden = [...window.nbbWedstrijden, ...window.customWedstrijden];
     let dagWedstrijden = alleWedstrijden.filter(w => {
         let matchDatum = window.normaalDatum(w.Datum);
@@ -156,8 +175,25 @@ window.laadNamenBord = function() {
     dagWedstrijden.forEach(w => {
         let uniekId = window.genereerUniekId(w);
         let dbStatus = window.planStatusDB[uniekId];
-        let teamTaken = window.teamTakenDB[uniekId] || {};     // De teams uit fase 1
-        let persTaken = window.persoonsTakenDB[uniekId] || {}; // De personen uit deze fase
+        let teamTaken = window.teamTakenDB[uniekId] || {};     
+        let persTaken = window.persoonsTakenDB[uniekId] || {}; 
+
+        // --- 🚀 AUTO-MIGRATIE: Van Typ-naam (Fase 1) naar ID (Fase 2) ---
+        let heeftMigratieGehad = false;
+        ['sA', 'sB', 'tab', 'sco', 'auto1', 'auto2', 'auto3'].forEach(rol => {
+            if (!persTaken[rol] && teamTaken[rol] && teamTaken[rol] !== "Vrij") {
+                let gevondenId = window.zoekPersoonIdViaNaam(teamTaken[rol]);
+                if (gevondenId) {
+                    persTaken[rol] = gevondenId;
+                    heeftMigratieGehad = true;
+                }
+            }
+        });
+        
+        if (heeftMigratieGehad) {
+            window.persoonsTakenDB[uniekId] = persTaken;
+            localStorage.setItem('blackshots_persoons_taken', JSON.stringify(window.persoonsTakenDB));
+        }
 
         let isThuis = (w.Thuisteam || '').toLowerCase().includes('black shots');
         let wedstrijdNaam = isThuis ? (w.Thuisteam || '').replace(/Black Shots\s*-?\s*/i, '').trim() : (w.Uitteam || '').replace(/Black Shots\s*-?\s*/i, '').trim();
@@ -175,35 +211,46 @@ window.laadNamenBord = function() {
             uitOverlaps[startMinuten] = overlapIndex + 1;
         }
 
-        // Helper om de echte naam te tonen in plaats van het ID
-        let naamWeergave = (pId, defaultTeam) => {
-            if (!pId || pId === "" || pId === "Vrij") return `[${defaultTeam || 'Team N.n.b.'}]`;
-            let s = window.spelersDB.find(x => x.id === pId);
-            return s ? s.naam : pId;
+        // Helper om de echte naam te tonen, en CSS te bepalen (Rood = Team/Leeg, Groen = Persoon gekoppeld)
+        let renderTaak = (pId, defaultTeam) => {
+            let css = ""; let text = "";
+            if (pId && pId !== "Vrij" && pId !== "") {
+                css = "taak-gevuld"; // GROEN
+                let s = window.spelersDB.find(x => x.id === pId);
+                let sr = window.scheidsrechtersDB.find(x => x.id === pId);
+                text = s ? s.naam : (sr ? sr.naam : pId);
+            } else {
+                if (!defaultTeam || defaultTeam === "Vrij" || defaultTeam === "") {
+                    text = "Vrij"; css = ""; // Geen kleur, neutraal
+                } else {
+                    text = `[${defaultTeam}]`; css = ""; // ROOD: Er staat alleen nog een teamnaam!
+                }
+            }
+            return { css, text };
         };
 
         let htmlTakenBlok = '';
         if (isThuis) {
-            let pA = naamWeergave(persTaken.sA, teamTaken.sA); let pB = naamWeergave(persTaken.sB, teamTaken.sB);
-            let pT = naamWeergave(persTaken.tab, teamTaken.tab); let pS = naamWeergave(persTaken.sco, teamTaken.sco);
+            let pA = renderTaak(persTaken.sA, teamTaken.sA); let pB = renderTaak(persTaken.sB, teamTaken.sB);
+            let pT = renderTaak(persTaken.tab, teamTaken.tab); let pS = renderTaak(persTaken.sco, teamTaken.sco);
             
             htmlTakenBlok = `
                 <div style="display:flex; gap:5px; margin-top:5px;">
-                    <div class="taak-regel" style="flex:1;"><span class="taak-label">A:</span> <span class="taak-waarde ${persTaken.sA?'taak-gevuld':''}">${pA}</span></div>
-                    <div class="taak-regel" style="flex:1;"><span class="taak-label">B:</span> <span class="taak-waarde ${persTaken.sB?'taak-gevuld':''}">${pB}</span></div>
+                    <div class="taak-regel" style="flex:1;"><span class="taak-label">A:</span> <span class="taak-waarde ${pA.css}">${pA.text}</span></div>
+                    <div class="taak-regel" style="flex:1;"><span class="taak-label">B:</span> <span class="taak-waarde ${pB.css}">${pB.text}</span></div>
                 </div>
                 <div style="display:flex; gap:5px; margin-top:5px;">
-                    <div class="taak-regel" style="flex:1;"><span class="taak-label">💻:</span> <span class="taak-waarde ${persTaken.tab?'taak-gevuld':''}">${pT}</span></div>
-                    <div class="taak-regel" style="flex:1;"><span class="taak-label">⏱️:</span> <span class="taak-waarde ${persTaken.sco?'taak-gevuld':''}">${pS}</span></div>
+                    <div class="taak-regel" style="flex:1;"><span class="taak-label">💻:</span> <span class="taak-waarde ${pT.css}">${pT.text}</span></div>
+                    <div class="taak-regel" style="flex:1;"><span class="taak-label">⏱️:</span> <span class="taak-waarde ${pS.css}">${pS.text}</span></div>
                 </div>`;
         } else {
-            let p1 = naamWeergave(persTaken.auto1, "Auto 1"); let p2 = naamWeergave(persTaken.auto2, "Auto 2"); let p3 = naamWeergave(persTaken.auto3, "Auto 3");
+            let p1 = renderTaak(persTaken.auto1, "Auto 1"); let p2 = renderTaak(persTaken.auto2, "Auto 2"); let p3 = renderTaak(persTaken.auto3, "Auto 3");
             htmlTakenBlok = `
                 <div style="display:flex; flex-direction:column; gap:5px; margin-top:5px; border-top:1px dashed #3498db; padding-top:5px;">
-                    <div class="taak-regel" style="border-color:#3498db;"><span class="taak-label">🚗 1:</span> <span class="taak-waarde ${persTaken.auto1?'taak-gevuld':''}">${p1}</span></div>
+                    <div class="taak-regel" style="border-color:#3498db;"><span class="taak-label">🚗 1:</span> <span class="taak-waarde ${p1.css}">${p1.text}</span></div>
                     <div style="display:flex; gap:5px;">
-                        <div class="taak-regel" style="flex:1; border-color:#3498db;"><span class="taak-label">🚗 2:</span> <span class="taak-waarde ${persTaken.auto2?'taak-gevuld':''}">${p2}</span></div>
-                        <div class="taak-regel" style="flex:1; border-color:#3498db;"><span class="taak-label">🚗 3:</span> <span class="taak-waarde ${persTaken.auto3?'taak-gevuld':''}">${p3}</span></div>
+                        <div class="taak-regel" style="flex:1; border-color:#3498db;"><span class="taak-label">🚗 2:</span> <span class="taak-waarde ${p2.css}">${p2.text}</span></div>
+                        <div class="taak-regel" style="flex:1; border-color:#3498db;"><span class="taak-label">🚗 3:</span> <span class="taak-waarde ${p3.css}">${p3.text}</span></div>
                     </div>
                 </div>`;
         }
@@ -227,34 +274,41 @@ window.laadNamenBord = function() {
 };
 
 // ============================================================================
-// 📋 DYNAMISCH NAMEN MODAL (Sorteert op Minste Taken)
+// 📋 DYNAMISCH NAMEN MODAL (Sorteert op Minste Taken, checkt ScheidsrechtersDB)
 // ============================================================================
 window.genereerPersoonDropdown = function(geselecteerdePersoonId, basisTeamNaam, vereisteTaak) {
     let basisCanon = window.getCanonicalTeam(basisTeamNaam);
-    
-    // Filter ALLE spelers op de vereiste vaardigheid
-    let geschikteSpelers = window.spelersDB.filter(s => {
-        if (vereisteTaak === 'fluit') return s.magFluiten !== false;
-        if (vereisteTaak === 'tafel') return s.magTafelen !== false;
-        if (vereisteTaak === 'auto') return s.heeftAuto === true;
-        return true;
+    let geschiktePersonen = [];
+
+    // 1. Check Spelers
+    window.spelersDB.forEach(s => {
+        if (vereisteTaak === 'fluit' && s.magFluiten === false) return;
+        if (vereisteTaak === 'tafel' && s.magTafelen === false) return;
+        if (vereisteTaak === 'auto' && s.heeftAuto === false) return;
+        geschiktePersonen.push({ id: s.id, naam: s.naam, teamId: s.teamId });
     });
 
-    // Sorteer op de globale score (minste taken eerst!)
-    geschikteSpelers.sort((a, b) => (window.globaleTakenScore[a.id] || 0) - (window.globaleTakenScore[b.id] || 0));
+    // 2. Check Vaste Scheidsrechters (Mogen altijd fluiten en tafelen)
+    if (vereisteTaak === 'fluit' || vereisteTaak === 'tafel') {
+        window.scheidsrechtersDB.forEach(sr => {
+            geschiktePersonen.push({ id: sr.id, naam: sr.naam + ' (Scheids)', teamId: sr.gekoppeldTeam });
+        });
+    }
 
-    // Splits in Twee Groepen: Eigen Team vs De Rest
+    // Sorteer op de globale score (minste taken bovenaan!)
+    geschiktePersonen.sort((a, b) => (window.globaleTakenScore[a.id] || 0) - (window.globaleTakenScore[b.id] || 0));
+
     let eigenTeamOpties = '';
     let overigeOpties = '';
 
-    geschikteSpelers.forEach(s => {
-        let scoreStr = `(${window.globaleTakenScore[s.id] || 0} taken)`;
-        let isGeselecteerd = (s.id === geselecteerdePersoonId) ? 'selected' : '';
-        let sTeam = window.getCanonicalTeam(s.teamId);
+    geschiktePersonen.forEach(p => {
+        let scoreStr = `(${window.globaleTakenScore[p.id] || 0}x)`;
+        let isGeselecteerd = (p.id === geselecteerdePersoonId) ? 'selected' : '';
+        let pTeam = window.getCanonicalTeam(p.teamId);
         
-        let optHtml = `<option value="${s.id}" ${isGeselecteerd}>${s.naam} ${scoreStr}</option>`;
+        let optHtml = `<option value="${p.id}" ${isGeselecteerd}>${p.naam} ${scoreStr}</option>`;
         
-        if (basisCanon && sTeam && sTeam.id === basisCanon.id) {
+        if (basisCanon && pTeam && pTeam.id === basisCanon.id) {
             eigenTeamOpties += optHtml;
         } else {
             overigeOpties += optHtml;
@@ -264,6 +318,12 @@ window.genereerPersoonDropdown = function(geselecteerdePersoonId, basisTeamNaam,
     let html = `<option value="">-- Geen persoon geselecteerd --</option>`;
     if (basisCanon) html += `<optgroup label="✅ Vanuit ${basisCanon.naam} (Minste taken eerst)">${eigenTeamOpties}</optgroup>`;
     html += `<optgroup label="🌐 Overige geschikte clubleden">${overigeOpties}</optgroup>`;
+    
+    // Voorkom dat een handmatig ingevoerde ID/Naam onzichtbaar wordt
+    if (geselecteerdePersoonId && !html.includes(`value="${geselecteerdePersoonId}"`)) {
+        html += `<option value="${geselecteerdePersoonId}" selected>${geselecteerdePersoonId} (Handmatig)</option>`;
+    }
+
     return html;
 };
 
