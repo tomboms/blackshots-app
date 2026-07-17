@@ -64,11 +64,11 @@ window.zoekPersoonIdViaNaam = function(naamStr) {
     if (!naamStr || naamStr === "Vrij") return "";
     let clean = naamStr.toLowerCase().trim();
     
-    // Check scheidsrechters
+    // 1. Check scheidsrechters EERST. Als hij een koppeling heeft, pak direct het Leden-ID!
     let sr = window.scheidsrechtersDB.find(s => s && s.naam.toLowerCase().trim() === clean);
-    if (sr) return sr.id;
+    if (sr) return sr.gekoppeldLid ? sr.gekoppeldLid : sr.id;
 
-    // Check spelers/ouders
+    // 2. Check spelers/ouders
     let sp = window.spelersDB.find(s => s && s.naam.toLowerCase().trim() === clean);
     if (sp) return sp.id;
 
@@ -274,7 +274,7 @@ window.laadNamenBord = function() {
 };
 
 // ============================================================================
-// 📋 DYNAMISCH NAMEN MODAL (Sorteert op Minste Taken, checkt ScheidsrechtersDB)
+// 📋 DYNAMISCH NAMEN MODAL (Sorteert op Minste Taken, Voorkomt Dubbele ID's)
 // ============================================================================
 window.genereerPersoonDropdown = function(geselecteerdePersoonId, basisTeamNaam, vereisteTaak) {
     let basisCanon = window.getCanonicalTeam(basisTeamNaam);
@@ -291,7 +291,14 @@ window.genereerPersoonDropdown = function(geselecteerdePersoonId, basisTeamNaam,
     // 2. Check Vaste Scheidsrechters (Mogen altijd fluiten en tafelen)
     if (vereisteTaak === 'fluit' || vereisteTaak === 'tafel') {
         window.scheidsrechtersDB.forEach(sr => {
-            geschiktePersonen.push({ id: sr.id, naam: sr.naam + ' (Scheids)', teamId: sr.gekoppeldTeam });
+            // Als hij gekoppeld is aan een lid, gebruik dat Leden-ID
+            let targetId = sr.gekoppeldLid ? sr.gekoppeldLid : sr.id;
+            
+            // Voorkom dubbelingen in de lijst als hij via stap 1 al was toegevoegd!
+            if (!geschiktePersonen.some(p => p.id === targetId)) {
+                let weergaveNaam = sr.naam + ' (Scheids)';
+                geschiktePersonen.push({ id: targetId, naam: weergaveNaam, teamId: sr.gekoppeldTeam });
+            }
         });
     }
 
@@ -319,9 +326,15 @@ window.genereerPersoonDropdown = function(geselecteerdePersoonId, basisTeamNaam,
     if (basisCanon) html += `<optgroup label="✅ Vanuit ${basisCanon.naam} (Minste taken eerst)">${eigenTeamOpties}</optgroup>`;
     html += `<optgroup label="🌐 Overige geschikte clubleden">${overigeOpties}</optgroup>`;
     
-    // Voorkom dat een handmatig ingevoerde ID/Naam onzichtbaar wordt
+    // Nood-vangnet: Als de persoon geselecteerd is maar niet in de lijst stond
     if (geselecteerdePersoonId && !html.includes(`value="${geselecteerdePersoonId}"`)) {
-        html += `<option value="${geselecteerdePersoonId}" selected>${geselecteerdePersoonId} (Handmatig)</option>`;
+        let noodNaam = "Handmatig / Onbekend";
+        let fallbackSpeler = window.spelersDB.find(s => s.id === geselecteerdePersoonId);
+        let fallbackSr = window.scheidsrechtersDB.find(sr => sr.id === geselecteerdePersoonId);
+        if(fallbackSpeler) noodNaam = fallbackSpeler.naam;
+        else if(fallbackSr) noodNaam = fallbackSr.naam;
+
+        html += `<option value="${geselecteerdePersoonId}" selected>${noodNaam} (${window.globaleTakenScore[geselecteerdePersoonId]||0}x)</option>`;
     }
 
     return html;
