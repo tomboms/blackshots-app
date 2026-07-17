@@ -540,7 +540,10 @@ window.navigeerSpeeldag = function(richting) {
     let nwIndex = index + richting;
     if (nwIndex >= 0 && nwIndex < dagen.length) {
         document.getElementById('plan-datum').value = dagen[nwIndex];
-        window.initNamenPlanner();
+        // FIX: We roepen nu níét meer de init() aan, want die zette de datum altijd op zaterdag!
+        window.schoonPersoonsTakenOp();
+        window.berekenGlobaleScores();
+        window.laadNamenBord();
     }
 };
 

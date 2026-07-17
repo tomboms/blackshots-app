@@ -42,20 +42,27 @@
         .taak-waarde { flex: 1; color: #e74c3c; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .taak-gevuld { color: #27ae60; }
  /* NIEUW: Styling voor de Slimme Zoek-Dropdowns */
+        /* UPDATE: Styling voor de Slimme Zoek-Dropdowns (Breder & Kleiner) */
         .nz-container { position: relative; width: 100%; font-family: sans-serif; text-align: left; }
-        .nz-header { background: white; border: 1px solid #bdc3c7; padding: 10px; border-radius: 4px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: bold; color: var(--secondary-color); }
-        .nz-body { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #bdc3c7; border-radius: 4px; z-index: 1000; box-shadow: 0 4px 15px rgba(0,0,0,0.15); margin-top: 5px; overflow: hidden; display: none; }
-        .nz-search { width: 100%; padding: 10px; border: none; border-bottom: 1px solid #eee; outline: none; font-size: 0.9rem; box-sizing: border-box; background: #fdfdfd; }
+        .nz-header { background: white; border: 1px solid #bdc3c7; padding: 10px; border-radius: 4px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: bold; color: var(--secondary-color); font-size: 0.85rem; }
+        
+        /* De dropdown klapt nu uit tot 115% van de breedte, zodat de tekst past! */
+        .nz-body { position: absolute; top: 100%; left: 0; background: white; border: 1px solid #bdc3c7; border-radius: 4px; z-index: 1000; box-shadow: 0 4px 15px rgba(0,0,0,0.2); margin-top: 5px; overflow: hidden; display: none; width: 115%; min-width: 320px; }
+        
+        .nz-search { width: 100%; padding: 8px; border: none; border-bottom: 1px solid #eee; outline: none; font-size: 0.85rem; box-sizing: border-box; background: #fdfdfd; }
         .nz-lijst { max-height: 250px; overflow-y: auto; }
-        .nz-item { padding: 8px 10px; border-bottom: 1px solid #f8f9fa; cursor: pointer; display: flex; flex-direction: column; transition: 0.1s; }
-        .nz-item-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+        .nz-item { padding: 6px 10px; border-bottom: 1px solid #f8f9fa; cursor: pointer; display: flex; flex-direction: column; transition: 0.1s; font-size: 0.8rem; }
+        
+        /* white-space: nowrap forceert alles op 1 regel */
+        .nz-item-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; white-space: nowrap; }
+        
         .nz-item:hover { background: #eef2f5; }
         .nz-item.is-rood { background: #fadbd8; border-bottom: 1px solid #f5b7b1; }
         .nz-item.is-rood:hover { background: #f5b7b1; }
-        .nz-badge-team { background: #95a5a6; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; white-space: nowrap; }
-        .nz-badge-score { background: #3498db; color: white; padding: 2px 6px; border-radius: 12px; font-size: 0.7rem; font-weight: bold; }
-        .nz-reden { font-size: 0.75rem; color: #c0392b; font-weight: bold; margin-top: 4px; }
-        .nz-priority-header { background: #d4efdf; padding: 5px 10px; font-size: 0.75rem; font-weight: bold; color: #27ae60; text-transform: uppercase; border-bottom: 1px solid #a9dfbf; }  
+        .nz-badge-team { background: #95a5a6; color: white; padding: 2px 5px; border-radius: 4px; font-size: 0.65rem; white-space: nowrap; }
+        .nz-badge-score { background: #3498db; color: white; padding: 2px 5px; border-radius: 12px; font-size: 0.65rem; font-weight: bold; }
+        .nz-reden { font-size: 0.7rem; color: #c0392b; font-weight: bold; margin-top: 2px; }
+        .nz-priority-header { background: #d4efdf; padding: 4px 10px; font-size: 0.7rem; font-weight: bold; color: #27ae60; text-transform: uppercase; border-bottom: 1px solid #a9dfbf; }
    </style>
 </head>
 <body style="overflow-y: auto;">
@@ -114,7 +121,7 @@
 
     <!-- NAMEN MODAL -->
     <div id="namen-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:99999; justify-content:center; align-items:center;">
-        <div style="background:white; padding:25px; border-radius:12px; width:90%; max-width:550px; box-shadow:0 10px 30px rgba(0,0,0,0.3); position:relative;">
+        <div style="background:white; padding:25px; border-radius:12px; width:95%; max-width:800px; box-shadow:0 10px 30px rgba(0,0,0,0.3); position:relative;">
             <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #eee; padding-bottom:10px; margin-bottom:15px;">
                 <h3 style="margin:0; color:var(--secondary-color);" id="namen-modal-header">👤 Personen Toewijzen</h3>
                 <button onclick="document.getElementById('namen-modal').style.display='none'" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
