@@ -147,23 +147,85 @@ window.initNamenPlanner = function() {
     window.laadNamenBord();
 };
 
+// ============================================================================
+// 🗂️ LIJSTWEERGAVE SCHAKELAAR & CHECKBOXES
+// ============================================================================
+window.huidigeWeergave = 'grid';
+
+window.toggleLijstWeergave = function() {
+    window.huidigeWeergave = window.huidigeWeergave === 'grid' ? 'lijst' : 'grid';
+    let btn = document.getElementById('btn-weergave-toggle');
+    if(btn) btn.innerHTML = window.huidigeWeergave === 'grid' ? '🗂️ Lijstweergave' : '📅 Blokkenschema';
+    
+    let filterBar = document.getElementById('lijst-filters');
+    
+    if (window.huidigeWeergave === 'lijst') {
+        if(filterBar) filterBar.style.display = 'flex';
+        
+        let tf = document.getElementById('filter-team-container');
+        if (tf && tf.innerHTML.trim() === '') {
+            let boxHtml = `<label style="display:flex; align-items:center; gap:5px; margin-bottom:5px; padding-bottom:5px; border-bottom:1px solid #eee;"><input type="checkbox" id="cb-alle-teams" checked onchange="window.toggleAlleTeams(this)"> <strong style="color:#2c3e50;">-- Alle Teams Tonen --</strong></label>`;
+            window.teamsDB.forEach(t => { 
+                if(!t.isVrijwilliger) {
+                    boxHtml += `<label style="display:flex; align-items:center; gap:5px; margin-bottom:3px; cursor:pointer;"><input type="checkbox" class="team-filter-cb" value="${t.id}" checked onchange="window.checkAlleTeamsStatus(); window.laadNamenBord()"> ${t.naam}</label>`;
+                }
+            });
+            tf.innerHTML = boxHtml;
+        }
+    } else {
+        if(filterBar) filterBar.style.display = 'none';
+    }
+    window.laadNamenBord();
+};
+
+window.toggleAlleTeams = function(hoofdCb) {
+    let cbs = document.querySelectorAll('.team-filter-cb');
+    cbs.forEach(c => c.checked = hoofdCb.checked);
+    window.laadNamenBord();
+};
+
+window.checkAlleTeamsStatus = function() {
+    let cbs = document.querySelectorAll('.team-filter-cb');
+    let allChecked = Array.from(cbs).every(c => c.checked);
+    let hoofdCb = document.getElementById('cb-alle-teams');
+    if(hoofdCb) hoofdCb.checked = allChecked;
+};
+
+// ============================================================================
+// 🎨 PLANBORD RENDERING (MODUS 1: LIJST | MODUS 2: GRID)
+// ============================================================================
+window.initNamenPlanner = function() {
+    let datumInput = document.getElementById('plan-datum');
+    let vandaag = new Date();
+    let verschilZaterdag = (vandaag.getDay() <= 6) ? (6 - vandaag.getDay()) : 6;
+    vandaag.setDate(vandaag.getDate() + verschilZaterdag);
+    datumInput.value = vandaag.toISOString().split('T')[0];
+    
+    window.schoonPersoonsTakenOp();
+    window.berekenGlobaleScores();
+    window.laadNamenBord();
+};
+
 window.laadNamenBord = function() {
     let bord = document.getElementById('planner-bord-container');
     let speelDatum = window.normaalDatum(document.getElementById('plan-datum').value);
     if(!bord || !speelDatum) return;
 
-    // ========================================================================
-    // 🗂️ MODUS 1: DE SLIMME LIJSTWEERGAVE
-    // ========================================================================
+    // --- MODUS 1: DE SLIMME LIJSTWEERGAVE ---
     if (window.huidigeWeergave === 'lijst') {
         let periode = document.getElementById('filter-periode') ? document.getElementById('filter-periode').value : 'dag';
         let locatie = document.getElementById('filter-locatie') ? document.getElementById('filter-locatie').value : 'alles';
-        let filterTeamId = document.getElementById('filter-team') ? document.getElementById('filter-team').value : 'alles';
-        let filterTeamCanon = filterTeamId !== 'alles' ? window.teamsDB.find(t => t.id === filterTeamId) : null;
+        let sortering = document.getElementById('filter-sortering') ? document.getElementById('filter-sortering').value : 'tijd';
+        
+        let hoofdCb = document.getElementById('cb-alle-teams');
+        let isAllesAangevinkt = hoofdCb ? hoofdCb.checked : true;
+        let actieveTeams = [];
+        if (!isAllesAangevinkt) {
+            document.querySelectorAll('.team-filter-cb').forEach(cb => { if(cb.checked) actieveTeams.push(cb.value); });
+        }
 
         let alleWedstrijden = [...window.nbbWedstrijden, ...window.customWedstrijden];
         
-        // Pas de filters toe
         let toonWedstrijden = alleWedstrijden.filter(w => {
             let id = window.genereerUniekId(w);
             if (window.verborgenDB.includes(id)) return false;
@@ -172,30 +234,44 @@ window.laadNamenBord = function() {
                 if (window.normaalDatum(w.Datum) !== speelDatum) return false;
                 if (!window.planStatusDB[id]) return false; 
             } else {
-                if (!window.planStatusDB[id]) return false; // In "Hele Seizoen" modus tonen we alleen wat in de planner staat
+                if (!window.planStatusDB[id]) return false; 
             }
 
             let isThuis = (w.Thuisteam || '').toLowerCase().includes('black shots');
             if (locatie === 'thuis' && !isThuis) return false;
             if (locatie === 'uit' && isThuis) return false;
 
-            if (filterTeamCanon) {
+            if (!isAllesAangevinkt) {
+                if (actieveTeams.length === 0) return false; 
                 let wCanon = window.getCanonicalTeam(isThuis ? w.Thuisteam.replace(/Black Shots\s*-?\s*/i, '') : w.Uitteam.replace(/Black Shots\s*-?\s*/i, ''));
-                if (!wCanon || wCanon.id !== filterTeamCanon.id) return false;
+                if (!wCanon || !actieveTeams.includes(wCanon.id)) return false;
             }
             return true;
         });
 
-        // Sorteer netjes: Eerst op datum, dan op tijd
         toonWedstrijden.sort((a, b) => {
             let dA = window.normaalDatum(a.Datum); let dB = window.normaalDatum(b.Datum);
-            if (dA !== dB) return dA.localeCompare(dB);
             let tA = window.planStatusDB[window.genereerUniekId(a)] ? window.tijdNaarMinuten(window.planStatusDB[window.genereerUniekId(a)].tijd) : 9999;
             let tB = window.planStatusDB[window.genereerUniekId(b)] ? window.tijdNaarMinuten(window.planStatusDB[window.genereerUniekId(b)].tijd) : 9999;
-            return tA - tB;
+            
+            if (sortering === 'team') {
+                let teamA = a.Thuisteam.includes('Black Shots') ? a.Thuisteam.replace(/Black Shots\s*-?\s*/i, '') : a.Uitteam.replace(/Black Shots\s*-?\s*/i, '');
+                let teamB = b.Thuisteam.includes('Black Shots') ? b.Thuisteam.replace(/Black Shots\s*-?\s*/i, '') : b.Uitteam.replace(/Black Shots\s*-?\s*/i, '');
+                let canonA = window.getCanonicalTeam(teamA); let canonB = window.getCanonicalTeam(teamB);
+                let naamA = canonA ? canonA.naam : teamA; let naamB = canonB ? canonB.naam : teamB;
+                
+                if (naamA !== naamB) return naamA.localeCompare(naamB);
+                if (dA !== dB) return dA.localeCompare(dB);
+                return tA - tB;
+            } else {
+                if (dA !== dB) return dA.localeCompare(dB);
+                return tA - tB;
+            }
         });
 
         let html = `<div style="background:white; border-radius:8px; padding:20px; width:100%;"><h3 style="margin-top:0; color:#8e44ad;">🗂️ Overzichtslijst (${toonWedstrijden.length} gevonden)</h3><div style="display:flex; flex-direction:column; gap:15px;">`;
+
+        let huidigTeamHeader = null;
 
         toonWedstrijden.forEach(w => {
             let uniekId = window.genereerUniekId(w);
@@ -207,6 +283,15 @@ window.laadNamenBord = function() {
             let wedstrijdNaam = isThuis ? (w.Thuisteam || '').replace(/Black Shots\s*-?\s*/i, '').trim() : (w.Uitteam || '').replace(/Black Shots\s*-?\s*/i, '').trim();
             let tegenstander = isThuis ? (w.Uitteam || '').replace(/Black Shots\s*-?\s*/i, '').trim() : (w.Thuisteam || '').replace(/Black Shots\s*-?\s*/i, '').trim();
             
+            if (sortering === 'team') {
+                let canon = window.getCanonicalTeam(wedstrijdNaam);
+                let weergaveNaam = canon ? canon.naam : wedstrijdNaam;
+                if (weergaveNaam !== huidigTeamHeader) {
+                    html += `<div style="margin-top: 15px; margin-bottom: 5px; color: white; background: #34495e; padding: 8px 12px; border-radius: 4px; font-weight: bold; box-shadow:0 2px 4px rgba(0,0,0,0.1);">🏀 Team: ${weergaveNaam}</div>`;
+                    huidigTeamHeader = weergaveNaam;
+                }
+            }
+
             let renderTaak = (pId, defaultTeam) => {
                 let css = ""; let text = "";
                 if (pId && pId !== "Vrij" && pId !== "") {
@@ -259,12 +344,10 @@ window.laadNamenBord = function() {
 
         html += `</div></div>`;
         bord.innerHTML = html;
-        return; // EINDIG HIER ALS WE IN LIJSTWEERGAVE ZITTEN
+        return; 
     }
 
-    // ========================================================================
-    // 📅 MODUS 2: HET VERTROUWDE BLOKKENSCHEMA (GRID)
-    // ========================================================================
+    // --- MODUS 2: HET VERTROUWDE BLOKKENSCHEMA (GRID) ---
     let html = `<div class="tijd-as"><div class="veld-header">Tijd</div>`;
     for(let u = START_UUR; u < EIND_UUR; u++) html += `<div class="tijd-slot">${String(u).padStart(2, '0')}:00</div>`;
     html += `</div>`;
@@ -339,7 +422,6 @@ window.laadNamenBord = function() {
         if (isThuis) {
             let pA = renderTaak(persTaken.sA, teamTaken.sA); let pB = renderTaak(persTaken.sB, teamTaken.sB);
             let pT = renderTaak(persTaken.tab, teamTaken.tab); let pS = renderTaak(persTaken.sco, teamTaken.sco);
-            
             htmlTakenBlok = `
                 <div style="display:flex; gap:5px; margin-top:5px;">
                     <div class="taak-regel" style="flex:1;"><span class="taak-label">A:</span> <span class="taak-waarde ${pA.css}">${pA.text}</span></div>
@@ -683,6 +765,50 @@ window.toggleLijstWeergave = function() {
     window.laadNamenBord();
 };
 
+
+// ============================================================================
+// 🗂️ LIJSTWEERGAVE SCHAKELAAR & CHECKBOXES
+// ============================================================================
+window.huidigeWeergave = 'grid';
+
+window.toggleLijstWeergave = function() {
+    window.huidigeWeergave = window.huidigeWeergave === 'grid' ? 'lijst' : 'grid';
+    let btn = document.getElementById('btn-weergave-toggle');
+    if(btn) btn.innerHTML = window.huidigeWeergave === 'grid' ? '🗂️ Lijstweergave' : '📅 Blokkenschema';
+    
+    let filterBar = document.getElementById('lijst-filters');
+    
+    if (window.huidigeWeergave === 'lijst') {
+        if(filterBar) filterBar.style.display = 'flex';
+        
+        let tf = document.getElementById('filter-team-container');
+        if (tf && tf.innerHTML.trim() === '') {
+            let boxHtml = `<label style="display:flex; align-items:center; gap:5px; margin-bottom:5px; padding-bottom:5px; border-bottom:1px solid #eee;"><input type="checkbox" id="cb-alle-teams" checked onchange="window.toggleAlleTeams(this)"> <strong style="color:#2c3e50;">-- Alle Teams Tonen --</strong></label>`;
+            window.teamsDB.forEach(t => { 
+                if(!t.isVrijwilliger) {
+                    boxHtml += `<label style="display:flex; align-items:center; gap:5px; margin-bottom:3px; cursor:pointer;"><input type="checkbox" class="team-filter-cb" value="${t.id}" checked onchange="window.checkAlleTeamsStatus(); window.laadNamenBord()"> ${t.naam}</label>`;
+                }
+            });
+            tf.innerHTML = boxHtml;
+        }
+    } else {
+        if(filterBar) filterBar.style.display = 'none';
+    }
+    window.laadNamenBord();
+};
+
+window.toggleAlleTeams = function(hoofdCb) {
+    let cbs = document.querySelectorAll('.team-filter-cb');
+    cbs.forEach(c => c.checked = hoofdCb.checked);
+    window.laadNamenBord();
+};
+
+window.checkAlleTeamsStatus = function() {
+    let cbs = document.querySelectorAll('.team-filter-cb');
+    let allChecked = Array.from(cbs).every(c => c.checked);
+    let hoofdCb = document.getElementById('cb-alle-teams');
+    if(hoofdCb) hoofdCb.checked = allChecked;
+};
 window.kopieerNamenSchema = function() { alert("Komt eraan in de volgende update!"); };
 window.botVulThuisIn = function() { alert("De Thuis Bot wordt gebouwd in de volgende stap!"); };
 window.botVulUitIn = function() { alert("De Uit Bot wordt gebouwd in de volgende stap!"); };

@@ -95,29 +95,38 @@
             </div>
         </div>
 
-        <!-- NIEUW: DE LIJST FILTERS (Standaard verborgen) -->
-        <div id="lijst-filters" style="display:none; background: white; padding: 15px; border-radius: 8px; border-top: 4px solid #8e44ad; box-shadow: 0 2px 5px rgba(0,0,0,0.05); gap: 15px; flex-wrap: wrap; align-items: center; margin-bottom: 20px;">
-            <div>
-                <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d; display:block;">Periode:</label>
-                <select id="filter-periode" onchange="window.laadNamenBord()" style="padding:8px; border:1px solid #bdc3c7; border-radius:4px; font-weight:bold; color:#2c3e50;">
-                    <option value="dag">Alleen gekozen dag</option>
-                    <option value="alles">Hele Seizoen (Totaal)</option>
-                </select>
+        <!-- DE LIJST FILTERS (Standaard verborgen) -->
+        <div id="lijst-filters" style="display:none; background: white; padding: 15px; border-radius: 8px; border-top: 4px solid #8e44ad; box-shadow: 0 2px 5px rgba(0,0,0,0.05); gap: 15px; flex-wrap: wrap; align-items: flex-start; margin-bottom: 20px;">
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div>
+                    <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d; display:block;">Periode:</label>
+                    <select id="filter-periode" onchange="window.laadNamenBord()" style="padding:8px; border:1px solid #bdc3c7; border-radius:4px; font-weight:bold; color:#2c3e50;">
+                        <option value="dag">Alleen gekozen dag</option>
+                        <option value="alles">Hele Seizoen (Totaal)</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d; display:block;">Locatie:</label>
+                    <select id="filter-locatie" onchange="window.laadNamenBord()" style="padding:8px; border:1px solid #bdc3c7; border-radius:4px; font-weight:bold; color:#2c3e50;">
+                        <option value="alles">Thuis & Uitwedstrijden</option>
+                        <option value="thuis">Alleen Thuiswedstrijden</option>
+                        <option value="uit">Alleen Uitwedstrijden</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d; display:block;">Sortering:</label>
+                    <select id="filter-sortering" onchange="window.laadNamenBord()" style="padding:8px; border:1px solid #bdc3c7; border-radius:4px; font-weight:bold; color:#2c3e50;">
+                        <option value="tijd">Chronologisch (Door elkaar)</option>
+                        <option value="team">Groepeer per Team</option>
+                    </select>
+                </div>
             </div>
-            <div>
-                <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d; display:block;">Locatie:</label>
-                <select id="filter-locatie" onchange="window.laadNamenBord()" style="padding:8px; border:1px solid #bdc3c7; border-radius:4px; font-weight:bold; color:#2c3e50;">
-                    <option value="alles">Thuis & Uitwedstrijden</option>
-                    <option value="thuis">Alleen Thuiswedstrijden</option>
-                    <option value="uit">Alleen Uitwedstrijden</option>
-                </select>
-            </div>
-            <div>
-                <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d; display:block;">Team Filter:</label>
-                <select id="filter-team" onchange="window.laadNamenBord()" style="padding:8px; border:1px solid #bdc3c7; border-radius:4px; font-weight:bold; color:#2c3e50;">
-                    <option value="alles">-- Alle Teams --</option>
-                    <!-- JavaScript vult de teams hier in -->
-                </select>
+            
+            <div style="flex:1; min-width: 250px;">
+                <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d; display:block;">Team(s) Filter (Vink aan om te combineren):</label>
+                <div id="filter-team-container" style="max-height: 155px; overflow-y: auto; border: 1px solid #bdc3c7; border-radius: 4px; padding: 8px; background: #fdfdfd; font-size: 0.85rem; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
+                    <!-- JavaScript vult de checkboxes hier in -->
+                </div>
             </div>
         </div>
         
