@@ -72,6 +72,55 @@
             .grid-lijnen, .linker-kolom, nav, .planner-controls, #lijst-filters, button { display: none !important; }
             body { background: white; }
         }
+    /* ==========================================================================
+           🎨 MODERNE DASHBOARD STYLING (UI OVERHAUL)
+           ========================================================================== */
+        
+        /* Zwevende containers in plaats van harde lijnen */
+        .planner-controls, #lijst-filters, .wachtkamer { 
+            border: none !important; 
+            border-left: 4px solid #8e44ad !important; 
+            border-radius: 12px !important; 
+            box-shadow: 0 8px 24px rgba(0,0,0,0.04) !important; 
+            background: #ffffff !important; 
+        }
+        
+        .wachtkamer { border-left-color: #3498db !important; padding: 15px !important; }
+        .wachtkamer-header { border-bottom: none !important; color: #2c3e50 !important; font-size: 1.2rem !important; }
+
+        /* Moderne Wedstrijdblokken met subtiele hover-animatie */
+        .wedstrijd-blok { 
+            border: none !important; 
+            border-left: 5px solid #e67e22 !important; 
+            border-radius: 8px !important; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05) !important; 
+            background: #ffffff !important; 
+            padding: 12px !important;
+        }
+        .wedstrijd-blok:hover { 
+            box-shadow: 0 12px 24px rgba(0,0,0,0.1) !important; 
+            transform: translateY(-3px) !important; 
+        }
+        
+        /* Uitwedstrijden krijgen een blauwe accentlijn */
+        #wedstrijd-container-uit .wedstrijd-blok { border-left-color: #3498db !important; }
+
+        /* Strakkere taken-regels zonder harde oranje borders */
+        .wb-taken { border-top: 1px solid #f1f2f6 !important; margin-top: 10px !important; padding-top: 10px !important; }
+        .taak-regel { 
+            background: #f8f9fa !important; 
+            border: 1px solid #e2e8f0 !important; 
+            border-radius: 6px !important; 
+            padding: 6px 8px !important; 
+        }
+        
+        /* Frisse Knoppen */
+        button { border-radius: 8px !important; transition: all 0.2s ease !important; }
+        button:hover { transform: translateY(-1px) !important; box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important; }
+        
+        /* Teller Lijst moderniseren */
+        .teller-item { background: transparent !important; border-left: none !important; border-bottom: 1px solid #f1f2f6 !important; padding: 10px 5px !important; }
+        .teller-item:last-child { border-bottom: none !important; }
    </style>
 </head>
 <body style="overflow-y: auto;">
@@ -84,13 +133,37 @@
 
     <main class="content-sectie active" style="max-width: 1500px; margin: 20px auto; padding: 0 15px;">
         
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px; border-bottom: 2px solid var(--border-color); padding-bottom: 15px;">
-            <div style="display:flex; align-items:center; gap:15px;">
-                <h2 style="margin:0; color:var(--secondary-color);">👤 Individuele Namen Invullen</h2>
-                <div style="display:flex; background:#eef2f5; border-radius:6px; border:1px solid #cbd5e1; overflow:hidden;">
-                    <button onclick="window.navigeerSpeeldag(-1)" style="background:transparent; border:none; border-right:1px solid #cbd5e1; padding:6px 12px; cursor:pointer; font-weight:bold; color:var(--secondary-color);">◀ Vorige</button>
-                    <button onclick="window.navigeerSpeeldag(1)" style="background:transparent; border:none; padding:6px 12px; cursor:pointer; font-weight:bold; color:var(--secondary-color);">Volgende ▶</button>
+        <!-- MODERNE TOP BARS -->
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:25px; flex-wrap:wrap; gap:15px;">
+            
+            <!-- Titel & Navigatie -->
+            <div style="display:flex; align-items:center; gap:20px;">
+                <div>
+                    <h2 style="margin:0; color:#2c3e50; font-size:1.6rem;">👤 Fase 2: Individuele Taken</h2>
+                    <p style="margin:3px 0 0 0; color:#7f8c8d; font-size:0.85rem;">Wijs specifieke personen toe aan de wedstrijden.</p>
                 </div>
+                <div style="display:flex; background:white; border-radius:8px; box-shadow: 0 4px 12px rgba(0,0,0,0.04); overflow:hidden;">
+                    <button onclick="window.navigeerSpeeldag(-1)" style="background:transparent; border:none; border-right:1px solid #f1f2f6; padding:8px 15px; cursor:pointer; font-weight:bold; color:#7f8c8d; border-radius:0 !important; box-shadow:none !important;">◀ Vorige</button>
+                    <button onclick="window.navigeerSpeeldag(1)" style="background:transparent; border:none; padding:8px 15px; cursor:pointer; font-weight:bold; color:#7f8c8d; border-radius:0 !important; box-shadow:none !important;">Volgende ▶</button>
+                </div>
+            </div>
+
+            <!-- Opgeschoonde Actie Knoppen -->
+            <div style="display:flex; gap:12px; align-items:center; flex-wrap: wrap;">
+                
+                <!-- Bot Groep samengevoegd -->
+                <div style="display:flex; align-items:center; background:#f0fbf4; border-radius:8px; padding:4px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
+                    <span style="font-weight:bold; color:#27ae60; font-size:0.85rem; margin:0 10px;">🤖 Auto-Fill:</span>
+                    <button onclick="window.botVulThuisIn()" style="background:white; color:#27ae60; border:1px solid #27ae60; padding:6px 12px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:0.85rem; margin-right:5px;">🏠 Thuis</button>
+                    <button onclick="window.botVulUitIn()" style="background:white; color:#2980b9; border:1px solid #2980b9; padding:6px 12px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:0.85rem;">🚌 Uit</button>
+                </div>
+
+                <!-- Weergave & Export Tools -->
+                <button onclick="window.toggleLijstWeergave()" id="btn-weergave-toggle" style="background:#8e44ad; color:white; border:none; padding:8px 16px; border-radius:8px; font-weight:bold; cursor:pointer; font-size:0.85rem;">🗂️ Lijstweergave</button>
+                <button onclick="window.kopieerNamenSchema()" style="background:#27ae60; color:white; border:none; padding:8px 16px; border-radius:8px; font-weight:bold; cursor:pointer; font-size:0.85rem;">💬 WhatsApp</button>
+                <button onclick="window.downloadPDF()" style="background:#c0392b; color:white; border:none; padding:8px 16px; border-radius:8px; font-weight:bold; cursor:pointer; font-size:0.85rem;">📄 PDF</button>
+            </div>
+        </div>
 
         <!-- DE LIJST FILTERS (Standaard verborgen) -->
         <div id="lijst-filters" style="display:none; background: white; padding: 15px; border-radius: 8px; border-top: 4px solid #8e44ad; box-shadow: 0 2px 5px rgba(0,0,0,0.05); gap: 15px; flex-wrap: wrap; align-items: flex-start; margin-bottom: 20px;">
@@ -125,18 +198,7 @@
                     <!-- JavaScript vult de checkboxes hier in -->
                 </div>
             </div>
-        </div>
-            <div style="display:flex; gap:10px; align-items:center; flex-wrap: wrap;">
-                <div style="display:flex; align-items:center; gap:5px; background:#f0fbf4; padding:4px 8px; border-radius:6px; border:1px dashed #27ae60;">
-                    <span style="font-weight:bold; color:#27ae60; font-size:0.85rem; margin-right:5px;">🤖 Namen Bots:</span>
-                    <button onclick="window.botVulThuisIn()" style="background:#27ae60; color:white; border:none; padding:6px 12px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.85rem;">🏠 Vul Thuis In (Tafel/Fluit)</button>
-                    <button onclick="window.botVulUitIn()" style="background:#2980b9; color:white; border:none; padding:6px 12px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.85rem;">🚌 Vul Uit In (Auto's)</button>
-                </div>
-                <button onclick="window.toggleLijstWeergave()" id="btn-weergave-toggle" style="background:#8e44ad; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.85rem;">🗂️ Lijstweergave</button>
-                <button onclick="window.kopieerNamenSchema()" style="background:#27ae60; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.85rem;">💬 WhatsApp Tekst</button>
-                <button onclick="window.downloadPDF()" style="background:#c0392b; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.85rem;">📄 Opslaan als PDF</button>
-            </div>
-        </div>        
+        </div>       
 
         <div class="planner-controls">
             <div>
