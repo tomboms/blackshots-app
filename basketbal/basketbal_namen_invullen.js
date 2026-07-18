@@ -775,7 +775,10 @@ window.voerBotUit = function(isThuisBot) {
                 
                 if (!doelTeamNaam || doelTeamNaam === "Vrij") return;
 
-                let doelTeamCanon = window.getCanonicalTeam(doelTeamNaam);
+                // 🚀 FIX: Haal "Ouders", "Ouders van" of "Team" eruit zodat de bot het pure team overhoudt!
+                let opgeschoondeTeamNaam = doelTeamNaam.replace(/ouders( van)?/i, '').replace(/team/i, '').trim();
+
+                let doelTeamCanon = window.getCanonicalTeam(opgeschoondeTeamNaam);
                 if (!doelTeamCanon) return; 
 
                 let kandidaten = [];
