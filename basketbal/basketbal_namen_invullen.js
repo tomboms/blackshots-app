@@ -148,7 +148,9 @@ window.toggleLijstWeergave = function() {
         if(filterBar) filterBar.style.display = 'flex';
         
         let tf = document.getElementById('filter-team-container');
-        if (tf && tf.innerHTML.trim() === '') {
+        // FIX: We kijken nu of er echte HTML-elementen (children) inzitten, 
+        // in plaats van te struikelen over de <!-- HTML comments -->
+        if (tf && tf.children.length === 0) {
             let boxHtml = `<label style="display:flex; align-items:center; gap:5px; margin-bottom:5px; padding-bottom:5px; border-bottom:1px solid #eee;"><input type="checkbox" id="cb-alle-teams" checked onchange="window.toggleAlleTeams(this)"> <strong style="color:#2c3e50;">-- Alle Teams Tonen --</strong></label>`;
             window.teamsDB.forEach(t => { 
                 if(!t.isVrijwilliger) {
