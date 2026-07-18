@@ -830,6 +830,66 @@ window.voerBotUit = function(isThuisBot) {
     }
 };
 
-window.kopieerNamenSchema = function() { alert("Komt eraan in de volgende update!"); };
+// ============================================================================
+// 📤 EXPORTEER NAAR WHATSAPP & PDF (Op basis van wat zichtbaar is!)
+// ============================================================================
+window.kopieerNamenSchema = function() {
+    let wedstrijden = window.getZichtbareWedstrijden();
+    if (wedstrijden.length === 0) return alert("Er zijn geen wedstrijden zichtbaar om te kopiëren. Pas je filters aan!");
+
+    let text = "🏀 *Black Shots - Scheidsrechter & Taken Schema* 🏀\n";
+    let speelDatum = window.normaalDatum(document.getElementById('plan-datum').value);
+    let weergaveTxt = window.huidigeWeergave === 'grid' ? `Speeldag: ${speelDatum}` : `Geselecteerde Filterlijst`;
+    text += `_${weergaveTxt}_\n\n`;
+
+    wedstrijden.forEach(w => {
+        let isThuis = (w.Thuisteam || '').toLowerCase().includes('black shots');
+        let wedstrijdNaam = isThuis ? (w.Thuisteam || '').replace(/Black Shots\s*-?\s*/i, '').trim() : (w.Uitteam || '').replace(/Black Shots\s*-?\s*/i, '').trim();
+        let tegenstander = isThuis ? (w.Uitteam || '').replace(/Black Shots\s*-?\s*/i, '').trim() : (w.Thuisteam || '').replace(/Black Shots\s*-?\s*/i, '').trim();
+        
+        let matchId = window.genereerUniekId(w);
+        let dbStatus = window.planStatusDB[matchId];
+        let teamTaken = window.teamTakenDB[matchId] || {};
+        let persTaken = window.persoonsTakenDB[matchId] || {};
+
+        // Helper om te zien of we een naam, een vergeten team, of "Vrij" moeten opschrijven
+        let naamWeergave = (pId, defTeam) => {
+            if (pId && pId !== "Vrij" && pId !== "") {
+                let s = window.spelersDB.find(x => x.id === pId);
+                let sr = window.scheidsrechtersDB.find(x => x.id === pId);
+                return s ? s.naam : (sr ? sr.naam : pId);
+            }
+            return (!defTeam || defTeam === "Vrij" || defTeam === "") ? "Vrij" : `[Nog in te vullen door: ${defTeam}]`;
+        };
+
+        text += `${isThuis ? '🏠' : '🚌'} *${wedstrijdNaam}* vs ${tegenstander}\n`;
+        text += `⏱️ ${dbStatus.tijd} | 📅 ${window.normaalDatum(w.Datum)}\n`;
+
+        if (isThuis) {
+            text += `👨‍⚖️ Scheids A: ${naamWeergave(persTaken.sA, teamTaken.sA)}\n`;
+            text += `👨‍⚖️ Scheids B: ${naamWeergave(persTaken.sB, teamTaken.sB)}\n`;
+            text += `💻 Tablet: ${naamWeergave(persTaken.tab, teamTaken.tab)}\n`;
+            text += `⏱️ Scorebord: ${naamWeergave(persTaken.sco, teamTaken.sco)}\n`;
+        } else {
+            text += `🚗 Auto 1: ${naamWeergave(persTaken.auto1, "Auto 1")}\n`;
+            text += `🚗 Auto 2: ${naamWeergave(persTaken.auto2, "Auto 2")}\n`;
+            text += `🚗 Auto 3: ${naamWeergave(persTaken.auto3, "Auto 3")}\n`;
+        }
+        text += `\n`;
+    });
+
+    navigator.clipboard.writeText(text).then(() => {
+        alert("✅ Tekst succesvol gekopieerd! Je kunt het nu direct in de club WhatsApp plakken.");
+    }).catch(err => {
+        alert("Kopiëren mislukt. Fout: " + err);
+    });
+};
+
+window.downloadPDF = function() {
+    // Dit roept de print-engine van Windows/Mac/Telefoon op. 
+    // Doordat we in CSS '@media print' hebben toegevoegd, ziet de PDF er loepzuiver uit!
+    window.print();
+};
+
 window.botVulThuisIn = function() { window.voerBotUit(true); };
 window.botVulUitIn = function() { window.voerBotUit(false); };

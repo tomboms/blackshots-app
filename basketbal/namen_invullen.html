@@ -63,6 +63,15 @@
         .nz-badge-score { background: #3498db; color: white; padding: 2px 5px; border-radius: 12px; font-size: 0.65rem; font-weight: bold; }
         .nz-reden { font-size: 0.7rem; color: #c0392b; font-weight: bold; margin-top: 2px; }
         .nz-priority-header { background: #d4efdf; padding: 4px 10px; font-size: 0.7rem; font-weight: bold; color: #27ae60; text-transform: uppercase; border-bottom: 1px solid #a9dfbf; }
+    /* NIEUW: Verborgen toverkracht voor de PDF Export */
+        @media print {
+            body * { visibility: hidden; }
+            #planner-bord-container, #planner-bord-container * { visibility: visible; }
+            #planner-bord-container { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0; }
+            .wedstrijd-blok { page-break-inside: avoid; border: 1px solid #7f8c8d !important; box-shadow: none !important; }
+            .grid-lijnen, .linker-kolom, nav, .planner-controls, #lijst-filters, button { display: none !important; }
+            body { background: white; }
+        }
    </style>
 </head>
 <body style="overflow-y: auto;">
@@ -92,6 +101,16 @@
                 </div>
                 <button onclick="window.toggleLijstWeergave()" id="btn-weergave-toggle" style="background:#8e44ad; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.85rem;">🗂️ Lijstweergave</button>
                 <button onclick="window.kopieerNamenSchema()" style="background:#34495e; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.85rem;">📋 WhatsApp Kopie</button>
+            </div>
+            <div style="display:flex; gap:10px; align-items:center; flex-wrap: wrap;">
+                <div style="display:flex; align-items:center; gap:5px; background:#f0fbf4; padding:4px 8px; border-radius:6px; border:1px dashed #27ae60;">
+                    <span style="font-weight:bold; color:#27ae60; font-size:0.85rem; margin-right:5px;">🤖 Namen Bots:</span>
+                    <button onclick="window.botVulThuisIn()" style="background:#27ae60; color:white; border:none; padding:6px 12px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.85rem;">🏠 Vul Thuis In (Tafel/Fluit)</button>
+                    <button onclick="window.botVulUitIn()" style="background:#2980b9; color:white; border:none; padding:6px 12px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.85rem;">🚌 Vul Uit In (Auto's)</button>
+                </div>
+                <button onclick="window.toggleLijstWeergave()" id="btn-weergave-toggle" style="background:#8e44ad; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.85rem;">🗂️ Lijstweergave</button>
+                <button onclick="window.kopieerNamenSchema()" style="background:#27ae60; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.85rem;">💬 WhatsApp Tekst</button>
+                <button onclick="window.downloadPDF()" style="background:#c0392b; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.85rem;">📄 Opslaan als PDF</button>
             </div>
         </div>
 
