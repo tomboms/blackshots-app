@@ -83,8 +83,11 @@ window.checkBeveiligingEnBouwMenu = function() {
             const style = document.createElement('style');
             style.id = 'bs-dropdown-css';
             style.innerHTML = `
+                /* FIX: Voorkom dat het menu de onderliggende knoppen afsnijdt */
+                .tab-menu { overflow: visible !important; flex-wrap: wrap !important; }
+                
                 .nav-dropdown { position: relative; display: inline-block; }
-                .nav-dropdown-content { display: none; position: absolute; background-color: #fff; min-width: 240px; box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2); z-index: 1000; border-radius: 8px; top: 100%; left: 0; overflow: hidden; border: 1px solid #cbd5e1; }
+                .nav-dropdown-content { display: none; position: absolute; background-color: #fff; min-width: 240px; box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2); z-index: 999999; border-radius: 8px; top: 100%; left: 0; overflow: hidden; border: 1px solid #cbd5e1; }
                 .nav-dropdown:hover .nav-dropdown-content { display: block; }
                 .nav-drop-btn { width: 100%; text-align: left; background: none; border: none; padding: 12px 15px; cursor: pointer; color: #2c3e50; font-weight: bold; font-size: 0.9rem; border-bottom: 1px solid #eee; transition: 0.2s; }
                 .nav-drop-btn:last-child { border-bottom: none; }
