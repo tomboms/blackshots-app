@@ -701,6 +701,132 @@ window.navigeerSpeeldag = function(richting) {
     }
 };
 
+// ============================================================================
+// 🤖 DE SLIMME BOTS (AUTOMATISCH INVULLEN)
+// ============================================================================
+
+// Helper: Welke wedstrijden heeft de gebruiker nú in beeld?
+window.getZichtbareWedstrijden = function() {
+    let speelDatum = window.normaalDatum(document.getElementById('plan-datum').value);
+    let alleWedstrijden = [...window.nbbWedstrijden, ...window.customWedstrijden];
+
+    if (window.huidigeWeergave === 'grid') {
+        return alleWedstrijden.filter(w => {
+            let id = window.genereerUniekId(w);
+            return window.normaalDatum(w.Datum) === speelDatum && window.planStatusDB[id] && !window.verborgenDB.includes(id);
+        });
+    } else {
+        let periode = document.getElementById('filter-periode') ? document.getElementById('filter-periode').value : 'dag';
+        let locatie = document.getElementById('filter-locatie') ? document.getElementById('filter-locatie').value : 'alles';
+        let hoofdCb = document.getElementById('cb-alle-teams');
+        let isAllesAangevinkt = hoofdCb ? hoofdCb.checked : true;
+        let actieveTeams = [];
+        if (!isAllesAangevinkt) document.querySelectorAll('.team-filter-cb').forEach(cb => { if(cb.checked) actieveTeams.push(cb.value); });
+
+        return alleWedstrijden.filter(w => {
+            let id = window.genereerUniekId(w);
+            if (window.verborgenDB.includes(id)) return false;
+            if (periode === 'dag' && window.normaalDatum(w.Datum) !== speelDatum) return false;
+            if (!window.planStatusDB[id]) return false; 
+            
+            let isThuis = (w.Thuisteam || '').toLowerCase().includes('black shots');
+            if (locatie === 'thuis' && !isThuis) return false;
+            if (locatie === 'uit' && isThuis) return false;
+
+            if (!isAllesAangevinkt) {
+                if (actieveTeams.length === 0) return false; 
+                let wCanon = window.getCanonicalTeam(isThuis ? w.Thuisteam.replace(/Black Shots\s*-?\s*/i, '') : w.Uitteam.replace(/Black Shots\s*-?\s*/i, ''));
+                if (!wCanon || !actieveTeams.includes(wCanon.id)) return false;
+            }
+            return true;
+        });
+    }
+};
+
+window.voerBotUit = function(isThuisBot) {
+    let wedstrijden = window.getZichtbareWedstrijden();
+    let aantalGevuld = 0;
+
+    // We lopen door alle zichtbare wedstrijden
+    wedstrijden.forEach(w => {
+        let isThuisWedstrijd = (w.Thuisteam || '').toLowerCase().includes('black shots');
+        if (isThuisBot && !isThuisWedstrijd) return;
+        if (!isThuisBot && isThuisWedstrijd) return;
+
+        let matchId = window.genereerUniekId(w);
+        let dbStatus = window.planStatusDB[matchId];
+        let speelDatum = window.normaalDatum(w.Datum);
+        let speelTeamNaam = isThuisWedstrijd ? (w.Thuisteam || '').replace(/Black Shots\s*-?\s*/i, '').trim() : (w.Uitteam || '').replace(/Black Shots\s*-?\s*/i, '').trim();
+        
+        let startMin = window.tijdNaarMinuten(dbStatus.tijd);
+        let eindMin = startMin + (w.handmatigeDuur || window.bepaalWedstrijdDuur(speelTeamNaam));
+
+        let teamTaken = window.teamTakenDB[matchId] || {};
+        let persTaken = window.persoonsTakenDB[matchId] || {};
+        let gewijzigd = false;
+
+        let rollen = isThuisBot ? ['sA', 'sB', 'tab', 'sco'] : ['auto1', 'auto2', 'auto3'];
+
+        rollen.forEach(rol => {
+            // Pas invullen als het vakje écht nog leeg is
+            if (!persTaken[rol] || persTaken[rol] === "Vrij") {
+                let vereisteTaak = (rol === 'sA' || rol === 'sB') ? 'fluit' : (rol === 'tab' || rol === 'sco' ? 'tafel' : 'auto');
+                let doelTeamNaam = isThuisBot ? teamTaken[rol] : speelTeamNaam;
+                
+                if (!doelTeamNaam || doelTeamNaam === "Vrij") return;
+
+                let doelTeamCanon = window.getCanonicalTeam(doelTeamNaam);
+                if (!doelTeamCanon) return; 
+
+                let kandidaten = [];
+                
+                // Zoek alle spelers uit dat specifieke team
+                window.spelersDB.forEach(s => {
+                    let sCanon = window.getCanonicalTeam(s.teamId);
+                    if (!sCanon || sCanon.id !== doelTeamCanon.id) return; 
+                    
+                    if (vereisteTaak === 'fluit' && s.magFluiten === false) return;
+                    if (vereisteTaak === 'tafel' && s.magTafelen === false) return;
+                    if (vereisteTaak === 'auto' && s.heeftAuto === false) return;
+                    
+                    // Bot mag NOOIT 2x dezelfde persoon in 1 wedstrijd stoppen (bijv 2 auto's rijden)
+                    if (Object.values(persTaken).includes(s.id)) return;
+
+                    // Laat de slimme engine checken of ze overlappen
+                    let check = window.checkPersoonBeschikbaarheid(s.id, s.teamId, vereisteTaak, startMin, eindMin, matchId, speelDatum);
+                    if (check.status === 'groen') {
+                        kandidaten.push(s.id);
+                    }
+                });
+
+                // Sorteer op minste taken (eerlijk verdelen!)
+                if (kandidaten.length > 0) {
+                    kandidaten.sort((a, b) => (window.globaleTakenScore[a] || 0) - (window.globaleTakenScore[b] || 0));
+                    let gekozenId = kandidaten[0];
+                    
+                    persTaken[rol] = gekozenId;
+                    
+                    // Update scores direct in het geheugen, anders deelt hij 2 wedstrijden achter elkaar aan dezelfde uit!
+                    window.globaleTakenScore[gekozenId] = (window.globaleTakenScore[gekozenId] || 0) + 1; 
+                    window.persoonsTakenDB[matchId] = persTaken;
+                    
+                    gewijzigd = true;
+                    aantalGevuld++;
+                }
+            }
+        });
+    });
+
+    if (aantalGevuld > 0) {
+        localStorage.setItem('blackshots_persoons_taken', JSON.stringify(window.persoonsTakenDB));
+        window.berekenGlobaleScores(); 
+        window.laadNamenBord();
+        alert(`✅ Bot klaar! Er zijn ${aantalGevuld} gaten eerlijk & automatisch ingevuld.`);
+    } else {
+        alert("🤖 Bot kon niemand vinden. Iedereen is op, heeft een overlap-conflict, of de geselecteerde lijst was al vol.");
+    }
+};
+
 window.kopieerNamenSchema = function() { alert("Komt eraan in de volgende update!"); };
-window.botVulThuisIn = function() { alert("De Thuis Bot wordt gebouwd in de volgende stap!"); };
-window.botVulUitIn = function() { alert("De Uit Bot wordt gebouwd in de volgende stap!"); };
+window.botVulThuisIn = function() { window.voerBotUit(true); };
+window.botVulUitIn = function() { window.voerBotUit(false); };
