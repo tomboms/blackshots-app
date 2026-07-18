@@ -125,6 +125,29 @@ window.huidigeWeergave = localStorage.getItem('blackshots_weergave') || 'grid';
 window.toggleWeergave = function() {
     window.huidigeWeergave = window.huidigeWeergave === 'grid' ? 'lijst' : 'grid';
     localStorage.setItem('blackshots_weergave', window.huidigeWeergave);
+    
+    let filterBox = document.getElementById('filter-box');
+    let teamContainer = document.getElementById('filter-team-container');
+    
+    if (window.huidigeWeergave === 'lijst') {
+        filterBox.style.display = 'flex';
+        teamContainer.style.display = 'block';
+        if (teamContainer.innerHTML === '') {
+            let boxHtml = `<label><input type="checkbox" id="cb-alle-teams" checked onchange="window.toggleAlleTeams(this)"> <strong>Alle Teams</strong></label><br>`;
+            window.teamsDB.forEach(t => { 
+                if(!t.isVrijwilliger) boxHtml += `<label><input type="checkbox" class="team-filter-cb" value="${t.id}" checked onchange="window.laadPlanbord()"> ${t.naam}</label> `;
+            });
+            teamContainer.innerHTML = boxHtml;
+        }
+    } else {
+        filterBox.style.display = 'none';
+        teamContainer.style.display = 'none';
+    }
+    window.laadPlanbord();
+};
+
+window.toggleAlleTeams = function(hoofdCb) {
+    document.querySelectorAll('.team-filter-cb').forEach(c => c.checked = hoofdCb.checked);
     window.laadPlanbord();
 };
 

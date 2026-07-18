@@ -184,21 +184,40 @@
         </div>
 
         <!-- DATUM & ZAAL SELECTIE -->
-        <div class="planner-controls">
-            <div>
-                <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d; display:block;">Speeldatum:</label>
-                <input type="date" id="plan-datum" onchange="window.laadPlanbord()" style="padding:8px; border:1px solid #bdc3c7; border-radius:4px; font-weight:bold;">
+        <!-- CONTROLS & FILTERS -->
+        <div class="planner-controls" style="flex-direction: column; align-items: flex-start;">
+            <div style="display: flex; gap: 15px; width: 100%; flex-wrap: wrap;">
+                <div>
+                    <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d; display:block;">Speeldatum:</label>
+                    <input type="date" id="plan-datum" onchange="window.laadPlanbord()" style="padding:8px; border:1px solid #bdc3c7; border-radius:4px; font-weight:bold;">
+                </div>
+                <div>
+                    <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d; display:block;">Zaal / Locatie:</label>
+                    <select id="plan-locatie" onchange="window.laadPlanbord()" style="padding:8px; border:1px solid #bdc3c7; border-radius:4px; font-weight:bold;">
+                        <option value="veka">De Veka (2 Velden)</option>
+                        <option value="veste">De Veste (1 Veld)</option>
+                    </select>
+                </div>
+                <!-- Nieuwe Filters -->
+                <div id="filter-box" style="display: none; display: flex; gap: 15px; flex-wrap: wrap;">
+                    <div>
+                        <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d; display:block;">Periode:</label>
+                        <select id="filter-periode" onchange="window.laadPlanbord()" style="padding:8px; border:1px solid #bdc3c7; border-radius:4px; font-weight:bold;">
+                            <option value="dag">Alleen gekozen dag</option>
+                            <option value="alles">Hele Seizoen (Totaal)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d; display:block;">Sortering:</label>
+                        <select id="filter-sortering" onchange="window.laadPlanbord()" style="padding:8px; border:1px solid #bdc3c7; border-radius:4px; font-weight:bold;">
+                            <option value="tijd">Chronologisch</option>
+                            <option value="team">Groepeer per Team</option>
+                        </select>
+                    </div>
+                </div>
             </div>
-            <div>
-                <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d; display:block;">Zaal / Locatie:</label>
-                <select id="plan-locatie" onchange="window.laadPlanbord()" style="padding:8px; border:1px solid #bdc3c7; border-radius:4px; font-weight:bold;">
-                    <option value="veka">De Veka (2 Velden)</option>
-                    <option value="veste">De Veste (1 Veld)</option>
-                </select>
-            </div>
-            <div style="margin-left:auto; color:#7f8c8d; font-size:0.85rem;">
-                <i>Tip: Klik op de ⏱️ knop in een blokje om de tijd handmatig te wijzigen.</i>
-            </div>
+            <!-- Checkbox container voor teams (verschijnt in lijstmodus) -->
+            <div id="filter-team-container" style="display: none; width: 100%; max-height: 100px; overflow-y: auto; border: 1px solid #eee; padding: 5px; margin-top: 10px;"></div>
         </div>
 
         <!-- LINKER KOLOM (Wachtkamer/Teller) + RECHTER KOLOM (Planbord) -->
