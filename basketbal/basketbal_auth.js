@@ -41,7 +41,6 @@ window.checkBeveiligingEnBouwMenu = function() {
             navH1.innerHTML += ` <span id="welkom-badge" style="font-size:0.8rem; background:rgba(255,255,255,0.2); padding:5px 12px; border-radius:15px; margin-left:20px; vertical-align:middle; font-weight:normal; letter-spacing:0.5px; color:white;">Welkom, ${actieveGebruiker.naam} ${rolBadge}</span>`;
         }
 
-        // Een div container maken zodat de knoppen rechts netjes naast elkaar staan
         let knoppenContainer = document.createElement('div');
         knoppenContainer.style.cssText = 'display:flex; gap:10px; margin-left:auto; align-items:center;';
 
@@ -79,25 +78,55 @@ window.checkBeveiligingEnBouwMenu = function() {
         topNav.appendChild(knoppenContainer);
 
         // --- E. HET MENU VAN SCRATCH OPBOUWEN ---
+        // 1. Injecteer eerst de CSS voor de Dropdown als die er nog niet is
+        if (!document.getElementById('bs-dropdown-css')) {
+            const style = document.createElement('style');
+            style.id = 'bs-dropdown-css';
+            style.innerHTML = `
+                .nav-dropdown { position: relative; display: inline-block; }
+                .nav-dropdown-content { display: none; position: absolute; background-color: #fff; min-width: 240px; box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2); z-index: 1000; border-radius: 8px; top: 100%; left: 0; overflow: hidden; border: 1px solid #cbd5e1; }
+                .nav-dropdown:hover .nav-dropdown-content { display: block; }
+                .nav-drop-btn { width: 100%; text-align: left; background: none; border: none; padding: 12px 15px; cursor: pointer; color: #2c3e50; font-weight: bold; font-size: 0.9rem; border-bottom: 1px solid #eee; transition: 0.2s; }
+                .nav-drop-btn:last-child { border-bottom: none; }
+                .nav-drop-btn:hover { background-color: #f8f9fa; color: #3498db; }
+                .nav-drop-btn.active { background-color: #3498db; color: white; }
+                
+                /* Dark Mode Ondersteuning */
+                .dark-mode .nav-dropdown-content { background-color: #2c3e50; border-color: #1a252f; box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.5); }
+                .dark-mode .nav-drop-btn { color: #ecf0f1; border-color: #34495e; }
+                .dark-mode .nav-drop-btn:hover { background-color: #34495e; color: #3498db; }
+                .dark-mode .nav-drop-btn.active { background-color: #3498db; color: white; }
+            `;
+            document.head.appendChild(style);
+        }
+
         let oudMenu = document.querySelector('.tab-menu');
         if (oudMenu) oudMenu.remove();
 
         let nieuwMenu = document.createElement('div');
         nieuwMenu.className = 'tab-menu';
         
-        const allePaginas = [
+        // Menu Structuur: Ondersteunt nu "isDropdown" groepen!
+        const menuStructuur = [
             { id: 'dashboard', url: 'dashboard.html', icon: '📊', tekst: 'Dashboard' },
-            { id: 'todo', url: 'todo.html', icon: '✅', tekst: 'Smart To-Do' }, // <-- DEZE REGEL IS NIEUW
+            { id: 'todo', url: 'todo.html', icon: '✅', tekst: 'Smart To-Do' },
             { id: 'jaarplanning', url: 'jaarplanning.html', icon: '📆', tekst: 'Jaarplanning' },
             { id: 'agenda', url: 'agenda.html', icon: '📅', tekst: 'Trainingen' },
             { id: 'team', url: 'team.html', icon: '👥', tekst: 'Teams' },
             { id: 'spelers', url: 'spelers.html', icon: '👤', tekst: 'Spelers' },
             { id: 'oefeningen', url: 'oefeningen.html', icon: '📋', tekst: 'Oefeningen' },
             { id: 'pouleindeling', url: 'pouleindeling.html', icon: '⛹️', tekst: 'Poule indeling' },
-            { id: 'overzicht', url: 'thuisdagen_overzicht.html', icon: '📊', tekst: 'Seizoens-Overzicht' },         
-            { id: 'planner', url: 'planner.html', icon: '📆', tekst: 'Wedstrijd Planner' },
-            { id: 'nameninvullen', url: 'namen_invullen.html', icon: '⛹️', tekst: 'Taken planner' },            
-            { id: 'scheidsrechters', url: 'scheidsrechters.html', icon: '👨‍⚖️', tekst: 'Scheidsrechters Beschikbaarheid' },   
+            {
+                isDropdown: true,
+                icon: '🏀',
+                tekst: 'Wedstrijdzaken ▼',
+                items: [
+                    { id: 'overzicht', url: 'thuisdagen_overzicht.html', icon: '📊', tekst: 'Seizoens-Overzicht' },
+                    { id: 'planner', url: 'planner.html', icon: '📆', tekst: 'Wedstrijd Planner' },
+                    { id: 'nameninvullen', url: 'namen_invullen.html', icon: '⛹️', tekst: 'Taken Planner' },
+                    { id: 'scheidsrechters', url: 'scheidsrechters.html', icon: '👨‍⚖️', tekst: 'Scheidsrechters' }
+                ]
+            },
             { id: 'zaalhuur', url: 'zaalhuur.html', icon: '🏟️', tekst: 'Zaalhuur' },
             { id: 'toernooien', url: 'toernooien.html', icon: '🏆', tekst: 'Interne Toernooien' },
             { id: 'bestuur', url: 'bestuur.html', icon: '📁', tekst: 'Bestuur & Agenda' },
@@ -107,16 +136,49 @@ window.checkBeveiligingEnBouwMenu = function() {
 
         let huidigePagina = window.location.pathname.split('/').pop();
 
-        allePaginas.forEach(pag => {
-            let magZien = actieveGebruiker.paginas.includes('all') || actieveGebruiker.paginas.includes(pag.id);
-            if (pag.id === 'instellingen' && actieveGebruiker.rol === 'trainer') magZien = false;
+        const checkToegang = (pagId) => {
+            if (pagId === 'instellingen' && actieveGebruiker.rol === 'trainer') return false;
+            return actieveGebruiker.paginas.includes('all') || actieveGebruiker.paginas.includes(pagId);
+        };
 
-            if (magZien) {
-                let btn = document.createElement('button');
-                btn.className = 'tab-btn' + (huidigePagina === pag.url ? ' active' : '');
-                btn.innerHTML = `${pag.icon} ${pag.tekst}`;
-                btn.onclick = () => window.location.href = pag.url;
-                nieuwMenu.appendChild(btn);
+        menuStructuur.forEach(item => {
+            if (item.isDropdown) {
+                // Filter de onderliggende items op basis van de rechten van de gebruiker
+                let toegestaneItems = item.items.filter(child => checkToegang(child.id));
+                
+                if (toegestaneItems.length > 0) {
+                    let isEenChildActief = toegestaneItems.some(child => huidigePagina === child.url);
+                    
+                    let dropContainer = document.createElement('div');
+                    dropContainer.className = 'nav-dropdown';
+                    
+                    let dropToggle = document.createElement('button');
+                    dropToggle.className = 'tab-btn' + (isEenChildActief ? ' active' : '');
+                    dropToggle.innerHTML = `${item.icon} ${item.tekst}`;
+                    dropContainer.appendChild(dropToggle);
+                    
+                    let dropContent = document.createElement('div');
+                    dropContent.className = 'nav-dropdown-content';
+                    
+                    toegestaneItems.forEach(child => {
+                        let btn = document.createElement('button');
+                        btn.className = 'nav-drop-btn' + (huidigePagina === child.url ? ' active' : '');
+                        btn.innerHTML = `${child.icon} ${child.tekst}`;
+                        btn.onclick = () => window.location.href = child.url;
+                        dropContent.appendChild(btn);
+                    });
+                    
+                    dropContainer.appendChild(dropContent);
+                    nieuwMenu.appendChild(dropContainer);
+                }
+            } else {
+                if (checkToegang(item.id)) {
+                    let btn = document.createElement('button');
+                    btn.className = 'tab-btn' + (huidigePagina === item.url ? ' active' : '');
+                    btn.innerHTML = `${item.icon} ${item.tekst}`;
+                    btn.onclick = () => window.location.href = item.url;
+                    nieuwMenu.appendChild(btn);
+                }
             }
         });
 
