@@ -83,13 +83,15 @@ window.checkBeveiligingEnBouwMenu = function() {
             const style = document.createElement('style');
             style.id = 'bs-dropdown-css';
             style.innerHTML = `
-                /* FIX: Voorkom dat het menu de onderliggende knoppen afsnijdt */
-                .tab-menu { overflow: visible !important; flex-wrap: wrap !important; }
+                /* FIX: Z-index verhoogt het HELE menu boven de rest van de pagina! */
+                .tab-menu { overflow: visible !important; flex-wrap: wrap !important; position: relative !important; z-index: 99999 !important; }
                 
                 .nav-dropdown { position: relative; display: inline-block; }
-                .nav-dropdown-content { display: none; position: absolute; background-color: #fff; min-width: 240px; box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2); z-index: 999999; border-radius: 8px; top: 100%; left: 0; overflow: hidden; border: 1px solid #cbd5e1; }
+                .nav-dropdown-content { display: none; position: absolute; background-color: #fff; min-width: 240px; box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2); z-index: 999999 !important; border-radius: 8px; top: 100%; left: 0; overflow: hidden; border: 1px solid #cbd5e1; }
                 .nav-dropdown:hover .nav-dropdown-content { display: block; }
-                .nav-drop-btn { width: 100%; text-align: left; background: none; border: none; padding: 12px 15px; cursor: pointer; color: #2c3e50; font-weight: bold; font-size: 0.9rem; border-bottom: 1px solid #eee; transition: 0.2s; }
+                
+                /* FIX: Buttons expliciet op display: block gezet zodat ze netjes onder elkaar vallen */
+                .nav-drop-btn { display: block; width: 100%; text-align: left; background: none; border: none; padding: 12px 15px; cursor: pointer; color: #2c3e50; font-weight: bold; font-size: 0.9rem; border-bottom: 1px solid #eee; transition: 0.2s; }
                 .nav-drop-btn:last-child { border-bottom: none; }
                 .nav-drop-btn:hover { background-color: #f8f9fa; color: #3498db; }
                 .nav-drop-btn.active { background-color: #3498db; color: white; }
