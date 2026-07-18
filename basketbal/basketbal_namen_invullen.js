@@ -133,21 +133,6 @@ window.berekenGlobaleScores = function() {
 };
 
 // ============================================================================
-// 🎨 PLANBORD RENDERING
-// ============================================================================
-window.initNamenPlanner = function() {
-    let datumInput = document.getElementById('plan-datum');
-    let vandaag = new Date();
-    let verschilZaterdag = (vandaag.getDay() <= 6) ? (6 - vandaag.getDay()) : 6;
-    vandaag.setDate(vandaag.getDate() + verschilZaterdag);
-    datumInput.value = vandaag.toISOString().split('T')[0];
-    
-    window.schoonPersoonsTakenOp();
-    window.berekenGlobaleScores();
-    window.laadNamenBord();
-};
-
-// ============================================================================
 // 🗂️ LIJSTWEERGAVE SCHAKELAAR & CHECKBOXES
 // ============================================================================
 window.huidigeWeergave = 'grid';
@@ -479,7 +464,6 @@ window.haalPersoonInfoOp = function(pId) {
 window.checkPersoonBeschikbaarheid = function(pId, pTeamId, vereisteTaak, matchStartMin, matchEindMin, huidigeMatchId, speelDatum) {
     let status = 'groen'; let reden = ''; let isPriority = false;
     
-    // Check rooster afwezigheid
     let sr = window.scheidsrechtersDB.find(s => s.id === pId);
     if (sr && window.beschikbaarheidDB[`${sr.id}_${speelDatum}`] === 'af') return { status: 'rood', reden: 'Afwezig in rooster', isPriority: false };
 
@@ -489,17 +473,11 @@ window.checkPersoonBeschikbaarheid = function(pId, pTeamId, vereisteTaak, matchS
     let huidigeMatch = dagWedstrijden.find(m => window.genereerUniekId(m) === huidigeMatchId);
     let huidigeCanon = huidigeMatch ? window.getCanonicalTeam(huidigeMatch.Thuisteam.includes('Black Shots') ? huidigeMatch.Thuisteam.replace('Black Shots ', '') : huidigeMatch.Uitteam.replace('Black Shots ', '')) : null;
 
-    // Speelt hij ZELF deze specifieke wedstrijd?
     if (huidigeCanon && pTeamId && huidigeCanon.id === pTeamId) {
-        if (vereisteTaak === 'fluit') {
-            return { status: 'rood', reden: 'Speelt zelf deze wedstrijd', isPriority: false };
-        } else {
-            // Tafelen of Rijden bij eigen team is een BONUS! (Voor ouders)
-            isPriority = true;
-        }
+        if (vereisteTaak === 'fluit') return { status: 'rood', reden: 'Speelt zelf', isPriority: false };
+        else isPriority = true;
     }
 
-    // Check overlap met andere wedstrijden op de dag
     for (let w of dagWedstrijden) {
         let wId = window.genereerUniekId(w);
         if (wId === huidigeMatchId) continue;
@@ -510,11 +488,9 @@ window.checkPersoonBeschikbaarheid = function(pId, pTeamId, vereisteTaak, matchS
         let wEind = wStart + wDuur;
 
         if (matchStartMin < wEind && matchEindMin > wStart) {
-            // 1. Heeft hij hier al een taak?
             let takenElders = window.persoonsTakenDB[wId] || {};
             if (Object.values(takenElders).includes(pId)) return { status: 'rood', reden: `Heeft al taak om ${wStatus.tijd}`, isPriority: false };
             
-            // 2. Speelt zijn team nu?
             let wCanon = window.getCanonicalTeam(w.Thuisteam.includes('Black Shots') ? w.Thuisteam.replace('Black Shots ', '') : w.Uitteam.replace('Black Shots ', ''));
             if (wCanon && pTeamId && wCanon.id === pTeamId) return { status: 'rood', reden: `Speelt zelf om ${wStatus.tijd}`, isPriority: false };
         }
@@ -523,12 +499,10 @@ window.checkPersoonBeschikbaarheid = function(pId, pTeamId, vereisteTaak, matchS
     return { status, reden, isPriority };
 };
 
-// De bouwer voor het HTML blok van de dropdown
 window.genereerCustomDropdownUI = function(vakjeId, geselecteerdePersoonId, basisTeamNaam, vereisteTaak, startMin, eindMin, speelDatum, matchId) {
     let basisCanon = window.getCanonicalTeam(basisTeamNaam);
     let geschiktePersonen = [];
 
-    // Verzamel spelers die de taak mogen
     window.spelersDB.forEach(s => {
         if (vereisteTaak === 'fluit' && s.magFluiten === false) return;
         if (vereisteTaak === 'tafel' && s.magTafelen === false) return;
@@ -536,7 +510,6 @@ window.genereerCustomDropdownUI = function(vakjeId, geselecteerdePersoonId, basi
         geschiktePersonen.push({ id: s.id, naam: s.naam, teamId: s.teamId });
     });
 
-    // Verzamel scheidsrechters
     if (vereisteTaak === 'fluit' || vereisteTaak === 'tafel') {
         window.scheidsrechtersDB.forEach(sr => {
             let targetId = sr.gekoppeldLid ? sr.gekoppeldLid : sr.id;
@@ -546,22 +519,14 @@ window.genereerCustomDropdownUI = function(vakjeId, geselecteerdePersoonId, basi
         });
     }
 
-    // Analyseer de status van iedereen (Conflict checker)
     let lijstData = geschiktePersonen.map(p => {
         let pCanon = window.getCanonicalTeam(p.teamId);
         let weergaveTeam = pCanon ? pCanon.naam : (p.teamId || '-');
         let check = window.checkPersoonBeschikbaarheid(p.id, pCanon ? pCanon.id : null, vereisteTaak, startMin, eindMin, matchId, speelDatum);
-        
-        // Extra controle: was dit de 'Basis Team' voorkeur uit fase 1?
         if (basisCanon && pCanon && pCanon.id === basisCanon.id && check.status === 'groen') check.isPriority = true;
-
-        return { 
-            id: p.id, naam: p.naam, teamNaam: weergaveTeam, score: window.globaleTakenScore[p.id] || 0,
-            status: check.status, reden: check.reden, isPriority: check.isPriority
-        };
+        return { id: p.id, naam: p.naam, teamNaam: weergaveTeam, score: window.globaleTakenScore[p.id] || 0, status: check.status, reden: check.reden, isPriority: check.isPriority };
     });
 
-    // Sorteren: Prioriteit -> Groen -> Minste taken -> Rood
     lijstData.sort((a, b) => {
         if (a.isPriority && !b.isPriority) return -1;
         if (!a.isPriority && b.isPriority) return 1;
@@ -570,7 +535,6 @@ window.genereerCustomDropdownUI = function(vakjeId, geselecteerdePersoonId, basi
         return a.score - b.score; 
     });
 
-    // Bouw de lijst items
     let lijstHtml = `<div class="nz-item" onclick="window.kiesPersoon('${vakjeId}', '', 'Kies een persoon...')"><div class="nz-item-top"><strong>-- Maak leeg (Vrij) --</strong></div></div>`;
     let getoondAanbevolen = false; let getoondOverig = false; let getoondOnbeschikbaar = false;
 
@@ -580,7 +544,6 @@ window.genereerCustomDropdownUI = function(vakjeId, geselecteerdePersoonId, basi
         let badgeTeam = p.teamNaam !== '-' ? `<span class="nz-badge-team">${p.teamNaam}</span>` : '';
         let htmlReden = p.status === 'rood' ? `<span class="nz-reden">🚫 ${p.reden}</span>` : '';
 
-        // Tussenkoppen toevoegen voor overzicht
         if (p.isPriority && p.status === 'groen' && !getoondAanbevolen) { lijstHtml += `<div class="nz-priority-header">🌟 Aanbevolen (Eigen Team)</div>`; getoondAanbevolen = true; }
         if (!p.isPriority && p.status === 'groen' && !getoondOverig) { lijstHtml += `<div class="nz-priority-header" style="background:#eef2f5; color:#7f8c8d; border-color:#cbd5e1;">🌐 Alle beschikbare leden</div>`; getoondOverig = true; }
         if (p.status === 'rood' && !getoondOnbeschikbaar) { lijstHtml += `<div class="nz-priority-header" style="background:#fadbd8; color:#c0392b; border-color:#f5b7b1;">🚫 Onbeschikbaar / Overlap</div>`; getoondOnbeschikbaar = true; }
@@ -613,15 +576,11 @@ window.genereerCustomDropdownUI = function(vakjeId, geselecteerdePersoonId, basi
     `;
 };
 
-// Dropdown interacties
 window.toggleDropdown = function(vakjeId) {
     let body = document.getElementById(`nz-body-${vakjeId}`);
     let isZichtbaar = body.style.display === 'block';
-    document.querySelectorAll('.nz-body').forEach(el => el.style.display = 'none'); // Sluit alle andere
-    if (!isZichtbaar) {
-        body.style.display = 'block';
-        body.querySelector('.nz-search').focus();
-    }
+    document.querySelectorAll('.nz-body').forEach(el => el.style.display = 'none'); 
+    if (!isZichtbaar) { body.style.display = 'block'; body.querySelector('.nz-search').focus(); }
 };
 
 window.kiesPersoon = function(vakjeId, pId, pNaam) {
@@ -639,7 +598,6 @@ window.filterDropdown = function(vakjeId, term) {
     });
 };
 
-// Sluit menu als je ergens anders klikt
 document.addEventListener('click', function(event) {
     if (!event.target.closest('.nz-container')) {
         document.querySelectorAll('.nz-body').forEach(el => el.style.display = 'none');
@@ -735,80 +693,12 @@ window.navigeerSpeeldag = function(richting) {
     let nwIndex = index + richting;
     if (nwIndex >= 0 && nwIndex < dagen.length) {
         document.getElementById('plan-datum').value = dagen[nwIndex];
-        // FIX: We roepen nu níét meer de init() aan, want die zette de datum altijd op zaterdag!
         window.schoonPersoonsTakenOp();
         window.berekenGlobaleScores();
         window.laadNamenBord();
     }
 };
 
-
-window.huidigeWeergave = 'grid';
-
-window.toggleLijstWeergave = function() {
-    window.huidigeWeergave = window.huidigeWeergave === 'grid' ? 'lijst' : 'grid';
-    let btn = document.getElementById('btn-weergave-toggle');
-    if(btn) btn.innerHTML = window.huidigeWeergave === 'grid' ? '🗂️ Lijstweergave' : '📅 Blokkenschema';
-    
-    let filterBar = document.getElementById('lijst-filters');
-    
-    if (window.huidigeWeergave === 'lijst') {
-        if(filterBar) filterBar.style.display = 'flex';
-        // Vul de team filter als hij nog leeg is
-        let tf = document.getElementById('filter-team');
-        if (tf && tf.options.length <= 1) {
-            window.teamsDB.forEach(t => { if(!t.isVrijwilliger) tf.innerHTML += `<option value="${t.id}">${t.naam}</option>`; });
-        }
-    } else {
-        if(filterBar) filterBar.style.display = 'none';
-    }
-    window.laadNamenBord();
-};
-
-
-// ============================================================================
-// 🗂️ LIJSTWEERGAVE SCHAKELAAR & CHECKBOXES
-// ============================================================================
-window.huidigeWeergave = 'grid';
-
-window.toggleLijstWeergave = function() {
-    window.huidigeWeergave = window.huidigeWeergave === 'grid' ? 'lijst' : 'grid';
-    let btn = document.getElementById('btn-weergave-toggle');
-    if(btn) btn.innerHTML = window.huidigeWeergave === 'grid' ? '🗂️ Lijstweergave' : '📅 Blokkenschema';
-    
-    let filterBar = document.getElementById('lijst-filters');
-    
-    if (window.huidigeWeergave === 'lijst') {
-        if(filterBar) filterBar.style.display = 'flex';
-        
-        let tf = document.getElementById('filter-team-container');
-        if (tf && tf.innerHTML.trim() === '') {
-            let boxHtml = `<label style="display:flex; align-items:center; gap:5px; margin-bottom:5px; padding-bottom:5px; border-bottom:1px solid #eee;"><input type="checkbox" id="cb-alle-teams" checked onchange="window.toggleAlleTeams(this)"> <strong style="color:#2c3e50;">-- Alle Teams Tonen --</strong></label>`;
-            window.teamsDB.forEach(t => { 
-                if(!t.isVrijwilliger) {
-                    boxHtml += `<label style="display:flex; align-items:center; gap:5px; margin-bottom:3px; cursor:pointer;"><input type="checkbox" class="team-filter-cb" value="${t.id}" checked onchange="window.checkAlleTeamsStatus(); window.laadNamenBord()"> ${t.naam}</label>`;
-                }
-            });
-            tf.innerHTML = boxHtml;
-        }
-    } else {
-        if(filterBar) filterBar.style.display = 'none';
-    }
-    window.laadNamenBord();
-};
-
-window.toggleAlleTeams = function(hoofdCb) {
-    let cbs = document.querySelectorAll('.team-filter-cb');
-    cbs.forEach(c => c.checked = hoofdCb.checked);
-    window.laadNamenBord();
-};
-
-window.checkAlleTeamsStatus = function() {
-    let cbs = document.querySelectorAll('.team-filter-cb');
-    let allChecked = Array.from(cbs).every(c => c.checked);
-    let hoofdCb = document.getElementById('cb-alle-teams');
-    if(hoofdCb) hoofdCb.checked = allChecked;
-};
 window.kopieerNamenSchema = function() { alert("Komt eraan in de volgende update!"); };
 window.botVulThuisIn = function() { alert("De Thuis Bot wordt gebouwd in de volgende stap!"); };
 window.botVulUitIn = function() { alert("De Uit Bot wordt gebouwd in de volgende stap!"); };
