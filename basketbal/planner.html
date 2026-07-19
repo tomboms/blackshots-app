@@ -22,7 +22,7 @@
 
         /* Planner Bord */
         .planner-bord { flex: 1; display: flex; background: #f8f9fa; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; position: relative; min-height: 1600px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.02); }
-        .tijd-as { width: 60px; background: #e2e8f0; border-right: 1px solid #cbd5e1; display: flex; flex-direction: column; }
+        .tijd-as { width: 80px; background: #e2e8f0; border-right: 1px solid #cbd5e1; display: flex; flex-direction: column; }
         .tijd-slot { height: 120px; border-bottom: 1px solid #cbd5e1; display: flex; align-items: flex-start; justify-content: center; padding-top: 5px; font-size: 0.75rem; color: #7f8c8d; font-weight: bold; box-sizing: border-box; }
         .veld-kolom { flex: 1; border-right: 1px dashed #cbd5e1; position: relative; min-width: 250px; }
         .veld-kolom:last-child { border-right: none; }
@@ -183,8 +183,7 @@
             </div>
         </div>
 
-        <!-- DATUM & ZAAL SELECTIE -->
-        <!-- CONTROLS & FILTERS -->
+        <!-- DATUM & ZAAL SELECTIE & CONTROLS -->
         <div class="planner-controls" style="flex-direction: column; align-items: flex-start;">
             <div style="display: flex; gap: 15px; width: 100%; flex-wrap: wrap;">
                 <div>
@@ -199,7 +198,7 @@
                     </select>
                 </div>
                 <!-- Nieuwe Filters -->
-                <div id="filter-box" style="display: none; display: flex; gap: 15px; flex-wrap: wrap;">
+                <div id="filter-box" style="display: none; gap: 15px; flex-wrap: wrap;">
                     <div>
                         <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d; display:block;">Periode:</label>
                         <select id="filter-periode" onchange="window.laadPlanbord()" style="padding:8px; border:1px solid #bdc3c7; border-radius:4px; font-weight:bold;">
@@ -219,9 +218,6 @@
             <!-- Checkbox container voor teams (verschijnt in lijstmodus) -->
             <div id="filter-team-container" style="display: none; width: 100%; max-height: 100px; overflow-y: auto; border: 1px solid #eee; padding: 5px; margin-top: 10px;"></div>
         </div>
-
-        <!-- LINKER KOLOM (Wachtkamer/Teller) + RECHTER KOLOM (Planbord) -->
-        <div class="planner-wrapper">
 
         <!-- LINKER KOLOM (Wachtkamer/Teller) + RECHTER KOLOM (Planbord) -->
         <div class="planner-wrapper">
