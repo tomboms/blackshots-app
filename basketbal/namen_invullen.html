@@ -121,7 +121,58 @@
         /* Teller Lijst moderniseren */
         .teller-item { background: transparent !important; border-left: none !important; border-bottom: 1px solid #f1f2f6 !important; padding: 10px 5px !important; }
         .teller-item:last-child { border-bottom: none !important; }
-   </style>
+        /* ==========================================================================
+           🌙 DARK MODE OPTIMALISATIE (INCLUSIEF ZOEK-DROPDOWNS)
+           ========================================================================== */
+        
+        .dark-mode body { background-color: #121a21 !important; color: #ecf0f1 !important; }
+        
+        .dark-mode .planner-controls, .dark-mode .wachtkamer, .dark-mode #lijst-filters { 
+            background: #1e293b !important; 
+            color: #ecf0f1 !important; 
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2) !important; 
+        }
+        
+        .dark-mode .wachtkamer-header, .dark-mode .wb-titel, .dark-mode label, .dark-mode .taak-label { color: #ecf0f1 !important; }
+        
+        /* Wedstrijdblokken en tellers */
+        .dark-mode .wedstrijd-blok { 
+            background: #2c3e50 !important; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important; 
+        }
+        
+        .dark-mode .taak-regel { background: #1e293b !important; border-color: #34495e !important; }
+        .dark-mode .teller-item { border-bottom-color: #34495e !important; }
+        
+        .dark-mode select, .dark-mode input { 
+            background: #1e293b !important; 
+            color: #ecf0f1 !important; 
+            border-color: #34495e !important; 
+        }
+        
+        /* Het grote planbord (achtergrond en lijnen) */
+        .dark-mode .planner-bord { background: #121a21 !important; border-color: #34495e !important; }
+        .dark-mode .tijd-as, .dark-mode .veld-header { background: #1e293b !important; border-color: #34495e !important; color: #ecf0f1 !important; }
+        .dark-mode .tijd-slot, .dark-mode .veld-kolom { border-color: #34495e !important; color: #bdc3c7 !important; }
+        .dark-mode .grid-lijn-15m, .dark-mode .grid-lijn-30m, .dark-mode .grid-lijn-60m { border-color: rgba(255,255,255,0.05) !important; }
+
+        /* --- SPECIFIEK VOOR NAMEN_INVULLEN.HTML: De Slimme Zoek-Dropdowns --- */
+        .dark-mode .nz-header { background: #1e293b !important; border-color: #34495e !important; color: #ecf0f1 !important; }
+        .dark-mode .nz-body { background: #1e293b !important; border-color: #34495e !important; box-shadow: 0 8px 24px rgba(0,0,0,0.5) !important; }
+        .dark-mode .nz-search { background: #121a21 !important; color: #ecf0f1 !important; border-bottom-color: #34495e !important; }
+        .dark-mode .nz-item { border-bottom-color: #34495e !important; color: #bdc3c7 !important; }
+        .dark-mode .nz-item-top { color: #ecf0f1 !important; }
+        .dark-mode .nz-item:hover { background: #2c3e50 !important; color: white !important; }
+        
+        /* Conflict en Priority Headers in het Dropdown menu */
+        .dark-mode .nz-item.is-rood { background: #4a2323 !important; border-bottom-color: #642b2b !important; }
+        .dark-mode .nz-item.is-rood:hover { background: #642b2b !important; }
+        .dark-mode .nz-reden { color: #ff7675 !important; }
+        
+        .dark-mode .nz-priority-header { background: #1e3b2d !important; color: #2ecc71 !important; border-bottom-color: #27ae60 !important; }
+        .dark-mode .nz-priority-header[style*="background:#eef2f5"] { background: #2c3e50 !important; color: #bdc3c7 !important; border-color: #34495e !important; }
+        .dark-mode .nz-priority-header[style*="background:#fadbd8"] { background: #4a2323 !important; color: #ff7675 !important; border-color: #642b2b !important; }
+  </style>
 </head>
 <body style="overflow-y: auto;">
     <div id="cloud-status-indicator" style="position: fixed; bottom: 20px; right: 20px; background: #27ae60; color: white; padding: 10px 20px; border-radius: 30px; font-weight: bold; font-size: 0.9rem; z-index: 99999; opacity: 0; pointer-events: none;">☁️ Cloud Actief</div>
