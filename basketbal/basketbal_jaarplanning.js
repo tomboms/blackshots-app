@@ -236,7 +236,7 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
             let isStartOfSpan = (isoDatum === item.isoDatum || new Date(isoDatum).getDay() === 1 || item.isDynamisch);
             
             let metaHtml = (isStartOfSpan && (item.tijd || item.locatie)) ? `<span class="k-meta" style="opacity: 0.85; margin-right: 6px; padding-right: 6px; border-right: 1px solid rgba(255,255,255,0.4); font-weight: normal; font-size: 0.7rem; white-space: nowrap;">${[item.tijd, item.locatie].filter(Boolean).join(', ')}</span>` : '';
-           // --- NIEUW: Meteen door naar de Taken Planner voor Wedstrijden ---
+            // --- NIEUW: Meteen door naar de Taken Planner voor Wedstrijden ---
             let clickAction = "";
             let hoverTitel = item.titel;
             
@@ -253,6 +253,7 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
 
             // Let op: title="${hoverTitel}" toegevoegd!
             itemsHtml += `<div class="k-item ${badgeClass} ${extraClass}" title="${hoverTitel}" ${clickAction} style="cursor:pointer; display:flex; justify-content:space-between; align-items:center; ${borderOpmaak} ${extraHoogte}"><div style="display:flex; align-items:center; overflow:hidden; white-space:nowrap; flex:1; min-width:0;">${metaHtml}<span style="overflow:hidden; text-overflow:ellipsis;">${isStartOfSpan ? (item.titel || "Naamloos") : '&nbsp;'}</span>${isStartOfSpan ? extraIcon : ''}</div>${deleteKnop}</div>`;
+
             // --- NIEUW: De Magische Team Kleur Rand ---
             // --- GEREPAREERD: Multi-team Kleurenrand zonder tekst-badges ---
             // --- GEREPAREERD: Multi-team Kleurenrand met extra hoogte ---
