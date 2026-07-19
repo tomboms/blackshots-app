@@ -6,7 +6,6 @@ window.scheidsrechtersDB = window.veiligeArray('blackshots_scheidsrechters');
 window.speeldagenDB = window.veiligeArray('blackshots_speeldagen');
 window.beschikbaarheidDB = window.veiligObject('blackshots_beschikbaarheid');
 
-// We laden alle benodigde databases in om dagen en koppelingen 100% goed te checken
 window.spelersDB = window.veiligeArray('blackshots_spelers');
 window.nbbWedstrijden = window.veiligeArray('blackshots_wedstrijden_json');
 window.customWedstrijden = window.veiligeArray('blackshots_custom_wedstrijden');
@@ -44,6 +43,9 @@ window.ontvangCloudData = function(sleutel, data) {
     if (sleutel === 'blackshots_scheidsrechters') window.scheidsrechtersDB = Array.isArray(data) ? data : Object.values(data);
     if (sleutel === 'blackshots_speeldagen') window.speeldagenDB = Array.isArray(data) ? data : Object.values(data);
     if (sleutel === 'blackshots_beschikbaarheid') window.beschikbaarheidDB = data;
+    // OOK DE WEDSTRIJDEN UPDATEN ALS FIREBASE ZE PUSHT
+    if (sleutel === 'blackshots_wedstrijden_json') window.nbbWedstrijden = data;
+    if (sleutel === 'blackshots_custom_wedstrijden') window.customWedstrijden = Array.isArray(data) ? data : Object.values(data);
     window.renderMatrix();
 };
 
@@ -162,7 +164,11 @@ window.verwijderSpeeldag = function(datum) {
 // 🤖 AUTOMATISCHE THUISDAGEN OPHALEN UIT NBB KALENDER (GEFIXT)
 // ============================================================================
 window.haalDagenUitNBB = function() {
-    let alleWedstrijden = [...window.nbbWedstrijden, ...window.customWedstrijden];
+    // FORCEER EEN VERSE OPHAALACTIE UIT HET GEHEUGEN VOOR DE ZEKERHEID
+    let versNBB = JSON.parse(localStorage.getItem('blackshots_wedstrijden_json')) || [];
+    let versCustom = JSON.parse(localStorage.getItem('blackshots_custom_wedstrijden')) || [];
+    let alleWedstrijden = [...versNBB, ...versCustom];
+    
     let nieuwGevonden = 0;
 
     alleWedstrijden.forEach(w => {
@@ -185,7 +191,7 @@ window.haalDagenUitNBB = function() {
         window.renderMatrix();
         alert(`✅ Succes! Er zijn ${nieuwGevonden} nieuwe thuis-speeldagen aan de matrix toegevoegd.`);
     } else {
-        alert("Geen nieuwe thuisdagen gevonden (of ze stonden al in de lijst. Uitwedstrijden worden veilig genegeerd!).");
+        alert("Er zijn geen nieuwe thuisdagen gevonden.\n\nTip: Zie je nog uit-wedstrijden staan? Die zijn door een eerdere fout opgeslagen. Verwijder deze handmatig met het rode prullenbakje! 🗑️");
     }
 };
 
@@ -206,8 +212,10 @@ window.toggleStatus = function(srId, datum) {
     if (btn) {
         btn.className = 'status-btn';
         let nwStatus = window.beschikbaarheidDB[key];
+        
+        // FIX: 'Beschikbaar' is gewijzigd naar 'Aanwezig' zodat de breedte gelijk blijft aan 'Afwezig'
         if (nwStatus === 'aan') {
-            btn.classList.add('status-aan'); btn.innerText = '✔️ Beschikbaar';
+            btn.classList.add('status-aan'); btn.innerText = '✔️ Aanwezig';
         } else if (nwStatus === 'af') {
             btn.classList.add('status-af'); btn.innerText = '❌ Afwezig';
         } else {
@@ -233,7 +241,7 @@ window.renderMatrix = function() {
     
     window.speeldagenDB.forEach(datum => {
         let delen = datum.split('-');
-        let weergaveDatum = delen.length === 3 ? `${delen[0]}-${delen[1]}` : datum; // Maak weergave compacter (DD-MM)
+        let weergaveDatum = delen.length === 3 ? `${delen[0]}-${delen[1]}` : datum; 
         html += `<th style="min-width:130px;">
                     ${weergaveDatum}
                     <button class="actie-btn" style="color:#e74c3c; margin-left:8px;" onclick="window.verwijderSpeeldag('${datum}')" title="Verwijder datum">🗑️</button>
@@ -245,7 +253,6 @@ window.renderMatrix = function() {
         let teamWeergave = sr.gekoppeldTeam ? `<span style="color:#e67e22; font-weight:bold;">${sr.gekoppeldTeam}</span>` : 'Geen';
         let koppelingWeergave = sr.gekoppeldLid ? `<span title="Gekoppeld aan Spelers-ID" style="color:#8e44ad; font-size:0.9rem; margin-left:5px;">🔗</span>` : '';
         
-        // Zachte border-left toegevoegd, inline achtergrond verwijderd voor naadloze Dark Mode
         html += `<tr>`;
         html += `<td style="border-left: 4px solid #8e44ad; background:transparent;">
                     <div style="display:flex; justify-content:space-between; align-items:flex-start;">
@@ -266,7 +273,7 @@ window.renderMatrix = function() {
             let status = window.beschikbaarheidDB[key] || 'nnb';
             
             let btnClass = 'status-nnb'; let btnText = '➖ N.N.B.';
-            if (status === 'aan') { btnClass = 'status-aan'; btnText = '✔️ Beschikbaar'; }
+            if (status === 'aan') { btnClass = 'status-aan'; btnText = '✔️ Aanwezig'; }
             if (status === 'af') { btnClass = 'status-af'; btnText = '❌ Afwezig'; }
 
             html += `<td>
