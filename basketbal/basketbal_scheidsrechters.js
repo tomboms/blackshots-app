@@ -227,6 +227,9 @@ window.toggleStatus = function(srId, datum) {
 // ============================================================================
 // 🎨 RENDER DE MATRIX TABEL
 // ============================================================================
+// ============================================================================
+// 🎨 RENDER DE MATRIX TABEL
+// ============================================================================
 window.renderMatrix = function() {
     let tabel = document.getElementById('beschikbaarheid-tabel');
     if (!tabel) return;
@@ -240,8 +243,10 @@ window.renderMatrix = function() {
     html += '<th>Scheidsrechter info</th>';
     
     window.speeldagenDB.forEach(datum => {
-        let delen = datum.split('-');
-        let weergaveDatum = delen.length === 3 ? `${delen[0]}-${delen[1]}` : datum; 
+        let delen = datum.split('-'); // Datum is opgeslagen als YYYY-MM-DD
+        // FIX: Draai het om naar DD-MM-YY (delen[2] is Dag, delen[1] is Maand, delen[0] is Jaar)
+        let weergaveDatum = delen.length === 3 ? `${delen[2]}-${delen[1]}-${delen[0].substring(2)}` : datum; 
+        
         html += `<th style="min-width:130px;">
                     ${weergaveDatum}
                     <button class="actie-btn" style="color:#e74c3c; margin-left:8px;" onclick="window.verwijderSpeeldag('${datum}')" title="Verwijder datum">🗑️</button>
