@@ -10,6 +10,7 @@ window.verborgenDB = window.veiligeArray('blackshots_verborgen_wedstrijden');
 window.takenDB = window.veiligObject('blackshots_wedstrijd_taken');
 window.planStatusDB = window.veiligObject('blackshots_plan_status');
 window.beschikbaarheidDB = window.veiligObject('blackshots_beschikbaarheid');
+window.zaalhuurDB = window.veiligeArray('blackshots_zaalhuur_data');
 
 const START_UUR = 9; 
 const EIND_UUR = 22; 
@@ -480,7 +481,38 @@ window.laadPlanbord = function() {
     if(toggleBtn) toggleBtn.innerHTML = window.huidigeWeergave === 'grid' ? '🗂️ Lijstweergave' : '📅 Blokkenschema';
 
     window.autoPlanBekendeTijden(speelDatum);
-
+    // --- NIEUW: ZAALHUUR BANNER INJECTEREN ---
+        let huurContainer = document.getElementById('zaalhuur-banner-container');
+        if(!huurContainer) {
+            huurContainer = document.createElement('div');
+            huurContainer.id = 'zaalhuur-banner-container';
+            huurContainer.style.width = '100%';
+            let wrapper = document.querySelector('.planner-wrapper');
+            if(wrapper) wrapper.parentNode.insertBefore(huurContainer, wrapper);
+        }
+        
+        let zaalhuurVandaag = (window.zaalhuurDB || []).filter(z => z.isoDatum === speelDatum && !z.geannuleerd);
+        let isDark = document.body.classList.contains('dark-mode');
+        
+        if(zaalhuurVandaag.length > 0) {
+            let huurStrings = zaalhuurVandaag.map(z => `<strong style="color:${isDark ? '#2ecc71' : '#27ae60'};">${z.zaal}</strong> ${z.zaaldeel} (<span style="color:#e67e22; font-weight:bold;">${z.startTijd} - ${z.eindTijd}</span>)`);
+            huurContainer.innerHTML = `<div style="background:${isDark ? '#1e3b2d' : '#f0fbf4'}; border:1px solid #27ae60; border-left:5px solid #27ae60; padding:12px 15px; border-radius:8px; margin-bottom:15px; color:${isDark ? '#ecf0f1' : '#2c3e50'}; font-size:0.95rem; display:flex; align-items:center; gap:10px; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+                <div style="font-size:1.5rem;">🏟️</div>
+                <div>
+                    <strong style="color:#27ae60; display:block; margin-bottom:2px;">Gehuurde Zalen Vandaag:</strong>
+                    ${huurStrings.join('<span style="color:#bdc3c7; margin:0 8px;">|</span>')}
+                </div>
+            </div>`;
+        } else {
+            huurContainer.innerHTML = `<div style="background:${isDark ? '#4a2311' : '#fdf2e9'}; border:1px solid #e67e22; border-left:5px solid #d35400; padding:12px 15px; border-radius:8px; margin-bottom:15px; color:${isDark ? '#ecf0f1' : '#2c3e50'}; font-size:0.95rem; display:flex; align-items:center; gap:10px; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+                <div style="font-size:1.5rem;">⚠️</div>
+                <div>
+                    <strong style="color:#d35400; display:block; margin-bottom:2px;">Geen Zaalhuur Gevonden!</strong>
+                    Er is in het systeem voor deze dag nog géén zaalhuur geregistreerd. Check de zaalhuur pagina!
+                </div>
+            </div>`;
+        }
+        // ----------------------------------------
     if (window.huidigeWeergave === 'lijst') {
         // LIJSTWEERGAVE LAYOUT
         bord.innerHTML = `
