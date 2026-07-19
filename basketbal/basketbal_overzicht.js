@@ -19,20 +19,15 @@ window.normaalDatum = function(d) {
     return str;
 };
 
-// 🛡️ DE KOGELVRIJE ID GENERATOR (Nu met NBB Tracking!)
 window.genereerUniekId = function(w) {
-    // 1. Heeft de bond een officieel ID meegegeven? Gebruik die!
     if (w.ID) return `nbb-${w.ID}`; 
-    
-    // 2. Is het een handmatige wedstrijd? Gebruik jouw eigen ID.
     if (w.id) return w.id; 
-
-    // 3. Nood-vangnet (Voor het geval een bestand corrupt is)
     let thuisteam = w.Thuisteam ? String(w.Thuisteam) : '';
     let uitteam = w.Uitteam ? String(w.Uitteam) : '';
     let clean = w.Wedstrijdnummer ? String(w.Wedstrijdnummer).replace(/[^a-zA-Z0-9]/g, '') : (thuisteam + uitteam).replace(/[^a-zA-Z0-9]/g, '');
     return `match-${window.normaalDatum(w.Datum)}-${clean}`;
 };
+
 window.schoonDatumsOp = function() {
     window.speeldagenDB = [...new Set((window.speeldagenDB || []).map(d => window.normaalDatum(d)))].filter(d => d !== "");
 };
@@ -60,7 +55,7 @@ window.slaOverzichtDataOp = function() {
 };
 
 // ============================================================================
-// 📥 JSON UPLOAD EN AUTOMATISCHE DATUM HERKENNING
+// 📥 JSON UPLOAD (Gefixed: Alleen thuiswedstrijden naar de matrix!)
 // ============================================================================
 window.triggerJsonUpload = function() {
     let input = document.createElement('input');
@@ -78,11 +73,13 @@ window.triggerJsonUpload = function() {
                     window.opslaanInFirebase('blackshots_wedstrijden_json', data);
                 }
 
-                // Automatisch alle datums uit de JSON toevoegen aan het rooster
+                // FIX: Alleen echte THUISDAGEN worden aan het centrale geheugen toegevoegd
                 let nieuwGevonden = 0;
                 data.forEach(w => {
-                    let isBlackShots = (w.Thuisteam || '').toLowerCase().includes('black shots') || (w.Uitteam || '').toLowerCase().includes('black shots');
-                    if (isBlackShots && w.Datum) {
+                    let isThuis = (w.Thuisteam || '').toLowerCase().includes('black shots');
+                    let isGeannuleerd = (w.Status || '').toLowerCase().includes('teruggetrokken');
+                    
+                    if (isThuis && w.Datum && !isGeannuleerd) {
                         let isoDatum = window.normaalDatum(w.Datum); 
                         if(isoDatum && !window.speeldagenDB.includes(isoDatum)) {
                             window.speeldagenDB.push(isoDatum);
@@ -95,7 +92,7 @@ window.triggerJsonUpload = function() {
                 
                 window.slaOverzichtDataOp();
                 window.berekenEnRenderOverzicht();
-                alert(`✅ Succes! Schema ingeladen en ${nieuwGevonden} nieuwe speeldagen (Uit & Thuis) toegevoegd aan het overzicht.`);
+                alert(`✅ Succes! Schema ingeladen en ${nieuwGevonden} THUIS speeldagen toegevoegd aan de planner.`);
             } catch(err) {
                 alert("🚨 Fout bij inladen JSON. Zorg dat het een geldig NBB export bestand is.");
             }
@@ -197,7 +194,7 @@ window.slaCompleteWedstrijddagOp = function() {
 };
 
 // ============================================================================
-// 🎨 RENDERING EN SEIZOENSBEREKENINGEN (NU OOK UITWEDSTRIJDEN & AUTO'S)
+// 🎨 RENDERING (DYNAMISCH OPHALEN VAN ALLE DAGEN)
 // ============================================================================
 window.berekenEnRenderOverzicht = function() {
     let actueleTakenDB = JSON.parse(localStorage.getItem('blackshots_wedstrijd_taken')) || {};
@@ -206,6 +203,18 @@ window.berekenEnRenderOverzicht = function() {
     
     let alleWedstrijden = [...actueleWedstrijden, ...actueleCustom];
     
+    // FIX: Bouw dynamisch een lijst van ALLE datums (Thuis + Uit) speciaal voor dit Dashboard
+    let alleDagenSet = new Set(window.speeldagenDB || []);
+    alleWedstrijden.forEach(w => {
+        let isThuis = (w.Thuisteam || '').toLowerCase().includes('black shots');
+        let isUit = (w.Uitteam || '').toLowerCase().includes('black shots');
+        if (isThuis || isUit) {
+            let d = window.normaalDatum(w.Datum);
+            if (d) alleDagenSet.add(d);
+        }
+    });
+    let dashboardDagenGesorteerd = Array.from(alleDagenSet).sort();
+
     let teamModel = {};
     (window.teamsDB || []).forEach(t => {
         if (t && !t.isVrijwilliger && !t.isRecreant && t.naam) teamModel[t.naam] = 0;
@@ -220,7 +229,7 @@ window.berekenEnRenderOverzicht = function() {
     let openTakenTeller = 0;
     let dagStatusMap = {};
 
-    (window.speeldagenDB || []).forEach(datum => {
+    dashboardDagenGesorteerd.forEach(datum => {
         let schoneDatum = window.normaalDatum(datum);
         dagStatusMap[schoneDatum] = { totaal: 0, vrij: 0, wedstrijdenThuis: 0, wedstrijdenUit: 0 };
         
@@ -242,7 +251,6 @@ window.berekenEnRenderOverzicht = function() {
             let uniekId = window.genereerUniekId(w);
             let taken = actueleTakenDB[uniekId] || {};
             
-            // Als het Thuis is: 4 taken. Als het Uit is: 3 autotaken.
             let slots = isThuis ? [taken.sA, taken.sB, taken.tab, taken.sco] : [taken.auto1, taken.auto2, taken.auto3];
 
             slots.forEach(vakje => {
@@ -277,7 +285,7 @@ window.berekenEnRenderOverzicht = function() {
     });
 
     let elTotDag = document.getElementById('stat-totaal-dagen');
-    if (elTotDag) elTotDag.innerText = window.speeldagenDB.length;
+    if (elTotDag) elTotDag.innerText = dashboardDagenGesorteerd.length;
     
     let elTotTaak = document.getElementById('stat-totaal-taken');
     if (elTotTaak) elTotTaak.innerText = totaalTakenTeller;
@@ -339,18 +347,20 @@ window.berekenEnRenderOverzicht = function() {
 
     let kalenderContainer = document.getElementById('kalender-lijst-container');
     if (kalenderContainer) {
-        if (!window.speeldagenDB || window.speeldagenDB.length === 0) {
+        if (dashboardDagenGesorteerd.length === 0) {
             kalenderContainer.innerHTML = '<p style="color:#7f8c8d; font-style:italic;">Geen speeldagen gevonden. Maak er één aan met de knop rechtsboven.</p>';
             return;
         }
         
         let htmlKalender = '';
-        window.speeldagenDB.forEach(datum => {
+        dashboardDagenGesorteerd.forEach(datum => {
             let schoneDatum = window.normaalDatum(datum);
             let statusObj = dagStatusMap[schoneDatum] || { totaal: 0, vrij: 0, wedstrijdenThuis: 0, wedstrijdenUit: 0 };
             
             let d = new Date(schoneDatum);
-            let netteDatum = isNaN(d) ? schoneDatum : d.toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit' }) + ' - ' + d.toLocaleDateString('nl-NL', { weekday: 'short' });
+            // Fallback als de datum niet goed parsed: 
+            let netteDatum = isNaN(d.getTime()) ? schoneDatum : d.toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit' }) + ' - ' + d.toLocaleDateString('nl-NL', { weekday: 'short' });
+            
             let badgeKleurClass = statusObj.vrij === 0 ? 'status-compleet' : 'status-open';
             let badgeTekst = statusObj.vrij === 0 ? '✅ Rond' : `⏳ ${statusObj.vrij} open taken`;
 
@@ -375,5 +385,3 @@ window.stuurDoorNaarPlanner = function(datum) {
     localStorage.setItem('blackshots_actieve_datum', datum);
     window.location.href = 'planner.html';
 };
-
-
