@@ -183,10 +183,20 @@ window.checkAlleTeamsStatus = function() {
 // ============================================================================
 window.initNamenPlanner = function() {
     let datumInput = document.getElementById('plan-datum');
-    let vandaag = new Date();
-    let verschilZaterdag = (vandaag.getDay() <= 6) ? (6 - vandaag.getDay()) : 6;
-    vandaag.setDate(vandaag.getDate() + verschilZaterdag);
-    datumInput.value = vandaag.toISOString().split('T')[0];
+    
+    // --- NIEUW: Check of we via de Jaarplanning of Wedstrijd Planner binnenkomen! ---
+    let opgeslagenDatum = localStorage.getItem('blackshots_actieve_datum');
+    
+    if (opgeslagenDatum) {
+        datumInput.value = window.normaalDatum(opgeslagenDatum);
+        localStorage.removeItem('blackshots_actieve_datum'); // Wis het, zodat hij een volgende keer gewoon opent
+    } else {
+        // Fallback: Als er geen datum is opgeslagen, zoek de eerstvolgende zaterdag
+        let vandaag = new Date();
+        let verschilZaterdag = (vandaag.getDay() <= 6) ? (6 - vandaag.getDay()) : 6;
+        vandaag.setDate(vandaag.getDate() + verschilZaterdag);
+        datumInput.value = vandaag.toISOString().split('T')[0];
+    }
     
     window.schoonPersoonsTakenOp();
     window.berekenGlobaleScores();
