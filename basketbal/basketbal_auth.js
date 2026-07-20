@@ -129,7 +129,7 @@ window.checkBeveiligingEnBouwMenu = function() {
                     { id: 'overzicht', url: 'thuisdagen_overzicht.html', icon: '📊', tekst: 'Seizoens-Overzicht' },
                     { id: 'planner', url: 'planner.html', icon: '📆', tekst: 'Wedstrijd Planner' },
                     { id: 'nameninvullen', url: 'namen_invullen.html', icon: '⛹️', tekst: 'Taken Planner' },
-                    { id: 'rapporten', url: 'rapporten.html', icon: '📁', tekst: 'rapporten' }
+                    { id: 'rapporten', url: 'rapporten.html', icon: '📁', tekst: 'rapporten' },
                     { id: 'scheidsrechters', url: 'scheidsrechters.html', icon: '👨‍⚖️', tekst: 'Scheidsrechters' }
                 ]
             },
