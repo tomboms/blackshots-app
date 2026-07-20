@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Black Shots - Rapportages & Print</title>
+    <link rel="stylesheet" href="basketbal.css">
+    <!-- De PDF Generator Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        .report-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 25px; }
+        
+        .report-card { 
+            background: white; padding: 20px; border-radius: 12px; border: none; 
+            border-left: 5px solid var(--primary-color); box-shadow: 0 4px 12px rgba(0,0,0,0.05); 
+            transition: transform 0.2s, box-shadow 0.2s; display: flex; flex-direction: column;
+        }
+        .report-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.1); }
+        .report-card h3 { margin: 0 0 10px 0; color: var(--secondary-color); font-size: 1.2rem; }
+        .report-card p { font-size: 0.85rem; color: #7f8c8d; margin: 0 0 15px 0; flex: 1; }
+        
+        .report-select { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #cbd5e1; margin-bottom: 15px; font-weight: bold; color: #2c3e50; }
+        .report-btn { width: 100%; padding: 10px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; color: white; display: flex; justify-content: center; align-items: center; gap: 8px; transition: 0.2s; }
+        
+        /* Specifieke kleuren per kaart */
+        #card-week { border-left-color: #3498db; }
+        #card-week .report-btn { background: #3498db; }
+        #card-week .report-btn:hover { background: #2980b9; }
+
+        #card-team { border-left-color: #e67e22; }
+        #card-team .report-btn { background: #e67e22; }
+        #card-team .report-btn:hover { background: #d35400; }
+
+        #card-persoon { border-left-color: #9b59b6; }
+        #card-persoon .report-btn { background: #9b59b6; }
+        #card-persoon .report-btn:hover { background: #8e44ad; }
+
+        #card-registratie { border-left-color: #27ae60; }
+        #card-registratie .report-btn { background: #27ae60; }
+        #card-registratie .report-btn:hover { background: #219653; }
+
+        /* Print weergave container (onzichtbaar op het scherm) */
+        #print-container { display: none; }
+        
+        @media print {
+            body * { visibility: hidden; }
+            #print-container, #print-container * { visibility: visible; }
+            #print-container { position: absolute; left: 0; top: 0; width: 100%; display: block; }
+            /* Zorgt dat de opmaak behouden blijft bij het printen */
+            * { -webkit-print-color-adjust: exact !important; color-adjust: exact !important; }
+        }
+
+        /* Dark Mode fixes */
+        .dark-mode body { background-color: #121a21 !important; color: #ecf0f1 !important; }
+        .dark-mode .report-card { background: #1e293b !important; box-shadow: 0 8px 24px rgba(0,0,0,0.2) !important; }
+        .dark-mode .report-card h3 { color: #ecf0f1 !important; }
+        .dark-mode .report-card p { color: #bdc3c7 !important; }
+        .dark-mode select { background: #121a21 !important; color: #ecf0f1 !important; border-color: #34495e !important; }
+    </style>
+</head>
+<body style="overflow-y: auto;">
+
+    <nav class="top-nav">
+        <h1>🏀 Black Shots Clubbeheer</h1>
+        <div style="display:flex; align-items:center; gap:15px;">
+            <a href="dashboard.html" class="terug-knop">🏠 Dashboard</a>
+        </div>
+    </nav>
+
+    <main class="content-sectie active" style="max-width: 1200px; margin: 20px auto; padding: 0 20px;">
+        
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:25px; border-bottom: 2px solid var(--border-color); padding-bottom: 15px;">
+            <div>
+                <h2 style="margin:0; color:var(--secondary-color); font-size:1.6rem;">🖨️ PDF Rapportages & Print</h2>
+                <p style="color: #7f8c8d; margin-top:3px; font-size:0.85rem;">Genereer de officiële Black Shots wedstrijdoverzichten, tafelschema's en persoonlijke brieven.</p>
+            </div>
+        </div>
+
+        <div class="report-grid">
+            
+            <!-- 1. Algemeen Weekoverzicht -->
+            <div class="report-card" id="card-week">
+                <h3>🗓️ Week- en Takenoverzicht</h3>
+                <p>Het complete clubschema inclusief uitwedstrijden, chauffeurs en zaalwachten. Optimaal voor het publicatiebord of de nieuwsbrief.</p>
+                <select id="select-week" class="report-select">
+                    <option value="">-- Kies een Speelweek --</option>
+                </select>
+                <button onclick="window.genereerWeekOverzicht()" class="report-btn">📄 Maak PDF</button>
+            </div>
+
+            <!-- 2. Teamoverzicht & Roster -->
+            <div class="report-card" id="card-team">
+                <h3>👥 Team Roster & Programma</h3>
+                <p>Officiële teambrief met de complete spelerslijst, NBB-nummers en uitsluitend het programma en de taken voor dit specifieke team.</p>
+                <select id="select-team" class="report-select">
+                    <option value="">-- Kies een Team --</option>
+                </select>
+                <button onclick="window.genereerTeamOverzicht()" class="report-btn">📄 Maak PDF</button>
+            </div>
+
+            <!-- 3. Persoonlijke Takenbrief -->
+            <div class="report-card" id="card-persoon">
+                <h3>👤 Persoonlijke Takenbrief</h3>
+                <p>Gepersonaliseerde wedstrijd- en takenlijst per lid (inclusief bondsnummer en aantal taken). Ideaal om aan het begin van het seizoen uit te delen.</p>
+                <select id="select-persoon" class="report-select">
+                    <option value="">-- Kies Lid / Vrijwilliger --</option>
+                </select>
+                <button onclick="window.genereerPersoonlijkeBrief()" class="report-btn">📄 Maak PDF</button>
+            </div>
+
+            <!-- 4. Zaalwacht / Registratieformulieren -->
+            <div class="report-card" id="card-registratie">
+                <h3>📋 Registratie Wedstrijden</h3>
+                <p>De invulformulieren (handmatige controle) voor de zaalwacht en consumptiebonnen. Groepeert alle thuiswedstrijden van een specifieke dag netjes onder elkaar.</p>
+                <select id="select-dag-registratie" class="report-select">
+                    <option value="">-- Kies een Thuis-speeldag --</option>
+                </select>
+                <button onclick="window.genereerRegistratieFormulier()" class="report-btn">📄 Maak PDF</button>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- HIER WORDT DE PDF ACHTER DE SCHERMEN OPGEBOUWD -->
+    <div id="print-container"></div>
+
+    <script src="basketbal_auth.js"></script>
+    <!-- We maken straks een nieuw JS bestand aan voor de opmaaklogica -->
+    <script src="basketbal_rapporten.js"></script>
+    <script type="module" src="firebase_motor.js"></script>
+</body>
+</html>
