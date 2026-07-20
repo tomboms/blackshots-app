@@ -231,14 +231,19 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
 
         let itemsHtml = '';
         alleItems.forEach(item => {
-            let typeId = (item.type || 'memo').toLowerCase(); let badgeClass = `k-${typeId}`; let eind = item.eindDatum || item.isoDatum || isoDatum; let extraClass = '';
+            let typeId = (item.type || 'memo').toLowerCase(); 
+            let badgeClass = `k-${typeId}`; 
+            let eind = item.eindDatum || item.isoDatum || isoDatum; 
+            let extraClass = '';
+            
             if (item.isoDatum !== eind && !item.isDynamisch) { extraClass += ' k-multiday'; if (isoDatum === item.isoDatum) extraClass += ' k-start'; if (isoDatum === eind) extraClass += ' k-end'; }
             let isStartOfSpan = (isoDatum === item.isoDatum || new Date(isoDatum).getDay() === 1 || item.isDynamisch);
             
             let metaHtml = (isStartOfSpan && (item.tijd || item.locatie)) ? `<span class="k-meta" style="opacity: 0.85; margin-right: 6px; padding-right: 6px; border-right: 1px solid rgba(255,255,255,0.4); font-weight: normal; font-size: 0.7rem; white-space: nowrap;">${[item.tijd, item.locatie].filter(Boolean).join(', ')}</span>` : '';
-            // --- NIEUW: Meteen door naar de Taken Planner voor Wedstrijden ---
+            
+            // 1. Actie & Hover bepalen
             let clickAction = "";
-            let hoverTitel = item.titel;
+            let hoverTitel = item.titel || "Naamloos";
             
             if (item.type === 'thuis' || item.type === 'uit') {
                 clickAction = `onclick="event.stopPropagation(); localStorage.setItem('blackshots_actieve_datum', '${isoDatum}'); window.location.href='namen_invullen.html';"`;
@@ -247,16 +252,10 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
                 clickAction = item.isDynamisch ? `onclick="event.stopPropagation(); openDagModal('${isoDatum}', ${echteDatum.getDate()}, ${echteDatum.getMonth()}, ${echteDatum.getFullYear()}, null)"` : `onclick="event.stopPropagation(); openDagModal('${isoDatum}', ${echteDatum.getDate()}, ${echteDatum.getMonth()}, ${echteDatum.getFullYear()}, '${item.id}')"`;
             }
             
+            // 2. Knoppen
             let deleteKnop = (!item.isDynamisch && isStartOfSpan) ? `<span onclick="event.stopPropagation(); verwijderItem('${item.id}')" style="cursor:pointer; opacity:0.7; margin-left:5px; flex-shrink:0;">✖</span>` : (item.isDynamisch && isStartOfSpan ? `<span style="opacity:0.5; margin-left:5px; font-size:0.6rem; flex-shrink:0;">🔗</span>` : '');
 
-            let extraHoogte = "padding-top: 8px; padding-bottom: 8px; min-height: 56px;";
-
-            // Let op: title="${hoverTitel}" toegevoegd!
-            itemsHtml += `<div class="k-item ${badgeClass} ${extraClass}" title="${hoverTitel}" ${clickAction} style="cursor:pointer; display:flex; justify-content:space-between; align-items:center; ${borderOpmaak} ${extraHoogte}"><div style="display:flex; align-items:center; overflow:hidden; white-space:nowrap; flex:1; min-width:0;">${metaHtml}<span style="overflow:hidden; text-overflow:ellipsis;">${isStartOfSpan ? (item.titel || "Naamloos") : '&nbsp;'}</span>${isStartOfSpan ? extraIcon : ''}</div>${deleteKnop}</div>`;
-
-            // --- NIEUW: De Magische Team Kleur Rand ---
-            // --- GEREPAREERD: Multi-team Kleurenrand zonder tekst-badges ---
-            // --- GEREPAREERD: Multi-team Kleurenrand met extra hoogte ---
+            // 3. Rand opmaak bepalen
             let borderOpmaak = '';
             let extraIcon = ''; 
             
@@ -264,18 +263,14 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
                 let lokaleTeams = JSON.parse(localStorage.getItem('blackshots_teams')) || [];
                 let kleurStukken = [];
                 
-                // Haal kleuren op (en geef een standaardkleur als je het team nog geen kleur hebt gegeven!)
                 item.teams.forEach(tId => {
                     let t = lokaleTeams.find(team => team.id === tId);
-                    let tKleur = (t && t.kleur) ? t.kleur : '#3498db'; // Fallback naar Black Shots blauw
+                    let tKleur = (t && t.kleur) ? t.kleur : '#3498db'; 
                     kleurStukken.push(tKleur);
                 });
                 
-                // We maken de rand lekker dik (6px)
                 let randDikte = '6px';
-                
                 if (kleurStukken.length === 1) {
-                    // !important zorgt ervoor dat je oude CSS hem niet meer mag onzichtbaar maken
                     borderOpmaak = `border-left: ${randDikte} solid ${kleurStukken[0]} !important; padding-left: 8px;`;
                 } else {
                     let gradientSteps = [];
@@ -284,21 +279,14 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
                     kleurStukken.forEach((kleur, idx) => {
                         gradientSteps.push(`${kleur} ${idx * part}% ${(idx + 1) * part}%`);
                     });
-                    
-                    // Bij meerdere kleuren gebruiken we de dikke 6px gradient
                     borderOpmaak = `background-image: linear-gradient(to bottom, ${gradientSteps.join(', ')}); background-size: ${randDikte} 100%; background-repeat: no-repeat; background-position: left; padding-left: 10px; border-left: none !important;`;
                 }
             }
 
-            // --- NIEUW: Maak het blokje iets hoger met extra padding ---
-            
-
-            // Teken het kaartje met de border, extra padding en hoogte!
-            // --- NIEUW: Maak het blokje iets hoger met extra padding ---
             let extraHoogte = "padding-top: 8px; padding-bottom: 8px; min-height: 56px;";
 
-            // Teken het kaartje met de border, extra padding en hoogte! (Nu nog maar 1 keer)
-            itemsHtml += `<div class="k-item ${badgeClass} ${extraClass}" title="Klik om te bewerken" ${clickAction} style="cursor:pointer; display:flex; justify-content:space-between; align-items:center; ${borderOpmaak} ${extraHoogte}"><div style="display:flex; align-items:center; overflow:hidden; white-space:nowrap; flex:1; min-width:0;">${metaHtml}<span style="overflow:hidden; text-overflow:ellipsis;">${isStartOfSpan ? (item.titel || "Naamloos") : '&nbsp;'}</span>${isStartOfSpan ? extraIcon : ''}</div>${deleteKnop}</div>`;
+            // 4. Eén keer HTML toevoegen
+            itemsHtml += `<div class="k-item ${badgeClass} ${extraClass}" title="${hoverTitel}" ${clickAction} style="cursor:pointer; display:flex; justify-content:space-between; align-items:center; ${borderOpmaak} ${extraHoogte}"><div style="display:flex; align-items:center; overflow:hidden; white-space:nowrap; flex:1; min-width:0;">${metaHtml}<span style="overflow:hidden; text-overflow:ellipsis;">${isStartOfSpan ? (item.titel || "Naamloos") : '&nbsp;'}</span>${isStartOfSpan ? extraIcon : ''}</div>${deleteKnop}</div>`;
         });
 
         let zalenOpDag = window.zaalhuurData.filter(z => z.isoDatum === isoDatum && !z.geannuleerd);
@@ -308,7 +296,6 @@ function genereerMaandHTML(jaar, maand, toonNavigatie = false) {
     }
     html += `</div></div>`; return html;
 }
-
 // ============================================================================
 // MODAL BEHEER
 // ============================================================================
