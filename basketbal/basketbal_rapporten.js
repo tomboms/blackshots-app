@@ -291,7 +291,7 @@ window.genereerWeekOverzicht = function() {
     window.startPrintJob(html);
 };
 // ============================================================================
-// RAPPORT 3: PERSOONLIJKE TAKENBRIEF (Zonder kleuren/icoontjes)
+// RAPPORT 3: PERSOONLIJKE TAKENBRIEF
 // ============================================================================
 window.genereerPersoonlijkeBrief = function() {
     let enkelePersoonId = document.getElementById('select-persoon').value;
@@ -329,12 +329,12 @@ window.genereerPersoonlijkeBrief = function() {
         let mijnTaken = [];
         let takenTeller = 0;
 
-        let mijnStafTeams = [];
+        // We kijken nu ALLEEN of je Coach bent voor de taak-koppeling bij wedstrijden
+        let mijnCoachTeams = [];
         window.teamsDB.forEach(t => {
             let coachStr = (t.coach || '').toLowerCase();
-            let trainerStr = (t.trainer || '').toLowerCase();
             let pNaam = persoon.naam.toLowerCase();
-            if (coachStr.includes(pNaam) || trainerStr.includes(pNaam)) mijnStafTeams.push(t.id);
+            if (coachStr.includes(pNaam)) mijnCoachTeams.push(t.id);
         });
 
         alleWedstrijden.forEach(match => {
@@ -353,9 +353,10 @@ window.genereerPersoonlijkeBrief = function() {
                     (!isThuiswedstrijd && mCanonUit && mCanonUit.id === mijnCanonTeam.id)) ikSpeelZelf = true;
             }
 
+            // Controleert of je specifiek de COACH bent van het team (en dus niet alleen trainer)
             let ikBenCoach = false;
-            if ((mCanonThuis && mijnStafTeams.includes(mCanonThuis.id)) || 
-                (mCanonUit && mijnStafTeams.includes(mCanonUit.id))) ikBenCoach = true;
+            if ((mCanonThuis && mijnCoachTeams.includes(mCanonThuis.id)) || 
+                (mCanonUit && mijnCoachTeams.includes(mCanonUit.id))) ikBenCoach = true;
 
             let pTaken = window.persoonsTakenDB[matchId] || {};
             let taakLabels = [];
@@ -400,7 +401,6 @@ window.genereerPersoonlijkeBrief = function() {
                     let dagNaam = dagenMap[parseInt(tr.dag)] || "Onbekend";
                     let loc = tr.zaal || 'Onbekend';
                     if (tr.veld) loc += ` (Veld ${tr.veld})`;
-                    // Geen locatie icoon meer
                     trainingenHtml += `<div style="font-size:0.95rem; color:#2c3e50; margin-bottom:2px;"><strong>Training:</strong> ${dagNaam} ${tr.start || '?'} - ${tr.eind || '?'} | ${loc}</div>`;
                 });
             }
@@ -437,7 +437,6 @@ window.genereerPersoonlijkeBrief = function() {
         if (mijnTaken.length === 0) {
             totaleHtml += `<p style="font-style:italic; color:#7f8c8d;">Er zijn in het systeem nog geen wedstrijden of taken aan jou gekoppeld voor de ingevoerde planning.</p>`;
         } else {
-            // Geen felle kleuren meer in de table header
             totaleHtml += `<table class="print-table">
                 <thead>
                     <tr>
@@ -454,9 +453,8 @@ window.genereerPersoonlijkeBrief = function() {
                 let d = new Date(taak.isoDatum);
                 let mooieDatum = isNaN(d) ? taak.isoDatum : d.toLocaleDateString('nl-NL', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' });
                 
-                // Geen oranje kleur meer bij 'Jouw Taak'
                 totaleHtml += `
-                    <tr>
+                    <tr class="avoid-break">
                         <td style="white-space:nowrap;">${mooieDatum}</td>
                         <td style="font-weight:bold; font-size:1.05rem;">${taak.tijd}</td>
                         <td>${taak.isThuiswedstrijd ? 'Thuis' : 'Uit'}</td>
