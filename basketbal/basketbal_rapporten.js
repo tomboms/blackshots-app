@@ -183,13 +183,13 @@ window.genereerWeekOverzicht = function() {
         let d = new Date(dag);
         let mooieDatum = isNaN(d) ? dag : d.toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
 
-        html += `<h2 style="border-bottom:2px solid #e2e8f0; color:#2c3e50; margin-top:25px; padding-bottom:5px; font-size:1.3rem;">📅 ${mooieDatum}</h2>`;
+        html += `<h2 style="border-bottom:2px solid #e2e8f0; color:#2c3e50; margin-top:25px; padding-bottom:5px; font-size:1.3rem;">${mooieDatum}</h2>`;
 
         // ================== THUIS WEDSTRIJDEN ==================
         if(obj.thuis.length > 0) {
             obj.thuis.sort((a,b) => window.planStatusDB[window.genereerUniekId(a)].tijd.localeCompare(window.planStatusDB[window.genereerUniekId(b)].tijd));
             
-            html += `<h3 style="color:#e67e22; margin-bottom:10px; font-size:1.1rem;">🏠 Thuis</h3>`;
+            html += `<h3 style="color:#e67e22; margin-bottom:10px; font-size:1.1rem;">Thuis</h3>`;
             html += `<table class="print-table">
                 <thead>
                     <tr>
@@ -236,7 +236,7 @@ window.genereerWeekOverzicht = function() {
         if(obj.uit.length > 0) {
             obj.uit.sort((a,b) => window.planStatusDB[window.genereerUniekId(a)].tijd.localeCompare(window.planStatusDB[window.genereerUniekId(b)].tijd));
             
-            html += `<h3 style="color:#3498db; margin-bottom:10px; font-size:1.1rem; margin-top:20px;">🚌 Uit</h3>`;
+            html += `<h3 style="color:#3498db; margin-bottom:10px; font-size:1.1rem; margin-top:20px;">Uit</h3>`;
             html += `<table class="print-table">
                 <thead>
                     <tr>
