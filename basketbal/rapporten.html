@@ -137,6 +137,16 @@ Kan je niet aanwezig zijn bij een wedstrijd, geef dit TIJDIG door bij je Coach.<
                 </select>
                 <button onclick="window.genereerRegistratieFormulier()" class="report-btn">📄 Maak PDF</button>
             </div>
+            <!-- 5. Takenoverzicht per Teamlid -->
+            <div class="report-card" id="card-registratie">
+                <h3>📋 Takenoverzicht per Teamlid</h3>
+                <p>Een overzichtelijke lijst voor de coach/manager: toont per speler van het geselecteerde team exact wie welke taak op welke datum heeft.</p>
+                <select id="select-team-taken" class="report-select">
+                    <option value="">-- Kies een Team --</option>
+                    <option value="ALL">🌟 Alle Teams (Cluboverzicht)</option>
+                </select>
+                <button onclick="window.genereerTakenPerTeam()" class="report-btn">📄 Maak PDF</button>
+            </div>
 
         </div>
     </main>

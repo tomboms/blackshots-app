@@ -52,15 +52,22 @@ document.addEventListener('DOMContentLoaded', () => { vulDropdowns(); });
 function vulDropdowns() {
     let selTeam = document.getElementById('select-team');
     let selTeamBrief = document.getElementById('select-team-brief');
-    if (selTeam || selTeamBrief) {
+    // --- NIEUW: De dropdown voor het 4e rapport ophalen ---
+    let selTeamTaken = document.getElementById('select-team-taken'); 
+
+    // Teams vullen in alle drie de dropdowns
+    if (selTeam || selTeamBrief || selTeamTaken) {
         window.teamsDB.forEach(t => {
             if (!t.isVrijwilliger && !t.isRecreant) {
                 if(selTeam) selTeam.innerHTML += `<option value="${t.id}">${t.naam}</option>`;
                 if(selTeamBrief) selTeamBrief.innerHTML += `<option value="${t.id}">${t.naam}</option>`;
+                // --- NIEUW: Voeg het team ook toe aan de nieuwe dropdown ---
+                if(selTeamTaken) selTeamTaken.innerHTML += `<option value="${t.id}">${t.naam}</option>`; 
             }
         });
     }
 
+    // Personen vullen
     let selPersoon = document.getElementById('select-persoon');
     if (selPersoon) {
         let allePersonen = [];
@@ -70,6 +77,7 @@ function vulDropdowns() {
         allePersonen.forEach(p => { selPersoon.innerHTML += `<option value="${p.id}">${p.naam} (${p.type})</option>`; });
     }
 
+    // Dagen en Weken vullen
     let selDag = document.getElementById('select-dag-registratie');
     let gesorteerdeDagen = [...window.speeldagenDB].sort();
     
@@ -130,9 +138,8 @@ window.naamWeergave = function(pId, defTeam) {
     }
     return (!defTeam || defTeam === "Vrij" || defTeam === "") ? "-" : `<span style="color:#7f8c8d; font-style:italic;">[${defTeam}]</span>`;
 };
-
-/// ============================================================================
-// RAPPORT 1: WEEK- EN TAKENOVERZICHT (Schoon, zonder icoontjes, met Accommodatie)
+// ============================================================================
+// RAPPORT 1: WEEK- EN TAKENOVERZICHT (Zonder wedstrijdnummer)
 // ============================================================================
 window.genereerWeekOverzicht = function() {
     let van = document.getElementById('week-van').value;
@@ -181,19 +188,16 @@ window.genereerWeekOverzicht = function() {
         let d = new Date(dag);
         let mooieDatum = isNaN(d) ? dag : d.toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
 
-        // Geen icoontje meer
         html += `<h2 style="border-bottom:2px solid #e2e8f0; color:#2c3e50; margin-top:25px; padding-bottom:5px; font-size:1.3rem;">${mooieDatum}</h2>`;
 
         // ================== THUIS WEDSTRIJDEN ==================
         if(obj.thuis.length > 0) {
             obj.thuis.sort((a,b) => window.planStatusDB[window.genereerUniekId(a)].tijd.localeCompare(window.planStatusDB[window.genereerUniekId(b)].tijd));
             
-            // Neutrale kleur en geen icoontje
             html += `<h3 style="color:#2c3e50; margin-bottom:10px; font-size:1.1rem;">Thuis</h3>`;
             html += `<table class="print-table">
                 <thead>
                     <tr>
-                        <th style="width:70px;">Wedst.nr</th>
                         <th style="width:50px;">Tijd</th>
                         <th>Wedstrijd</th>
                         <th style="width:140px;">Hal / Veld</th>
@@ -209,7 +213,6 @@ window.genereerWeekOverzicht = function() {
                 let pt = window.persoonsTakenDB[id] || {};
                 let tt = window.teamTakenDB[id] || {};
 
-                let wedstNr = w.Wedstrijdnummer || w.wedstrijdnummer || w.WedstrijdNummer || '-';
                 let thuisNaam = w.Thuisteam.replace(/Black Shots\s*-?\s*/i, 'BS ').trim();
                 let uitNaam = w.Uitteam.replace(/Black Shots\s*-?\s*/i, 'BS ').trim();
 
@@ -221,12 +224,10 @@ window.genereerWeekOverzicht = function() {
                 let sco = window.naamWeergave(pt.sco, tt.sco);
                 let tafelStr = [tab, sco].filter(x => x !== '-').join('<br>');
 
-                // Lees accommodatie uit, fallback naar De Veste
                 let accommodatie = w.Accommodatie || w.Locatie || w.Plaats || 'De Veste';
                 let veldWeergave = (st.veld && st.veld !== 'uit') ? `<br><small style="color:#7f8c8d; font-weight:bold;">Veld ${st.veld}</small>` : '';
 
                 html += `<tr>
-                    <td style="font-size:0.8rem; color:#7f8c8d;">${wedstNr}</td>
                     <td style="font-weight:bold; font-size:1.05rem;">${st.tijd}</td>
                     <td><strong>${thuisNaam}</strong> - ${uitNaam}</td>
                     <td>${accommodatie}${veldWeergave}</td>
@@ -241,12 +242,10 @@ window.genereerWeekOverzicht = function() {
         if(obj.uit.length > 0) {
             obj.uit.sort((a,b) => window.planStatusDB[window.genereerUniekId(a)].tijd.localeCompare(window.planStatusDB[window.genereerUniekId(b)].tijd));
             
-            // Neutrale kleur en geen icoontje
             html += `<h3 style="color:#2c3e50; margin-bottom:10px; font-size:1.1rem; margin-top:20px;">Uit</h3>`;
             html += `<table class="print-table">
                 <thead>
                     <tr>
-                        <th style="width:70px;">Wedst.nr</th>
                         <th style="width:50px;">Tijd</th>
                         <th>Wedstrijd</th>
                         <th style="width:140px;">Plaats / Hal</th>
@@ -260,7 +259,6 @@ window.genereerWeekOverzicht = function() {
                 let st = window.planStatusDB[id];
                 let pt = window.persoonsTakenDB[id] || {};
 
-                let wedstNr = w.Wedstrijdnummer || w.wedstrijdnummer || w.WedstrijdNummer || '-';
                 let thuisNaam = w.Thuisteam.replace(/Black Shots\s*-?\s*/i, 'BS ').trim();
                 let uitNaam = w.Uitteam.replace(/Black Shots\s*-?\s*/i, 'BS ').trim();
 
@@ -273,7 +271,6 @@ window.genereerWeekOverzicht = function() {
                 let plaats = w.Accommodatie || w.Locatie || w.Plaats || 'Onbekend';
 
                 html += `<tr>
-                    <td style="font-size:0.8rem; color:#7f8c8d;">${wedstNr}</td>
                     <td style="font-weight:bold; font-size:1.05rem;">${st.tijd}</td>
                     <td>${thuisNaam} - <strong>${uitNaam}</strong></td>
                     <td style="font-size:0.85rem;">${plaats}</td>
@@ -468,13 +465,224 @@ window.genereerPersoonlijkeBrief = function() {
 
     window.startPrintJob(totaleHtml);
 };
+// ============================================================================
+// RAPPORT 2: TEAM ROSTER & PROGRAMMA (Voor de Coach)
+// ============================================================================
+window.genereerTeamOverzicht = function() {
+    let teamId = document.getElementById('select-team').value;
+    if (!teamId) return alert("Kies eerst een team voor dit rapport.");
+
+    let tCanon = window.getCanonicalTeam(teamId);
+    if (!tCanon) return alert("Team niet gevonden in de database.");
+
+    // Verzamel spelers van dit team
+    let teamSpelers = window.spelersDB.filter(s => s.teamId === tCanon.id);
+    teamSpelers.sort((a, b) => a.naam.localeCompare(b.naam));
+
+    let seizoenNaam = window.appInstellingen.seizoen || "2025-2026";
+    let nuMooi = new Date().toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+    let html = `
+        <div class="print-header" style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <div>
+                <h1 style="margin:0 0 5px 0; font-size:1.6rem; color:#2c3e50;">Teamindeling: ${tCanon.naam}</h1>
+                <div style="font-size:1.1rem; color:#34495e; font-weight:bold;">Teaminformatie Black Shots seizoen ${seizoenNaam}</div>
+                <div style="font-size:0.9rem; color:#7f8c8d; margin-top:5px;">Aangemaakt op: ${nuMooi}</div>
+            </div>
+            <img src="Logo Zwart.png" style="width:110px; height:auto; object-fit:contain;">
+        </div>
+    `;
+
+    // --- DEEL 1: ROSTER & STAF ---
+    html += `<div style="display:flex; gap:40px; margin-bottom:30px;">`;
+    
+    // Spelerslijst (NBB, Rugnummer/Leeftijd, Naam)
+    html += `<div style="flex:2;">
+        <h3 style="margin-top:0; color:#2c3e50; border-bottom:1px solid #ccc; padding-bottom:5px;">Selectie</h3>
+        <ul style="list-style:none; padding:0; margin:0; font-size:0.95rem; line-height:1.6;">`;
+    teamSpelers.forEach(s => {
+        let rugnr = s.rugnummer || s.leeftijd || '-';
+        let bondsNr = s.bondsnummer || 'Onbekend';
+        html += `<li><span style="color:#7f8c8d; display:inline-block; width:90px;">${bondsNr}</span> <strong style="display:inline-block; width:30px;">${rugnr}</strong> ${s.naam}</li>`;
+    });
+    if (teamSpelers.length === 0) html += `<li><i style="color:#7f8c8d;">Nog geen spelers gekoppeld aan dit team.</i></li>`;
+    html += `</ul></div>`;
+
+    // Staf Info
+    html += `<div style="flex:1;">
+        <h3 style="margin-top:0; color:#2c3e50; border-bottom:1px solid #ccc; padding-bottom:5px;">Staf</h3>
+        <div style="font-size:0.95rem; line-height:1.6;">
+            <strong>Coach:</strong> ${tCanon.coach || 'Niet ingevuld'}<br>
+            <strong>Trainer:</strong> ${tCanon.trainer || 'Niet ingevuld'}
+        </div>
+    </div></div>`;
+
+    // --- DEEL 2: WEDSTRIJD PROGRAMMA ---
+    let alleWedstrijden = [...window.nbbWedstrijden, ...window.customWedstrijden];
+    let mijnWedstrijden = alleWedstrijden.filter(w => {
+        let mCanonThuis = window.getCanonicalTeam(w.Thuisteam.replace(/Black Shots\s*-?\s*/i, '').trim());
+        let mCanonUit = window.getCanonicalTeam(w.Uitteam.replace(/Black Shots\s*-?\s*/i, '').trim());
+        let matchId = window.genereerUniekId(w);
+        return window.planStatusDB[matchId] && ((mCanonThuis && mCanonThuis.id === tCanon.id) || (mCanonUit && mCanonUit.id === tCanon.id));
+    });
+
+    mijnWedstrijden.sort((a, b) => {
+        let dA = window.normaalDatum(a.Datum); let dB = window.normaalDatum(b.Datum);
+        if (dA !== dB) return dA.localeCompare(dB);
+        return window.planStatusDB[window.genereerUniekId(a)].tijd.localeCompare(window.planStatusDB[window.genereerUniekId(b)].tijd);
+    });
+
+    html += `<h3 style="color:#2c3e50; border-bottom:2px solid #2c3e50; padding-bottom:5px; margin-top:30px;">Wedstrijdprogramma</h3>`;
+    
+    mijnWedstrijden.forEach(w => {
+        let id = window.genereerUniekId(w);
+        let st = window.planStatusDB[id];
+        let pt = window.persoonsTakenDB[id] || {};
+        let tt = window.teamTakenDB[id] || {};
+        
+        let d = new Date(window.normaalDatum(w.Datum));
+        let mooieDatum = isNaN(d) ? w.Datum : d.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+        
+        let isThuis = (w.Thuisteam || '').toLowerCase().includes('black shots');
+        let thuisNaam = w.Thuisteam.replace(/Black Shots\s*-?\s*/i, 'BS ').trim();
+        let uitNaam = w.Uitteam.replace(/Black Shots\s*-?\s*/i, 'BS ').trim();
+        let accommodatie = w.Accommodatie || w.Locatie || w.Plaats || (isThuis ? 'De Veste' : 'Onbekend');
+        let veldTekst = (st.veld && st.veld !== 'uit') ? `(Veld ${st.veld})` : '';
+
+        // Taken netjes opmaken
+        let takenHtml = '';
+        if (isThuis) {
+            let sA = window.naamWeergave(pt.sA, tt.sA); let sB = window.naamWeergave(pt.sB, tt.sB);
+            let tab = window.naamWeergave(pt.tab, tt.tab); let sco = window.naamWeergave(pt.sco, tt.sco);
+            let scheidsStr = [sA, sB].filter(x => x !== '-').join(', ');
+            let tafelStr = [tab, sco].filter(x => x !== '-').join(', ');
+            
+            takenHtml = `
+                <div style="font-size:0.9rem; color:#555;"><strong>Scheidsrechter(s):</strong> ${scheidsStr || '-'}</div>
+                <div style="font-size:0.9rem; color:#555;"><strong>Tafel / Scorer:</strong> ${tafelStr || '-'}</div>
+            `;
+        } else {
+            let a1 = window.naamWeergave(pt.auto1, "Auto 1"); let a2 = window.naamWeergave(pt.auto2, "Auto 2"); let a3 = window.naamWeergave(pt.auto3, "Auto 3");
+            let autoStr = [a1, a2, a3].filter(x => x !== '-' && !x.includes('Auto')).join(', ');
+            takenHtml = `<div style="font-size:0.9rem; color:#555;"><strong>Vervoer:</strong> ${autoStr || '<i style="color:#e74c3c;">Nog in te vullen</i>'}</div>`;
+        }
+
+        html += `
+            <div style="margin-bottom:15px; padding-bottom:10px; border-bottom:1px dashed #ccc;">
+                <div style="font-weight:bold; color:#2c3e50; font-size:1.05rem; margin-bottom:3px;">${mooieDatum}</div>
+                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                    <div style="flex:2;">
+                        <span style="display:inline-block; width:50px; font-weight:bold;">${st.tijd}</span>
+                        <span style="display:inline-block; width:50px; color:#7f8c8d;">${isThuis ? 'Thuis' : 'Uit'}</span>
+                        <span style="font-weight:bold;">${thuisNaam} - ${uitNaam}</span>
+                    </div>
+                    <div style="flex:1; text-align:right; font-size:0.9rem; color:#7f8c8d;">${accommodatie} ${veldTekst}</div>
+                </div>
+                <div style="margin-top:5px; padding-left:100px;">
+                    ${takenHtml}
+                </div>
+            </div>
+        `;
+    });
+
+    window.startPrintJob(html);
+};
+
+// ============================================================================
+// RAPPORT 4: TAKENOVERZICHT PER TEAMLID (Voor Coach/Manager)
+// ============================================================================
+window.genereerTakenPerTeam = function() {
+    let teamId = document.getElementById('select-team-taken').value;
+    if (!teamId) return alert("Kies eerst een team voor dit rapport.");
+
+    let spelersLijst = [];
+    if (teamId === "ALL") {
+        spelersLijst = window.spelersDB.filter(s => s.teamId); 
+    } else {
+        spelersLijst = window.spelersDB.filter(s => s.teamId === teamId);
+    }
+    
+    if (spelersLijst.length === 0) return alert("Geen spelers gevonden voor deze selectie.");
+    spelersLijst.sort((a, b) => a.naam.localeCompare(b.naam));
+
+    let alleWedstrijden = [...window.nbbWedstrijden, ...window.customWedstrijden];
+    let html = `
+        <div class="print-header" style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <div>
+                <h1 style="margin:0 0 5px 0; font-size:1.6rem; color:#2c3e50;">Alle taken voor team: ${teamId === 'ALL' ? 'Volledige Club' : window.getCanonicalTeam(teamId).naam}</h1>
+                <div style="font-size:0.9rem; color:#7f8c8d; margin-top:5px;">Aangemaakt op: ${new Date().toLocaleDateString('nl-NL')}</div>
+            </div>
+            <img src="Logo Zwart.png" style="width:90px; height:auto; object-fit:contain;">
+        </div>
+    `;
+
+    // Loop door elke speler in de lijst
+    spelersLijst.forEach(persoon => {
+        let mijnTaken = [];
+        
+        alleWedstrijden.forEach(match => {
+            let matchId = window.genereerUniekId(match);
+            if (!window.planStatusDB[matchId]) return;
+
+            let pTaken = window.persoonsTakenDB[matchId] || {};
+            let isThuis = (match.Thuisteam || '').toLowerCase().includes('black shots');
+            let taakLabel = null;
+            
+            if (pTaken.sA === persoon.id || pTaken.sB === persoon.id) taakLabel = "Scheidsrechter";
+            else if (pTaken.tab === persoon.id) taakLabel = "Tafelaar";
+            else if (pTaken.sco === persoon.id) taakLabel = "Scorer";
+            else if (pTaken.auto1 === persoon.id || pTaken.auto2 === persoon.id || pTaken.auto3 === persoon.id) taakLabel = "Vervoer";
+
+            if (taakLabel) {
+                mijnTaken.push({
+                    isoDatum: window.normaalDatum(match.Datum),
+                    tijd: window.planStatusDB[matchId].tijd,
+                    thuis: match.Thuisteam.replace(/Black Shots\s*-?\s*/i, 'BS ').trim(),
+                    uit: match.Uitteam.replace(/Black Shots\s*-?\s*/i, 'BS ').trim(),
+                    taak: taakLabel
+                });
+            }
+        });
+
+        mijnTaken.sort((a, b) => {
+            if (a.isoDatum !== b.isoDatum) return a.isoDatum.localeCompare(b.isoDatum);
+            return a.tijd.localeCompare(b.tijd);
+        });
+
+        // HTML per speler (Dikgedrukte naam, daaronder een lijst)
+        html += `<div style="margin-top:20px; page-break-inside: avoid;">
+            <div style="font-weight:bold; font-size:1.15rem; color:#2c3e50; border-bottom:1px solid #ccc; margin-bottom:8px; padding-bottom:3px;">${persoon.naam}</div>`;
+
+        if (mijnTaken.length === 0) {
+            html += `<div style="font-size:0.9rem; color:#7f8c8d; margin-bottom:10px;">Geen taken</div>`;
+        } else {
+            html += `<table style="width:100%; border-collapse:collapse; font-size:0.9rem; margin-bottom:15px;">
+                <tbody>`;
+            
+            mijnTaken.forEach(t => {
+                let d = new Date(t.isoDatum);
+                let datumWeergave = isNaN(d) ? t.isoDatum : d.toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                
+                html += `<tr>
+                    <td style="width:90px; padding:3px 0;">${datumWeergave}</td>
+                    <td style="width:60px; padding:3px 0; font-weight:bold;">${t.tijd}</td>
+                    <td style="padding:3px 0;">${t.thuis} - ${t.uit}</td>
+                    <td style="width:120px; padding:3px 0; font-weight:bold; color:#2c3e50; text-align:right;">${t.taak}</td>
+                </tr>`;
+            });
+            
+            html += `</tbody></table>`;
+        }
+        html += `</div>`;
+    });
+
+    window.startPrintJob(html);
+};
 
 // ============================================================================
 // DE ANDERE RAPPORTEN (KLAARZETTEN VOOR VOLGENDE UPDATE)
 // ============================================================================
-window.genereerTeamOverzicht = function() {
-    alert("Klaar voor de volgende update! Data wordt al ingeladen.");
-};
+
 
 window.genereerRegistratieFormulier = function() {
     alert("Klaar voor de volgende update! Data wordt al ingeladen.");
