@@ -85,8 +85,11 @@ function vulDropdowns() {
     });
 }
 
+// Ophalen van de algemene systeeminstellingen voor het seizoen
+window.appInstellingen = JSON.parse(localStorage.getItem('blackshots_instellingen')) || { seizoen: "Onbekend" };
+
 // ============================================================================
-// DE PRINT / PDF ENGINE (Nu met Witte Achtergrond & Zonder Browser-headers)
+// DE PRINT / PDF ENGINE (100% Schoon, zonder URL/Datum van de browser)
 // ============================================================================
 window.startPrintJob = function(htmlContent) {
     let printContainer = document.getElementById('print-container');
@@ -95,18 +98,17 @@ window.startPrintJob = function(htmlContent) {
         <style>
             @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
             #print-wrapper { font-family: 'Roboto', Arial, sans-serif; color: #000; background: white; padding: 20px; max-width: 900px; margin: 0 auto; font-size: 11pt; }
-            .print-header { border-bottom: 2px solid #000; margin-bottom: 20px; padding-bottom: 10px; position: relative; }
             .print-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 0.95rem; }
             .print-table th, .print-table td { padding: 6px 8px; border-bottom: 1px solid #ccc; text-align: left; vertical-align: top; }
             .print-table th { background-color: #f8f9fa; font-weight: bold; border-bottom: 2px solid #000; }
             .page-break { page-break-before: always; height: 1px; width: 100%; display: block; margin: 0; padding: 0; border: none; }
             
-            /* Print Specifieke Regels (Wist de grijze achtergrond en datum in de hoek) */
+            /* Print Specifieke Regels (Wist de grijze achtergrond en URL/Datum headers!) */
             @media print {
-                @page { margin: 12mm; size: auto; } /* 12mm marge overschrijft de standaard browser datum/URL */
-                body { background: white !important; margin: 0; padding: 0; -webkit-print-color-adjust: exact !important; }
-                body > *:not(#print-container) { display: none !important; }
+                @page { margin: 0 !important; } /* Haalt browser-headers weg */
+                body { margin: 0 !important; padding: 15mm !important; background: white !important; -webkit-print-color-adjust: exact !important; }
                 #print-container { display: block !important; position: static !important; background: white !important; width: 100% !important; }
+                body > *:not(#print-container) { display: none !important; }
                 #print-wrapper { background: white !important; box-shadow: none !important; margin: 0 !important; padding: 0 !important; max-width: 100% !important; }
             }
         </style>
@@ -115,13 +117,21 @@ window.startPrintJob = function(htmlContent) {
     setTimeout(() => { window.print(); setTimeout(() => { printContainer.innerHTML = ''; }, 1000); }, 250);
 };
 
-// ============================================================================
-// RAPPORT 3: PERSOONLIJKE TAKENBRIEF (Nu met Logo, Trainingen & Strakke layout)
+/// ============================================================================
+// RAPPORT 3: PERSOONLIJKE TAKENBRIEF (2-Kolommen, Logo & Instellingen)
 // ============================================================================
 window.genereerPersoonlijkeBrief = function() {
     let enkelePersoonId = document.getElementById('select-persoon').value;
     let bulkTeamId = document.getElementById('select-team-brief').value;
-    let introTekst = document.getElementById('brief-intro').value.replace(/\n/g, '<br>');
+    let ruweIntroTekst = document.getElementById('brief-intro').value.replace(/\n/g, '<br>');
+
+    // Slimme seizoens-bepaling op basis van de huidige maand
+    let huidigeMaand = new Date().getMonth(); // 0 is Jan, 11 is Dec
+    let seizoensHelft = (huidigeMaand >= 7) ? "eerste helft" : "tweede helft"; // Vanaf aug = 1e helft
+    let seizoenNaam = window.appInstellingen.seizoen || "huidige";
+    
+    // Vervang de [TAGS] in de tekst
+    let introTekst = ruweIntroTekst.replace(/\[HELFT\]/g, seizoensHelft).replace(/\[SEIZOEN\]/g, seizoenNaam);
 
     if (!enkelePersoonId && !bulkTeamId) return alert("Kies een persoon óf een team/club om te printen.");
 
@@ -182,8 +192,8 @@ window.genereerPersoonlijkeBrief = function() {
             if (ikSpeelZelf) taakLabels.push("Speler");
             if (ikBenCoach) taakLabels.push("Coach");
             if (pTaken.sA === persoon.id || pTaken.sB === persoon.id) { taakLabels.push("Scheidsrechter"); takenTeller++; }
-            if (pTaken.tab === persoon.id) { taakLabels.push("Tafelaar (Tablet)"); takenTeller++; }
-            if (pTaken.sco === persoon.id) { taakLabels.push("Scorer (Bord)"); takenTeller++; }
+            if (pTaken.tab === persoon.id) { taakLabels.push("Tafelaar"); takenTeller++; }
+            if (pTaken.sco === persoon.id) { taakLabels.push("Scorer"); takenTeller++; }
             if (pTaken.auto1 === persoon.id || pTaken.auto2 === persoon.id || pTaken.auto3 === persoon.id) { taakLabels.push("Vervoer / Auto"); takenTeller++; }
 
             if (taakLabels.length > 0) {
@@ -209,39 +219,42 @@ window.genereerPersoonlijkeBrief = function() {
         let trainingenHtml = '';
 
         if (isSpeler && mijnCanonTeam) {
-            stafInfoHtml += `<div style="font-size:0.9rem; color:#34495e;"><strong>Team:</strong> ${mijnCanonTeam.naam}</div>`;
-            if (mijnCanonTeam.coach) stafInfoHtml += `<div style="font-size:0.9rem; color:#34495e;"><strong>Coach:</strong> ${mijnCanonTeam.coach}</div>`;
-            if (mijnCanonTeam.trainer) stafInfoHtml += `<div style="font-size:0.9rem; color:#34495e;"><strong>Trainer:</strong> ${mijnCanonTeam.trainer}</div>`;
+            stafInfoHtml += `<div style="font-size:0.95rem; color:#2c3e50; margin-bottom:2px;"><strong>Team:</strong> ${mijnCanonTeam.naam}</div>`;
+            if (mijnCanonTeam.coach) stafInfoHtml += `<div style="font-size:0.95rem; color:#2c3e50; margin-bottom:2px;"><strong>Coach:</strong> ${mijnCanonTeam.coach}</div>`;
+            if (mijnCanonTeam.trainer) stafInfoHtml += `<div style="font-size:0.95rem; color:#2c3e50; margin-bottom:2px;"><strong>Trainer:</strong> ${mijnCanonTeam.trainer}</div>`;
             
-            // Haal de trainingen op
             if (mijnCanonTeam.trainingen && Array.isArray(mijnCanonTeam.trainingen)) {
                 const dagenMap = {1:"Maandag", 2:"Dinsdag", 3:"Woensdag", 4:"Donderdag", 5:"Vrijdag", 6:"Zaterdag", 7:"Zondag", 0:"Zondag"};
                 mijnCanonTeam.trainingen.forEach(tr => {
                     let dagNaam = dagenMap[parseInt(tr.dag)] || "Onbekend";
                     let loc = tr.zaal || 'Onbekend';
                     if (tr.veld) loc += ` (Veld ${tr.veld})`;
-                    trainingenHtml += `<div style="font-size:0.9rem; color:#34495e;"><strong>Training:</strong> ${dagNaam} ${tr.start || '?'} - ${tr.eind || '?'} | 📍 ${loc}</div>`;
+                    trainingenHtml += `<div style="font-size:0.95rem; color:#2c3e50; margin-bottom:2px;"><strong>Training:</strong> ${dagNaam} ${tr.start || '?'} - ${tr.eind || '?'} | 📍 ${loc}</div>`;
                 });
             }
         }
 
+        // Twee kolommen opmaak: Info links, Logo rechts
         totaleHtml += `
-            <div class="print-header">
-                <!-- HET LOGO RECHTSBOVEN -->
-                <img src="Logo Zwart.png" style="position:absolute; top:0; right:0; width:130px; height:auto; object-fit:contain;">
-                
-                <h1 style="margin:0 0 5px 0; font-size:1.6rem; color:#2c3e50;">${persoon.naam}</h1>
-                <div style="margin-bottom:12px; line-height:1.4;">
-                    ${stafInfoHtml}
-                    ${trainingenHtml}
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #000; padding-bottom:15px; margin-bottom:20px;">
+                <div style="flex:1;">
+                    <h1 style="margin:0 0 10px 0; font-size:1.8rem; color:#2c3e50;">${persoon.naam}</h1>
+                    <div style="margin-bottom:15px;">
+                        ${stafInfoHtml}
+                        ${trainingenHtml}
+                    </div>
+                    <div style="font-size:0.95rem; line-height:1.5; color:#2c3e50;">
+                        <div><strong>Geboortedatum:</strong> ${persoon.geboorteDatum || '-'}</div>
+                        <div><strong>Lid sinds:</strong> ${persoon.lidSinds || '-'}</div>
+                        <div><strong>NBB Nummer:</strong> ${persoon.bondsnummer || '-'}</div>
+                        <div><strong>Aantal toegewezen taken:</strong> ${takenTeller}</div>
+                    </div>
                 </div>
-                <div style="font-size:0.9rem; line-height:1.4;">
-                    <div><strong>Geboortedatum:</strong> ${persoon.geboorteDatum || '-'}</div>
-                    <div><strong>Lid sinds:</strong> ${persoon.lidSinds || '-'}</div>
-                    <div><strong>NBB Nummer:</strong> ${persoon.bondsnummer || '-'}</div>
-                    <div><strong>Aantal toegewezen taken:</strong> ${takenTeller}</div>
+                <div style="width:180px; text-align:right;">
+                    <img src="Logo Zwart.png" style="max-width:100%; height:auto;">
                 </div>
             </div>
+            
             <div style="margin-bottom:20px; line-height:1.5;">
                 Beste ${persoon.naam.split(' ')[0]},<br><br>
                 ${introTekst}<br><br>
@@ -256,7 +269,7 @@ window.genereerPersoonlijkeBrief = function() {
             totaleHtml += `<table class="print-table">
                 <thead>
                     <tr>
-                        <th style="width:140px;">Datum</th>
+                        <th style="width:120px;">Datum</th>
                         <th style="width:70px;">Tijd</th>
                         <th style="width:70px;">Locatie</th>
                         <th>Wedstrijd</th>
