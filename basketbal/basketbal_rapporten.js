@@ -131,8 +131,8 @@ window.naamWeergave = function(pId, defTeam) {
     return (!defTeam || defTeam === "Vrij" || defTeam === "") ? "-" : `<span style="color:#7f8c8d; font-style:italic;">[${defTeam}]</span>`;
 };
 
-// ============================================================================
-// RAPPORT 1: WEEK- EN TAKENOVERZICHT (NIEUW!)
+/// ============================================================================
+// RAPPORT 1: WEEK- EN TAKENOVERZICHT (Schoon, zonder icoontjes, met Accommodatie)
 // ============================================================================
 window.genereerWeekOverzicht = function() {
     let van = document.getElementById('week-van').value;
@@ -142,7 +142,6 @@ window.genereerWeekOverzicht = function() {
 
     let alleWedstrijden = [...window.nbbWedstrijden, ...window.customWedstrijden];
     
-    // Filter op datumperiode en controleer of de wedstrijd überhaupt in de actieve planning staat
     let gefilterd = alleWedstrijden.filter(w => {
         let d = window.normaalDatum(w.Datum);
         let id = window.genereerUniekId(w);
@@ -151,7 +150,6 @@ window.genereerWeekOverzicht = function() {
 
     if(gefilterd.length === 0) return alert("Geen wedstrijden gevonden in deze periode.");
 
-    // Groepeer op datum
     let perDag = {};
     gefilterd.forEach(w => {
         let d = window.normaalDatum(w.Datum);
@@ -183,20 +181,22 @@ window.genereerWeekOverzicht = function() {
         let d = new Date(dag);
         let mooieDatum = isNaN(d) ? dag : d.toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
 
+        // Geen icoontje meer
         html += `<h2 style="border-bottom:2px solid #e2e8f0; color:#2c3e50; margin-top:25px; padding-bottom:5px; font-size:1.3rem;">${mooieDatum}</h2>`;
 
         // ================== THUIS WEDSTRIJDEN ==================
         if(obj.thuis.length > 0) {
             obj.thuis.sort((a,b) => window.planStatusDB[window.genereerUniekId(a)].tijd.localeCompare(window.planStatusDB[window.genereerUniekId(b)].tijd));
             
-            html += `<h3 style="color:#e67e22; margin-bottom:10px; font-size:1.1rem;">Thuis</h3>`;
+            // Neutrale kleur en geen icoontje
+            html += `<h3 style="color:#2c3e50; margin-bottom:10px; font-size:1.1rem;">Thuis</h3>`;
             html += `<table class="print-table">
                 <thead>
                     <tr>
-                        <th style="width:60px;">Wedst.nr</th>
+                        <th style="width:70px;">Wedst.nr</th>
                         <th style="width:50px;">Tijd</th>
                         <th>Wedstrijd</th>
-                        <th style="width:110px;">Hal / Veld</th>
+                        <th style="width:140px;">Hal / Veld</th>
                         <th style="width:160px;">Scheidsrechter(s)</th>
                         <th style="width:160px;">Tafel / Scorer</th>
                     </tr>
@@ -209,6 +209,7 @@ window.genereerWeekOverzicht = function() {
                 let pt = window.persoonsTakenDB[id] || {};
                 let tt = window.teamTakenDB[id] || {};
 
+                let wedstNr = w.Wedstrijdnummer || w.wedstrijdnummer || w.WedstrijdNummer || '-';
                 let thuisNaam = w.Thuisteam.replace(/Black Shots\s*-?\s*/i, 'BS ').trim();
                 let uitNaam = w.Uitteam.replace(/Black Shots\s*-?\s*/i, 'BS ').trim();
 
@@ -220,11 +221,15 @@ window.genereerWeekOverzicht = function() {
                 let sco = window.naamWeergave(pt.sco, tt.sco);
                 let tafelStr = [tab, sco].filter(x => x !== '-').join('<br>');
 
+                // Lees accommodatie uit, fallback naar De Veste
+                let accommodatie = w.Accommodatie || w.Locatie || w.Plaats || 'De Veste';
+                let veldWeergave = (st.veld && st.veld !== 'uit') ? `<br><small style="color:#7f8c8d; font-weight:bold;">Veld ${st.veld}</small>` : '';
+
                 html += `<tr>
-                    <td style="font-size:0.8rem; color:#7f8c8d;">${w.Wedstrijdnummer || '-'}</td>
+                    <td style="font-size:0.8rem; color:#7f8c8d;">${wedstNr}</td>
                     <td style="font-weight:bold; font-size:1.05rem;">${st.tijd}</td>
                     <td><strong>${thuisNaam}</strong> - ${uitNaam}</td>
-                    <td>De Veste<br><small style="color:#7f8c8d; font-weight:bold;">Veld ${st.veld}</small></td>
+                    <td>${accommodatie}${veldWeergave}</td>
                     <td>${scheidsStr || '-'}</td>
                     <td>${tafelStr || '-'}</td>
                 </tr>`;
@@ -236,11 +241,12 @@ window.genereerWeekOverzicht = function() {
         if(obj.uit.length > 0) {
             obj.uit.sort((a,b) => window.planStatusDB[window.genereerUniekId(a)].tijd.localeCompare(window.planStatusDB[window.genereerUniekId(b)].tijd));
             
-            html += `<h3 style="color:#3498db; margin-bottom:10px; font-size:1.1rem; margin-top:20px;">Uit</h3>`;
+            // Neutrale kleur en geen icoontje
+            html += `<h3 style="color:#2c3e50; margin-bottom:10px; font-size:1.1rem; margin-top:20px;">Uit</h3>`;
             html += `<table class="print-table">
                 <thead>
                     <tr>
-                        <th style="width:60px;">Wedst.nr</th>
+                        <th style="width:70px;">Wedst.nr</th>
                         <th style="width:50px;">Tijd</th>
                         <th>Wedstrijd</th>
                         <th style="width:140px;">Plaats / Hal</th>
@@ -254,6 +260,7 @@ window.genereerWeekOverzicht = function() {
                 let st = window.planStatusDB[id];
                 let pt = window.persoonsTakenDB[id] || {};
 
+                let wedstNr = w.Wedstrijdnummer || w.wedstrijdnummer || w.WedstrijdNummer || '-';
                 let thuisNaam = w.Thuisteam.replace(/Black Shots\s*-?\s*/i, 'BS ').trim();
                 let uitNaam = w.Uitteam.replace(/Black Shots\s*-?\s*/i, 'BS ').trim();
 
@@ -263,10 +270,10 @@ window.genereerWeekOverzicht = function() {
                 let autoStr = [a1, a2, a3].filter(x => x !== '-' && !x.includes('Auto')).join('<br>');
                 if(!autoStr) autoStr = `<span style="color:#e74c3c; font-style:italic;">Nog in te vullen</span>`;
 
-                let plaats = w.Locatie || w.Plaats || 'Onbekend';
+                let plaats = w.Accommodatie || w.Locatie || w.Plaats || 'Onbekend';
 
                 html += `<tr>
-                    <td style="font-size:0.8rem; color:#7f8c8d;">${w.Wedstrijdnummer || '-'}</td>
+                    <td style="font-size:0.8rem; color:#7f8c8d;">${wedstNr}</td>
                     <td style="font-weight:bold; font-size:1.05rem;">${st.tijd}</td>
                     <td>${thuisNaam} - <strong>${uitNaam}</strong></td>
                     <td style="font-size:0.85rem;">${plaats}</td>
@@ -279,9 +286,8 @@ window.genereerWeekOverzicht = function() {
 
     window.startPrintJob(html);
 };
-
 // ============================================================================
-// RAPPORT 3: PERSOONLIJKE TAKENBRIEF
+// RAPPORT 3: PERSOONLIJKE TAKENBRIEF (Zonder kleuren/icoontjes)
 // ============================================================================
 window.genereerPersoonlijkeBrief = function() {
     let enkelePersoonId = document.getElementById('select-persoon').value;
@@ -390,7 +396,8 @@ window.genereerPersoonlijkeBrief = function() {
                     let dagNaam = dagenMap[parseInt(tr.dag)] || "Onbekend";
                     let loc = tr.zaal || 'Onbekend';
                     if (tr.veld) loc += ` (Veld ${tr.veld})`;
-                    trainingenHtml += `<div style="font-size:0.95rem; color:#2c3e50; margin-bottom:2px;"><strong>Training:</strong> ${dagNaam} ${tr.start || '?'} - ${tr.eind || '?'} | 📍 ${loc}</div>`;
+                    // Geen locatie icoon meer
+                    trainingenHtml += `<div style="font-size:0.95rem; color:#2c3e50; margin-bottom:2px;"><strong>Training:</strong> ${dagNaam} ${tr.start || '?'} - ${tr.eind || '?'} | ${loc}</div>`;
                 });
             }
         }
@@ -426,6 +433,7 @@ window.genereerPersoonlijkeBrief = function() {
         if (mijnTaken.length === 0) {
             totaleHtml += `<p style="font-style:italic; color:#7f8c8d;">Er zijn in het systeem nog geen wedstrijden of taken aan jou gekoppeld voor de ingevoerde planning.</p>`;
         } else {
+            // Geen felle kleuren meer in de table header
             totaleHtml += `<table class="print-table">
                 <thead>
                     <tr>
@@ -433,7 +441,7 @@ window.genereerPersoonlijkeBrief = function() {
                         <th style="width:70px;">Tijd</th>
                         <th style="width:70px;">Locatie</th>
                         <th>Wedstrijd</th>
-                        <th style="width:160px; color:#d35400;">Jouw Taak</th>
+                        <th style="width:160px;">Jouw Taak</th>
                     </tr>
                 </thead>
                 <tbody>`;
@@ -442,13 +450,14 @@ window.genereerPersoonlijkeBrief = function() {
                 let d = new Date(taak.isoDatum);
                 let mooieDatum = isNaN(d) ? taak.isoDatum : d.toLocaleDateString('nl-NL', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' });
                 
+                // Geen oranje kleur meer bij 'Jouw Taak'
                 totaleHtml += `
                     <tr>
                         <td style="white-space:nowrap;">${mooieDatum}</td>
                         <td style="font-weight:bold; font-size:1.05rem;">${taak.tijd}</td>
                         <td>${taak.isThuiswedstrijd ? 'Thuis' : 'Uit'}</td>
                         <td><strong>${taak.thuis}</strong> - ${taak.uit}</td>
-                        <td style="font-weight:bold; color:#d35400;">${taak.taak}</td>
+                        <td style="font-weight:bold;">${taak.taak}</td>
                     </tr>
                 `;
             });
