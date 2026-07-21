@@ -128,16 +128,8 @@ Kan je niet aanwezig zijn bij een wedstrijd, geef dit TIJDIG door bij je Coach.<
                 <button onclick="window.genereerPersoonlijkeBrief()" class="report-btn">📄 Genereer Brief / Brieven</button>
             </div>
 
-            <!-- 4. Zaalwacht / Registratieformulieren -->
-            <div class="report-card" id="card-registratie">
-                <h3>📋 Registratie Wedstrijden</h3>
-                <p>De invulformulieren (handmatige controle) voor de zaalwacht en consumptiebonnen. Groepeert alle thuiswedstrijden van een specifieke dag netjes onder elkaar.</p>
-                <select id="select-dag-registratie" class="report-select">
-                    <option value="">-- Kies een Thuis-speeldag --</option>
-                </select>
-                <button onclick="window.genereerRegistratieFormulier()" class="report-btn">📄 Maak PDF</button>
-            </div>
-            <!-- 5. Takenoverzicht per Teamlid -->
+
+            <!-- 4. Takenoverzicht per Teamlid -->
             <div class="report-card" id="card-registratie">
                 <h3>📋 Takenoverzicht per Teamlid</h3>
                 <p>Een overzichtelijke lijst voor de coach/manager: toont per speler van het geselecteerde team exact wie welke taak op welke datum heeft.</p>
@@ -146,6 +138,22 @@ Kan je niet aanwezig zijn bij een wedstrijd, geef dit TIJDIG door bij je Coach.<
                     <option value="ALL">🌟 Alle Teams (Cluboverzicht)</option>
                 </select>
                 <button onclick="window.genereerTakenPerTeam()" class="report-btn">📄 Maak PDF</button>
+            </div>
+            <!-- 5. Registratieformulieren (Zaalwacht) -->
+            <div class="report-card" id="card-registratie" style="border-left-color: #27ae60;">
+                <h3 style="color:#27ae60;">📋 Registratie Wedstrijden</h3>
+                <p>Het officiële invulformulier voor de zaalwacht. Groepeert alle thuiswedstrijden van één dag met afvinklijsten voor de jury en scheidsrechters.</p>
+                <select id="select-dag-registratie" class="report-select">
+                    <option value="">-- Kies een Thuis-speeldag --</option>
+                </select>
+                <button onclick="window.genereerRegistratieFormulier()" class="report-btn" style="background:#27ae60;">📄 Maak PDF</button>
+            </div>
+
+            <!-- 6. Zaalhuur Overzicht -->
+            <div class="report-card" id="card-zaalhuur" style="border-left-color: #f39c12;">
+                <h3 style="color:#f39c12;">🏟️ Zaalhuur Overzicht</h3>
+                <p>Automatisch overzicht van de gereserveerde uren, inclusief een slimme controle of tijden niet onbedoeld openvallen (hiaten).</p>
+                <button onclick="window.genereerZaalhuurOverzicht()" class="report-btn" style="background:#f39c12;">📄 Maak PDF</button>
             </div>
 
         </div>
