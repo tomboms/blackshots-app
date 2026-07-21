@@ -105,6 +105,9 @@ window.startPrintJob = function(htmlContent) {
 // ============================================================================
 // RAPPORT 3: PERSOONLIJKE TAKENBRIEF (INCLUSIEF BULK & EIGEN WEDSTRIJDEN)
 // ============================================================================
+// ============================================================================
+// RAPPORT 3: PERSOONLIJKE TAKENBRIEF (INCLUSIEF COACH LOGICA)
+// ============================================================================
 window.genereerPersoonlijkeBrief = function() {
     let enkelePersoonId = document.getElementById('select-persoon').value;
     let bulkTeamId = document.getElementById('select-team-brief').value;
@@ -136,6 +139,19 @@ window.genereerPersoonlijkeBrief = function() {
         let mijnTaken = [];
         let takenTeller = 0;
 
+        // NIEUW: Bepaal van welke teams deze persoon Coach of Trainer is!
+        let mijnStafTeams = [];
+        window.teamsDB.forEach(t => {
+            let coachStr = (t.coach || '').toLowerCase();
+            let trainerStr = (t.trainer || '').toLowerCase();
+            let pNaam = persoon.naam.toLowerCase();
+            
+            // Controleer of de naam van deze persoon in het Coach/Trainer veld van het team staat
+            if (coachStr.includes(pNaam) || trainerStr.includes(pNaam)) {
+                mijnStafTeams.push(t.id);
+            }
+        });
+
         // Loop door ALLE wedstrijden in de planning
         alleWedstrijden.forEach(match => {
             let matchId = window.genereerUniekId(match);
@@ -148,7 +164,7 @@ window.genereerPersoonlijkeBrief = function() {
             let mCanonThuis = window.getCanonicalTeam(thuisTeamSchoon);
             let mCanonUit = window.getCanonicalTeam(uitTeamSchoon);
 
-            // Speelt dit lid zelf deze wedstrijd?
+            // 1. Speelt dit lid zelf deze wedstrijd?
             let ikSpeelZelf = false;
             if (isSpeler && mijnCanonTeam) {
                 if ((isThuiswedstrijd && mCanonThuis && mCanonThuis.id === mijnCanonTeam.id) || 
@@ -157,11 +173,20 @@ window.genereerPersoonlijkeBrief = function() {
                 }
             }
 
-            // Heeft dit lid vrijwilligerstaken in deze wedstrijd?
+            // 2. Ben ik coach van het team dat deze wedstrijd speelt?
+            let ikBenCoach = false;
+            if ((mCanonThuis && mijnStafTeams.includes(mCanonThuis.id)) || 
+                (mCanonUit && mijnStafTeams.includes(mCanonUit.id))) {
+                ikBenCoach = true;
+            }
+
+            // 3. Heeft dit lid overige vrijwilligerstaken?
             let pTaken = window.persoonsTakenDB[matchId] || {};
             let taakLabels = [];
             
+            // We voegen spelen en coachen bovenaan het lijstje toe
             if (ikSpeelZelf) taakLabels.push("Speler");
+            if (ikBenCoach) taakLabels.push("Coach");
 
             if (pTaken.sA === persoon.id || pTaken.sB === persoon.id) { taakLabels.push("Scheidsrechter"); takenTeller++; }
             if (pTaken.tab === persoon.id) { taakLabels.push("Tafelaar (Tablet)"); takenTeller++; }
@@ -186,15 +211,20 @@ window.genereerPersoonlijkeBrief = function() {
             return a.tijd.localeCompare(b.tijd);
         });
 
-        // Pagina opbouwen
-        if (index > 0) totaleHtml += `<div class="page-break"></div>`; // Knip voor de printer
+        if (index > 0) totaleHtml += `<div class="page-break"></div>`; 
 
-        let teamInfo = isSpeler ? `<strong>Team:</strong> ${mijnCanonTeam ? mijnCanonTeam.naam : persoon.teamId} <br>` : '';
+        // NIEUW: Verzamel de Coach & Trainer info van dit specifieke team voor weergave in de briefkop
+        let stafInfoHtml = '';
+        if (isSpeler && mijnCanonTeam) {
+            stafInfoHtml += `<strong>Team:</strong> ${mijnCanonTeam.naam} <br>`;
+            if (mijnCanonTeam.coach) stafInfoHtml += `<span style="font-size:0.9rem; color:#34495e;"><strong>Coach:</strong> ${mijnCanonTeam.coach}</span> <br>`;
+            if (mijnCanonTeam.trainer) stafInfoHtml += `<span style="font-size:0.9rem; color:#34495e;"><strong>Trainer:</strong> ${mijnCanonTeam.trainer}</span> <br>`;
+        }
 
         totaleHtml += `
             <div class="print-header">
                 <h1 style="margin:0 0 5px 0; font-size:1.6rem; color:#2c3e50;">${persoon.naam}</h1>
-                ${teamInfo}
+                ${stafInfoHtml}
                 <div style="display:flex; justify-content:space-between; margin-top:10px; font-size:0.9rem;">
                     <div><strong>Geboortedatum:</strong> ${persoon.geboorteDatum || '-'}</div>
                     <div><strong>Lid sinds:</strong> ${persoon.lidSinds || '-'}</div>
