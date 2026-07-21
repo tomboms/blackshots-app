@@ -1,472 +1,152 @@
-// --- BASKETBAL_RAPPORTEN.JS ---
-
-window.veiligeArray = function(key) { try { let d = JSON.parse(localStorage.getItem(key)); return d ? (Array.isArray(d) ? d : Object.values(d)) : []; } catch(e) { return []; } };
-window.veiligObject = function(key) { try { let d = JSON.parse(localStorage.getItem(key)); return (d && typeof d === 'object' && !Array.isArray(d)) ? d : {}; } catch(e) { return {}; } };
-
-// Fix voor 'Onbekend': als instellingen leeg zijn, val terug op een logisch standaard seizoen
-let opgeslagenInstellingen = JSON.parse(localStorage.getItem('blackshots_instellingen'));
-window.appInstellingen = opgeslagenInstellingen || { seizoen: "2025-2026" };
-
-window.teamsDB = window.veiligeArray('blackshots_teams');
-window.spelersDB = window.veiligeArray('blackshots_spelers');
-window.scheidsrechtersDB = window.veiligeArray('blackshots_scheidsrechters');
-window.nbbWedstrijden = window.veiligeArray('blackshots_wedstrijden_json');
-window.customWedstrijden = window.veiligeArray('blackshots_custom_wedstrijden');
-window.planStatusDB = window.veiligObject('blackshots_plan_status');
-window.persoonsTakenDB = window.veiligObject('blackshots_persoons_taken');
-window.teamTakenDB = window.veiligObject('blackshots_wedstrijd_taken');
-window.speeldagenDB = window.veiligeArray('blackshots_speeldagen');
-
-window.normaalDatum = function(d) {
-    if(!d) return "";
-    let str = String(d).trim().substring(0, 10); 
-    if (/^\d{2}-\d{2}-\d{4}$/.test(str)) { let delen = str.split('-'); return `${delen[2]}-${delen[1]}-${delen[0]}`; }
-    return str;
-};
-
-window.genereerUniekId = function(w) {
-    if (w.ID) return `nbb-${w.ID}`; 
-    if (w.id) return w.id; 
-    let thuisteam = w.Thuisteam ? String(w.Thuisteam) : ''; let uitteam = w.Uitteam ? String(w.Uitteam) : '';
-    let clean = w.Wedstrijdnummer ? String(w.Wedstrijdnummer).replace(/[^a-zA-Z0-9]/g, '') : (thuisteam + uitteam).replace(/[^a-zA-Z0-9]/g, '');
-    return `match-${window.normaalDatum(w.Datum)}-${clean}`;
-};
-
-window.getCanonicalTeam = function(identifier) {
-    if (!identifier) return null;
-    let cleanZoek = String(identifier).toLowerCase().replace(/[-\s]/g, '');
-    return window.teamsDB.find(team => {
-        let tId = String(team.id || '').toLowerCase().replace(/[-\s]/g, '');
-        let tNaam = String(team.naam || '').toLowerCase().replace(/[-\s]/g, '');
-        if (cleanZoek === tId || cleanZoek === tNaam) return true;
-        if (team.aliassen) {
-            let aliasArray = team.aliassen.toLowerCase().split(',').map(a => a.replace(/[-\s]/g, ''));
-            if (aliasArray.includes(cleanZoek)) return true;
-        }
-        return false;
-    });
-};
-
-document.addEventListener('DOMContentLoaded', () => { vulDropdowns(); });
-
-function vulDropdowns() {
-    let selTeam = document.getElementById('select-team');
-    let selTeamBrief = document.getElementById('select-team-brief');
-    if (selTeam || selTeamBrief) {
-        window.teamsDB.forEach(t => {
-            if (!t.isVrijwilliger && !t.isRecreant) {
-                if(selTeam) selTeam.innerHTML += `<option value="${t.id}">${t.naam}</option>`;
-                if(selTeamBrief) selTeamBrief.innerHTML += `<option value="${t.id}">${t.naam}</option>`;
-            }
-        });
-    }
-
-    let selPersoon = document.getElementById('select-persoon');
-    if (selPersoon) {
-        let allePersonen = [];
-        window.spelersDB.forEach(s => allePersonen.push({ id: s.id, naam: s.naam, type: 'Speler' }));
-        window.scheidsrechtersDB.forEach(sr => { if (!sr.gekoppeldLid) allePersonen.push({ id: sr.id, naam: sr.naam, type: 'Scheidsrechter' }); });
-        allePersonen.sort((a,b) => a.naam.localeCompare(b.naam));
-        allePersonen.forEach(p => { selPersoon.innerHTML += `<option value="${p.id}">${p.naam} (${p.type})</option>`; });
-    }
-
-    let selDag = document.getElementById('select-dag-registratie');
-    let gesorteerdeDagen = [...window.speeldagenDB].sort();
-    
-    // Zet datumvelden voor Weekoverzicht standaard op vandaag en +7 dagen
-    let inputVan = document.getElementById('week-van');
-    let inputTot = document.getElementById('week-tot');
-    if (inputVan && inputTot) {
-        let nu = new Date();
-        let overEenWeek = new Date(); overEenWeek.setDate(nu.getDate() + 7);
-        inputVan.value = nu.toISOString().split('T')[0];
-        inputTot.value = overEenWeek.toISOString().split('T')[0];
-    }
-
-    gesorteerdeDagen.forEach(dag => {
-        let d = new Date(dag);
-        let weergaveDatum = isNaN(d) ? dag : d.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-        if (selDag) selDag.innerHTML += `<option value="${dag}">${weergaveDatum}</option>`;
-    });
-}
-
-// ============================================================================
-// DE PRINT / PDF ENGINE
-// ============================================================================
-window.startPrintJob = function(htmlContent) {
-    let printContainer = document.getElementById('print-container');
-    
-    let printStyle = `
-        <style>
-            @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
-            #print-wrapper { font-family: 'Roboto', Arial, sans-serif; color: #000; background: white; padding: 20px; max-width: 900px; margin: 0 auto; font-size: 11pt; }
-            .print-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 0.95rem; }
-            .print-table th, .print-table td { padding: 6px 8px; border-bottom: 1px solid #ccc; text-align: left; vertical-align: top; }
-            .print-table th { background-color: #f8f9fa; font-weight: bold; border-bottom: 2px solid #000; color: #2c3e50; }
-            .page-break { page-break-before: always; height: 1px; width: 100%; display: block; margin: 0; padding: 0; border: none; }
-            
-            /* Print Specifieke Regels */
-            @media print {
-                @page { margin: 0 !important; }
-                body { margin: 0 !important; padding: 15mm !important; background: white !important; -webkit-print-color-adjust: exact !important; }
-                #print-container { display: block !important; position: static !important; background: white !important; width: 100% !important; }
-                body > *:not(#print-container) { display: none !important; }
-                #print-wrapper { background: white !important; box-shadow: none !important; margin: 0 !important; padding: 0 !important; max-width: 100% !important; }
-            }
-        </style>
-    `;
-    printContainer.innerHTML = printStyle + '<div id="print-wrapper">' + htmlContent + '</div>';
-    setTimeout(() => { window.print(); setTimeout(() => { printContainer.innerHTML = ''; }, 1000); }, 250);
-};
-
-// ============================================================================
-// HULPFUNCTIES VOOR NAMEN
-// ============================================================================
-window.naamWeergave = function(pId, defTeam) {
-    if (pId && pId !== "Vrij" && pId !== "") {
-        let s = window.spelersDB.find(x => x.id === pId);
-        let sr = window.scheidsrechtersDB.find(x => x.id === pId);
-        return s ? s.naam : (sr ? sr.naam : pId);
-    }
-    return (!defTeam || defTeam === "Vrij" || defTeam === "") ? "-" : `<span style="color:#7f8c8d; font-style:italic;">[${defTeam}]</span>`;
-};
-
-// ============================================================================
-// RAPPORT 1: WEEK- EN TAKENOVERZICHT (NIEUW!)
-// ============================================================================
-window.genereerWeekOverzicht = function() {
-    let van = document.getElementById('week-van').value;
-    let tot = document.getElementById('week-tot').value;
-    
-    if(!van || !tot) return alert("Vul een geldige start- en einddatum in voor het weekoverzicht.");
-
-    let alleWedstrijden = [...window.nbbWedstrijden, ...window.customWedstrijden];
-    
-    // Filter op datumperiode en controleer of de wedstrijd überhaupt in de actieve planning staat
-    let gefilterd = alleWedstrijden.filter(w => {
-        let d = window.normaalDatum(w.Datum);
-        let id = window.genereerUniekId(w);
-        return d >= van && d <= tot && window.planStatusDB[id];
-    });
-
-    if(gefilterd.length === 0) return alert("Geen wedstrijden gevonden in deze periode.");
-
-    // Groepeer op datum
-    let perDag = {};
-    gefilterd.forEach(w => {
-        let d = window.normaalDatum(w.Datum);
-        if(!perDag[d]) perDag[d] = { thuis: [], uit: [] };
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Black Shots - Rapportages & Print</title>
+    <link rel="stylesheet" href="basketbal.css">
+    <!-- De PDF Generator Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        .report-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 25px; }
         
-        let isThuis = (w.Thuisteam || '').toLowerCase().includes('black shots');
-        if(isThuis) perDag[d].thuis.push(w);
-        else perDag[d].uit.push(w);
-    });
+        .report-card { 
+            background: white; padding: 20px; border-radius: 12px; border: none; 
+            border-left: 5px solid var(--primary-color); box-shadow: 0 4px 12px rgba(0,0,0,0.05); 
+            transition: transform 0.2s, box-shadow 0.2s; display: flex; flex-direction: column;
+        }
+        .report-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.1); }
+        .report-card h3 { margin: 0 0 10px 0; color: var(--secondary-color); font-size: 1.2rem; }
+        .report-card p { font-size: 0.85rem; color: #7f8c8d; margin: 0 0 15px 0; flex: 1; }
+        
+        .report-select { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #cbd5e1; margin-bottom: 15px; font-weight: bold; color: #2c3e50; }
+        .report-btn { width: 100%; padding: 10px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; color: white; display: flex; justify-content: center; align-items: center; gap: 8px; transition: 0.2s; }
+        
+        /* Specifieke kleuren per kaart */
+        #card-week { border-left-color: #3498db; }
+        #card-week .report-btn { background: #3498db; }
+        #card-week .report-btn:hover { background: #2980b9; }
 
-    let dagenGesorteerd = Object.keys(perDag).sort();
-    let seizoenNaam = window.appInstellingen.seizoen || "2025-2026";
-    let datumVanMooi = new Date(van).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    let datumTotMooi = new Date(tot).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        #card-team { border-left-color: #e67e22; }
+        #card-team .report-btn { background: #e67e22; }
+        #card-team .report-btn:hover { background: #d35400; }
 
-    let html = `
-        <div class="print-header" style="display:flex; justify-content:space-between; align-items:flex-end;">
-            <div>
-                <h1 style="margin:0 0 5px 0; font-size:1.6rem; color:#2c3e50;">Wedstrijd- en takenoverzicht</h1>
-                <div style="font-size:1.1rem; color:#34495e; font-weight:bold;">Black Shots seizoen ${seizoenNaam}</div>
-                <div style="font-size:0.9rem; color:#7f8c8d; margin-top:5px;">Periode: ${datumVanMooi} t/m ${datumTotMooi}</div>
-            </div>
-            <img src="Logo Zwart.png" style="width:110px; height:auto; object-fit:contain;">
+        #card-persoon { border-left-color: #9b59b6; }
+        #card-persoon .report-btn { background: #9b59b6; }
+        #card-persoon .report-btn:hover { background: #8e44ad; }
+
+        #card-registratie { border-left-color: #27ae60; }
+        #card-registratie .report-btn { background: #27ae60; }
+        #card-registratie .report-btn:hover { background: #219653; }
+
+        /* Print weergave container (onzichtbaar op het scherm) */
+        #print-container { display: none; }
+        
+        @media print {
+            body * { visibility: hidden; }
+            #print-container, #print-container * { visibility: visible; }
+            #print-container { position: absolute; left: 0; top: 0; width: 100%; display: block; }
+            /* Zorgt dat de opmaak behouden blijft bij het printen */
+            * { -webkit-print-color-adjust: exact !important; color-adjust: exact !important; }
+        }
+
+        /* Dark Mode fixes */
+        .dark-mode body { background-color: #121a21 !important; color: #ecf0f1 !important; }
+        .dark-mode .report-card { background: #1e293b !important; box-shadow: 0 8px 24px rgba(0,0,0,0.2) !important; }
+        .dark-mode .report-card h3 { color: #ecf0f1 !important; }
+        .dark-mode .report-card p { color: #bdc3c7 !important; }
+        .dark-mode select { background: #121a21 !important; color: #ecf0f1 !important; border-color: #34495e !important; }
+    </style>
+</head>
+<body style="overflow-y: auto;">
+
+    <nav class="top-nav">
+        <h1>🏀 Black Shots Clubbeheer</h1>
+        <div style="display:flex; align-items:center; gap:15px;">
+            <a href="dashboard.html" class="terug-knop">🏠 Dashboard</a>
         </div>
-    `;
+    </nav>
 
-    dagenGesorteerd.forEach((dag) => {
-        let obj = perDag[dag];
-        let d = new Date(dag);
-        let mooieDatum = isNaN(d) ? dag : d.toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
+    <main class="content-sectie active" style="max-width: 1200px; margin: 20px auto; padding: 0 20px;">
+        
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:25px; border-bottom: 2px solid var(--border-color); padding-bottom: 15px;">
+            <div>
+                <h2 style="margin:0; color:var(--secondary-color); font-size:1.6rem;">🖨️ PDF Rapportages & Print</h2>
+                <p style="color: #7f8c8d; margin-top:3px; font-size:0.85rem;">Genereer de officiële Black Shots wedstrijdoverzichten, tafelschema's en persoonlijke brieven.</p>
+            </div>
+        </div>
 
-        html += `<h2 style="border-bottom:2px solid #e2e8f0; color:#2c3e50; margin-top:25px; padding-bottom:5px; font-size:1.3rem;">📅 ${mooieDatum}</h2>`;
-
-        // ================== THUIS WEDSTRIJDEN ==================
-        if(obj.thuis.length > 0) {
-            obj.thuis.sort((a,b) => window.planStatusDB[window.genereerUniekId(a)].tijd.localeCompare(window.planStatusDB[window.genereerUniekId(b)].tijd));
+        <div class="report-grid">
             
-            html += `<h3 style="color:#e67e22; margin-bottom:10px; font-size:1.1rem;">🏠 Thuis</h3>`;
-            html += `<table class="print-table">
-                <thead>
-                    <tr>
-                        <th style="width:60px;">Wedst.nr</th>
-                        <th style="width:50px;">Tijd</th>
-                        <th>Wedstrijd</th>
-                        <th style="width:110px;">Hal / Veld</th>
-                        <th style="width:160px;">Scheidsrechter(s)</th>
-                        <th style="width:160px;">Tafel / Scorer</th>
-                    </tr>
-                </thead>
-                <tbody>`;
-            
-            obj.thuis.forEach(w => {
-                let id = window.genereerUniekId(w);
-                let st = window.planStatusDB[id];
-                let pt = window.persoonsTakenDB[id] || {};
-                let tt = window.teamTakenDB[id] || {};
-
-                let thuisNaam = w.Thuisteam.replace(/Black Shots\s*-?\s*/i, 'BS ').trim();
-                let uitNaam = w.Uitteam.replace(/Black Shots\s*-?\s*/i, 'BS ').trim();
-
-                let sA = window.naamWeergave(pt.sA, tt.sA);
-                let sB = window.naamWeergave(pt.sB, tt.sB);
-                let scheidsStr = [sA, sB].filter(x => x !== '-').join('<br>');
-
-                let tab = window.naamWeergave(pt.tab, tt.tab);
-                let sco = window.naamWeergave(pt.sco, tt.sco);
-                let tafelStr = [tab, sco].filter(x => x !== '-').join('<br>');
-
-                html += `<tr>
-                    <td style="font-size:0.8rem; color:#7f8c8d;">${w.Wedstrijdnummer || '-'}</td>
-                    <td style="font-weight:bold; font-size:1.05rem;">${st.tijd}</td>
-                    <td><strong>${thuisNaam}</strong> - ${uitNaam}</td>
-                    <td>De Veste<br><small style="color:#7f8c8d; font-weight:bold;">Veld ${st.veld}</small></td>
-                    <td>${scheidsStr || '-'}</td>
-                    <td>${tafelStr || '-'}</td>
-                </tr>`;
-            });
-            html += `</tbody></table>`;
-        }
-
-        // ================== UIT WEDSTRIJDEN ==================
-        if(obj.uit.length > 0) {
-            obj.uit.sort((a,b) => window.planStatusDB[window.genereerUniekId(a)].tijd.localeCompare(window.planStatusDB[window.genereerUniekId(b)].tijd));
-            
-            html += `<h3 style="color:#3498db; margin-bottom:10px; font-size:1.1rem; margin-top:20px;">🚌 Uit</h3>`;
-            html += `<table class="print-table">
-                <thead>
-                    <tr>
-                        <th style="width:60px;">Wedst.nr</th>
-                        <th style="width:50px;">Tijd</th>
-                        <th>Wedstrijd</th>
-                        <th style="width:140px;">Plaats / Hal</th>
-                        <th style="width:180px;">Vervoer</th>
-                    </tr>
-                </thead>
-                <tbody>`;
-            
-            obj.uit.forEach(w => {
-                let id = window.genereerUniekId(w);
-                let st = window.planStatusDB[id];
-                let pt = window.persoonsTakenDB[id] || {};
-
-                let thuisNaam = w.Thuisteam.replace(/Black Shots\s*-?\s*/i, 'BS ').trim();
-                let uitNaam = w.Uitteam.replace(/Black Shots\s*-?\s*/i, 'BS ').trim();
-
-                let a1 = window.naamWeergave(pt.auto1, "Auto 1");
-                let a2 = window.naamWeergave(pt.auto2, "Auto 2");
-                let a3 = window.naamWeergave(pt.auto3, "Auto 3");
-                let autoStr = [a1, a2, a3].filter(x => x !== '-' && !x.includes('Auto')).join('<br>');
-                if(!autoStr) autoStr = `<span style="color:#e74c3c; font-style:italic;">Nog in te vullen</span>`;
-
-                let plaats = w.Locatie || w.Plaats || 'Onbekend';
-
-                html += `<tr>
-                    <td style="font-size:0.8rem; color:#7f8c8d;">${w.Wedstrijdnummer || '-'}</td>
-                    <td style="font-weight:bold; font-size:1.05rem;">${st.tijd}</td>
-                    <td>${thuisNaam} - <strong>${uitNaam}</strong></td>
-                    <td style="font-size:0.85rem;">${plaats}</td>
-                    <td>${autoStr}</td>
-                </tr>`;
-            });
-            html += `</tbody></table>`;
-        }
-    });
-
-    window.startPrintJob(html);
-};
-
-// ============================================================================
-// RAPPORT 3: PERSOONLIJKE TAKENBRIEF
-// ============================================================================
-window.genereerPersoonlijkeBrief = function() {
-    let enkelePersoonId = document.getElementById('select-persoon').value;
-    let bulkTeamId = document.getElementById('select-team-brief').value;
-    let ruweIntroTekst = document.getElementById('brief-intro').value.replace(/\n/g, '<br>');
-
-    let huidigeMaand = new Date().getMonth(); 
-    let seizoensHelft = (huidigeMaand >= 7) ? "eerste helft" : "tweede helft"; 
-    let seizoenNaam = window.appInstellingen.seizoen || "huidige";
-    
-    let introTekst = ruweIntroTekst.replace(/\[HELFT\]/g, seizoensHelft).replace(/\[SEIZOEN\]/g, seizoenNaam);
-
-    if (!enkelePersoonId && !bulkTeamId) return alert("Kies een persoon óf een team/club om te printen.");
-
-    let personenTePrinten = [];
-
-    if (bulkTeamId === "ALL") {
-        window.spelersDB.forEach(s => personenTePrinten.push(s));
-        window.scheidsrechtersDB.forEach(sr => { if(!sr.gekoppeldLid) personenTePrinten.push(sr); });
-    } else if (bulkTeamId) {
-        window.spelersDB.forEach(s => { if(s.teamId === bulkTeamId) personenTePrinten.push(s); });
-    } else if (enkelePersoonId) {
-        let p = window.spelersDB.find(s => s.id === enkelePersoonId) || window.scheidsrechtersDB.find(sr => sr.id === enkelePersoonId);
-        if (p) personenTePrinten.push(p);
-    }
-
-    if(personenTePrinten.length === 0) return alert("Geen personen gevonden voor deze selectie.");
-
-    let alleWedstrijden = [...window.nbbWedstrijden, ...window.customWedstrijden];
-    let totaleHtml = "";
-
-    personenTePrinten.forEach((persoon, index) => {
-        let isSpeler = !!persoon.teamId;
-        let mijnCanonTeam = isSpeler ? window.getCanonicalTeam(persoon.teamId) : null;
-        let mijnTaken = [];
-        let takenTeller = 0;
-
-        let mijnStafTeams = [];
-        window.teamsDB.forEach(t => {
-            let coachStr = (t.coach || '').toLowerCase();
-            let trainerStr = (t.trainer || '').toLowerCase();
-            let pNaam = persoon.naam.toLowerCase();
-            if (coachStr.includes(pNaam) || trainerStr.includes(pNaam)) mijnStafTeams.push(t.id);
-        });
-
-        alleWedstrijden.forEach(match => {
-            let matchId = window.genereerUniekId(match);
-            if (!window.planStatusDB[matchId]) return;
-
-            let isThuiswedstrijd = (match.Thuisteam || '').toLowerCase().includes('black shots');
-            let thuisTeamSchoon = match.Thuisteam.replace(/Black Shots\s*-?\s*/i, '').trim();
-            let uitTeamSchoon = match.Uitteam.replace(/Black Shots\s*-?\s*/i, '').trim();
-            let mCanonThuis = window.getCanonicalTeam(thuisTeamSchoon);
-            let mCanonUit = window.getCanonicalTeam(uitTeamSchoon);
-
-            let ikSpeelZelf = false;
-            if (isSpeler && mijnCanonTeam) {
-                if ((isThuiswedstrijd && mCanonThuis && mCanonThuis.id === mijnCanonTeam.id) || 
-                    (!isThuiswedstrijd && mCanonUit && mCanonUit.id === mijnCanonTeam.id)) ikSpeelZelf = true;
-            }
-
-            let ikBenCoach = false;
-            if ((mCanonThuis && mijnStafTeams.includes(mCanonThuis.id)) || 
-                (mCanonUit && mijnStafTeams.includes(mCanonUit.id))) ikBenCoach = true;
-
-            let pTaken = window.persoonsTakenDB[matchId] || {};
-            let taakLabels = [];
-            
-            if (ikSpeelZelf) taakLabels.push("Speler");
-            if (ikBenCoach) taakLabels.push("Coach");
-            if (pTaken.sA === persoon.id || pTaken.sB === persoon.id) { taakLabels.push("Scheidsrechter"); takenTeller++; }
-            if (pTaken.tab === persoon.id) { taakLabels.push("Tafelaar"); takenTeller++; }
-            if (pTaken.sco === persoon.id) { taakLabels.push("Scorer"); takenTeller++; }
-            if (pTaken.auto1 === persoon.id || pTaken.auto2 === persoon.id || pTaken.auto3 === persoon.id) { taakLabels.push("Vervoer / Auto"); takenTeller++; }
-
-            if (taakLabels.length > 0) {
-                mijnTaken.push({
-                    isoDatum: window.normaalDatum(match.Datum),
-                    tijd: window.planStatusDB[matchId].tijd,
-                    thuis: match.Thuisteam.replace('Black Shots', 'BS'),
-                    uit: match.Uitteam.replace('Black Shots', 'BS'),
-                    taak: taakLabels.join(', '),
-                    isThuiswedstrijd: isThuiswedstrijd
-                });
-            }
-        });
-
-        mijnTaken.sort((a, b) => {
-            if (a.isoDatum !== b.isoDatum) return a.isoDatum.localeCompare(b.isoDatum);
-            return a.tijd.localeCompare(b.tijd);
-        });
-
-        if (index > 0) totaleHtml += `<div class="page-break"></div>`; 
-
-        let stafInfoHtml = '';
-        let trainingenHtml = '';
-
-        if (isSpeler && mijnCanonTeam) {
-            stafInfoHtml += `<div style="font-size:0.95rem; color:#2c3e50; margin-bottom:2px;"><strong>Team:</strong> ${mijnCanonTeam.naam}</div>`;
-            if (mijnCanonTeam.coach) stafInfoHtml += `<div style="font-size:0.95rem; color:#2c3e50; margin-bottom:2px;"><strong>Coach:</strong> ${mijnCanonTeam.coach}</div>`;
-            if (mijnCanonTeam.trainer) stafInfoHtml += `<div style="font-size:0.95rem; color:#2c3e50; margin-bottom:2px;"><strong>Trainer:</strong> ${mijnCanonTeam.trainer}</div>`;
-            
-            if (mijnCanonTeam.trainingen && Array.isArray(mijnCanonTeam.trainingen)) {
-                const dagenMap = {1:"Maandag", 2:"Dinsdag", 3:"Woensdag", 4:"Donderdag", 5:"Vrijdag", 6:"Zaterdag", 7:"Zondag", 0:"Zondag"};
-                mijnCanonTeam.trainingen.forEach(tr => {
-                    let dagNaam = dagenMap[parseInt(tr.dag)] || "Onbekend";
-                    let loc = tr.zaal || 'Onbekend';
-                    if (tr.veld) loc += ` (Veld ${tr.veld})`;
-                    trainingenHtml += `<div style="font-size:0.95rem; color:#2c3e50; margin-bottom:2px;"><strong>Training:</strong> ${dagNaam} ${tr.start || '?'} - ${tr.eind || '?'} | 📍 ${loc}</div>`;
-                });
-            }
-        }
-
-        totaleHtml += `
-            <div style="display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #000; padding-bottom:15px; margin-bottom:20px;">
-                <div style="flex:1;">
-                    <h1 style="margin:0 0 10px 0; font-size:1.8rem; color:#2c3e50;">${persoon.naam}</h1>
-                    <div style="margin-bottom:15px;">
-                        ${stafInfoHtml}
-                        ${trainingenHtml}
+            <!-- 1. Algemeen Weekoverzicht -->
+            <div class="report-card" id="card-week">
+                <h3>🗓️ Week- en Takenoverzicht</h3>
+                <p>Het complete clubschema inclusief uitwedstrijden, chauffeurs en zaalwachten.</p>
+                <div style="display:flex; gap:10px; margin-bottom:15px;">
+                    <div style="flex:1;">
+                        <label style="font-size:0.8rem; font-weight:bold; color:#7f8c8d;">Van:</label>
+                        <input type="date" id="week-van" class="report-select" style="margin-bottom:0;">
                     </div>
-                    <div style="font-size:0.95rem; line-height:1.5; color:#2c3e50;">
-                        <div><strong>Geboortedatum:</strong> ${persoon.geboorteDatum || '-'}</div>
-                        <div><strong>Lid sinds:</strong> ${persoon.lidSinds || '-'}</div>
-                        <div><strong>NBB Nummer:</strong> ${persoon.bondsnummer || '-'}</div>
-                        <div><strong>Aantal toegewezen taken:</strong> ${takenTeller}</div>
+                    <div style="flex:1;">
+                        <label style="font-size:0.8rem; font-weight:bold; color:#7f8c8d;">Tot:</label>
+                        <input type="date" id="week-tot" class="report-select" style="margin-bottom:0;">
                     </div>
                 </div>
-                <div style="width:180px; text-align:right;">
-                    <img src="Logo Zwart.png" style="max-width:100%; height:auto;">
-                </div>
+                <button onclick="window.genereerWeekOverzicht()" class="report-btn">📄 Maak PDF</button>
             </div>
-            
-            <div style="margin-bottom:20px; line-height:1.5;">
-                Beste ${persoon.naam.split(' ')[0]},<br><br>
-                ${introTekst}<br><br>
-                Met sportieve groet,<br>
-                Wedstrijdsecretariaat Black Shots
-            </div>
-        `;
 
-        if (mijnTaken.length === 0) {
-            totaleHtml += `<p style="font-style:italic; color:#7f8c8d;">Er zijn in het systeem nog geen wedstrijden of taken aan jou gekoppeld voor de ingevoerde planning.</p>`;
-        } else {
-            totaleHtml += `<table class="print-table">
-                <thead>
-                    <tr>
-                        <th style="width:120px;">Datum</th>
-                        <th style="width:70px;">Tijd</th>
-                        <th style="width:70px;">Locatie</th>
-                        <th>Wedstrijd</th>
-                        <th style="width:160px; color:#d35400;">Jouw Taak</th>
-                    </tr>
-                </thead>
-                <tbody>`;
-            
-            mijnTaken.forEach(taak => {
-                let d = new Date(taak.isoDatum);
-                let mooieDatum = isNaN(d) ? taak.isoDatum : d.toLocaleDateString('nl-NL', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' });
+            <!-- 2. Teamoverzicht & Roster -->
+            <div class="report-card" id="card-team">
+                <h3>👥 Team Roster & Programma</h3>
+                <p>Officiële teambrief met de complete spelerslijst, NBB-nummers en uitsluitend het programma en de taken voor dit specifieke team.</p>
+                <select id="select-team" class="report-select">
+                    <option value="">-- Kies een Team --</option>
+                </select>
+                <button onclick="window.genereerTeamOverzicht()" class="report-btn">📄 Maak PDF</button>
+            </div>
+
+           <!-- 3. Persoonlijke Takenbrief (GEÜPDATE) -->
+            <div class="report-card" id="card-persoon">
+                <h3>👤 Persoonlijke Takenbrief</h3>
+                <p>Gepersonaliseerde lijst met eigen wedstrijden (Speler) én alle toegewezen vrijwilligerstaken.</p>
                 
-                totaleHtml += `
-                    <tr>
-                        <td style="white-space:nowrap;">${mooieDatum}</td>
-                        <td style="font-weight:bold; font-size:1.05rem;">${taak.tijd}</td>
-                        <td>${taak.isThuiswedstrijd ? 'Thuis' : 'Uit'}</td>
-                        <td><strong>${taak.thuis}</strong> - ${taak.uit}</td>
-                        <td style="font-weight:bold; color:#d35400;">${taak.taak}</td>
-                    </tr>
-                `;
-            });
-            
-            totaleHtml += `</tbody></table>`;
-        }
-    });
+                <label style="font-size:0.8rem; font-weight:bold; color:#7f8c8d;">Introductietekst aanpassen:</label>
+                <textarea id="brief-intro" style="width:100%; height:75px; padding:8px; border-radius:4px; border:1px solid #cbd5e1; margin-bottom:10px; font-size:0.85rem; font-family:inherit;">Voor je ligt jouw persoonlijke wedstrijd- en takenlijst voor de [HELFT] van het seizoen [SEIZOEN].
+Indien je de taak niet kunt vervullen, probeer dan eerst ZELF en TIJDIG voor vervanging te zorgen.
+Kan je niet aanwezig zijn bij een wedstrijd, geef dit TIJDIG door bij je Coach.</textarea>
+                
+                <div style="display:flex; gap:10px; margin-bottom:15px; flex-wrap:wrap;">
+                    <select id="select-persoon" class="report-select" style="margin-bottom:0; flex:1; min-width: 150px;">
+                        <option value="">-- Enkele Persoon --</option>
+                    </select>
+                    <select id="select-team-brief" class="report-select" style="margin-bottom:0; flex:1; min-width: 150px;">
+                        <option value="">-- Bulk: Hele Team --</option>
+                        <option value="ALL">🌟 Bulk: Hele Club (Iedereen)</option>
+                    </select>
+                </div>
+                
+                <button onclick="window.genereerPersoonlijkeBrief()" class="report-btn">📄 Genereer Brief / Brieven</button>
+            </div>
 
-    window.startPrintJob(totaleHtml);
-};
+            <!-- 4. Zaalwacht / Registratieformulieren -->
+            <div class="report-card" id="card-registratie">
+                <h3>📋 Registratie Wedstrijden</h3>
+                <p>De invulformulieren (handmatige controle) voor de zaalwacht en consumptiebonnen. Groepeert alle thuiswedstrijden van een specifieke dag netjes onder elkaar.</p>
+                <select id="select-dag-registratie" class="report-select">
+                    <option value="">-- Kies een Thuis-speeldag --</option>
+                </select>
+                <button onclick="window.genereerRegistratieFormulier()" class="report-btn">📄 Maak PDF</button>
+            </div>
 
-// ============================================================================
-// DE ANDERE RAPPORTEN (KLAARZETTEN VOOR VOLGENDE UPDATE)
-// ============================================================================
-window.genereerTeamOverzicht = function() {
-    alert("Klaar voor de volgende update! Data wordt al ingeladen.");
-};
+        </div>
+    </main>
 
-window.genereerRegistratieFormulier = function() {
-    alert("Klaar voor de volgende update! Data wordt al ingeladen.");
-};
+    <!-- HIER WORDT DE PDF ACHTER DE SCHERMEN OPGEBOUWD -->
+    <div id="print-container"></div>
+
+    <script src="basketbal_auth.js"></script>
+    <!-- We maken straks een nieuw JS bestand aan voor de opmaaklogica -->
+    <script src="basketbal_rapporten.js"></script>
+    <script type="module" src="firebase_motor.js"></script>
+</body>
+</html>
