@@ -99,7 +99,7 @@ function vulDropdowns() {
 }
 
 // ============================================================================
-// DE PRINT / PDF ENGINE
+// DE PRINT / PDF ENGINE (Nu met anti-afbreek logica voor blokken en tabellen)
 // ============================================================================
 window.startPrintJob = function(htmlContent) {
     let printContainer = document.getElementById('print-container');
@@ -108,12 +108,19 @@ window.startPrintJob = function(htmlContent) {
         <style>
             @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
             #print-wrapper { font-family: 'Roboto', Arial, sans-serif; color: #000; background: white; padding: 20px; max-width: 900px; margin: 0 auto; font-size: 11pt; }
-            .print-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 0.95rem; }
+            
+            /* Tabellen instellen zodat rijen NIET halverwege afbreken */
+            .print-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 0.95rem; page-break-inside: auto; }
+            .print-table tr { page-break-inside: avoid !important; break-inside: avoid !important; }
             .print-table th, .print-table td { padding: 6px 8px; border-bottom: 1px solid #ccc; text-align: left; vertical-align: top; }
             .print-table th { background-color: #f8f9fa; font-weight: bold; border-bottom: 2px solid #000; color: #2c3e50; }
+            
+            /* Voor losse blokken (zoals wedstrijden in teamoverzicht) */
+            .avoid-break { page-break-inside: avoid !important; break-inside: avoid !important; margin-bottom: 15px; }
+            
+            /* Forceer een harde pagina break (gebruikt tussen personen) */
             .page-break { page-break-before: always; height: 1px; width: 100%; display: block; margin: 0; padding: 0; border: none; }
             
-            /* Print Specifieke Regels */
             @media print {
                 @page { margin: 0 !important; }
                 body { margin: 0 !important; padding: 15mm !important; background: white !important; -webkit-print-color-adjust: exact !important; }
@@ -465,8 +472,9 @@ window.genereerPersoonlijkeBrief = function() {
 
     window.startPrintJob(totaleHtml);
 };
+
 // ============================================================================
-// RAPPORT 2: TEAM ROSTER & PROGRAMMA (Voor de Coach)
+// RAPPORT 2: TEAM ROSTER & PROGRAMMA (Nu met 'Spelers' en onbreekbare blokken)
 // ============================================================================
 window.genereerTeamOverzicht = function() {
     let teamId = document.getElementById('select-team').value;
@@ -475,8 +483,8 @@ window.genereerTeamOverzicht = function() {
     let tCanon = window.getCanonicalTeam(teamId);
     if (!tCanon) return alert("Team niet gevonden in de database.");
 
-    // Verzamel spelers van dit team
-    let teamSpelers = window.spelersDB.filter(s => s.teamId === tCanon.id);
+    // Verzamel spelers van dit team (en negeer recreanten expliciet!)
+    let teamSpelers = window.spelersDB.filter(s => s.teamId === tCanon.id && !s.isRecreant);
     teamSpelers.sort((a, b) => a.naam.localeCompare(b.naam));
 
     let seizoenNaam = window.appInstellingen.seizoen || "2025-2026";
@@ -494,11 +502,11 @@ window.genereerTeamOverzicht = function() {
     `;
 
     // --- DEEL 1: ROSTER & STAF ---
-    html += `<div style="display:flex; gap:40px; margin-bottom:30px;">`;
+    html += `<div style="display:flex; gap:40px; margin-bottom:30px; page-break-inside: avoid; break-inside: avoid;">`;
     
-    // Spelerslijst (NBB, Rugnummer/Leeftijd, Naam)
+    // Spelerslijst
     html += `<div style="flex:2;">
-        <h3 style="margin-top:0; color:#2c3e50; border-bottom:1px solid #ccc; padding-bottom:5px;">Selectie</h3>
+        <h3 style="margin-top:0; color:#2c3e50; border-bottom:1px solid #ccc; padding-bottom:5px;">Spelers</h3>
         <ul style="list-style:none; padding:0; margin:0; font-size:0.95rem; line-height:1.6;">`;
     teamSpelers.forEach(s => {
         let rugnr = s.rugnummer || s.leeftijd || '-';
@@ -549,7 +557,6 @@ window.genereerTeamOverzicht = function() {
         let accommodatie = w.Accommodatie || w.Locatie || w.Plaats || (isThuis ? 'De Veste' : 'Onbekend');
         let veldTekst = (st.veld && st.veld !== 'uit') ? `(Veld ${st.veld})` : '';
 
-        // Taken netjes opmaken
         let takenHtml = '';
         if (isThuis) {
             let sA = window.naamWeergave(pt.sA, tt.sA); let sB = window.naamWeergave(pt.sB, tt.sB);
@@ -567,8 +574,9 @@ window.genereerTeamOverzicht = function() {
             takenHtml = `<div style="font-size:0.9rem; color:#555;"><strong>Vervoer:</strong> ${autoStr || '<i style="color:#e74c3c;">Nog in te vullen</i>'}</div>`;
         }
 
+        // TOEGEVOEGD: class="avoid-break" zorgt ervoor dat dit blokje nooit doormidden wordt geknipt door de printer
         html += `
-            <div style="margin-bottom:15px; padding-bottom:10px; border-bottom:1px dashed #ccc;">
+            <div class="avoid-break" style="padding-bottom:10px; border-bottom:1px dashed #ccc;">
                 <div style="font-weight:bold; color:#2c3e50; font-size:1.05rem; margin-bottom:3px;">${mooieDatum}</div>
                 <div style="display:flex; justify-content:space-between; align-items:flex-start;">
                     <div style="flex:2;">
