@@ -85,17 +85,30 @@ function vulDropdowns() {
     });
 }
 
+// ============================================================================
+// DE PRINT / PDF ENGINE (Nu met Witte Achtergrond & Zonder Browser-headers)
+// ============================================================================
 window.startPrintJob = function(htmlContent) {
     let printContainer = document.getElementById('print-container');
+    
     let printStyle = `
         <style>
             @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
             #print-wrapper { font-family: 'Roboto', Arial, sans-serif; color: #000; background: white; padding: 20px; max-width: 900px; margin: 0 auto; font-size: 11pt; }
-            .print-header { border-bottom: 2px solid #000; margin-bottom: 20px; padding-bottom: 10px; }
+            .print-header { border-bottom: 2px solid #000; margin-bottom: 20px; padding-bottom: 10px; position: relative; }
             .print-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 0.95rem; }
             .print-table th, .print-table td { padding: 6px 8px; border-bottom: 1px solid #ccc; text-align: left; vertical-align: top; }
             .print-table th { background-color: #f8f9fa; font-weight: bold; border-bottom: 2px solid #000; }
             .page-break { page-break-before: always; height: 1px; width: 100%; display: block; margin: 0; padding: 0; border: none; }
+            
+            /* Print Specifieke Regels (Wist de grijze achtergrond en datum in de hoek) */
+            @media print {
+                @page { margin: 12mm; size: auto; } /* 12mm marge overschrijft de standaard browser datum/URL */
+                body { background: white !important; margin: 0; padding: 0; -webkit-print-color-adjust: exact !important; }
+                body > *:not(#print-container) { display: none !important; }
+                #print-container { display: block !important; position: static !important; background: white !important; width: 100% !important; }
+                #print-wrapper { background: white !important; box-shadow: none !important; margin: 0 !important; padding: 0 !important; max-width: 100% !important; }
+            }
         </style>
     `;
     printContainer.innerHTML = printStyle + '<div id="print-wrapper">' + htmlContent + '</div>';
@@ -103,10 +116,7 @@ window.startPrintJob = function(htmlContent) {
 };
 
 // ============================================================================
-// RAPPORT 3: PERSOONLIJKE TAKENBRIEF (INCLUSIEF BULK & EIGEN WEDSTRIJDEN)
-// ============================================================================
-// ============================================================================
-// RAPPORT 3: PERSOONLIJKE TAKENBRIEF (INCLUSIEF COACH LOGICA)
+// RAPPORT 3: PERSOONLIJKE TAKENBRIEF (Nu met Logo, Trainingen & Strakke layout)
 // ============================================================================
 window.genereerPersoonlijkeBrief = function() {
     let enkelePersoonId = document.getElementById('select-persoon').value;
@@ -117,7 +127,6 @@ window.genereerPersoonlijkeBrief = function() {
 
     let personenTePrinten = [];
 
-    // Bepaal wie we moeten genereren
     if (bulkTeamId === "ALL") {
         window.spelersDB.forEach(s => personenTePrinten.push(s));
         window.scheidsrechtersDB.forEach(sr => { if(!sr.gekoppeldLid) personenTePrinten.push(sr); });
@@ -139,55 +148,39 @@ window.genereerPersoonlijkeBrief = function() {
         let mijnTaken = [];
         let takenTeller = 0;
 
-        // NIEUW: Bepaal van welke teams deze persoon Coach of Trainer is!
         let mijnStafTeams = [];
         window.teamsDB.forEach(t => {
             let coachStr = (t.coach || '').toLowerCase();
             let trainerStr = (t.trainer || '').toLowerCase();
             let pNaam = persoon.naam.toLowerCase();
-            
-            // Controleer of de naam van deze persoon in het Coach/Trainer veld van het team staat
-            if (coachStr.includes(pNaam) || trainerStr.includes(pNaam)) {
-                mijnStafTeams.push(t.id);
-            }
+            if (coachStr.includes(pNaam) || trainerStr.includes(pNaam)) mijnStafTeams.push(t.id);
         });
 
-        // Loop door ALLE wedstrijden in de planning
         alleWedstrijden.forEach(match => {
             let matchId = window.genereerUniekId(match);
-            if (!window.planStatusDB[matchId]) return; // Alleen actieve (geplande) wedstrijden
+            if (!window.planStatusDB[matchId]) return;
 
             let isThuiswedstrijd = (match.Thuisteam || '').toLowerCase().includes('black shots');
             let thuisTeamSchoon = match.Thuisteam.replace(/Black Shots\s*-?\s*/i, '').trim();
             let uitTeamSchoon = match.Uitteam.replace(/Black Shots\s*-?\s*/i, '').trim();
-            
             let mCanonThuis = window.getCanonicalTeam(thuisTeamSchoon);
             let mCanonUit = window.getCanonicalTeam(uitTeamSchoon);
 
-            // 1. Speelt dit lid zelf deze wedstrijd?
             let ikSpeelZelf = false;
             if (isSpeler && mijnCanonTeam) {
                 if ((isThuiswedstrijd && mCanonThuis && mCanonThuis.id === mijnCanonTeam.id) || 
-                    (!isThuiswedstrijd && mCanonUit && mCanonUit.id === mijnCanonTeam.id)) {
-                    ikSpeelZelf = true;
-                }
+                    (!isThuiswedstrijd && mCanonUit && mCanonUit.id === mijnCanonTeam.id)) ikSpeelZelf = true;
             }
 
-            // 2. Ben ik coach van het team dat deze wedstrijd speelt?
             let ikBenCoach = false;
             if ((mCanonThuis && mijnStafTeams.includes(mCanonThuis.id)) || 
-                (mCanonUit && mijnStafTeams.includes(mCanonUit.id))) {
-                ikBenCoach = true;
-            }
+                (mCanonUit && mijnStafTeams.includes(mCanonUit.id))) ikBenCoach = true;
 
-            // 3. Heeft dit lid overige vrijwilligerstaken?
             let pTaken = window.persoonsTakenDB[matchId] || {};
             let taakLabels = [];
             
-            // We voegen spelen en coachen bovenaan het lijstje toe
             if (ikSpeelZelf) taakLabels.push("Speler");
             if (ikBenCoach) taakLabels.push("Coach");
-
             if (pTaken.sA === persoon.id || pTaken.sB === persoon.id) { taakLabels.push("Scheidsrechter"); takenTeller++; }
             if (pTaken.tab === persoon.id) { taakLabels.push("Tafelaar (Tablet)"); takenTeller++; }
             if (pTaken.sco === persoon.id) { taakLabels.push("Scorer (Bord)"); takenTeller++; }
@@ -205,7 +198,6 @@ window.genereerPersoonlijkeBrief = function() {
             }
         });
 
-        // Chronologisch sorteren
         mijnTaken.sort((a, b) => {
             if (a.isoDatum !== b.isoDatum) return a.isoDatum.localeCompare(b.isoDatum);
             return a.tijd.localeCompare(b.tijd);
@@ -213,19 +205,37 @@ window.genereerPersoonlijkeBrief = function() {
 
         if (index > 0) totaleHtml += `<div class="page-break"></div>`; 
 
-        // NIEUW: Verzamel de Coach & Trainer info van dit specifieke team voor weergave in de briefkop
         let stafInfoHtml = '';
+        let trainingenHtml = '';
+
         if (isSpeler && mijnCanonTeam) {
-            stafInfoHtml += `<strong>Team:</strong> ${mijnCanonTeam.naam} <br>`;
-            if (mijnCanonTeam.coach) stafInfoHtml += `<span style="font-size:0.9rem; color:#34495e;"><strong>Coach:</strong> ${mijnCanonTeam.coach}</span> <br>`;
-            if (mijnCanonTeam.trainer) stafInfoHtml += `<span style="font-size:0.9rem; color:#34495e;"><strong>Trainer:</strong> ${mijnCanonTeam.trainer}</span> <br>`;
+            stafInfoHtml += `<div style="font-size:0.9rem; color:#34495e;"><strong>Team:</strong> ${mijnCanonTeam.naam}</div>`;
+            if (mijnCanonTeam.coach) stafInfoHtml += `<div style="font-size:0.9rem; color:#34495e;"><strong>Coach:</strong> ${mijnCanonTeam.coach}</div>`;
+            if (mijnCanonTeam.trainer) stafInfoHtml += `<div style="font-size:0.9rem; color:#34495e;"><strong>Trainer:</strong> ${mijnCanonTeam.trainer}</div>`;
+            
+            // Haal de trainingen op
+            if (mijnCanonTeam.trainingen && Array.isArray(mijnCanonTeam.trainingen)) {
+                const dagenMap = {1:"Maandag", 2:"Dinsdag", 3:"Woensdag", 4:"Donderdag", 5:"Vrijdag", 6:"Zaterdag", 7:"Zondag", 0:"Zondag"};
+                mijnCanonTeam.trainingen.forEach(tr => {
+                    let dagNaam = dagenMap[parseInt(tr.dag)] || "Onbekend";
+                    let loc = tr.zaal || 'Onbekend';
+                    if (tr.veld) loc += ` (Veld ${tr.veld})`;
+                    trainingenHtml += `<div style="font-size:0.9rem; color:#34495e;"><strong>Training:</strong> ${dagNaam} ${tr.start || '?'} - ${tr.eind || '?'} | 📍 ${loc}</div>`;
+                });
+            }
         }
 
         totaleHtml += `
             <div class="print-header">
+                <!-- HET LOGO RECHTSBOVEN -->
+                <img src="Logo Zwart.png" style="position:absolute; top:0; right:0; width:130px; height:auto; object-fit:contain;">
+                
                 <h1 style="margin:0 0 5px 0; font-size:1.6rem; color:#2c3e50;">${persoon.naam}</h1>
-                ${stafInfoHtml}
-                <div style="display:flex; justify-content:space-between; margin-top:10px; font-size:0.9rem;">
+                <div style="margin-bottom:12px; line-height:1.4;">
+                    ${stafInfoHtml}
+                    ${trainingenHtml}
+                </div>
+                <div style="font-size:0.9rem; line-height:1.4;">
                     <div><strong>Geboortedatum:</strong> ${persoon.geboorteDatum || '-'}</div>
                     <div><strong>Lid sinds:</strong> ${persoon.lidSinds || '-'}</div>
                     <div><strong>NBB Nummer:</strong> ${persoon.bondsnummer || '-'}</div>
