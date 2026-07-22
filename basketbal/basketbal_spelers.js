@@ -56,9 +56,10 @@ window.renderSpelers = function() {
 
     if (!tbody) return;
 
+    // Dropdowns vullen
     if(teamSelect && teamSelect.options.length <= 1) {
         teamSelect.innerHTML = '<option value="">-- Geen (Vrije Speler) --</option>';
-        if(filterTeam) filterTeam.innerHTML = '<option value="all">-- Toon Alle Spelers --</option><option value="vrij">Zonder Team (Zwervers)</option><option value="aliasfout">⚠️ Alias Fouten (Onbekende Code)</option>';
+        if(filterTeam) filterTeam.innerHTML = '<option value="all">-- Toon Alle Teams --</option><option value="vrij">Zonder Team (Zwervers)</option><option value="aliasfout">⚠️ Alias Fouten (Onbekende Code)</option>';
         
         if (Array.isArray(window.teamsDB)) {
             window.teamsDB.forEach(t => {
@@ -79,22 +80,61 @@ window.renderSpelers = function() {
         nwGezin.value = huidigeGezinSelectie;
     }
 
+    // Waardes ophalen
     let zoekterm = (document.getElementById('zoek-speler') ? document.getElementById('zoek-speler').value.toLowerCase() : "");
     let selTeam = filterTeam ? filterTeam.value : 'all';
     let selType = document.getElementById('filter-type') ? document.getElementById('filter-type').value : 'all';
+    let sorteerKeuze = document.getElementById('sorteer-speler') ? document.getElementById('sorteer-speler').value : 'naam_asc';
 
     let html = '';
     let gesorteerdeSpelers = window.spelersDB.map((speler, index) => ({ ...speler, origineleIndex: index }));
 
+    // Hulpfunctie om datums om te zetten naar een getal voor makkelijk sorteren
+    const datumNaarGetal = (d) => {
+        if (!d || d === '-' || d.includes('Proef')) return 0;
+        let p = d.split('-');
+        if (p.length === 3) {
+            if (p[0].length <= 2) return parseInt(`${p[2]}${p[1].padStart(2,'0')}${p[0].padStart(2,'0')}`); // DD-MM-YYYY
+            return parseInt(`${p[0]}${p[1].padStart(2,'0')}${p[2].padStart(2,'0')}`); // YYYY-MM-DD
+        }
+        return 0;
+    };
+
+    // Hulpfunctie voor de achternaam (alles na de eerste spatie pakken)
+    const getAchternaam = (naam) => {
+        if (!naam) return "";
+        let delen = naam.trim().split(' ');
+        return delen.length > 1 ? delen.slice(1).join(' ') : delen[0];
+    };
+
+    // DE NIEUWE SLIMME SORTEERMACHINE
     gesorteerdeSpelers.sort((a, b) => {
-        if (a.isProeflid && !b.isProeflid) return -1;
-        if (!a.isProeflid && b.isProeflid) return 1;
-        
-        let aRec = a.isRecreant === true;
-        let bRec = b.isRecreant === true;
-        if (aRec && !bRec) return 1;   
-        if (!aRec && bRec) return -1;  
-        return (a.naam || '').localeCompare(b.naam || ''); 
+        switch (sorteerKeuze) {
+            case 'achternaam_asc':
+                return getAchternaam(a.naam).localeCompare(getAchternaam(b.naam));
+            case 'team_asc':
+                let tA = window.getCanonicalTeam(a.teamId) ? window.getCanonicalTeam(a.teamId).naam : (a.teamId || "ZZZ");
+                let tB = window.getCanonicalTeam(b.teamId) ? window.getCanonicalTeam(b.teamId).naam : (b.teamId || "ZZZ");
+                if (tA === tB) return (a.naam || '').localeCompare(b.naam || ''); // Als zelfde team, op naam
+                return tA.localeCompare(tB);
+            case 'leeftijd_jong': 
+                return datumNaarGetal(b.geboorteDatum) - datumNaarGetal(a.geboorteDatum);
+            case 'leeftijd_oud': 
+                let dA = datumNaarGetal(a.geboorteDatum) || 99999999;
+                let dB = datumNaarGetal(b.geboorteDatum) || 99999999;
+                return dA - dB;
+            case 'lidsinds_nieuw': 
+                return datumNaarGetal(b.lidSinds) - datumNaarGetal(a.lidSinds);
+            case 'bondsnummer_asc':
+                return (a.bondsnummer || 'ZZZ').localeCompare(b.bondsnummer || 'ZZZ');
+            case 'naam_asc':
+            default:
+                if (a.isProeflid && !b.isProeflid) return -1;
+                if (!a.isProeflid && b.isProeflid) return 1;
+                let aRec = a.isRecreant === true; let bRec = b.isRecreant === true;
+                if (aRec && !bRec) return 1; if (!aRec && bRec) return -1;
+                return (a.naam || '').localeCompare(b.naam || '');
+        }
     });
 
     gesorteerdeSpelers.forEach((speler) => {
@@ -151,7 +191,6 @@ window.renderSpelers = function() {
 
             let kaderBadge = speler.kaderRol ? `<div style="color:#8e44ad; font-size:0.8rem; font-weight:bold; margin-top:2px;">⭐ ${speler.kaderRol}</div>` : '';
 
-            // HET NIEUWE TAKEN WEERGAVE BLOK (Nu met klikbare quick-toggles!)
             let magF = speler.magFluiten === true; 
             let magT = speler.magTafelen !== false; 
             let heeftA = speler.heeftAuto !== false; 

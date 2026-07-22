@@ -71,8 +71,20 @@
 
         <div style="display:flex; gap:10px; margin-bottom:15px; flex-wrap:wrap; background:#eef2f5; padding:10px; border-radius:8px; border:1px solid var(--border-color);">
             <input type="text" id="zoek-speler" placeholder="🔍 Zoek op naam of bondsnummer..." onkeyup="window.renderSpelers()" style="flex:2; padding:10px; border:1px solid #bdc3c7; border-radius:4px; min-width:200px;">
+            
+            <!-- NIEUW: De Sorteer Dropdown -->
+            <select id="sorteer-speler" onchange="window.renderSpelers()" style="flex:1; padding:10px; border:1px solid #3498db; border-radius:4px; min-width:150px; font-weight:bold; color:#2c3e50; background:#ebf5fb;">
+                <option value="naam_asc">🔽 Sorteer: Voornaam (A-Z)</option>
+                <option value="achternaam_asc">🔽 Sorteer: Achternaam (A-Z)</option>
+                <option value="team_asc">👥 Sorteer: Team</option>
+                <option value="leeftijd_oud">⏳ Sorteer: Leeftijd (Oud naar Jong)</option>
+                <option value="leeftijd_jong">🌱 Sorteer: Leeftijd (Jong naar Oud)</option>
+                <option value="lidsinds_nieuw">🏅 Sorteer: Lid Sinds (Nieuwste eerst)</option>
+                <option value="bondsnummer_asc">🔢 Sorteer: Bondsnummer</option>
+            </select>
+
             <select id="filter-team" onchange="window.renderSpelers()" style="flex:1; padding:10px; border:1px solid #bdc3c7; border-radius:4px; min-width:150px; font-weight:bold;">
-                </select>
+            </select>
             <select id="filter-type" onchange="window.renderSpelers()" style="flex:1; padding:10px; border:1px solid #bdc3c7; border-radius:4px; min-width:150px; font-weight:bold;">
                 <option value="all">-- Alle Spelers --</option>
                 <option value="wedstrijd">Alleen Wedstrijdspelend</option>
