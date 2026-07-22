@@ -130,6 +130,7 @@ window.checkBeveiligingEnBouwMenu = function() {
                     { id: 'planner', url: 'planner.html', icon: '📆', tekst: 'Wedstrijd Planner' },
                     { id: 'nameninvullen', url: 'namen_invullen.html', icon: '⛹️', tekst: 'Taken Planner' },
                     { id: 'rapporten', url: 'rapporten.html', icon: '📁', tekst: 'rapporten' },
+                    { id: 'dagoverzicht', url: 'dagoverzicht.html', icon: '⏱️', tekst: 'Live Dagoverzicht' },
                     { id: 'scheidsrechters', url: 'scheidsrechters.html', icon: '👨‍⚖️', tekst: 'Scheidsrechters' }
                 ]
             },

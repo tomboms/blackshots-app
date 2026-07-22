@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Black Shots - Live Dagoverzicht</title>
+    <link rel="stylesheet" href="basketbal.css">
+    <style>
+        .dag-controls { display: flex; gap: 15px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; align-items: center; }
+        .dag-select { padding: 10px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: bold; color: #2c3e50; min-width: 250px; }
+        
+        .match-card { background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border-left: 5px solid #3498db; margin-bottom: 15px; overflow: hidden; display: flex; flex-wrap: wrap; }
+        .match-tijd-veld { background: #f8f9fa; padding: 15px; min-width: 120px; display: flex; flex-direction: column; justify-content: center; align-items: center; border-right: 1px solid #eee; }
+        .match-tijd { font-size: 1.4rem; font-weight: bold; color: #2c3e50; }
+        .match-veld { font-size: 0.85rem; color: #7f8c8d; font-weight: bold; margin-top: 5px; background: #e2e8f0; padding: 3px 8px; border-radius: 12px; }
+        
+        .match-info { padding: 15px; flex: 1; min-width: 300px; display: flex; flex-direction: column; justify-content: center; }
+        .match-teams { font-size: 1.1rem; color: #2c3e50; margin-bottom: 8px; }
+        .match-taken { display: flex; gap: 20px; font-size: 0.9rem; color: #7f8c8d; }
+        .taak-badge { display: flex; align-items: center; gap: 5px; }
+        
+        .match-score { padding: 15px; display: flex; flex-direction: column; justify-content: center; align-items: center; border-left: 1px solid #eee; min-width: 150px; background: #fafbfc; }
+        .score-display { font-size: 1.5rem; font-weight: bold; color: #27ae60; background: white; border: 2px solid #27ae60; padding: 5px 15px; border-radius: 8px; margin-bottom: 10px; min-width: 80px; text-align: center; }
+        
+        .btn-bewerk { background: #f39c12; color: white; border: none; padding: 8px 15px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; width: 100%; }
+        .btn-bewerk:hover { background: #d68910; }
+
+        /* Modal (Pop-up) Styling */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: none; justify-content: center; align-items: center; z-index: 9999; }
+        .modal-content { background: white; padding: 25px; border-radius: 12px; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto; position: relative; }
+        .modal-close { position: absolute; top: 15px; right: 15px; background: #e74c3c; color: white; border: none; border-radius: 50%; width: 30px; height: 30px; font-weight: bold; cursor: pointer; }
+        
+        .bewerk-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px; margin-bottom: 25px; }
+        .bewerk-groep { display: flex; flex-direction: column; gap: 5px; }
+        .bewerk-label { font-weight: bold; font-size: 0.85rem; color: #7f8c8d; }
+        .bewerk-input { padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-family: inherit; }
+        .score-input-groep { display: flex; align-items: center; justify-content: center; gap: 10px; background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #eee; margin-bottom: 20px; }
+        .score-input { width: 70px; font-size: 1.5rem; text-align: center; padding: 10px; border: 2px solid #cbd5e1; border-radius: 8px; font-weight: bold; }
+    </style>
+</head>
+<body style="overflow-y: auto; background-color: var(--bg-color);">
+
+    <nav class="top-nav">
+        <h1>🏀 Black Shots Clubbeheer</h1>
+        <div style="display:flex; align-items:center; gap:15px;">
+            <a href="dashboard.html" class="terug-knop">🏠 Dashboard</a>
+        </div>
+    </nav>
+
+    <main class="content-sectie active" style="max-width: 1200px; margin: 20px auto; padding: 0 20px;">
+        
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom: 2px solid var(--border-color); padding-bottom: 15px;">
+            <div>
+                <h2 style="margin:0; color:var(--secondary-color); font-size:1.6rem;">⏱️ Live Dagoverzicht (Zaalwacht)</h2>
+                <p style="color: #7f8c8d; margin-top:3px; font-size:0.85rem;">Beheer last-minute vervangingen en noteer de uitslagen van vandaag.</p>
+            </div>
+        </div>
+
+        <div class="dag-controls">
+            <label style="font-weight:bold; color:#2c3e50;">Kies een Speeldag:</label>
+            <select id="select-live-dag" class="dag-select" onchange="window.tekenDagoverzicht()">
+                <option value="">-- Leden laden... --</option>
+            </select>
+            <button onclick="window.tekenDagoverzicht()" class="btn-bewerk" style="width:auto; background:#3498db;">🔄 Vernieuw</button>
+        </div>
+
+        <div id="live-wedstrijden-container">
+            <div style="text-align:center; padding:50px; color:#7f8c8d; background:white; border-radius:8px; border:1px dashed #ccc;">
+                Kies hierboven een speeldag om de wedstrijden te zien.
+            </div>
+        </div>
+    </main>
+
+    <!-- DE BEWERK MODAL (ONZICHTBAAR TOT JE KLIKT) -->
+    <div id="bewerk-modal" class="modal-overlay">
+        <div class="modal-content">
+            <button class="modal-close" onclick="window.sluitModal()">&times;</button>
+            <h2 id="modal-match-titel" style="margin-top:0; color:#2c3e50; border-bottom:2px solid #eee; padding-bottom:10px;">Wedstrijd Aanpassen</h2>
+            
+            <input type="hidden" id="bewerk-match-id">
+
+            <h3 style="color:#27ae60; margin-bottom:10px; margin-top:20px;">🔢 Uitslag (Optioneel)</h3>
+            <div class="score-input-groep">
+                <input type="number" id="bewerk-score-thuis" class="score-input" placeholder="0">
+                <span style="font-size:1.5rem; font-weight:bold; color:#7f8c8d;">-</span>
+                <input type="number" id="bewerk-score-uit" class="score-input" placeholder="0">
+            </div>
+
+            <h3 style="color:#f39c12; margin-bottom:5px;">👤 Vrijwilligers Aanpassen</h3>
+            <div class="bewerk-grid">
+                <div class="bewerk-groep">
+                    <label class="bewerk-label">Scheidsrechter 1</label>
+                    <select id="bewerk-sA" class="bewerk-input"></select>
+                </div>
+                <div class="bewerk-groep">
+                    <label class="bewerk-label">Scheidsrechter 2</label>
+                    <select id="bewerk-sB" class="bewerk-input"></select>
+                </div>
+                <div class="bewerk-groep">
+                    <label class="bewerk-label">Tafelaar (Tablet)</label>
+                    <select id="bewerk-tab" class="bewerk-input"></select>
+                </div>
+                <div class="bewerk-groep">
+                    <label class="bewerk-label">Scorer (Bord)</label>
+                    <select id="bewerk-sco" class="bewerk-input"></select>
+                </div>
+            </div>
+
+            <button onclick="window.slaWijzigingenOp()" style="width:100%; background:#27ae60; color:white; border:none; padding:12px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:1.1rem;">💾 Opslaan & Toepassen</button>
+        </div>
+    </div>
+
+    <script src="basketbal_auth.js"></script>
+    <script src="basketbal_dagoverzicht.js"></script>
+    <script type="module" src="firebase_motor.js"></script>
+</body>
+</html>
