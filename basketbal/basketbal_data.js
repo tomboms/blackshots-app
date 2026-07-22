@@ -48,13 +48,16 @@ window.laadDashboardData = function() {
         }
     }
 
+    // Bestaande widgets
     window.laadSnelkoppelingenDashboard(actieveGebruiker);
     window.laadVerjaardagenDashboard();
     window.laadJaarplanningWeekDashboard();
     window.laadCompetitieWidget();
-    window.laadTeamRosterWidget(); // NIEUW: NBB Team Roster
-    window.laadInternePoulesWidget(); // <-- DEZE REGEL TOEVOEGEN
-    window.laadNBBPoulesWidget()
+    window.laadTeamRosterWidget(); 
+    window.laadInternePoulesWidget(); 
+    window.laadNBBPoulesWidget();
+    
+    // DE 5 NIEUWE WIDGETS!
     window.laadVolgendeThuisdagWidget();
     window.laadAankomendeWedstrijdenWidget();
     window.laadVrijwilligersLeaderboard();
@@ -743,9 +746,8 @@ window.laadVolgendeThuisdagWidget = function() {
     let planStatusDB = JSON.parse(localStorage.getItem('blackshots_plan_status')) || {};
     let persoonsTakenDB = JSON.parse(localStorage.getItem('blackshots_persoons_taken')) || {};
     
-    let { start } = window.krijgVolgendeDatums(0); // Zoek vanaf vandaag
+    let { start } = window.krijgVolgendeDatums(0);
 
-    // 1. Filter alleen geplande thuiswedstrijden in de toekomst
     let actieveThuisWedstrijden = alleWedstrijden.filter(w => {
         let isThuis = (w.Thuisteam || '').toLowerCase().includes('black shots');
         let isActief = planStatusDB[window.genereerUniekId(w)];
@@ -758,13 +760,15 @@ window.laadVolgendeThuisdagWidget = function() {
         return;
     }
 
-    // 2. Sorteer op datum en vind de EERSTVOLGENDE speeldag
     actieveThuisWedstrijden.sort((a, b) => window.normaalDatum(a.Datum).localeCompare(window.normaalDatum(b.Datum)));
     let volgendeSpeelDatum = window.normaalDatum(actieveThuisWedstrijden[0].Datum);
 
-    // 3. Pak álle wedstrijden op die specifieke dag
     let wedstrijdenOpDag = actieveThuisWedstrijden.filter(w => window.normaalDatum(w.Datum) === volgendeSpeelDatum);
-    wedstrijdenOpDag.sort((a,b) => planStatusDB[window.genereerUniekId(a)].tijd.localeCompare(planStatusDB[window.genereerUniekId(b)].tijd));
+    wedstrijdenOpDag.sort((a,b) => {
+        let tA = planStatusDB[window.genereerUniekId(a)] ? planStatusDB[window.genereerUniekId(a)].tijd : "00:00";
+        let tB = planStatusDB[window.genereerUniekId(b)] ? planStatusDB[window.genereerUniekId(b)].tijd : "00:00";
+        return tA.localeCompare(tB);
+    });
 
     let mooieDatum = new Date(volgendeSpeelDatum).toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' });
     
@@ -778,12 +782,11 @@ window.laadVolgendeThuisdagWidget = function() {
 
     wedstrijdenOpDag.forEach(w => {
         let id = window.genereerUniekId(w);
-        let st = planStatusDB[id];
+        let st = planStatusDB[id] || { tijd: "?", veld: "?" };
         let pt = persoonsTakenDB[id] || {};
         
-        let uitNaam = w.Uitteam.replace(/Black Shots/ig, '').trim();
+        let uitNaam = (w.Uitteam || '').replace(/Black Shots/ig, '').trim() || 'Onbekend';
         
-        // Simpel de namen ophalen, of 'Nog niet gevuld'
         let scheids = [window.naamWeergave(pt.sA), window.naamWeergave(pt.sB)].filter(x=>!x.includes('Vrij') && !x.includes('Nog invullen')).join(' & ') || '<span style="color:#e74c3c; font-size:0.8rem;">Geen scheids</span>';
         let tafel = [window.naamWeergave(pt.tab), window.naamWeergave(pt.sco)].filter(x=>!x.includes('Vrij') && !x.includes('Nog invullen')).join(' & ') || '<span style="color:#e74c3c; font-size:0.8rem;">Geen tafel</span>';
 
@@ -818,26 +821,28 @@ window.laadAankomendeWedstrijdenWidget = function() {
         return;
     }
 
-    // Vul de dropdown als die nog leeg is
+    // Vul de dropdown als deze leeg is en zet direct de actieve selectie
     if (select.options.length === 0) {
         teams.forEach(t => {
             select.innerHTML += `<option value="${t.id}">${t.naam}</option>`;
         });
+        if(teams.length > 0) select.value = teams[0].id;
     }
 
     let geselecteerdTeamId = select.value;
     let tCanon = teams.find(t => t.id === geselecteerdTeamId);
+    if(!tCanon) return;
     
     let alleWedstrijden = window.haalWedstrijdenOp();
     let planStatusDB = JSON.parse(localStorage.getItem('blackshots_plan_status')) || {};
-    let { start, eind } = window.krijgVolgendeDatums(30); // Kijk 30 dagen vooruit
+    let { start, eind } = window.krijgVolgendeDatums(30); 
 
     let teamMatches = alleWedstrijden.filter(w => {
         let isActief = planStatusDB[window.genereerUniekId(w)];
         let isToekomstEnBinnenMaand = window.normaalDatum(w.Datum) >= start && window.normaalDatum(w.Datum) <= eind;
         
-        let mCanonThuis = window.teamsDB.find(t => t.naam.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() === w.Thuisteam.replace(/Black Shots/ig, '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase());
-        let mCanonUit = window.teamsDB.find(t => t.naam.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() === w.Uitteam.replace(/Black Shots/ig, '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase());
+        let mCanonThuis = window.teamsDB.find(t => (t.naam || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase() === (w.Thuisteam || '').replace(/Black Shots/ig, '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase());
+        let mCanonUit = window.teamsDB.find(t => (t.naam || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase() === (w.Uitteam || '').replace(/Black Shots/ig, '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase());
         
         return isActief && isToekomstEnBinnenMaand && ((mCanonThuis && mCanonThuis.id === tCanon.id) || (mCanonUit && mCanonUit.id === tCanon.id));
     });
@@ -853,12 +858,15 @@ window.laadAankomendeWedstrijdenWidget = function() {
     
     teamMatches.forEach(w => {
         let id = window.genereerUniekId(w);
-        let st = planStatusDB[id];
+        let st = planStatusDB[id] || { tijd: "?" };
         let isThuis = (w.Thuisteam || '').toLowerCase().includes('black shots');
         let mooieDatum = new Date(window.normaalDatum(w.Datum)).toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' });
         
         let badgeColor = isThuis ? '#3498db' : '#e67e22';
         let badgeText = isThuis ? 'Thuis' : 'Uit';
+
+        let thuisteamSchoon = (w.Thuisteam || '').replace(/Black Shots/ig, 'BS').trim();
+        let uitteamSchoon = (w.Uitteam || '').replace(/Black Shots/ig, 'BS').trim();
 
         html += `
             <div style="background:#fdfdfd; border:1px solid #eee; padding:10px; border-radius:6px; margin-bottom:8px; display:flex; align-items:center; gap:12px; border-left: 4px solid ${badgeColor};">
@@ -867,7 +875,7 @@ window.laadAankomendeWedstrijdenWidget = function() {
                     <div style="font-size:0.8rem; color:#7f8c8d;">${st.tijd}</div>
                 </div>
                 <div style="flex:1;">
-                    <strong style="color:#2c3e50;">${w.Thuisteam.replace(/Black Shots/ig, 'BS')} vs ${w.Uitteam.replace(/Black Shots/ig, 'BS')}</strong>
+                    <strong style="color:#2c3e50;">${thuisteamSchoon} vs ${uitteamSchoon}</strong>
                     <div style="font-size:0.8rem; color:#7f8c8d; margin-top:3px;">
                         <span style="background:${badgeColor}; color:white; padding:2px 5px; border-radius:4px; font-weight:bold;">${badgeText}</span>
                         📍 ${w.Accommodatie || w.Locatie || w.Plaats || 'Onbekend'}
