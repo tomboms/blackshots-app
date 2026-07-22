@@ -56,7 +56,6 @@ window.renderSpelers = function() {
 
     if (!tbody) return;
 
-    // Dropdowns vullen
     if(teamSelect && teamSelect.options.length <= 1) {
         teamSelect.innerHTML = '<option value="">-- Geen (Vrije Speler) --</option>';
         if(filterTeam) filterTeam.innerHTML = '<option value="all">-- Toon Alle Teams --</option><option value="vrij">Zonder Team (Zwervers)</option><option value="aliasfout">⚠️ Alias Fouten (Onbekende Code)</option>';
@@ -69,18 +68,20 @@ window.renderSpelers = function() {
         }
     }
 
+    // NIEUW: Alfabetische & duidelijkere gezinslijst!
     let nwGezin = document.getElementById('nw-speler-gezin');
     if (nwGezin) {
         let huidigeGezinSelectie = nwGezin.value;
         let gezinOpts = '<option value="">-- Geen (Losse speler) --</option>';
-        window.spelersDB.forEach(s => {
-            gezinOpts += `<option value="${s.id}">${s.naam} (${s.bondsnummer || 'Ouder/Geen'})</option>`;
+        let sortedFamilie = [...window.spelersDB].sort((a,b) => (a.naam||'').localeCompare(b.naam||''));
+        sortedFamilie.forEach(s => {
+            let tNaam = window.getCanonicalTeam(s.teamId) ? window.getCanonicalTeam(s.teamId).naam : (s.teamId || 'Vrij');
+            gezinOpts += `<option value="${s.id}">${s.naam} (${tNaam})</option>`;
         });
         nwGezin.innerHTML = gezinOpts;
         nwGezin.value = huidigeGezinSelectie;
     }
 
-    // Waardes ophalen
     let zoekterm = (document.getElementById('zoek-speler') ? document.getElementById('zoek-speler').value.toLowerCase() : "");
     let selTeam = filterTeam ? filterTeam.value : 'all';
     let selType = document.getElementById('filter-type') ? document.getElementById('filter-type').value : 'all';
@@ -89,44 +90,37 @@ window.renderSpelers = function() {
     let html = '';
     let gesorteerdeSpelers = window.spelersDB.map((speler, index) => ({ ...speler, origineleIndex: index }));
 
-    // Hulpfunctie om datums om te zetten naar een getal voor makkelijk sorteren
     const datumNaarGetal = (d) => {
         if (!d || d === '-' || d.includes('Proef')) return 0;
         let p = d.split('-');
         if (p.length === 3) {
-            if (p[0].length <= 2) return parseInt(`${p[2]}${p[1].padStart(2,'0')}${p[0].padStart(2,'0')}`); // DD-MM-YYYY
-            return parseInt(`${p[0]}${p[1].padStart(2,'0')}${p[2].padStart(2,'0')}`); // YYYY-MM-DD
+            if (p[0].length <= 2) return parseInt(`${p[2]}${p[1].padStart(2,'0')}${p[0].padStart(2,'0')}`); 
+            return parseInt(`${p[0]}${p[1].padStart(2,'0')}${p[2].padStart(2,'0')}`); 
         }
         return 0;
     };
 
-    // Hulpfunctie voor de achternaam (alles na de eerste spatie pakken)
     const getAchternaam = (naam) => {
         if (!naam) return "";
         let delen = naam.trim().split(' ');
         return delen.length > 1 ? delen.slice(1).join(' ') : delen[0];
     };
 
-    // DE NIEUWE SLIMME SORTEERMACHINE
     gesorteerdeSpelers.sort((a, b) => {
         switch (sorteerKeuze) {
-            case 'achternaam_asc':
-                return getAchternaam(a.naam).localeCompare(getAchternaam(b.naam));
+            case 'achternaam_asc': return getAchternaam(a.naam).localeCompare(getAchternaam(b.naam));
             case 'team_asc':
                 let tA = window.getCanonicalTeam(a.teamId) ? window.getCanonicalTeam(a.teamId).naam : (a.teamId || "ZZZ");
                 let tB = window.getCanonicalTeam(b.teamId) ? window.getCanonicalTeam(b.teamId).naam : (b.teamId || "ZZZ");
-                if (tA === tB) return (a.naam || '').localeCompare(b.naam || ''); // Als zelfde team, op naam
+                if (tA === tB) return (a.naam || '').localeCompare(b.naam || ''); 
                 return tA.localeCompare(tB);
-            case 'leeftijd_jong': 
-                return datumNaarGetal(b.geboorteDatum) - datumNaarGetal(a.geboorteDatum);
+            case 'leeftijd_jong': return datumNaarGetal(b.geboorteDatum) - datumNaarGetal(a.geboorteDatum);
             case 'leeftijd_oud': 
                 let dA = datumNaarGetal(a.geboorteDatum) || 99999999;
                 let dB = datumNaarGetal(b.geboorteDatum) || 99999999;
                 return dA - dB;
-            case 'lidsinds_nieuw': 
-                return datumNaarGetal(b.lidSinds) - datumNaarGetal(a.lidSinds);
-            case 'bondsnummer_asc':
-                return (a.bondsnummer || 'ZZZ').localeCompare(b.bondsnummer || 'ZZZ');
+            case 'lidsinds_nieuw': return datumNaarGetal(b.lidSinds) - datumNaarGetal(a.lidSinds);
+            case 'bondsnummer_asc': return (a.bondsnummer || 'ZZZ').localeCompare(b.bondsnummer || 'ZZZ');
             case 'naam_asc':
             default:
                 if (a.isProeflid && !b.isProeflid) return -1;
@@ -189,6 +183,7 @@ window.renderSpelers = function() {
                 }
             }
 
+            let kaderBadge = speler.kaderRol ? `<div style="color:#8e44ad; font-size:0.8rem; font-weight:bold; margin-top:2px;">⭐ ${speler.kaderRol}</div>` : '';
             let opmerkingBadge = speler.opmerkingen ? `<div style="color:#d35400; font-size:0.75rem; font-style:italic; margin-top:4px;">📝 ${speler.opmerkingen}</div>` : '';
 
             let magF = speler.magFluiten === true; 
@@ -202,7 +197,13 @@ window.renderSpelers = function() {
                 <span onclick="window.toggleTaak('${speler.id}', 'heeftAuto')" title="${heeftA ? 'Heeft Auto (Klik om uit te zetten)' : 'Heeft GEEN auto (Klik om aan te zetten)'}" style="opacity:${heeftA?1:0.2}; cursor:pointer; font-size:1.3rem; margin-right:3px; transition:0.2s;" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">🚗</span>
                 <span onclick="window.toggleTaak('${speler.id}', 'magZaalwacht')" title="${magZ ? 'Mag Zaalwacht (Klik om uit te zetten)' : 'Mag NIET Zaalwacht (Klik om aan te zetten)'}" style="opacity:${magZ?1:0.2}; cursor:pointer; font-size:1.3rem; transition:0.2s;" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">🔑</span>
             `;
-            if(speler.gezinKoppeling) taakIcons += ` <span title="Gekoppeld aan broer/zus (Planner checkt dubbele tijden)" style="color:#8e44ad; margin-left:8px; cursor:default; font-size:1.1rem;">🔗</span>`;
+            
+            // NIEUW: Als er een koppeling is, zoek de naam op en toon deze bij het zweven!
+            if(speler.gezinKoppeling) {
+                let linkPersoon = window.spelersDB.find(s => s.id === speler.gezinKoppeling);
+                let naamLink = linkPersoon ? linkPersoon.naam : 'Onbekend';
+                taakIcons += ` <span title="🔗 Gekoppeld aan gezin: ${naamLink}" style="color:#8e44ad; margin-left:8px; cursor:help; font-size:1.1rem;">🔗</span>`;
+            }
 
             let weergaveLeeftijd = '-';
             if (speler.geboorteDatum && speler.geboorteDatum !== '-') {
@@ -318,18 +319,20 @@ window.openBewerkSpelerModal = function(index) {
     let proefCheck = document.getElementById('bewerk-speler-proef');
     if(proefCheck) proefCheck.checked = speler.isProeflid === true;
 
-    // VINKJES & GEZIN INLADEN (Met de nieuwe defaults!)
     document.getElementById('bewerk-speler-fluit').checked = speler.magFluiten === true;
     document.getElementById('bewerk-speler-tafel').checked = speler.magTafelen !== false;
     document.getElementById('bewerk-speler-auto').checked = speler.heeftAuto !== false;
     document.getElementById('bewerk-speler-zaalwacht').checked = speler.magZaalwacht === true;
 
+    // NIEUW: Gezinslijst alfabetisch & met teamnaam!
     let gezinSelect = document.getElementById('bewerk-speler-gezin');
     if (gezinSelect) {
         gezinSelect.innerHTML = '<option value="">-- Geen koppeling --</option>';
-        window.spelersDB.forEach(s => {
+        let sortedFamilie = [...window.spelersDB].sort((a,b) => (a.naam||'').localeCompare(b.naam||''));
+        sortedFamilie.forEach(s => {
             if (s.id !== speler.id) { 
-                gezinSelect.innerHTML += `<option value="${s.id}">${s.naam} (${s.bondsnummer || 'geen'})</option>`;
+                let tNaam = window.getCanonicalTeam(s.teamId) ? window.getCanonicalTeam(s.teamId).naam : (s.teamId || 'Vrij');
+                gezinSelect.innerHTML += `<option value="${s.id}">${s.naam} (${tNaam})</option>`;
             }
         });
         gezinSelect.value = speler.gezinKoppeling || "";
@@ -357,6 +360,25 @@ window.slaBewerkteSpelerOp = function() {
     let nwNaam = document.getElementById('bewerk-speler-naam').value.trim();
     if (!nwNaam) return alert("Een naam is verplicht!");
 
+    // NIEUW: De magie achter de wederzijdse koppeling!
+    let oudeKoppeling = speler.gezinKoppeling;
+    let nieuweKoppeling = document.getElementById('bewerk-speler-gezin').value;
+
+    if (oudeKoppeling !== nieuweKoppeling) {
+        // Maak de oude broer/zus weer vrij
+        if (oudeKoppeling) {
+            let oudFamilieLid = window.spelersDB.find(s => s.id === oudeKoppeling);
+            if (oudFamilieLid && oudFamilieLid.gezinKoppeling === speler.id) {
+                oudFamilieLid.gezinKoppeling = "";
+            }
+        }
+        // Koppel de nieuwe broer/zus aan déze speler
+        if (nieuweKoppeling) {
+            let nieuwFamilieLid = window.spelersDB.find(s => s.id === nieuweKoppeling);
+            if (nieuwFamilieLid) nieuwFamilieLid.gezinKoppeling = speler.id;
+        }
+    }
+
     speler.naam = nwNaam;
     speler.geboorteDatum = document.getElementById('bewerk-speler-gebdatum').value || "-";
     speler.rugnummer = document.getElementById('bewerk-speler-rugnr').value;
@@ -368,12 +390,11 @@ window.slaBewerkteSpelerOp = function() {
     let proefCheck = document.getElementById('bewerk-speler-proef');
     if(proefCheck) speler.isProeflid = proefCheck.checked;
     
-    // TAKEN & GEZIN OPSLAAN
     speler.magFluiten = document.getElementById('bewerk-speler-fluit').checked;
     speler.magTafelen = document.getElementById('bewerk-speler-tafel').checked;
     speler.heeftAuto = document.getElementById('bewerk-speler-auto').checked;
     speler.magZaalwacht = document.getElementById('bewerk-speler-zaalwacht').checked;
-    speler.gezinKoppeling = document.getElementById('bewerk-speler-gezin').value;
+    speler.gezinKoppeling = nieuweKoppeling; // Sla de nieuwe koppeling op
 
     localStorage.setItem('blackshots_spelers', JSON.stringify(window.spelersDB));
     window.sluitBewerkSpelerModal();
@@ -390,7 +411,6 @@ window.voegSpelerToe = function() {
     let isRec = document.getElementById('nw-speler-rec') ? document.getElementById('nw-speler-rec').checked : false;
     let isProef = document.getElementById('nw-speler-proef') ? document.getElementById('nw-speler-proef').checked : false;
 
-    // NIEUWE VELDEN MET DE GEVRAAGDE DEFAULTS
     let magF = document.getElementById('nw-speler-fluit') ? document.getElementById('nw-speler-fluit').checked : false;
     let magT = document.getElementById('nw-speler-tafel') ? document.getElementById('nw-speler-tafel').checked : true;
     let auto = document.getElementById('nw-speler-auto') ? document.getElementById('nw-speler-auto').checked : true;
@@ -398,8 +418,10 @@ window.voegSpelerToe = function() {
     let gezin = document.getElementById('nw-speler-gezin') ? document.getElementById('nw-speler-gezin').value : "";
 
     if(naam) {
+        let nieuwId = 'p_' + Date.now(); // We slaan het ID op zodat we de ander kunnen koppelen
+        
         window.spelersDB.push({
-            id: 'p_' + Date.now(),
+            id: nieuwId,
             bondsnummer: '',
             naam: naam,
             geboorteDatum: gebDatum || '-',
@@ -418,8 +440,14 @@ window.voegSpelerToe = function() {
             kaderRol: kader,
             opmerkingen: opmerking,
             bondLidmaatschap: 'Niet-spelend'
-            
         });
+
+        // NIEUW: Koppel het broertje/zusje direct terug aan déze nieuwe speler
+        if (gezin) {
+            let familieLid = window.spelersDB.find(s => s.id === gezin);
+            if (familieLid) familieLid.gezinKoppeling = nieuwId;
+        }
+
         localStorage.setItem('blackshots_spelers', JSON.stringify(window.spelersDB));
         
         document.getElementById('nw-speler-naam').value = '';
@@ -427,15 +455,14 @@ window.voegSpelerToe = function() {
         if(document.getElementById('nw-speler-rec')) document.getElementById('nw-speler-rec').checked = false;
         if(document.getElementById('nw-speler-proef')) document.getElementById('nw-speler-proef').checked = true;
         
-        // Reset checkboxjes naar default
         if(document.getElementById('nw-speler-fluit')) document.getElementById('nw-speler-fluit').checked = false;
         if(document.getElementById('nw-speler-tafel')) document.getElementById('nw-speler-tafel').checked = true;
         if(document.getElementById('nw-speler-auto')) document.getElementById('nw-speler-auto').checked = true;
         if(document.getElementById('nw-speler-zaalwacht')) document.getElementById('nw-speler-zaalwacht').checked = false;
         
+        if(document.getElementById('nw-speler-kader')) document.getElementById('nw-speler-kader').value = '';
+        if(document.getElementById('nw-speler-opmerking')) document.getElementById('nw-speler-opmerking').value = '';
         if(document.getElementById('nw-speler-gezin')) document.getElementById('nw-speler-gezin').value = "";
-
-        
         
         window.renderSpelers();
     } else {
@@ -444,12 +471,21 @@ window.voegSpelerToe = function() {
 };
 
 window.verwijderSpeler = function(index) {
-    if(confirm("Weet je zeker dat je deze speler wilt wissen?")) {
+    let speler = window.spelersDB[index];
+    if(!speler) return;
+
+    if(confirm(`Weet je zeker dat je ${speler.naam} wilt wissen?`)) {
+        // NIEUW: Als deze speler gekoppeld was, maak de ander weer netjes 'vrij'
+        if (speler.gezinKoppeling) {
+            let familieLid = window.spelersDB.find(s => s.id === speler.gezinKoppeling);
+            if (familieLid) familieLid.gezinKoppeling = "";
+        }
+
         window.spelersDB.splice(index, 1);
         localStorage.setItem('blackshots_spelers', JSON.stringify(window.spelersDB));
         window.renderSpelers();
     }
-};
+};;
 
 window.importeerBondCSV = function(event) {
     const file = event.target.files[0];
