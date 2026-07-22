@@ -140,21 +140,11 @@ Kan je niet aanwezig zijn bij een wedstrijd, geef dit TIJDIG door bij je Coach.<
                 </select>
                 <button onclick="window.genereerTakenPerTeam()" class="report-btn">📄 Maak PDF</button>
             </div>
-            
-            <!-- 4. Takenoverzicht per Teamlid -->
-            <div class="report-card" id="card-taken-team" style="border-left-color: #27ae60;">
-                <h3 style="color:#27ae60;">📋 Takenoverzicht per Teamlid</h3>
-                <p>Een overzichtelijke lijst voor de coach/manager: toont per speler van het geselecteerde team exact wie welke taak op welke datum heeft.</p>
-                <select id="select-team-taken" class="report-select">
-                    <option value="">-- Kies een Team --</option>
-                    <option value="ALL">🌟 Alle Teams (Cluboverzicht)</option>
-                </select>
-                <button onclick="window.genereerTakenPerTeam()" class="report-btn" style="background:#27ae60;">📄 Maak PDF</button>
-            </div>
+
 
             <!-- 5. Registratieformulieren (Zaalwacht) -->
             <div class="report-card" id="card-registratie" style="border-left-color: #e74c3c;">
-                <h3 style="color:#e74c3c;">📝 Registratie Wedstrijden</h3>
+                <h3📝 Registratie Wedstrijden</h3>
                 <p>Het officiële invulformulier voor de zaalwacht. Groepeert alle thuiswedstrijden van één dag met afvinklijsten voor de jury en scheidsrechters.</p>
                 <select id="select-dag-registratie" class="report-select">
                     <option value="">-- Kies een Thuis-speeldag --</option>
@@ -164,13 +154,13 @@ Kan je niet aanwezig zijn bij een wedstrijd, geef dit TIJDIG door bij je Coach.<
 
             <!-- 6. Zaalhuur Overzicht -->
             <div class="report-card" id="card-zaalhuur" style="border-left-color: #1abc9c;">
-                <h3 style="color:#1abc9c;">🏟️ Zaalhuur Overzicht</h3>
+                <h3🏟️ Zaalhuur Overzicht</h3>
                 <p>Automatisch overzicht van de gereserveerde uren, inclusief een slimme controle of tijden niet onbedoeld openvallen (hiaten).</p>
                 <!-- margin-top: auto zorgt dat de knop netjes onderaan uitlijnt -->
                 <button onclick="window.genereerZaalhuurOverzicht()" class="report-btn" style="background:#1abc9c; margin-top:auto;">📄 Maak PDF</button>
             </div>
             <div class="report-card" id="card-whatsapp" style="border-left-color: #25D366;">
-                <h3 style="color:#d325a7;">💬 WhatsApp Herinneringen</h3>
+                <h3💬 WhatsApp Herinneringen</h3>
                 <p>Genereer automatisch de appjes per team met getagde namen én download het dagschema als foto voor in de groepsapp.</p>
                 <select id="select-dag-whatsapp" class="report-select">
                     <option value="">-- Kies een Speeldag --</option>
