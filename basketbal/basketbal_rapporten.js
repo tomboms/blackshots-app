@@ -52,25 +52,14 @@ document.addEventListener('DOMContentLoaded', () => { vulDropdowns(); });
 function vulDropdowns() {
     let selTeam = document.getElementById('select-team');
     let selTeamBrief = document.getElementById('select-team-brief');
-    // --- NIEUW: De dropdown voor het 4e rapport ophalen ---
     let selTeamTaken = document.getElementById('select-team-taken'); 
-    let selDag = document.getElementById('select-dag-registratie');
-    let selDagWa = document.getElementById('select-dag-whatsapp'); // NIEUW
-    let gesorteerdeDagen = [...window.speeldagenDB].sort();
-    // Teams vullen in alle drie de dropdowns
-    gesorteerdeDagen.forEach(dag => {
-        let d = new Date(dag);
-        let weergaveDatum = isNaN(d) ? dag : d.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-        if (selDag) selDag.innerHTML += `<option value="${dag}">${weergaveDatum}</option>`;
-        if (selDagWa) selDagWa.innerHTML += `<option value="${dag}">${weergaveDatum}</option>`; // NIEUW
-    })
 
+    // Teams vullen in alle drie de dropdowns
     if (selTeam || selTeamBrief || selTeamTaken) {
         window.teamsDB.forEach(t => {
             if (!t.isVrijwilliger && !t.isRecreant) {
                 if(selTeam) selTeam.innerHTML += `<option value="${t.id}">${t.naam}</option>`;
                 if(selTeamBrief) selTeamBrief.innerHTML += `<option value="${t.id}">${t.naam}</option>`;
-                // --- NIEUW: Voeg het team ook toe aan de nieuwe dropdown ---
                 if(selTeamTaken) selTeamTaken.innerHTML += `<option value="${t.id}">${t.naam}</option>`; 
             }
         });
@@ -86,8 +75,9 @@ function vulDropdowns() {
         allePersonen.forEach(p => { selPersoon.innerHTML += `<option value="${p.id}">${p.naam} (${p.type})</option>`; });
     }
 
-    // Dagen en Weken vullen
+    // Dagen en Weken vullen voor Registratie én WhatsApp
     let selDag = document.getElementById('select-dag-registratie');
+    let selDagWa = document.getElementById('select-dag-whatsapp');
     let gesorteerdeDagen = [...window.speeldagenDB].sort();
     
     // Zet datumvelden voor Weekoverzicht standaard op vandaag en +7 dagen
@@ -103,7 +93,10 @@ function vulDropdowns() {
     gesorteerdeDagen.forEach(dag => {
         let d = new Date(dag);
         let weergaveDatum = isNaN(d) ? dag : d.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+        
+        // Vul beide datum-dropdowns in één soepele beweging
         if (selDag) selDag.innerHTML += `<option value="${dag}">${weergaveDatum}</option>`;
+        if (selDagWa) selDagWa.innerHTML += `<option value="${dag}">${weergaveDatum}</option>`; 
     });
 }
 
