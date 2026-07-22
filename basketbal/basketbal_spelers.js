@@ -151,19 +151,19 @@ window.renderSpelers = function() {
 
             let kaderBadge = speler.kaderRol ? `<div style="color:#8e44ad; font-size:0.8rem; font-weight:bold; margin-top:2px;">⭐ ${speler.kaderRol}</div>` : '';
 
-            // HET NIEUWE TAKEN WEERGAVE BLOK MET DE NIEUWE STANDAARDEN (Cursor: default voorkomt het vraagteken icoon!)
+            // HET NIEUWE TAKEN WEERGAVE BLOK (Nu met klikbare quick-toggles!)
             let magF = speler.magFluiten === true; 
             let magT = speler.magTafelen !== false; 
             let heeftA = speler.heeftAuto !== false; 
             let magZ = speler.magZaalwacht === true; 
             
             let taakIcons = `
-                <span title="${magF ? 'Mag Fluiten' : 'Mag NIET Fluiten'}" style="opacity:${magF?1:0.2}; cursor:default;">👨‍⚖️</span>
-                <span title="${magT ? 'Mag Tafelen' : 'Mag NIET Tafelen'}" style="opacity:${magT?1:0.2}; cursor:default;">💻</span>
-                <span title="${heeftA ? 'Heeft Auto / Wil Rijden' : 'Heeft géén auto'}" style="opacity:${heeftA?1:0.2}; cursor:default;">🚗</span>
-                <span title="${magZ ? 'Mag Zaalwacht' : 'Mag NIET Zaalwacht'}" style="opacity:${magZ?1:0.2}; cursor:default;">🔑</span>
+                <span onclick="window.toggleTaak('${speler.id}', 'magFluiten')" title="${magF ? 'Mag Fluiten (Klik om uit te zetten)' : 'Mag NIET fluiten (Klik om aan te zetten)'}" style="opacity:${magF?1:0.2}; cursor:pointer; font-size:1.3rem; margin-right:3px; transition:0.2s;" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">👨‍⚖️</span>
+                <span onclick="window.toggleTaak('${speler.id}', 'magTafelen')" title="${magT ? 'Mag Tafelen (Klik om uit te zetten)' : 'Mag NIET tafelen (Klik om aan te zetten)'}" style="opacity:${magT?1:0.2}; cursor:pointer; font-size:1.3rem; margin-right:3px; transition:0.2s;" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">💻</span>
+                <span onclick="window.toggleTaak('${speler.id}', 'heeftAuto')" title="${heeftA ? 'Heeft Auto (Klik om uit te zetten)' : 'Heeft GEEN auto (Klik om aan te zetten)'}" style="opacity:${heeftA?1:0.2}; cursor:pointer; font-size:1.3rem; margin-right:3px; transition:0.2s;" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">🚗</span>
+                <span onclick="window.toggleTaak('${speler.id}', 'magZaalwacht')" title="${magZ ? 'Mag Zaalwacht (Klik om uit te zetten)' : 'Mag NIET Zaalwacht (Klik om aan te zetten)'}" style="opacity:${magZ?1:0.2}; cursor:pointer; font-size:1.3rem; transition:0.2s;" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">🔑</span>
             `;
-            if(speler.gezinKoppeling) taakIcons += ` <span title="Gekoppeld aan broer/zus (Planner checkt dubbele tijden)" style="color:#8e44ad; margin-left:5px; cursor:default;">🔗</span>`;
+            if(speler.gezinKoppeling) taakIcons += ` <span title="Gekoppeld aan broer/zus (Planner checkt dubbele tijden)" style="color:#8e44ad; margin-left:8px; cursor:default; font-size:1.1rem;">🔗</span>`;
 
             let weergaveLeeftijd = '-';
             if (speler.geboorteDatum && speler.geboorteDatum !== '-') {
@@ -549,4 +549,34 @@ window.importeerBondCSV = function(event) {
         event.target.value = ''; 
     };
     reader.readAsText(file);
+};
+
+// ============================================================================
+// QUICK-TOGGLES (Direct in de tabel klikken)
+// ============================================================================
+
+// 1. Dispensatie aan/uit zetten
+window.toggleDispensatie = function(spelerId) {
+    let speler = window.spelersDB.find(s => s.id === spelerId);
+    if (speler) {
+        speler.dispensatie = !speler.dispensatie; // Draai de waarde om
+        localStorage.setItem('blackshots_spelers', JSON.stringify(window.spelersDB));
+        window.renderSpelers(); // Ververs de tabel direct
+    }
+};
+
+// 2. Taken aan/uit zetten (Fluiten, Tafel, Auto, Zaalwacht)
+window.toggleTaak = function(spelerId, taakVeld) {
+    let speler = window.spelersDB.find(s => s.id === spelerId);
+    if (speler) {
+        // Zorg dat we de juiste startwaarde hebben als het veld nog niet bestond
+        if (speler[taakVeld] === undefined) {
+            if (taakVeld === 'magTafelen' || taakVeld === 'heeftAuto') speler[taakVeld] = true;
+            else speler[taakVeld] = false;
+        }
+        
+        speler[taakVeld] = !speler[taakVeld]; // Draai de waarde om
+        localStorage.setItem('blackshots_spelers', JSON.stringify(window.spelersDB));
+        window.renderSpelers(); // Ververs de tabel direct zodat het icoontje oplicht/dimt
+    }
 };
