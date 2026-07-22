@@ -54,8 +54,17 @@ function vulDropdowns() {
     let selTeamBrief = document.getElementById('select-team-brief');
     // --- NIEUW: De dropdown voor het 4e rapport ophalen ---
     let selTeamTaken = document.getElementById('select-team-taken'); 
-
+    let selDag = document.getElementById('select-dag-registratie');
+    let selDagWa = document.getElementById('select-dag-whatsapp'); // NIEUW
+    let gesorteerdeDagen = [...window.speeldagenDB].sort();
     // Teams vullen in alle drie de dropdowns
+    gesorteerdeDagen.forEach(dag => {
+        let d = new Date(dag);
+        let weergaveDatum = isNaN(d) ? dag : d.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+        if (selDag) selDag.innerHTML += `<option value="${dag}">${weergaveDatum}</option>`;
+        if (selDagWa) selDagWa.innerHTML += `<option value="${dag}">${weergaveDatum}</option>`; // NIEUW
+    })
+
     if (selTeam || selTeamBrief || selTeamTaken) {
         window.teamsDB.forEach(t => {
             if (!t.isVrijwilliger && !t.isRecreant) {
@@ -905,4 +914,180 @@ window.genereerZaalhuurOverzicht = function() {
 
     html += `</tbody></table>`;
     window.startPrintJob(html);
+};
+
+// ============================================================================
+// RAPPORT 7: WHATSAPP HERINNERINGEN & FOTO EXPORT
+// ============================================================================
+window.genereerWhatsAppBerichten = function() {
+    let speeldag = document.getElementById('select-dag-whatsapp').value;
+    if (!speeldag) return alert("Kies eerst een speeldag voor de WhatsApp herinneringen.");
+
+    let alleWedstrijden = [...window.nbbWedstrijden, ...window.customWedstrijden];
+    let dagWedstrijden = alleWedstrijden.filter(w => {
+        return window.normaalDatum(w.Datum) === speeldag && window.planStatusDB[window.genereerUniekId(w)];
+    });
+
+    if (dagWedstrijden.length === 0) return alert("Geen wedstrijden gevonden op deze dag.");
+
+    let takenPerTeam = {}; // Hier slaan we op: { 'M16-1': ['Armin', 'Jamian'], 'X14-1': ['Tom'] }
+
+    // Zoek uit wie er allemaal een taak hebben op deze dag
+    dagWedstrijden.forEach(match => {
+        let matchId = window.genereerUniekId(match);
+        let pTaken = window.persoonsTakenDB[matchId] || {};
+        
+        let actieveRollen = [pTaken.sA, pTaken.sB, pTaken.tab, pTaken.sco, pTaken.auto1, pTaken.auto2, pTaken.auto3];
+        
+        actieveRollen.forEach(pId => {
+            if (pId && pId !== "Vrij") {
+                let speler = window.spelersDB.find(s => s.id === pId);
+                // Als het een speler is (met een team), voeg hem toe aan de lijst van dat team
+                if (speler && speler.teamId) {
+                    if (!takenPerTeam[speler.teamId]) takenPerTeam[speler.teamId] = new Set();
+                    takenPerTeam[speler.teamId].add(speler.naam.split(' ')[0]); // We gebruiken alleen de voornaam voor WhatsApp
+                }
+            }
+        });
+    });
+
+    if (Object.keys(takenPerTeam).length === 0) {
+        return alert("Er zijn voor deze dag nog geen spelers ingedeeld voor taken.");
+    }
+
+    let d = new Date(speeldag);
+    let dagNaam = isNaN(d) ? speeldag : d.toLocaleDateString('nl-NL', { weekday: 'long' });
+    let mooieDatum = isNaN(d) ? speeldag : d.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+    // Bouw de Modal (Pop-up) UI
+    let modalHtml = `
+        <div id="wa-modal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9999; display:flex; justify-content:center; align-items:center;">
+            <div style="background:white; border-radius:12px; width:90%; max-width:800px; max-height:90vh; overflow-y:auto; padding:30px; position:relative;">
+                <button onclick="document.getElementById('wa-modal').remove()" style="position:absolute; top:15px; right:15px; background:#e74c3c; color:white; border:none; border-radius:50%; width:35px; height:35px; font-weight:bold; cursor:pointer; font-size:1.2rem;">&times;</button>
+                
+                <h2 style="margin-top:0; color:#25D366; display:flex; align-items:center; gap:10px;">
+                    💬 WhatsApp Export <span style="font-size:1rem; color:#7f8c8d; font-weight:normal;">(${mooieDatum})</span>
+                </h2>
+                
+                <div style="background:#e8f8f5; border:1px solid #25D366; padding:15px; border-radius:8px; margin-bottom:25px; display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <strong style="color:#2c3e50;">1. Foto van het dagschema genereren</strong><br>
+                        <span style="font-size:0.85rem; color:#7f8c8d;">Download het overzicht als PNG-foto om in de groepsapp te sturen.</span>
+                    </div>
+                    <button onclick="window.downloadSchemaAlsFoto('${speeldag}')" style="background:#25D366; color:white; border:none; padding:10px 20px; border-radius:6px; font-weight:bold; cursor:pointer;">📸 Download Foto</button>
+                </div>
+
+                <h3 style="color:#2c3e50; border-bottom:2px solid #eee; padding-bottom:10px;">2. Teksten per team kopiëren</h3>
+    `;
+
+    // Genereer de tekst per team
+    Object.keys(takenPerTeam).sort().forEach(teamId => {
+        let namenArray = Array.from(takenPerTeam[teamId]);
+        let namenStr = namenArray.map(n => '@' + n).join(', ');
+        
+        // Vervang de laatste komma door " en " voor goed Nederlands
+        if (namenArray.length > 1) {
+            let lastComma = namenStr.lastIndexOf(', ');
+            namenStr = namenStr.substring(0, lastComma) + ' en ' + namenStr.substring(lastComma + 2);
+        }
+
+        let appTekst = `Het takenschema van aankomende ${dagNaam}! ${namenStr} jullie hebben een taak. Graag 15 min voor je taak aanwezig. Tot ${dagNaam}!`;
+
+        modalHtml += `
+            <div style="background:#f8f9fa; border:1px solid #cbd5e1; border-radius:8px; padding:15px; margin-bottom:15px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <strong style="color:#34495e; font-size:1.1rem;">Team: ${window.getCanonicalTeam(teamId) ? window.getCanonicalTeam(teamId).naam : teamId}</strong>
+                    <button onclick="navigator.clipboard.writeText(document.getElementById('wa-text-${teamId}').value); alert('Tekst gekopieerd!');" style="background:#3498db; color:white; border:none; padding:6px 15px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.9rem;">📋 Kopieer</button>
+                </div>
+                <textarea id="wa-text-${teamId}" style="width:100%; height:60px; padding:10px; border:1px solid #ccc; border-radius:4px; font-family:inherit; resize:none;" readonly>${appTekst}</textarea>
+            </div>
+        `;
+    });
+
+    modalHtml += `</div></div>`;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+};
+
+// ============================================================================
+// HULPFUNCTIE: SCHEMA RENDEREN EN DOWNLOADEN ALS FOTO
+// ============================================================================
+window.downloadSchemaAlsFoto = function(speeldag) {
+    let alleWedstrijden = [...window.nbbWedstrijden, ...window.customWedstrijden];
+    let dagWedstrijden = alleWedstrijden.filter(w => window.normaalDatum(w.Datum) === speeldag && window.planStatusDB[window.genereerUniekId(w)]);
+    
+    dagWedstrijden.sort((a,b) => window.planStatusDB[window.genereerUniekId(a)].tijd.localeCompare(window.planStatusDB[window.genereerUniekId(b)].tijd));
+
+    let mooieDatum = new Date(speeldag).toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
+
+    // We bouwen een tijdelijk, strak, wit element dat we 'fotograferen'
+    let tempContainer = document.createElement('div');
+    tempContainer.style.position = 'absolute';
+    tempContainer.style.left = '-9999px';
+    tempContainer.style.top = '0';
+    tempContainer.style.width = '800px';
+    tempContainer.style.background = 'white';
+    tempContainer.style.padding = '20px';
+    tempContainer.style.fontFamily = 'Arial, sans-serif';
+    
+    let html = `
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #2c3e50; padding-bottom:10px; margin-bottom:20px;">
+            <h2 style="margin:0; color:#2c3e50; font-size:2rem;">${mooieDatum}</h2>
+            <h2 style="margin:0; color:#2c3e50; font-size:2rem;">Thuis</h2>
+        </div>
+        <table style="width:100%; border-collapse:collapse; font-size:1rem;">
+            <thead>
+                <tr style="border-bottom:2px solid #ccc;">
+                    <th style="text-align:left; padding:8px;">Tijd</th>
+                    <th style="text-align:left; padding:8px;">Wedstrijd</th>
+                    <th style="text-align:left; padding:8px;">Hal / Veld</th>
+                    <th style="text-align:left; padding:8px;">Scheidsrechter(s)</th>
+                    <th style="text-align:left; padding:8px;">Tafel / Scorer</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    dagWedstrijden.forEach(w => {
+        let isThuis = (w.Thuisteam || '').toLowerCase().includes('black shots');
+        if (!isThuis) return; // Voor deze foto vaak alleen thuiswedstrijden relevant (zoals in jouw screenshot)
+
+        let id = window.genereerUniekId(w);
+        let st = window.planStatusDB[id];
+        let pt = window.persoonsTakenDB[id] || {};
+        let tt = window.teamTakenDB[id] || {};
+
+        let thuisNaam = w.Thuisteam.replace(/Black Shots\s*-?\s*/i, 'BS ').trim();
+        let uitNaam = w.Uitteam.replace(/Black Shots\s*-?\s*/i, 'BS ').trim();
+
+        let sA = window.naamWeergave(pt.sA, tt.sA); let sB = window.naamWeergave(pt.sB, tt.sB);
+        let tab = window.naamWeergave(pt.tab, tt.tab); let sco = window.naamWeergave(pt.sco, tt.sco);
+
+        html += `
+            <tr style="border-bottom:1px solid #eee;">
+                <td style="padding:10px 8px; font-weight:bold;">${st.tijd}</td>
+                <td style="padding:10px 8px;"><strong>${thuisNaam}</strong> - ${uitNaam}</td>
+                <td style="padding:10px 8px;">Veld ${st.veld}</td>
+                <td style="padding:10px 8px;">${[sA, sB].filter(x=>x!=='-').join('<br>')}</td>
+                <td style="padding:10px 8px;">${[tab, sco].filter(x=>x!=='-').join('<br>')}</td>
+            </tr>
+        `;
+    });
+
+    html += `</tbody></table>`;
+    tempContainer.innerHTML = html;
+    document.body.appendChild(tempContainer);
+
+    // Maak de foto met html2canvas
+    html2canvas(tempContainer, { scale: 2, backgroundColor: "#ffffff" }).then(canvas => {
+        let link = document.createElement('a');
+        link.download = `Taken_Schema_${speeldag}.png`;
+        link.href = canvas.toDataURL("image/png");
+        link.click();
+        
+        // Verwijder het tijdelijke element
+        document.body.removeChild(tempContainer);
+    }).catch(err => {
+        alert("Fout bij genereren van de foto: " + err);
+        document.body.removeChild(tempContainer);
+    });
 };
