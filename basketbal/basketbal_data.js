@@ -720,10 +720,10 @@ window.laadNBBPoulesWidget = function() {
 };
 
 // ============================================================================
-// NIEUWE WIDGETS VOOR DASHBOARD
+// NIEUWE WIDGETS VOOR DASHBOARD (Alle 5 compleet & crash-proof)
 // ============================================================================
 
-// --- Hulpfuncties voor de nieuwe widgets ---
+// --- Hulpfuncties ---
 window.krijgVolgendeDatums = function(aantalDagen) {
     let nu = new Date();
     nu.setHours(0,0,0,0);
@@ -737,7 +737,9 @@ window.haalWedstrijdenOp = function() {
             ...(JSON.parse(localStorage.getItem('blackshots_custom_wedstrijden')) || [])];
 }
 
-// 1. WIDGET: Volgende Thuiswedstrijd Dag (Met Taken)
+// ----------------------------------------------------------------------------
+// WIDGET 1: Volgende Thuiswedstrijd Dag (Met Taken)
+// ----------------------------------------------------------------------------
 window.laadVolgendeThuisdagWidget = function() {
     let container = document.getElementById('dash-thuis-taken-inhoud');
     if(!container) return;
@@ -808,7 +810,9 @@ window.laadVolgendeThuisdagWidget = function() {
     container.innerHTML = html;
 };
 
-// 2. WIDGET: Aankomende Wedstrijden (Uit & Thuis per Team)
+// ----------------------------------------------------------------------------
+// WIDGET 2: Aankomende Wedstrijden (Uit & Thuis per Team)
+// ----------------------------------------------------------------------------
 window.laadAankomendeWedstrijdenWidget = function() {
     let container = document.getElementById('dash-aankomend-inhoud');
     let select = document.getElementById('dash-aankomend-team-select');
@@ -821,7 +825,6 @@ window.laadAankomendeWedstrijdenWidget = function() {
         return;
     }
 
-    // Vul de dropdown als deze leeg is en zet direct de actieve selectie
     if (select.options.length === 0) {
         teams.forEach(t => {
             select.innerHTML += `<option value="${t.id}">${t.naam}</option>`;
@@ -889,19 +892,18 @@ window.laadAankomendeWedstrijdenWidget = function() {
     container.innerHTML = html;
 };
 
-// ============================================================================
-// WIDGET 2: VRIJWILLIGERS LEADERBOARD
-// ============================================================================
+// ----------------------------------------------------------------------------
+// WIDGET 3: Vrijwilligers Leaderboard
+// ----------------------------------------------------------------------------
 window.laadVrijwilligersLeaderboard = function() {
     let container = document.getElementById('dash-leaderboard-inhoud');
     if(!container) return;
     
     let takenDB = JSON.parse(localStorage.getItem('blackshots_persoons_taken')) || {};
     let spelers = window.spelersDB || [];
-    let scheidsrechters = window.scheidsrechtersDB || [];
+    let scheidsrechters = JSON.parse(localStorage.getItem('blackshots_scheidsrechters')) || [];
     let scores = {};
 
-    // Puntenverdeling: Scheids = 2pt, Tafel/Auto = 1pt
     const addScore = (id, pts) => {
         if(!id || id === 'Vrij' || id === '') return;
         if(!scores[id]) scores[id] = 0;
@@ -914,11 +916,10 @@ window.laadVrijwilligersLeaderboard = function() {
         addScore(taak.auto1, 1); addScore(taak.auto2, 1); addScore(taak.auto3, 1); 
     });
 
-    // Koppel namen en sorteer
     let sorted = Object.keys(scores).map(id => {
         let p = spelers.find(s => s.id === id) || scheidsrechters.find(s => s.id === id);
         return { naam: p ? p.naam : id, punten: scores[id] };
-    }).sort((a,b) => b.punten - a.punten).slice(0, 5); // Pak alleen de top 5
+    }).sort((a,b) => b.punten - a.punten).slice(0, 5); 
 
     if(sorted.length === 0) {
         container.innerHTML = `<p style="color:#7f8c8d; font-style:italic; padding:10px; background:#fdfdfd; border:1px solid #eee;">Nog geen taken geregistreerd dit seizoen.</p>`;
@@ -938,9 +939,9 @@ window.laadVrijwilligersLeaderboard = function() {
     container.innerHTML = html;
 };
 
-// ============================================================================
-// WIDGET 3: LAATSTE UITSLAGEN (Leest de JSON Uitslag)
-// ============================================================================
+// ----------------------------------------------------------------------------
+// WIDGET 4: Laatste Uitslagen (Scorebord)
+// ----------------------------------------------------------------------------
 window.laadLaatsteUitslagenWidget = function() {
     let container = document.getElementById('dash-uitslagen-inhoud');
     if(!container) return;
@@ -948,11 +949,10 @@ window.laadLaatsteUitslagenWidget = function() {
     let alleWedstrijden = window.haalWedstrijdenOp(); 
     let vandaagIso = new Date().toISOString().split('T')[0];
 
-    // Filter wedstrijden in het verleden, MET een uitslag (bijv "64 - 58") en van BS
     let pastMatches = alleWedstrijden.filter(w => {
         let isBS = (w.Thuisteam || '').toLowerCase().includes('black shots') || (w.Uitteam || '').toLowerCase().includes('black shots');
         let isPast = window.normaalDatum(w.Datum) < vandaagIso;
-        let hasUitslag = w.Uitslag && w.Uitslag.includes('-'); 
+        let hasUitslag = w.Uitslag && typeof w.Uitslag === 'string' && w.Uitslag.includes('-'); 
         return isBS && isPast && hasUitslag;
     });
 
@@ -961,7 +961,6 @@ window.laadLaatsteUitslagenWidget = function() {
         return;
     }
 
-    // Sorteer op meest recente datum
     pastMatches.sort((a,b) => window.normaalDatum(b.Datum).localeCompare(window.normaalDatum(a.Datum)));
     let topMatches = pastMatches.slice(0, 5);
 
@@ -969,9 +968,8 @@ window.laadLaatsteUitslagenWidget = function() {
     topMatches.forEach(w => {
         let isThuis = (w.Thuisteam || '').toLowerCase().includes('black shots');
         let bsTeam = isThuis ? w.Thuisteam.replace(/Black Shots/ig, 'BS').trim() : w.Uitteam.replace(/Black Shots/ig, 'BS').trim();
-        let oppTeam = isThuis ? w.Uitteam : w.Thuisteam;
+        let oppTeam = isThuis ? (w.Uitteam || '') : (w.Thuisteam || '');
 
-        // Bereken wie gewonnen heeft op basis van "T - U" uitslag
         let scoreThuis = 0, scoreUit = 0;
         let parts = w.Uitslag.split('-');
         if(parts.length === 2) {
@@ -1001,9 +999,9 @@ window.laadLaatsteUitslagenWidget = function() {
     container.innerHTML = html;
 };
 
-// ============================================================================
-// WIDGET 4: EVENEMENTEN COUNTDOWN
-// ============================================================================
+// ----------------------------------------------------------------------------
+// WIDGET 5: Evenementen Countdown
+// ----------------------------------------------------------------------------
 window.laadEvenementenCountdown = function() {
     let container = document.getElementById('dash-countdown-inhoud');
     if(!container) return;
@@ -1013,7 +1011,6 @@ window.laadEvenementenCountdown = function() {
     vandaag.setHours(0,0,0,0);
     let vandaagIso = vandaag.toISOString().split('T')[0];
 
-    // Filter op alles in de toekomst wat NIET een reguliere training of wedstrijd is
     let toekomst = jaarplanning.filter(item => {
         let d = item.isoDatum;
         let isGeannuleerd = String(item.geannuleerd) === 'true' || (item.titel||'').toLowerCase().includes('geannuleerd');
@@ -1027,7 +1024,7 @@ window.laadEvenementenCountdown = function() {
     }
 
     toekomst.sort((a,b) => a.isoDatum.localeCompare(b.isoDatum));
-    let topEvents = toekomst.slice(0, 3); // Toon de eerstvolgende 3 evenementen
+    let topEvents = toekomst.slice(0, 3); 
 
     let html = '';
     topEvents.forEach(ev => {
@@ -1036,7 +1033,7 @@ window.laadEvenementenCountdown = function() {
         let diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         
         let dagenTekst = diffDays === 0 ? 'Vandaag!' : (diffDays === 1 ? 'Morgen' : `Nog ${diffDays} dgn`);
-        let kleur = diffDays <= 14 ? '#e84393' : '#3498db'; // Roze als het binnen 2 weken is!
+        let kleur = diffDays <= 14 ? '#e84393' : '#3498db'; 
 
         let safeTitel = (ev.titel || '').replace(/'/g, "\\'");
         let safeTijd = (ev.tijd || 'Hele dag').replace(/'/g, "\\'");
