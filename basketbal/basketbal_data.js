@@ -57,6 +57,9 @@ window.laadDashboardData = function() {
     window.laadNBBPoulesWidget()
     window.laadVolgendeThuisdagWidget();
     window.laadAankomendeWedstrijdenWidget();
+    window.laadVrijwilligersLeaderboard();
+    window.laadLaatsteUitslagenWidget();
+    window.laadEvenementenCountdown();
 };
 
 function userHasAccess(user, pageId) {
@@ -875,5 +878,176 @@ window.laadAankomendeWedstrijdenWidget = function() {
     });
 
     html += `</div>`;
+    container.innerHTML = html;
+};
+
+// ============================================================================
+// WIDGET 2: VRIJWILLIGERS LEADERBOARD
+// ============================================================================
+window.laadVrijwilligersLeaderboard = function() {
+    let container = document.getElementById('dash-leaderboard-inhoud');
+    if(!container) return;
+    
+    let takenDB = JSON.parse(localStorage.getItem('blackshots_persoons_taken')) || {};
+    let spelers = window.spelersDB || [];
+    let scheidsrechters = window.scheidsrechtersDB || [];
+    let scores = {};
+
+    // Puntenverdeling: Scheids = 2pt, Tafel/Auto = 1pt
+    const addScore = (id, pts) => {
+        if(!id || id === 'Vrij' || id === '') return;
+        if(!scores[id]) scores[id] = 0;
+        scores[id] += pts;
+    };
+
+    Object.values(takenDB).forEach(taak => {
+        addScore(taak.sA, 2); addScore(taak.sB, 2); 
+        addScore(taak.tab, 1); addScore(taak.sco, 1); 
+        addScore(taak.auto1, 1); addScore(taak.auto2, 1); addScore(taak.auto3, 1); 
+    });
+
+    // Koppel namen en sorteer
+    let sorted = Object.keys(scores).map(id => {
+        let p = spelers.find(s => s.id === id) || scheidsrechters.find(s => s.id === id);
+        return { naam: p ? p.naam : id, punten: scores[id] };
+    }).sort((a,b) => b.punten - a.punten).slice(0, 5); // Pak alleen de top 5
+
+    if(sorted.length === 0) {
+        container.innerHTML = `<p style="color:#7f8c8d; font-style:italic; padding:10px; background:#fdfdfd; border:1px solid #eee;">Nog geen taken geregistreerd dit seizoen.</p>`;
+        return;
+    }
+
+    let html = '';
+    sorted.forEach((pers, idx) => {
+        let badge = idx === 0 ? '🥇' : (idx === 1 ? '🥈' : (idx === 2 ? '🥉' : ''));
+        html += `
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid #eee;">
+                <span style="font-size:0.95rem; color:#2c3e50;"><strong>${idx+1}.</strong> ${pers.naam} <span style="font-size:1.1rem;">${badge}</span></span>
+                <span style="background:#f1c40f; color:#fff; font-weight:bold; padding:3px 10px; border-radius:12px; font-size:0.85rem;">${pers.punten} pt</span>
+            </div>
+        `;
+    });
+    container.innerHTML = html;
+};
+
+// ============================================================================
+// WIDGET 3: LAATSTE UITSLAGEN (Leest de JSON Uitslag)
+// ============================================================================
+window.laadLaatsteUitslagenWidget = function() {
+    let container = document.getElementById('dash-uitslagen-inhoud');
+    if(!container) return;
+    
+    let alleWedstrijden = window.haalWedstrijdenOp(); 
+    let vandaagIso = new Date().toISOString().split('T')[0];
+
+    // Filter wedstrijden in het verleden, MET een uitslag (bijv "64 - 58") en van BS
+    let pastMatches = alleWedstrijden.filter(w => {
+        let isBS = (w.Thuisteam || '').toLowerCase().includes('black shots') || (w.Uitteam || '').toLowerCase().includes('black shots');
+        let isPast = window.normaalDatum(w.Datum) < vandaagIso;
+        let hasUitslag = w.Uitslag && w.Uitslag.includes('-'); 
+        return isBS && isPast && hasUitslag;
+    });
+
+    if(pastMatches.length === 0) {
+        container.innerHTML = `<p style="color:#7f8c8d; font-style:italic; padding:10px; background:#fdfdfd; border:1px solid #eee; border-radius:4px;">Geen recente uitslagen bekend vanuit de bond.</p>`;
+        return;
+    }
+
+    // Sorteer op meest recente datum
+    pastMatches.sort((a,b) => window.normaalDatum(b.Datum).localeCompare(window.normaalDatum(a.Datum)));
+    let topMatches = pastMatches.slice(0, 5);
+
+    let html = '';
+    topMatches.forEach(w => {
+        let isThuis = (w.Thuisteam || '').toLowerCase().includes('black shots');
+        let bsTeam = isThuis ? w.Thuisteam.replace(/Black Shots/ig, 'BS').trim() : w.Uitteam.replace(/Black Shots/ig, 'BS').trim();
+        let oppTeam = isThuis ? w.Uitteam : w.Thuisteam;
+
+        // Bereken wie gewonnen heeft op basis van "T - U" uitslag
+        let scoreThuis = 0, scoreUit = 0;
+        let parts = w.Uitslag.split('-');
+        if(parts.length === 2) {
+            scoreThuis = parseInt(parts[0].trim());
+            scoreUit = parseInt(parts[1].trim());
+        }
+
+        let bsScore = isThuis ? scoreThuis : scoreUit;
+        let oppScore = isThuis ? scoreUit : scoreThuis;
+        
+        let winst = bsScore > oppScore;
+        let gelijk = bsScore === oppScore;
+        let kleur = winst ? '#27ae60' : (gelijk ? '#f39c12' : '#e74c3c');
+        let letter = winst ? 'W' : (gelijk ? 'G' : 'V');
+
+        html += `
+            <div style="background:#fdfdfd; border:1px solid #eee; padding:10px; border-radius:6px; margin-bottom:8px; display:flex; align-items:center; gap:12px;">
+                <div style="background:${kleur}; color:white; font-weight:bold; width:35px; height:35px; display:flex; align-items:center; justify-content:center; border-radius:6px; flex-shrink:0; font-size:1.1rem;">${letter}</div>
+                <div style="flex:1; font-size:0.9rem; line-height:1.4;">
+                    <div style="color:#7f8c8d; font-size:0.75rem; font-weight:bold;">${new Date(window.normaalDatum(w.Datum)).toLocaleDateString('nl-NL', {day:'numeric', month:'short'})}</div>
+                    <strong style="color:#2c3e50;">${bsTeam}</strong> <span style="color:#7f8c8d;">vs</span> ${oppTeam}
+                </div>
+                <div style="font-weight:bold; font-size:1.2rem; color:${kleur};">${w.Uitslag}</div>
+            </div>
+        `;
+    });
+    container.innerHTML = html;
+};
+
+// ============================================================================
+// WIDGET 4: EVENEMENTEN COUNTDOWN
+// ============================================================================
+window.laadEvenementenCountdown = function() {
+    let container = document.getElementById('dash-countdown-inhoud');
+    if(!container) return;
+    
+    let jaarplanning = JSON.parse(localStorage.getItem('blackshots_jaarplanning_data')) || [];
+    let vandaag = new Date();
+    vandaag.setHours(0,0,0,0);
+    let vandaagIso = vandaag.toISOString().split('T')[0];
+
+    // Filter op alles in de toekomst wat NIET een reguliere training of wedstrijd is
+    let toekomst = jaarplanning.filter(item => {
+        let d = item.isoDatum;
+        let isGeannuleerd = String(item.geannuleerd) === 'true' || (item.titel||'').toLowerCase().includes('geannuleerd');
+        let isTrainingOfWedstrijd = item.type === 'training' || item.type === 'thuis' || item.type === 'uit';
+        return d >= vandaagIso && !isGeannuleerd && !isTrainingOfWedstrijd;
+    });
+
+    if(toekomst.length === 0) {
+        container.innerHTML = `<p style="color:#7f8c8d; font-style:italic; padding:10px; background:#fdfdfd; border:1px solid #eee; border-radius:4px;">Geen aankomende club-evenementen gepland.</p>`;
+        return;
+    }
+
+    toekomst.sort((a,b) => a.isoDatum.localeCompare(b.isoDatum));
+    let topEvents = toekomst.slice(0, 3); // Toon de eerstvolgende 3 evenementen
+
+    let html = '';
+    topEvents.forEach(ev => {
+        let evDate = new Date(ev.isoDatum);
+        let diffTime = Math.abs(evDate - vandaag);
+        let diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        let dagenTekst = diffDays === 0 ? 'Vandaag!' : (diffDays === 1 ? 'Morgen' : `Nog ${diffDays} dgn`);
+        let kleur = diffDays <= 14 ? '#e84393' : '#3498db'; // Roze als het binnen 2 weken is!
+
+        let safeTitel = (ev.titel || '').replace(/'/g, "\\'");
+        let safeTijd = (ev.tijd || 'Hele dag').replace(/'/g, "\\'");
+        let safeLoc = (ev.locatie || 'Onbekend').replace(/'/g, "\\'");
+        let safeOmschrijving = (ev.omschrijving || '').replace(/'/g, "\\'").replace(/\n/g, '\\n');
+
+        html += `
+            <div onclick="window.toonActiviteitDetails('${safeTitel}', '${safeTijd}', '${safeLoc}', '${safeOmschrijving}', 'jaarplanning.html', false, false)" 
+                 style="background:#fdfdfd; border:1px solid #eee; border-left:4px solid ${kleur}; padding:12px; border-radius:6px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; transition:0.2s;"
+                 onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='#fdfdfd'">
+                <div>
+                    <strong style="color:#2c3e50; font-size:1rem;">${ev.titel}</strong>
+                    <div style="font-size:0.8rem; color:#7f8c8d; margin-top:2px;">📅 ${evDate.toLocaleDateString('nl-NL', {weekday:'short', day:'numeric', month:'long'})}</div>
+                </div>
+                <div style="background:${kleur}; color:white; font-weight:bold; padding:4px 10px; border-radius:12px; font-size:0.8rem; white-space:nowrap;">
+                    ${dagenTekst}
+                </div>
+            </div>
+        `;
+    });
     container.innerHTML = html;
 };
