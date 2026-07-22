@@ -719,10 +719,6 @@ window.laadNBBPoulesWidget = function() {
     container.innerHTML = html;
 };
 
-// ============================================================================
-// NIEUWE WIDGETS VOOR DASHBOARD (Alle 5 compleet & crash-proof)
-// ============================================================================
-
 // --- Hulpfuncties ---
 window.krijgVolgendeDatums = function(aantalDagen) {
     let nu = new Date();
@@ -730,12 +726,40 @@ window.krijgVolgendeDatums = function(aantalDagen) {
     let eind = new Date(nu);
     eind.setDate(eind.getDate() + aantalDagen);
     return { start: nu.toISOString().split('T')[0], eind: eind.toISOString().split('T')[0] };
-}
+};
 
 window.haalWedstrijdenOp = function() {
-    return [...(JSON.parse(localStorage.getItem('blackshots_wedstrijden_json')) || []), 
-            ...(JSON.parse(localStorage.getItem('blackshots_custom_wedstrijden')) || [])];
-}
+    // Extra veiligheid: Zorgt dat het altijd een echte lijst is, ongeacht hoe Firebase het opslaat
+    let nbb = JSON.parse(localStorage.getItem('blackshots_wedstrijden_json')) || [];
+    let custom = JSON.parse(localStorage.getItem('blackshots_custom_wedstrijden')) || [];
+    if(!Array.isArray(nbb)) nbb = Object.values(nbb);
+    if(!Array.isArray(custom)) custom = Object.values(custom);
+    return [...nbb, ...custom];
+};
+
+window.normaalDatum = function(d) {
+    if(!d) return "";
+    let str = String(d).trim().substring(0, 10);
+    if (/^\d{2}-\d{2}-\d{4}$/.test(str)) { let delen = str.split('-'); return `${delen[2]}-${delen[1]}-${delen[0]}`; }
+    return str;
+};
+
+window.genereerUniekId = function(w) {
+    if (w.ID) return `nbb-${w.ID}`;
+    if (w.id) return w.id;
+    let thuisteam = w.Thuisteam ? String(w.Thuisteam) : ''; let uitteam = w.Uitteam ? String(w.Uitteam) : '';
+    let clean = w.Wedstrijdnummer ? String(w.Wedstrijdnummer).replace(/[^a-zA-Z0-9]/g, '') : (thuisteam + uitteam).replace(/[^a-zA-Z0-9]/g, '');
+    return `match-${window.normaalDatum(w.Datum)}-${clean}`;
+};
+
+window.naamWeergave = function(pId) {
+    if (!pId || pId === "Vrij") return pId;
+    let spelers = window.spelersDB || JSON.parse(localStorage.getItem('blackshots_spelers')) || [];
+    let scheids = JSON.parse(localStorage.getItem('blackshots_scheidsrechters')) || [];
+    let s = spelers.find(x => x.id === pId);
+    let sr = scheids.find(x => x.id === pId);
+    return s ? s.naam : (sr ? sr.naam : pId);
+};
 
 // ----------------------------------------------------------------------------
 // WIDGET 1: Volgende Thuiswedstrijd Dag (Met Taken)
