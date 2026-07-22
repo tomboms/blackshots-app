@@ -426,6 +426,7 @@ window.importeerBondCSV = function(event) {
 
         let rapportToegevoegd = [];
         let rapportAangepast = [];
+        let csvBondsnummers = []; // Houdt bij wie er in de nieuwe lijst staan
 
         for (let i = 1; i < lines.length; i++) {
             if (!lines[i].trim()) continue;
@@ -440,6 +441,7 @@ window.importeerBondCSV = function(event) {
             if (!volledigeNaam) continue;
 
             let bondsnummer = row[idxBondsnummer] ? row[idxBondsnummer].trim() : "";
+            if (bondsnummer !== "") csvBondsnummers.push(bondsnummer); // Voeg toe aan controlelijst
             
             let gebDatumStr = "-";
             let gebDatumRuweStr = row[idxGeboorte] ? row[idxGeboorte].trim() : "";
@@ -515,14 +517,31 @@ window.importeerBondCSV = function(event) {
             }
         }
 
-        if (rapportToegevoegd.length > 0 || rapportAangepast.length > 0) {
+        // DE NIEUWE VERWIJDER CHECK
+        let verdwenenSpelers = window.spelersDB.filter(s => s.bondsnummer && s.bondsnummer !== "" && !csvBondsnummers.includes(s.bondsnummer));
+        let rapportVerwijderd = [];
+        
+        if (verdwenenSpelers.length > 0) {
+            let namenLijst = verdwenenSpelers.map(s => s.naam).join('\n- ');
+            let wilVerwijderen = confirm(`⚠️ Opgelet: De volgende ${verdwenenSpelers.length} speler(s) staan in ons systeem, maar ontbreken in de nieuwe export:\n\n- ${namenLijst}\n\nWil je deze speler(s) DEFINITIEF uit ons systeem verwijderen?`);
+            
+            if (wilVerwijderen) {
+                let teVerwijderenNummers = verdwenenSpelers.map(s => s.bondsnummer);
+                window.spelersDB = window.spelersDB.filter(s => !teVerwijderenNummers.includes(s.bondsnummer));
+                rapportVerwijderd = verdwenenSpelers.map(s => `- ${s.naam}`);
+            }
+        }
+
+        // DE GEÜPDATETE EINDMELDING (Inclusief de verwijderde spelers)
+        if (rapportToegevoegd.length > 0 || rapportAangepast.length > 0 || rapportVerwijderd.length > 0) {
             localStorage.setItem('blackshots_spelers', JSON.stringify(window.spelersDB));
             window.renderSpelers();
 
             let eindBericht = "✅ Import Succesvol!\n\n";
             if (rapportToegevoegd.length > 0) eindBericht += `Nieuw (${rapportToegevoegd.length}):\n${rapportToegevoegd.join('\n')}\n\n`;
-            if (rapportAangepast.length > 0) eindBericht += `Geüpdatet (${rapportAangepast.length}):\n${rapportAangepast.join('\n')}`;
-            alert(eindBericht);
+            if (rapportAangepast.length > 0) eindBericht += `Geüpdatet (${rapportAangepast.length}):\n${rapportAangepast.join('\n')}\n\n`;
+            if (rapportVerwijderd.length > 0) eindBericht += `Verwijderd (${rapportVerwijderd.length}):\n${rapportVerwijderd.join('\n')}`;
+            alert(eindBericht.trim());
         } else {
             alert("✅ Import voltooid. Er waren geen nieuwe wijzigingen in de bondsexport.");
         }
