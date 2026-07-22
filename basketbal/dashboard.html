@@ -30,6 +30,7 @@
 
     <main class="content-sectie active" style="max-width: 1250px; margin: 20px auto; padding: 0 15px;">
         
+        <!-- TOP: Stats Grid -->
         <div class="stats-grid">
             <div class="stat-card" style="border-bottom-color: #3498db;">
                 <h4>👥 Actieve Leden</h4>
@@ -45,6 +46,7 @@
             </div>
         </div>
 
+        <!-- TOP: Weekagenda -->
         <div class="card" style="border-top-color: #e74c3c; overflow: hidden; margin-bottom: 25px;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px; flex-wrap:wrap; gap:10px;">
                 <h3 style="margin: 0; color: var(--secondary-color);">📆 Weekagenda <span id="dash-week-label" style="font-size:0.9rem; color:#7f8c8d; font-weight:normal;">(Deze Week)</span></h3>
@@ -59,7 +61,15 @@
 
         <div class="dashboard-layout">
             
+            <!-- LINKER KOLOM -->
             <div>
+                <!-- 1. Links (Snelkoppelingen) -->
+                <div class="card" style="margin-bottom: 25px; border-top-color: #7f8c8d;">
+                    <h3 style="margin-top: 0; margin-bottom: 15px; font-size: 1.1rem; color: var(--text-color);">⚡ Snel Toegankelijke Pagina's</h3>
+                    <div id="dash-snelkoppelingen-container" style="display: flex; gap: 10px; flex-wrap: wrap;"></div>
+                </div>
+
+                <!-- 2. Team indeling -->
                 <div class="card" style="border-top-color: #3498db; margin-bottom: 25px;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
                         <h3 style="margin: 0; color: var(--secondary-color);">⛹️ Teamindeling (NBB / Clubteams)</h3>
@@ -67,6 +77,47 @@
                     </div>
                     <div id="dash-team-roster-inhoud"></div>
                 </div>
+
+                <!-- 3. Wedstrijd Zaken -->
+                <div class="card" style="border-top-color: #27ae60; margin-bottom: 25px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
+                        <h3 style="margin: 0; color: var(--secondary-color);">🏠 Thuiswedstrijden & Taken</h3>
+                        <button onclick="window.location.href='rapporten.html'" class="primary-btn" style="background:#27ae60; padding:6px 12px; font-size:0.85rem;">Taken Aanpassen</button>
+                    </div>
+                    <div id="dash-thuis-taken-inhoud">
+                        <p style="color: #7f8c8d; font-style: italic; margin: 0;">Volgende thuisdag zoeken...</p>
+                    </div>
+                </div>
+
+                <div class="card" style="border-top-color: #e74c3c; margin-bottom: 25px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
+                        <h3 style="margin: 0; color: var(--secondary-color);">🔜 Aankomende Wedstrijden</h3>
+                        <select id="dash-aankomend-team-select" onchange="window.laadAankomendeWedstrijdenWidget()" class="select-schoon" style="background:#f8f9fa;"></select>
+                    </div>
+                    <div id="dash-aankomend-inhoud">
+                        <p style="color: #7f8c8d; font-style: italic; margin: 0;">Wedstrijden laden...</p>
+                    </div>
+                </div>
+
+                <div class="card" style="border-top-color: #34495e; margin-bottom: 25px;">
+                    <h3 style="margin: 0 0 15px 0; color: var(--secondary-color);">🏀 Laatste NBB Uitslagen</h3>
+                    <div id="dash-uitslagen-inhoud">
+                        <p style="color: #7f8c8d; font-style: italic; margin: 0;">Uitslagen laden...</p>
+                    </div>
+                </div>
+
+                <!-- 4. Poule indeling -->
+                <div class="card" style="border-top-color: #9b59b6; margin-bottom: 25px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
+                        <h3 style="margin: 0; color: var(--secondary-color);">🏀 NBB Poules & Tegenstanders</h3>
+                        <button onclick="window.location.href='pouleindeling.html'" class="primary-btn" style="background:#9b59b6; padding:6px 12px; font-size:0.85rem;">Poule Details</button>
+                    </div>
+                    <div id="dash-nbb-poules-inhoud">
+                        <p style="color: #7f8c8d; font-style: italic; margin: 0;">Poules laden...</p>
+                    </div>
+                </div>    
+
+                <!-- 5. Interne Competitie -->
                 <div class="card" style="border-top-color: #f39c12; margin-bottom: 25px;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
                         <h3 style="margin: 0; color: var(--secondary-color);">⛹️ Interne Poule Teams</h3>
@@ -76,7 +127,7 @@
                         <p style="color: #7f8c8d; font-style: italic; margin: 0;">Poules laden...</p>
                     </div>
                 </div>                
-                <div class="card" style="border-top-color: #e67e22;">
+                <div class="card" style="border-top-color: #e67e22; margin-bottom: 25px;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
                         <h3 style="margin: 0; color: var(--secondary-color);">🏆 Interne Competitie Stand</h3>
                         <div style="display:flex; gap:8px; align-items:center;">
@@ -86,21 +137,11 @@
                     </div>
                     <div id="dash-competitie-inhoud"><p style="color: #7f8c8d; font-style: italic; margin: 0;">Status laden...</p></div>
                 </div>
-                <!-- WIDGET 4: Evenementen Countdown -->
-                <div class="card" style="border-top-color: #e84393; margin-bottom: 25px;">
-                    <h3 style="margin: 0 0 15px 0; color: var(--secondary-color);">⏱️ Club Evenementen Countdown</h3>
-                    <div id="dash-countdown-inhoud">
-                        <p style="color: #7f8c8d; font-style: italic; margin: 0;">Kalender scannen...</p>
-                    </div>
-                </div>
-
-                <div class="card" style="margin-top: 25px; border-top-color: #7f8c8d;">
-                    <h3 style="margin-top: 0; margin-bottom: 15px; font-size: 1.1rem; color: var(--text-color);">⚡ Snel Toegankelijke Pagina's</h3>
-                    <div id="dash-snelkoppelingen-container" style="display: flex; gap: 10px; flex-wrap: wrap;"></div>
-                </div>
             </div>
 
+            <!-- RECHTER KOLOM -->
             <div>
+                <!-- 1. Bestuur -->
                 <div id="dash-widget-bestuur" class="card" style="border-top-color: #2c3e50; display: none; margin-bottom: 25px;">
                     <h3 style="margin-top: 0; margin-bottom: 15px; color: var(--secondary-color);">💼 Bestuurszaken & Kosten live</h3>
                     <div id="dash-vergadering-inhoud" style="margin-bottom:15px;"></div>
@@ -120,38 +161,25 @@
                         <span style="font-size:0.75rem; color:#7f8c8d;">Berekend voor <strong id="dash-zaalhuur-label">deze maand</strong> op basis van vaste trainingen.</span>
                     </div>
                 </div>
-                <!-- NIEUWE WIDGET 1: Volgende Thuiswedstrijd (Met Taken) -->
-                <div class="card" style="border-top-color: #27ae60; margin-bottom: 25px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
-                        <h3 style="margin: 0; color: var(--secondary-color);">🏠 Thuiswedstrijden & Taken</h3>
-                        <button onclick="window.location.href='rapporten.html'" class="primary-btn" style="background:#27ae60; padding:6px 12px; font-size:0.85rem;">Taken Aanpassen</button>
-                    </div>
-                    <div id="dash-thuis-taken-inhoud">
-                        <p style="color: #7f8c8d; font-style: italic; margin: 0;">Volgende thuisdag zoeken...</p>
+
+                <!-- 2. Club Countdown -->
+                <div class="card" style="border-top-color: #e84393; margin-bottom: 25px;">
+                    <h3 style="margin: 0 0 15px 0; color: var(--secondary-color);">⏱️ Club Evenementen Countdown</h3>
+                    <div id="dash-countdown-inhoud">
+                        <p style="color: #7f8c8d; font-style: italic; margin: 0;">Kalender scannen...</p>
                     </div>
                 </div>
 
-                <!-- NIEUWE WIDGET 2: Aankomende Wedstrijden (Mijn Team) -->
-                <div class="card" style="border-top-color: #e74c3c; margin-bottom: 25px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
-                        <h3 style="margin: 0; color: var(--secondary-color);">🔜 Aankomende Wedstrijden</h3>
-                        <!-- Dropdown om te kiezen van welk team je de wedstrijden wil zien -->
-                        <select id="dash-aankomend-team-select" onchange="window.laadAankomendeWedstrijdenWidget()" class="select-schoon" style="background:#f8f9fa;"></select>
-                    </div>
-                    <div id="dash-aankomend-inhoud">
-                        <p style="color: #7f8c8d; font-style: italic; margin: 0;">Wedstrijden laden...</p>
+                <!-- 3. Vrijwilligers Leaderboard -->
+                <div class="card" style="border-top-color: #f1c40f; margin-bottom: 25px;">
+                    <h3 style="margin: 0 0 15px 0; color: var(--secondary-color);">🏆 Vrijwilligers Top 5 (Taken)</h3>
+                    <div id="dash-leaderboard-inhoud">
+                        <p style="color: #7f8c8d; font-style: italic; margin: 0;">Punten berekenen...</p>
                     </div>
                 </div>
-                <div class="card" style="border-top-color: #9b59b6; margin-bottom: 25px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
-                        <h3 style="margin: 0; color: var(--secondary-color);">🏀 NBB Poules & Tegenstanders</h3>
-                        <button onclick="window.location.href='pouleindeling.html'" class="primary-btn" style="background:#9b59b6; padding:6px 12px; font-size:0.85rem;">Poule Details</button>
-                    </div>
-                    <div id="dash-nbb-poules-inhoud">
-                        <p style="color: #7f8c8d; font-style: italic; margin: 0;">Poules laden...</p>
-                    </div>
-                </div>                
-                <div class="card" style="border-top-color: #f1c40f;">
+
+                <!-- 4. Verjaardag -->
+                <div class="card" style="border-top-color: #f1c40f; margin-bottom: 25px;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:5px;">
                         <h3 style="margin: 0; color: var(--secondary-color);">🎉 Feestvarkens & Jubilea</h3>
                         <select id="filter-verjaardag-periode" onchange="window.laadVerjaardagenDashboard()" class="select-schoon">
@@ -160,25 +188,7 @@
                     </div>
                     <div id="dash-verjaardagen-inhoud"></div>
                 </div>
-                <!-- WIDGET 2: Vrijwilligers Leaderboard -->
-                <div class="card" style="border-top-color: #f1c40f; margin-bottom: 25px;">
-                    <h3 style="margin: 0 0 15px 0; color: var(--secondary-color);">🏆 Vrijwilligers Top 5 (Taken)</h3>
-                    <div id="dash-leaderboard-inhoud">
-                        <p style="color: #7f8c8d; font-style: italic; margin: 0;">Punten berekenen...</p>
-                    </div>
-                </div>
-
-                <!-- WIDGET 3: Laatste Uitslagen Scorebord -->
-                <div class="card" style="border-top-color: #34495e; margin-bottom: 25px;">
-                    <h3 style="margin: 0 0 15px 0; color: var(--secondary-color);">🏀 Laatste NBB Uitslagen</h3>
-                    <div id="dash-uitslagen-inhoud">
-                        <p style="color: #7f8c8d; font-style: italic; margin: 0;">Uitslagen laden...</p>
-                    </div>
-                </div>
-
-                
             </div>
-
 
         </div>
     </main>
