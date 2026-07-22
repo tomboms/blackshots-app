@@ -189,7 +189,7 @@ window.renderSpelers = function() {
                 }
             }
 
-            let kaderBadge = speler.kaderRol ? `<div style="color:#8e44ad; font-size:0.8rem; font-weight:bold; margin-top:2px;">⭐ ${speler.kaderRol}</div>` : '';
+            let opmerkingBadge = speler.opmerkingen ? `<div style="color:#d35400; font-size:0.75rem; font-style:italic; margin-top:4px;">📝 ${speler.opmerkingen}</div>` : '';
 
             let magF = speler.magFluiten === true; 
             let magT = speler.magTafelen !== false; 
@@ -224,6 +224,7 @@ window.renderSpelers = function() {
                     <td style="padding:12px; font-weight:bold; color:var(--secondary-color);">
                         ${speler.naam} ${proefBadge}
                         ${kaderBadge}
+                        ${opmerkingBadge}
                     </td>
                     <td style="padding:12px; white-space:nowrap;">
                         <span style="${teamBadge} padding:4px 8px; border-radius:4px; font-size:0.85rem;">${teamNaam}</span>${leeftijdWaarschuwing}${recBadge}
@@ -311,6 +312,8 @@ window.openBewerkSpelerModal = function(index) {
     document.getElementById('bewerk-speler-gebdatum').value = (speler.geboorteDatum && speler.geboorteDatum !== '-') ? speler.geboorteDatum : "";
     document.getElementById('bewerk-speler-rugnr').value = speler.rugnummer || "";
     document.getElementById('bewerk-speler-rec').checked = speler.isRecreant === true;
+    document.getElementById('bewerk-speler-kader').value = speler.kaderRol || "";
+    document.getElementById('bewerk-speler-opmerking').value = speler.opmerkingen || "";
     
     let proefCheck = document.getElementById('bewerk-speler-proef');
     if(proefCheck) proefCheck.checked = speler.isProeflid === true;
@@ -359,6 +362,8 @@ window.slaBewerkteSpelerOp = function() {
     speler.rugnummer = document.getElementById('bewerk-speler-rugnr').value;
     speler.teamId = document.getElementById('bewerk-speler-team').value;
     speler.isRecreant = document.getElementById('bewerk-speler-rec').checked;
+    speler.kaderRol = document.getElementById('bewerk-speler-kader').value.trim();
+    speler.opmerkingen = document.getElementById('bewerk-speler-opmerking').value.trim();
     
     let proefCheck = document.getElementById('bewerk-speler-proef');
     if(proefCheck) speler.isProeflid = proefCheck.checked;
@@ -379,6 +384,8 @@ window.voegSpelerToe = function() {
     let naam = document.getElementById('nw-speler-naam').value.trim();
     let gebDatum = document.getElementById('nw-speler-gebdatum').value;
     let teamId = document.getElementById('nw-speler-team').value;
+    let kader = document.getElementById('nw-speler-kader') ? document.getElementById('nw-speler-kader').value.trim() : "";
+    let opmerking = document.getElementById('nw-speler-opmerking') ? document.getElementById('nw-speler-opmerking').value.trim() : "";
     
     let isRec = document.getElementById('nw-speler-rec') ? document.getElementById('nw-speler-rec').checked : false;
     let isProef = document.getElementById('nw-speler-proef') ? document.getElementById('nw-speler-proef').checked : false;
@@ -408,7 +415,10 @@ window.voegSpelerToe = function() {
             dispensatie: false,
             lidSinds: isProef ? 'Proefperiode' : new Date().toLocaleDateString('nl-NL'),
             clubLidmaatschap: isProef ? 'Proeftrainer' : (isRec ? 'Recreant' : 'Spelend lid'),
+            kaderRol: kader,
+            opmerkingen: opmerking,
             bondLidmaatschap: 'Niet-spelend'
+            
         });
         localStorage.setItem('blackshots_spelers', JSON.stringify(window.spelersDB));
         
@@ -424,6 +434,8 @@ window.voegSpelerToe = function() {
         if(document.getElementById('nw-speler-zaalwacht')) document.getElementById('nw-speler-zaalwacht').checked = false;
         
         if(document.getElementById('nw-speler-gezin')) document.getElementById('nw-speler-gezin').value = "";
+
+        
         
         window.renderSpelers();
     } else {
