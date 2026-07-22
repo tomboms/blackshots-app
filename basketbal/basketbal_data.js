@@ -55,6 +55,8 @@ window.laadDashboardData = function() {
     window.laadTeamRosterWidget(); // NIEUW: NBB Team Roster
     window.laadInternePoulesWidget(); // <-- DEZE REGEL TOEVOEGEN
     window.laadNBBPoulesWidget()
+    window.laadVolgendeThuisdagWidget();
+    window.laadAankomendeWedstrijdenWidget();
 };
 
 function userHasAccess(user, pageId) {
@@ -708,5 +710,170 @@ window.laadNBBPoulesWidget = function() {
         `;
     }
     
+    container.innerHTML = html;
+};
+
+// ============================================================================
+// NIEUWE WIDGETS VOOR DASHBOARD
+// ============================================================================
+
+// --- Hulpfuncties voor de nieuwe widgets ---
+window.krijgVolgendeDatums = function(aantalDagen) {
+    let nu = new Date();
+    nu.setHours(0,0,0,0);
+    let eind = new Date(nu);
+    eind.setDate(eind.getDate() + aantalDagen);
+    return { start: nu.toISOString().split('T')[0], eind: eind.toISOString().split('T')[0] };
+}
+
+window.haalWedstrijdenOp = function() {
+    return [...(JSON.parse(localStorage.getItem('blackshots_wedstrijden_json')) || []), 
+            ...(JSON.parse(localStorage.getItem('blackshots_custom_wedstrijden')) || [])];
+}
+
+// 1. WIDGET: Volgende Thuiswedstrijd Dag (Met Taken)
+window.laadVolgendeThuisdagWidget = function() {
+    let container = document.getElementById('dash-thuis-taken-inhoud');
+    if(!container) return;
+
+    let alleWedstrijden = window.haalWedstrijdenOp();
+    let planStatusDB = JSON.parse(localStorage.getItem('blackshots_plan_status')) || {};
+    let persoonsTakenDB = JSON.parse(localStorage.getItem('blackshots_persoons_taken')) || {};
+    
+    let { start } = window.krijgVolgendeDatums(0); // Zoek vanaf vandaag
+
+    // 1. Filter alleen geplande thuiswedstrijden in de toekomst
+    let actieveThuisWedstrijden = alleWedstrijden.filter(w => {
+        let isThuis = (w.Thuisteam || '').toLowerCase().includes('black shots');
+        let isActief = planStatusDB[window.genereerUniekId(w)];
+        let isToekomst = window.normaalDatum(w.Datum) >= start;
+        return isThuis && isActief && isToekomst;
+    });
+
+    if (actieveThuisWedstrijden.length === 0) {
+        container.innerHTML = `<p style="color:#7f8c8d; font-style:italic; padding:10px; background:#fdfdfd; border:1px solid #eee; border-radius:4px;">Geen geplande thuiswedstrijden gevonden.</p>`;
+        return;
+    }
+
+    // 2. Sorteer op datum en vind de EERSTVOLGENDE speeldag
+    actieveThuisWedstrijden.sort((a, b) => window.normaalDatum(a.Datum).localeCompare(window.normaalDatum(b.Datum)));
+    let volgendeSpeelDatum = window.normaalDatum(actieveThuisWedstrijden[0].Datum);
+
+    // 3. Pak álle wedstrijden op die specifieke dag
+    let wedstrijdenOpDag = actieveThuisWedstrijden.filter(w => window.normaalDatum(w.Datum) === volgendeSpeelDatum);
+    wedstrijdenOpDag.sort((a,b) => planStatusDB[window.genereerUniekId(a)].tijd.localeCompare(planStatusDB[window.genereerUniekId(b)].tijd));
+
+    let mooieDatum = new Date(volgendeSpeelDatum).toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' });
+    
+    let html = `
+        <div style="background:#eafaf1; border-left:4px solid #27ae60; padding:10px; border-radius:6px; margin-bottom:12px;">
+            <strong style="color:#27ae60; font-size:1.1rem;">📅 ${mooieDatum}</strong>
+            <div style="font-size:0.85rem; color:#2c3e50; margin-top:2px;">Er staan ${wedstrijdenOpDag.length} thuiswedstrijd(en) gepland.</div>
+        </div>
+        <div style="max-height: 250px; overflow-y: auto; padding-right:5px;">
+    `;
+
+    wedstrijdenOpDag.forEach(w => {
+        let id = window.genereerUniekId(w);
+        let st = planStatusDB[id];
+        let pt = persoonsTakenDB[id] || {};
+        
+        let uitNaam = w.Uitteam.replace(/Black Shots/ig, '').trim();
+        
+        // Simpel de namen ophalen, of 'Nog niet gevuld'
+        let scheids = [window.naamWeergave(pt.sA), window.naamWeergave(pt.sB)].filter(x=>!x.includes('Vrij') && !x.includes('Nog invullen')).join(' & ') || '<span style="color:#e74c3c; font-size:0.8rem;">Geen scheids</span>';
+        let tafel = [window.naamWeergave(pt.tab), window.naamWeergave(pt.sco)].filter(x=>!x.includes('Vrij') && !x.includes('Nog invullen')).join(' & ') || '<span style="color:#e74c3c; font-size:0.8rem;">Geen tafel</span>';
+
+        html += `
+            <div style="background:#fdfdfd; border:1px solid #eee; padding:10px; border-radius:6px; margin-bottom:8px;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:5px; border-bottom:1px dashed #cbd5e1; padding-bottom:5px;">
+                    <strong style="color:#2c3e50;">${st.tijd} | BS vs ${uitNaam}</strong>
+                    <span style="font-size:0.8rem; background:#2c3e50; color:white; padding:2px 6px; border-radius:4px;">Veld ${st.veld || '?'}</span>
+                </div>
+                <div style="font-size:0.85rem; color:#7f8c8d; display:flex; gap:15px;">
+                    <div>🦓 ${scheids}</div>
+                    <div>⏱️ ${tafel}</div>
+                </div>
+            </div>
+        `;
+    });
+
+    html += `</div>`;
+    container.innerHTML = html;
+};
+
+// 2. WIDGET: Aankomende Wedstrijden (Uit & Thuis per Team)
+window.laadAankomendeWedstrijdenWidget = function() {
+    let container = document.getElementById('dash-aankomend-inhoud');
+    let select = document.getElementById('dash-aankomend-team-select');
+    if(!container || !select) return;
+
+    let teams = window.teamsDB || [];
+    if(teams.length === 0) {
+        container.innerHTML = `<p style="color:#7f8c8d; font-style:italic;">Geen teams gevonden.</p>`;
+        select.style.display = 'none';
+        return;
+    }
+
+    // Vul de dropdown als die nog leeg is
+    if (select.options.length === 0) {
+        teams.forEach(t => {
+            select.innerHTML += `<option value="${t.id}">${t.naam}</option>`;
+        });
+    }
+
+    let geselecteerdTeamId = select.value;
+    let tCanon = teams.find(t => t.id === geselecteerdTeamId);
+    
+    let alleWedstrijden = window.haalWedstrijdenOp();
+    let planStatusDB = JSON.parse(localStorage.getItem('blackshots_plan_status')) || {};
+    let { start, eind } = window.krijgVolgendeDatums(30); // Kijk 30 dagen vooruit
+
+    let teamMatches = alleWedstrijden.filter(w => {
+        let isActief = planStatusDB[window.genereerUniekId(w)];
+        let isToekomstEnBinnenMaand = window.normaalDatum(w.Datum) >= start && window.normaalDatum(w.Datum) <= eind;
+        
+        let mCanonThuis = window.teamsDB.find(t => t.naam.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() === w.Thuisteam.replace(/Black Shots/ig, '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase());
+        let mCanonUit = window.teamsDB.find(t => t.naam.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() === w.Uitteam.replace(/Black Shots/ig, '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase());
+        
+        return isActief && isToekomstEnBinnenMaand && ((mCanonThuis && mCanonThuis.id === tCanon.id) || (mCanonUit && mCanonUit.id === tCanon.id));
+    });
+
+    if (teamMatches.length === 0) {
+        container.innerHTML = `<p style="color:#7f8c8d; font-style:italic; padding:10px; background:#fdfdfd; border:1px solid #eee; border-radius:4px;">Geen wedstrijden gepland voor ${tCanon.naam} in de komende 30 dagen.</p>`;
+        return;
+    }
+
+    teamMatches.sort((a,b) => window.normaalDatum(a.Datum).localeCompare(window.normaalDatum(b.Datum)));
+
+    let html = `<div style="max-height: 250px; overflow-y: auto; padding-right:5px;">`;
+    
+    teamMatches.forEach(w => {
+        let id = window.genereerUniekId(w);
+        let st = planStatusDB[id];
+        let isThuis = (w.Thuisteam || '').toLowerCase().includes('black shots');
+        let mooieDatum = new Date(window.normaalDatum(w.Datum)).toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' });
+        
+        let badgeColor = isThuis ? '#3498db' : '#e67e22';
+        let badgeText = isThuis ? 'Thuis' : 'Uit';
+
+        html += `
+            <div style="background:#fdfdfd; border:1px solid #eee; padding:10px; border-radius:6px; margin-bottom:8px; display:flex; align-items:center; gap:12px; border-left: 4px solid ${badgeColor};">
+                <div style="text-align:center; min-width: 60px; border-right: 1px solid #eee; padding-right: 10px;">
+                    <div style="font-weight:bold; color:#2c3e50; font-size:1.1rem;">${mooieDatum}</div>
+                    <div style="font-size:0.8rem; color:#7f8c8d;">${st.tijd}</div>
+                </div>
+                <div style="flex:1;">
+                    <strong style="color:#2c3e50;">${w.Thuisteam.replace(/Black Shots/ig, 'BS')} vs ${w.Uitteam.replace(/Black Shots/ig, 'BS')}</strong>
+                    <div style="font-size:0.8rem; color:#7f8c8d; margin-top:3px;">
+                        <span style="background:${badgeColor}; color:white; padding:2px 5px; border-radius:4px; font-weight:bold;">${badgeText}</span>
+                        📍 ${w.Accommodatie || w.Locatie || w.Plaats || 'Onbekend'}
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    html += `</div>`;
     container.innerHTML = html;
 };

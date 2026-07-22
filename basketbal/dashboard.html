@@ -113,6 +113,28 @@
                         <span style="font-size:0.75rem; color:#7f8c8d;">Berekend voor <strong id="dash-zaalhuur-label">deze maand</strong> op basis van vaste trainingen.</span>
                     </div>
                 </div>
+                <!-- NIEUWE WIDGET 1: Volgende Thuiswedstrijd (Met Taken) -->
+                <div class="card" style="border-top-color: #27ae60; margin-bottom: 25px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
+                        <h3 style="margin: 0; color: var(--secondary-color);">🏠 Thuiswedstrijden & Taken</h3>
+                        <button onclick="window.location.href='rapporten.html'" class="primary-btn" style="background:#27ae60; padding:6px 12px; font-size:0.85rem;">Taken Aanpassen</button>
+                    </div>
+                    <div id="dash-thuis-taken-inhoud">
+                        <p style="color: #7f8c8d; font-style: italic; margin: 0;">Volgende thuisdag zoeken...</p>
+                    </div>
+                </div>
+
+                <!-- NIEUWE WIDGET 2: Aankomende Wedstrijden (Mijn Team) -->
+                <div class="card" style="border-top-color: #e74c3c; margin-bottom: 25px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
+                        <h3 style="margin: 0; color: var(--secondary-color);">🔜 Aankomende Wedstrijden</h3>
+                        <!-- Dropdown om te kiezen van welk team je de wedstrijden wil zien -->
+                        <select id="dash-aankomend-team-select" onchange="window.laadAankomendeWedstrijdenWidget()" class="select-schoon" style="background:#f8f9fa;"></select>
+                    </div>
+                    <div id="dash-aankomend-inhoud">
+                        <p style="color: #7f8c8d; font-style: italic; margin: 0;">Wedstrijden laden...</p>
+                    </div>
+                </div>
                 <div class="card" style="border-top-color: #9b59b6; margin-bottom: 25px;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
                         <h3 style="margin: 0; color: var(--secondary-color);">🏀 NBB Poules & Tegenstanders</h3>
