@@ -29,8 +29,10 @@ window.checkBeveiligingEnBouwMenu = function() {
         let topNav = document.querySelector('.top-nav');
         if (!topNav) return;
 
-        // --- A. TOP NAV MODERNISEREN ---
+        // --- A. TOP NAV MODERNISEREN (NIET STICKY) ---
         topNav.style.cssText = `
+            position: relative; 
+            z-index: 999999; 
             background: rgba(44, 62, 80, 1); 
             display: flex; 
             justify-content: space-between; 
@@ -99,11 +101,11 @@ window.checkBeveiligingEnBouwMenu = function() {
             const style = document.createElement('style');
             style.id = 'bs-dropdown-css';
             style.innerHTML = `
-                /* Sticky navigatie balk bovenaan */
+                /* Normaal menu, niet sticky */
                 .tab-menu { 
                     display: flex; flex-wrap: wrap; background: #fff; padding: 10px 20px; 
                     box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-bottom: 2px solid var(--primary-color);
-                    gap: 5px; position: sticky; top: 0; z-index: 999998; 
+                    gap: 5px; position: relative; z-index: 999998; 
                 }
                 
                 .tab-btn {
