@@ -372,27 +372,35 @@ window.bewerkTeam = function(index) {
     document.getElementById('edit-team-naam').value = team.naam || '';
     document.getElementById('edit-team-aliassen').value = team.aliassen || '';
     
-    // --- MEERDERE COACHES INLADEN ---
+   // --- MEERDERE COACHES INLADEN (En oude ID's fixen) ---
     document.querySelectorAll('#edit-team-coach-container input').forEach(cb => cb.checked = false);
-    if (team.coachIds) {
+    let legacyCoachStr = "";
+    if (team.coachIds && team.coachIds.length > 0) {
         team.coachIds.forEach(id => {
             let cb = document.querySelector(`#edit-team-coach-container input[value="${id}"]`);
             if(cb) cb.checked = true;
         });
+    } else if (team.coach) {
+        let cb = document.querySelector(`#edit-team-coach-container input[value="${team.coach}"]`);
+        if (cb) cb.checked = true; // Oud ID succesvol omgezet naar een vinkje!
+        else legacyCoachStr = team.coach.startsWith('p_') ? window.naamUitId(team.coach, "") : team.coach; 
     }
-    // Vul tekstvak in (of gebruik oude legacy string als fallback)
-    document.getElementById('edit-team-coach-text').value = team.coachHandmatig !== undefined ? team.coachHandmatig : (!team.coachIds ? (team.coach || '') : '');
+    document.getElementById('edit-team-coach-text').value = team.coachHandmatig !== undefined ? team.coachHandmatig : legacyCoachStr;
 
-    // --- MEERDERE TRAINERS INLADEN ---
+    // --- MEERDERE TRAINERS INLADEN (En oude ID's fixen) ---
     document.querySelectorAll('#edit-team-trainer-container input').forEach(cb => cb.checked = false);
-    if (team.trainerIds) {
+    let legacyTrainerStr = "";
+    if (team.trainerIds && team.trainerIds.length > 0) {
         team.trainerIds.forEach(id => {
             let cb = document.querySelector(`#edit-team-trainer-container input[value="${id}"]`);
             if(cb) cb.checked = true;
         });
+    } else if (team.trainer) {
+        let cb = document.querySelector(`#edit-team-trainer-container input[value="${team.trainer}"]`);
+        if (cb) cb.checked = true; // Oud ID succesvol omgezet naar een vinkje!
+        else legacyTrainerStr = team.trainer.startsWith('p_') ? window.naamUitId(team.trainer, "") : team.trainer;
     }
-    document.getElementById('edit-team-trainer-text').value = team.trainerHandmatig !== undefined ? team.trainerHandmatig : (!team.trainerIds ? (team.trainer || '') : '');
-
+    document.getElementById('edit-team-trainer-text').value = team.trainerHandmatig !== undefined ? team.trainerHandmatig : legacyTrainerStr;
     document.getElementById('edit-team-duur').value = team.thuisWedstrijdDuur || 90;
     document.getElementById('edit-team-autos').value = team.autoAantal || 3;
     
