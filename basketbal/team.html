@@ -34,12 +34,14 @@
                     <input type="text" id="nieuw-team-naam" placeholder="Bijv. X10-1 of Vrijwilligers" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;">
                 </div>
                 <div style="flex:2; min-width:150px;">
-                    <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">👨‍💼 Coach/Leider (Koppel Persoon):</label>
-                    <select id="nieuw-team-coach" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px; font-weight:bold;"></select>
+                    <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">👨‍💼 Coach(es) (Koppel leden):</label>
+                    <div id="nieuw-team-coach-container" style="height:100px; overflow-y:auto; border:1px solid #bdc3c7; border-radius:4px; padding:5px; background:white; margin-bottom:5px;"></div>
+                    <input type="text" id="nieuw-team-coach-text" placeholder="Of typ extra namen..." style="width:100%; padding:8px; border:1px solid #bdc3c7; border-radius:4px; font-size:0.8rem;">
                 </div>
                 <div style="flex:2; min-width:150px;">
-                    <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">🏃‍♂️ Trainer (Koppel Persoon):</label>
-                    <select id="nieuw-team-trainer" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px; font-weight:bold;"></select>
+                    <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">🏃‍♂️ Trainer(s) (Koppel leden):</label>
+                    <div id="nieuw-team-trainer-container" style="height:100px; overflow-y:auto; border:1px solid #bdc3c7; border-radius:4px; padding:5px; background:white; margin-bottom:5px;"></div>
+                    <input type="text" id="nieuw-team-trainer-text" placeholder="Of typ extra namen..." style="width:100%; padding:8px; border:1px solid #bdc3c7; border-radius:4px; font-size:0.8rem;">
                 </div>
                 
                 <div style="flex:1; min-width:120px;">
@@ -111,10 +113,18 @@
             </div>
 
             <div style="display:flex; gap:15px; margin-bottom:15px;">
+                <div style="display:flex; gap:15px; margin-bottom:15px;">
                 <div style="flex:1;">
-                    <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">👨‍💼 Coach (Koppel Persoon):</label>
-                    <select id="edit-team-coach" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px; font-weight:bold;"></select>
+                    <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">👨‍💼 Coach(es) (Koppel leden):</label>
+                    <div id="edit-team-coach-container" style="height:120px; overflow-y:auto; border:1px solid #bdc3c7; border-radius:4px; padding:5px; background:white; margin-bottom:5px;"></div>
+                    <input type="text" id="edit-team-coach-text" placeholder="Of typ extra namen..." style="width:100%; padding:8px; border:1px solid #bdc3c7; border-radius:4px; font-size:0.8rem;">
                 </div>
+                <div style="flex:1;">
+                    <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">🏃‍♂️ Trainer(s) (Koppel leden):</label>
+                    <div id="edit-team-trainer-container" style="height:120px; overflow-y:auto; border:1px solid #bdc3c7; border-radius:4px; padding:5px; background:white; margin-bottom:5px;"></div>
+                    <input type="text" id="edit-team-trainer-text" placeholder="Of typ extra namen..." style="width:100%; padding:8px; border:1px solid #bdc3c7; border-radius:4px; font-size:0.8rem;">
+                </div>
+            </div>
                 <div style="flex:1;">
                     <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">🏃‍♂️ Trainer (Koppel Persoon):</label>
                     <select id="edit-team-trainer" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px; font-weight:bold;"></select>

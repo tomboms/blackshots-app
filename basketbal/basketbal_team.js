@@ -27,9 +27,7 @@ window.normaalDatum = function(d) {
 
 // --- Hulpfunctie: Genereer de keuzelijst voor Coaches & Trainers ---
 window.vulPersoonDropdowns = function() {
-    let optiesHtml = '<option value="">-- Onbekend / Niet Gekoppeld --</option>';
     let personenLijst = [];
-    
     let spelers = window.spelersDB || JSON.parse(localStorage.getItem('blackshots_spelers')) || [];
     let scheids = JSON.parse(localStorage.getItem('blackshots_scheidsrechters')) || [];
     
@@ -38,12 +36,13 @@ window.vulPersoonDropdowns = function() {
     
     personenLijst.sort((a,b) => a.naam.localeCompare(b.naam));
     
+    let optiesHtml = '';
     personenLijst.forEach(p => {
-        optiesHtml += `<option value="${p.id}">${p.naam} (${p.type})</option>`;
+        optiesHtml += `<label style="display:flex; align-items:center; gap:5px; font-size:0.85rem; padding:3px 0; border-bottom:1px solid #f1f5f9; cursor:pointer;"><input type="checkbox" value="${p.id}" data-naam="${p.naam}"> <span>${p.naam} <span style="font-size:0.7rem; color:#7f8c8d;">(${p.type})</span></span></label>`;
     });
 
     ['nieuw-team-coach', 'nieuw-team-trainer', 'edit-team-coach', 'edit-team-trainer'].forEach(id => {
-        let el = document.getElementById(id);
+        let el = document.getElementById(id + '-container');
         if (el) el.innerHTML = optiesHtml;
     });
 };
@@ -373,9 +372,27 @@ window.bewerkTeam = function(index) {
     document.getElementById('edit-team-naam').value = team.naam || '';
     document.getElementById('edit-team-aliassen').value = team.aliassen || '';
     
-    // NIEUW: De ID dropdowns vullen
-    document.getElementById('edit-team-coach').value = team.coach || '';
-    document.getElementById('edit-team-trainer').value = team.trainer || '';
+    // --- MEERDERE COACHES INLADEN ---
+    document.querySelectorAll('#edit-team-coach-container input').forEach(cb => cb.checked = false);
+    if (team.coachIds) {
+        team.coachIds.forEach(id => {
+            let cb = document.querySelector(`#edit-team-coach-container input[value="${id}"]`);
+            if(cb) cb.checked = true;
+        });
+    }
+    // Vul tekstvak in (of gebruik oude legacy string als fallback)
+    document.getElementById('edit-team-coach-text').value = team.coachHandmatig !== undefined ? team.coachHandmatig : (!team.coachIds ? (team.coach || '') : '');
+
+    // --- MEERDERE TRAINERS INLADEN ---
+    document.querySelectorAll('#edit-team-trainer-container input').forEach(cb => cb.checked = false);
+    if (team.trainerIds) {
+        team.trainerIds.forEach(id => {
+            let cb = document.querySelector(`#edit-team-trainer-container input[value="${id}"]`);
+            if(cb) cb.checked = true;
+        });
+    }
+    document.getElementById('edit-team-trainer-text').value = team.trainerHandmatig !== undefined ? team.trainerHandmatig : (!team.trainerIds ? (team.trainer || '') : '');
+
     document.getElementById('edit-team-duur').value = team.thuisWedstrijdDuur || 90;
     document.getElementById('edit-team-autos').value = team.autoAantal || 3;
     
@@ -405,8 +422,31 @@ window.slaTeamBewerkingOp = function() {
 
     team.naam = nieuweNaam;
     team.aliassen = document.getElementById('edit-team-aliassen').value.trim();
-    team.coach = document.getElementById('edit-team-coach').value;
-    team.trainer = document.getElementById('edit-team-trainer').value;
+
+    // --- MEERDERE COACHES OPSLAAN ---
+    let coachIds = []; let coachNamen = [];
+    document.querySelectorAll('#edit-team-coach-container input:checked').forEach(cb => { 
+        coachIds.push(cb.value); coachNamen.push(cb.getAttribute('data-naam')); 
+    });
+    let coachHandmatig = document.getElementById('edit-team-coach-text').value.trim();
+    if(coachHandmatig) coachNamen.push(coachHandmatig);
+    
+    team.coachIds = coachIds;
+    team.coachHandmatig = coachHandmatig;
+    team.coach = coachNamen.join(' & '); // <-- Dit houdt de andere modules werkend!
+
+    // --- MEERDERE TRAINERS OPSLAAN ---
+    let trainerIds = []; let trainerNamen = [];
+    document.querySelectorAll('#edit-team-trainer-container input:checked').forEach(cb => { 
+        trainerIds.push(cb.value); trainerNamen.push(cb.getAttribute('data-naam')); 
+    });
+    let trainerHandmatig = document.getElementById('edit-team-trainer-text').value.trim();
+    if(trainerHandmatig) trainerNamen.push(trainerHandmatig);
+    
+    team.trainerIds = trainerIds;
+    team.trainerHandmatig = trainerHandmatig;
+    team.trainer = trainerNamen.join(' & '); // <-- Dit houdt de andere modules werkend!
+
     team.thuisWedstrijdDuur = parseInt(document.getElementById('edit-team-duur').value) || 90;
     team.autoAantal = parseInt(document.getElementById('edit-team-autos').value) || 3;
     
@@ -421,8 +461,6 @@ window.slaTeamBewerkingOp = function() {
 
 window.voegTeamToe = function() {
     const naamEl = document.getElementById('nieuw-team-naam');
-    const coachEl = document.getElementById('nieuw-team-coach');
-    const trainerEl = document.getElementById('nieuw-team-trainer');
     const duurEl = document.getElementById('nieuw-team-duur');
     const autosEl = document.getElementById('nieuw-team-autos');
     const kaderCheckbox = document.getElementById('nieuw-team-is-vrijwilliger');
@@ -430,11 +468,21 @@ window.voegTeamToe = function() {
     if (!naamEl) return alert("Invoerveld voor naam ontbreekt op de pagina!");
 
     const naam = naamEl.value.trim();
-    const coach = coachEl ? coachEl.value : "";
-    const trainer = trainerEl ? trainerEl.value : "";
     const isKader = kaderCheckbox ? kaderCheckbox.checked : false;
     const duur = duurEl ? (parseInt(duurEl.value) || 90) : 90;
     const autos = autosEl ? (parseInt(autosEl.value) || 3) : 3;
+
+    // Coaches uithalen
+    let coachIds = []; let coachNamen = [];
+    document.querySelectorAll('#nieuw-team-coach-container input:checked').forEach(cb => { coachIds.push(cb.value); coachNamen.push(cb.getAttribute('data-naam')); });
+    let coachHandmatig = document.getElementById('nieuw-team-coach-text') ? document.getElementById('nieuw-team-coach-text').value.trim() : '';
+    if(coachHandmatig) coachNamen.push(coachHandmatig);
+
+    // Trainers uithalen
+    let trainerIds = []; let trainerNamen = [];
+    document.querySelectorAll('#nieuw-team-trainer-container input:checked').forEach(cb => { trainerIds.push(cb.value); trainerNamen.push(cb.getAttribute('data-naam')); });
+    let trainerHandmatig = document.getElementById('nieuw-team-trainer-text') ? document.getElementById('nieuw-team-trainer-text').value.trim() : '';
+    if(trainerHandmatig) trainerNamen.push(trainerHandmatig);
 
     if (naam) {
         let nieuwId = naam.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -443,8 +491,12 @@ window.voegTeamToe = function() {
         window.teamsDB.push({ 
             id: nieuwId, 
             naam: naam, 
-            coach: coach, 
-            trainer: trainer, 
+            coachIds: coachIds,
+            coachHandmatig: coachHandmatig,
+            coach: coachNamen.join(' & '), 
+            trainerIds: trainerIds,
+            trainerHandmatig: trainerHandmatig,
+            trainer: trainerNamen.join(' & '), 
             thuisWedstrijdDuur: duur,
             autoAantal: autos,
             isVrijwilliger: isKader,
@@ -452,9 +504,12 @@ window.voegTeamToe = function() {
         });
         localStorage.setItem('blackshots_teams', JSON.stringify(window.teamsDB));
 
+        // Reset
         naamEl.value = '';
-        if(coachEl) coachEl.value = '';
-        if(trainerEl) trainerEl.value = '';
+        if(document.getElementById('nieuw-team-coach-text')) document.getElementById('nieuw-team-coach-text').value = '';
+        if(document.getElementById('nieuw-team-trainer-text')) document.getElementById('nieuw-team-trainer-text').value = '';
+        document.querySelectorAll('#nieuw-team-coach-container input').forEach(cb => cb.checked = false);
+        document.querySelectorAll('#nieuw-team-trainer-container input').forEach(cb => cb.checked = false);
         if(kaderCheckbox) kaderCheckbox.checked = false;
         
         window.renderTeamBeheer();
