@@ -18,39 +18,53 @@
     </nav>
 
 
-    <main class="content-sectie active">
+    <main class="content-sectie active" style="max-width: 1300px; margin: 0 auto;">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; margin-bottom:15px; border-bottom:2px solid var(--border-color); padding-bottom:10px;">
             <div>
                 <h2 style="margin:0;">👥 Verenigingsteams</h2>
-                <p style="color: #7f8c8d; margin-top:5px;">Beheer hier de officiële teams, coaches, trainers en de spelerspool.</p>
+                <p style="color: #7f8c8d; margin-top:5px;">Beheer hier de officiële teams, gekoppelde coaches, autoplanning en wedstrijden.</p>
             </div>
         </div>
 
-        <div style="display:flex; gap:15px; flex-wrap:wrap; align-items:flex-end;">
+        <div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid var(--border-color); box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 25px;">
+            <h3 style="margin-top:0; color:var(--secondary-color);">+ Nieuw Team Aanmaken</h3>
+            <div style="display:flex; gap:15px; flex-wrap:wrap; align-items:flex-end;">
                 <div style="flex:2; min-width:150px;">
                     <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">Groepsnaam/Teamnaam:</label>
                     <input type="text" id="nieuw-team-naam" placeholder="Bijv. X10-1 of Vrijwilligers" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;">
                 </div>
-                <div style="flex:1.5; min-width:130px;">
-                    <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">👨‍💼 Coach/Leider:</label>
-                    <input type="text" id="nieuw-team-coach" placeholder="Naam coach..." style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;">
+                <div style="flex:2; min-width:150px;">
+                    <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">👨‍💼 Coach/Leider (Koppel Persoon):</label>
+                    <select id="nieuw-team-coach" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px; font-weight:bold;"></select>
                 </div>
-                <div style="flex:1.5; min-width:130px;">
-                    <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">🏃‍♂️ Trainer:</label>
-                    <input type="text" id="nieuw-team-trainer" placeholder="Naam trainer..." style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;">
+                <div style="flex:2; min-width:150px;">
+                    <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">🏃‍♂️ Trainer (Koppel Persoon):</label>
+                    <select id="nieuw-team-trainer" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px; font-weight:bold;"></select>
                 </div>
-                <div style="display:flex; align-items:center; gap:5px; margin-bottom:10px;">
+                
+                <div style="flex:1; min-width:120px;">
+                    <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">⏱️ Duur (Min):</label>
+                    <input type="number" id="nieuw-team-duur" placeholder="Bijv. 90" value="90" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;">
+                </div>
+                <div style="flex:1; min-width:120px;">
+                    <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">🚗 Max Auto's:</label>
+                    <input type="number" id="nieuw-team-autos" placeholder="Standaard max 3" value="3" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;">
+                </div>
+
+                <div style="display:flex; align-items:center; gap:5px; margin-bottom:10px; flex:1; min-width:150px;">
                     <input type="checkbox" id="nieuw-team-is-vrijwilliger" style="width:18px; height:18px;">
-                    <label style="font-weight:bold; font-size:0.85rem; color:#9b59b6;">Is Kader / Vrijwilligers</label>
+                    <label style="font-weight:bold; font-size:0.85rem; color:#9b59b6;">Is Kader Groep</label>
                 </div>
                 <button onclick="window.voegTeamToe()" style="background:#27ae60; color:white; border:none; padding:10px 20px; border-radius:4px; font-weight:bold; cursor:pointer; height:41px;">Toevoegen</button>
             </div>
+        </div>
+
         <div style="display:flex; justify-content:flex-end; margin-bottom: 15px; align-items:center;">
             <label style="font-size:0.85rem; color:#7f8c8d; font-weight:bold; margin-right:10px;">📌 Toon team-taken tot en met:</label>
             <input type="date" id="team-event-horizon-date" onchange="window.renderTeamBeheer()" style="padding:6px 10px; border-radius:4px; border:1px solid #bdc3c7; font-weight:bold; color:var(--secondary-color); cursor:pointer; font-family:inherit;">
         </div>
         <ul id="team-beheer-lijst" style="list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:15px;">
-            </ul>
+        </ul>
     </main>
     
     <div id="team-edit-modal" class="modal-overlay" style="display:none; z-index:999999;">
@@ -74,7 +88,6 @@
             </div>
 
             <style>
-            /* Styling voor de ronde kleur-bolletjes */
             .kleur-swatch { width: 32px; height: 32px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: 0.2s; box-sizing: border-box; display: inline-block; }
             .kleur-swatch:hover { transform: scale(1.1); }
             </style>
@@ -91,22 +104,31 @@
                     <div class="kleur-swatch" data-kleur="#1abc9c" style="background-color: #1abc9c;" onclick="window.kiesTeamKleur('#1abc9c')" title="Turquoise"></div>
                     <div class="kleur-swatch" data-kleur="#2ecc71" style="background-color: #2ecc71;" onclick="window.kiesTeamKleur('#2ecc71')" title="Groen"></div>
                     <div class="kleur-swatch" data-kleur="#34495e" style="background-color: #34495e;" onclick="window.kiesTeamKleur('#34495e')" title="Donkergrijs"></div>
-                    
                     <div class="kleur-swatch" id="custom-kleur-knop" style="background-color: #fff; border: 2px dashed #bdc3c7; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #7f8c8d; font-size: 1.2rem;" onclick="document.getElementById('edit-team-custom-kleur').click()" title="Eigen kleur kiezen">+</div>
                 </div>
-                
                 <input type="hidden" id="edit-team-kleur" value="#3498db">
                 <input type="color" id="edit-team-custom-kleur" style="display:none;" onchange="window.kiesEigenKleur(this.value)">
             </div>
 
             <div style="display:flex; gap:15px; margin-bottom:15px;">
                 <div style="flex:1;">
-                    <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">👨‍💼 Coach/Leider:</label>
-                    <input type="text" id="edit-team-coach" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;">
+                    <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">👨‍💼 Coach (Koppel Persoon):</label>
+                    <select id="edit-team-coach" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px; font-weight:bold;"></select>
                 </div>
                 <div style="flex:1;">
-                    <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">🏃‍♂️ Trainer:</label>
-                    <input type="text" id="edit-team-trainer" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;">
+                    <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">🏃‍♂️ Trainer (Koppel Persoon):</label>
+                    <select id="edit-team-trainer" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px; font-weight:bold;"></select>
+                </div>
+            </div>
+
+            <div style="display:flex; gap:15px; margin-bottom:15px;">
+                <div style="flex:1;">
+                    <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">⏱️ Thuiswedstrijd Duur (min):</label>
+                    <input type="number" id="edit-team-duur" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;">
+                </div>
+                <div style="flex:1;">
+                    <label style="font-weight:bold; font-size:0.85rem; color:#7f8c8d;">🚗 Auto's Uitwedstrijd (Max):</label>
+                    <input type="number" id="edit-team-autos" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;">
                 </div>
             </div>
 
@@ -125,61 +147,15 @@
         </div>
     </div>
 
+    <!-- Modals en Scripts -->
     <script src="basketbal_data.js"></script>
     <script src="basketbal_auth.js"></script>
     <script src="basketbal_team.js"></script>
     <script type="module" src="firebase_motor.js"></script>
-
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             if(window.renderTeamBeheer) window.renderTeamBeheer();
         });
     </script>
-
-    <div id="snel-event-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:2000; justify-content:center; align-items:center; font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
-    <div style="background:white; width:90%; max-width:500px; border-radius:12px; overflow:hidden; box-shadow:0 15px 30px rgba(0,0,0,0.3); position:relative; animation: modalSlideDown 0.3s ease-out;">
-        <div id="snel-event-header" style="background:var(--secondary-color); color:white; padding:15px 20px; display:flex; justify-content:space-between; align-items:center;">
-            <h3 style="margin:0; font-size:1.2rem;">📅 Taak toevoegen aan Jaarplanning</h3>
-            <button onclick="window.sluitSnelEventModal()" style="background:none; border:none; color:white; font-size:1.5rem; cursor:pointer;">&times;</button>
-        </div>
-        <div style="padding:20px;">
-            <input type="hidden" id="snel-event-team-id">
-            
-            <div style="margin-bottom:15px;">
-                <label style="display:block; font-weight:bold; font-size:0.85rem; color:#7f8c8d; margin-bottom:5px;">Wat gaan we doen? (Titel):</label>
-                <input type="text" id="snel-event-titel" placeholder="Bijv: Oefenwedstrijd vs. BC Blue" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px; font-weight:bold;">
-            </div>
-
-            <div style="display:flex; gap:10px; margin-bottom:15px;">
-                <div style="flex:1;">
-                    <label style="display:block; font-weight:bold; font-size:0.85rem; color:#7f8c8d; margin-bottom:5px;">Datum:</label>
-                    <input type="date" id="snel-event-datum" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;">
-                </div>
-                <div style="flex:1;">
-                    <label style="display:block; font-weight:bold; font-size:0.85rem; color:#7f8c8d; margin-bottom:5px;">Type Activiteit:</label>
-                    <select id="snel-event-type" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px; cursor:pointer;">
-                        </select>
-                </div>
-            </div>
-
-            <div style="display:flex; gap:10px; margin-bottom:15px;">
-                <div style="flex:1;">
-                    <label style="display:block; font-weight:bold; font-size:0.85rem; color:#7f8c8d; margin-bottom:5px;">Tijd (Optioneel):</label>
-                    <input type="time" id="snel-event-tijd" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;">
-                </div>
-                <div style="flex:1;">
-                    <label style="display:block; font-weight:bold; font-size:0.85rem; color:#7f8c8d; margin-bottom:5px;">Locatie (Optioneel):</label>
-                    <input type="text" id="snel-event-locatie" placeholder="Bijv: Hal A" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;">
-                </div>
-            </div>
-
-            <div style="display:flex; gap:10px; margin-top:20px;">
-                <button onclick="window.sluitSnelEventModal()" style="flex:1; padding:12px; border:1px solid #bdc3c7; background:#f8f9fa; border-radius:6px; cursor:pointer; font-weight:bold;">Annuleren</button>
-                <button onclick="window.slaSnelEventOp()" style="flex:2; padding:12px; background:#27ae60; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold; font-size:1rem;">💾 In Jaarplanning zetten</button>
-            </div>
-        </div>
-    </div>
-</div>
-    
 </body>
 </html>

@@ -1,10 +1,5 @@
-// --- BASKETBAL_TEAM.JS: MET STRENGE UNIVERSELE ALIAS-VERTALER ---
+// --- BASKETBAL_TEAM.JS: MET STRENGE UNIVERSELE ALIAS-VERTALER & WEDSTRIJDEN LADING ---
 
-// ============================================================================
-// 🌐 DE UNIVERSELE VERTALER (Overal in de app herbruikbaar!)
-// ============================================================================
-// Stop hier een teamnaam, ID of alias in (bijv. "M10-1"), 
-// en je krijgt EXACT het bijbehorende team terug, zonder gokwerk.
 window.getCanonicalTeam = function(identifier) {
     if (!identifier) return null;
     let zoekTerm = String(identifier).toLowerCase().trim();
@@ -13,24 +8,61 @@ window.getCanonicalTeam = function(identifier) {
     return window.teamsDB.find(team => {
         let tId = String(team.id || '').toLowerCase().trim();
         let tNaam = String(team.naam || '').toLowerCase().trim();
-        
-        // 1. 100% EXACTE match op ID of officiële naam
         if (zoekTerm === tId || zoekTerm === tNaam) return true;
-        
-        // 2. 100% EXACTE match op 1 van de aliassen
         if (team.aliassen) {
             let aliasArray = team.aliassen.toLowerCase().split(',').map(a => a.trim()).filter(Boolean);
             if (aliasArray.includes(zoekTerm)) return true;
         }
-        
         return false;
     });
 };
+
+// --- Hulpfunctie: Datum Format ---
+window.normaalDatum = function(d) {
+    if(!d) return "";
+    let str = String(d).trim().substring(0, 10);
+    if (/^\d{2}-\d{2}-\d{4}$/.test(str)) { let delen = str.split('-'); return `${delen[2]}-${delen[1]}-${delen[0]}`; }
+    return str;
+};
+
+// --- Hulpfunctie: Genereer de keuzelijst voor Coaches & Trainers ---
+window.vulPersoonDropdowns = function() {
+    let optiesHtml = '<option value="">-- Onbekend / Niet Gekoppeld --</option>';
+    let personenLijst = [];
+    
+    let spelers = window.spelersDB || JSON.parse(localStorage.getItem('blackshots_spelers')) || [];
+    let scheids = JSON.parse(localStorage.getItem('blackshots_scheidsrechters')) || [];
+    
+    spelers.forEach(s => personenLijst.push({id: s.id, naam: s.naam, type: 'Lid'}));
+    scheids.forEach(s => { if(!s.gekoppeldLid) personenLijst.push({id: s.id, naam: s.naam, type: 'Kader'}); });
+    
+    personenLijst.sort((a,b) => a.naam.localeCompare(b.naam));
+    
+    personenLijst.forEach(p => {
+        optiesHtml += `<option value="${p.id}">${p.naam} (${p.type})</option>`;
+    });
+
+    ['nieuw-team-coach', 'nieuw-team-trainer', 'edit-team-coach', 'edit-team-trainer'].forEach(id => {
+        let el = document.getElementById(id);
+        if (el) el.innerHTML = optiesHtml;
+    });
+};
+
+window.naamUitId = function(pId, fallbackTitel) {
+    if (!pId) return fallbackTitel;
+    let spelers = window.spelersDB || JSON.parse(localStorage.getItem('blackshots_spelers')) || [];
+    let scheids = JSON.parse(localStorage.getItem('blackshots_scheidsrechters')) || [];
+    let persoon = spelers.find(s => s.id === pId) || scheids.find(s => s.id === pId);
+    return persoon ? persoon.naam : pId; // Als het ID toch nog oude tekst was ("Martin"), toon die tekst.
+};
+
 // ============================================================================
 // TEAM BEHEER RENDEREN
 // ============================================================================
 window.renderTeamBeheer = function() {
     try {
+        window.vulPersoonDropdowns(); // Zorg dat de dropdowns altijd vol zitten met de laatste leden
+
         const lijst = document.getElementById('team-beheer-lijst');
         if (!lijst) return;
 
@@ -41,24 +73,28 @@ window.renderTeamBeheer = function() {
         if (!Array.isArray(window.spelersDB)) window.spelersDB = [];
         
         let jaarplanningData = JSON.parse(localStorage.getItem('blackshots_jaarplanning_data')) || [];
-        
+        let nbbWedstrijden = JSON.parse(localStorage.getItem('blackshots_wedstrijden_json')) || [];
+        let planStatusDB = JSON.parse(localStorage.getItem('blackshots_plan_status')) || {};
+
         let vandaag = new Date();
         let vandaagIso = vandaag.toISOString().split('T')[0];
         
-        // --- NIEUW: Lees de datumprikker uit ---
         let horizonInput = document.getElementById('team-event-horizon-date');
         let maxDatumIso = horizonInput ? horizonInput.value : '';
 
-        // Als het veld nog leeg is (bij de eerste keer inladen), zet hem op +60 dagen
         if (!maxDatumIso) {
             let standaardMax = new Date();
             standaardMax.setDate(vandaag.getDate() + 60);
             maxDatumIso = standaardMax.toISOString().split('T')[0];
-            if (horizonInput) horizonInput.value = maxDatumIso; // Vul de kalender visueel in
+            if (horizonInput) horizonInput.value = maxDatumIso; 
         }
 
         window.teamsDB.forEach((team, index) => {
             if (!team) return;
+
+            // Zorg voor de nieuwe instellingen per team
+            let maxAutos = team.autoAantal || 3;
+            let teamDuur = team.thuisWedstrijdDuur || 90;
 
             // --- SPELERS LADEN ---
             let teamSpelers = window.spelersDB.filter(s => {
@@ -66,6 +102,11 @@ window.renderTeamBeheer = function() {
                 let gevondenTeam = window.getCanonicalTeam(s.teamId);
                 return gevondenTeam && gevondenTeam.id === team.id;
             });
+
+            // Slimme Auto Berekening: Als autoAantal nog niet handmatig was overschreven, bereken hem dan (1 auto per 3.5 spelers, max 3)
+            if (!team.autoAantal && teamSpelers.length > 0) {
+                maxAutos = Math.min(3, Math.ceil(teamSpelers.length / 3.5));
+            }
 
             teamSpelers.sort((a, b) => {
                 let aRec = a.isRecreant === true || (a.clubLidmaatschap && a.clubLidmaatschap.toLowerCase().includes('rec'));
@@ -109,22 +150,60 @@ window.renderTeamBeheer = function() {
                 trainingenHtml = '<span style="color:#bdc3c7; font-style:italic; font-size:0.85rem;">Geen vaste tijden ingepland.</span>';
             }
 
-            // --- AANKOMENDE EVENEMENTEN FILTEREN ---
-            // --- AANKOMENDE EVENEMENTEN FILTEREN ---
-            // Haal de categorieën uit de database zodat we de échte naam kunnen tonen
-            let kalenderCategorieen = JSON.parse(localStorage.getItem('blackshots_jaarplanning_categorieen')) || [];
+            // --- NBB WEDSTRIJDEN LADEN ---
+            let actueleWedstrijden = nbbWedstrijden.filter(w => {
+                if (!w.Datum || window.normaalDatum(w.Datum) < vandaagIso) return false;
+                let thuis = (w.Thuisteam || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                let uit = (w.Uitteam || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                let checkNaam = team.naam.toLowerCase().replace(/[^a-z0-9]/g, '');
+                
+                return thuis.includes(checkNaam) || uit.includes(checkNaam);
+            });
+            
+            actueleWedstrijden.sort((a,b) => window.normaalDatum(a.Datum).localeCompare(window.normaalDatum(b.Datum)));
+            let komendeWedstrijden = actueleWedstrijden.slice(0, 5); // Max 5
 
+            let wedstrijdenHtml = '';
+            if (komendeWedstrijden.length > 0) {
+                komendeWedstrijden.forEach(w => {
+                    let isThuis = (w.Thuisteam || '').toLowerCase().includes('black shots');
+                    let wDatum = new Date(window.normaalDatum(w.Datum)).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' });
+                    
+                    // Uniek ID genereren om de eventueel geplande tijd op te halen
+                    let wIdClean = w.Wedstrijdnummer ? String(w.Wedstrijdnummer).replace(/[^a-zA-Z0-9]/g, '') : (w.Thuisteam + w.Uitteam).replace(/[^a-zA-Z0-9]/g, '');
+                    let matchId = `match-${window.normaalDatum(w.Datum)}-${wIdClean}`;
+                    let geplandeTijd = planStatusDB[matchId] ? planStatusDB[matchId].tijd : '?';
+
+                    let tegenstander = isThuis ? w.Uitteam.replace(/Black Shots/ig, '').trim() : w.Thuisteam.replace(/Black Shots/ig, '').trim();
+                    let badgeColor = isThuis ? '#3498db' : '#e67e22';
+                    let label = isThuis ? 'Thuis' : 'Uit';
+
+                    wedstrijdenHtml += `
+                        <div style="background:#fff; border:1px solid #eee; border-left:4px solid ${badgeColor}; padding:8px; border-radius:4px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
+                            <div style="flex:1;">
+                                <strong style="color:var(--secondary-color); font-size:0.9rem;">vs ${tegenstander}</strong>
+                                <div style="font-size:0.75rem; color:#7f8c8d; margin-top:2px;">
+                                    <span style="background:${badgeColor}; color:white; padding:1px 4px; border-radius:3px; font-weight:bold;">${label}</span> 
+                                    ⏰ ${geplandeTijd} | 📍 ${isThuis ? 'Thuiszaal' : w.Plaats || 'Uit'}
+                                </div>
+                            </div>
+                            <div style="background:#f8f9fa; padding:4px 6px; border-radius:4px; font-weight:bold; color:#2c3e50; font-size:0.8rem; border:1px solid #e2e8f0; white-space:nowrap;">
+                                📅 ${wDatum}
+                            </div>
+                        </div>
+                    `;
+                });
+            } else {
+                wedstrijdenHtml = '<span style="color:#bdc3c7; font-style:italic; font-size:0.85rem;">Geen komende wedstrijden in Sportlink.</span>';
+            }
+
+            // --- AANKOMENDE EVENEMENTEN (Jaarplanning) ---
+            let kalenderCategorieen = JSON.parse(localStorage.getItem('blackshots_jaarplanning_categorieen')) || [];
             let aankomendeEvenementen = jaarplanningData.filter(item => {
                 let start = item.isoDatum;
                 let eind = item.eindDatum || item.isoDatum;
-                
-                // 1. Verleden negeren
                 if (!eind || eind < vandaagIso) return false; 
-                
-                // 2. Valt het na onze gekozen datum in de kalender?
                 if (start > maxDatumIso) return false;
-                
-                // 3. Toon ALLEEN als dit team is aangevinkt
                 return item.teams && item.teams.includes(team.id);
             });
 
@@ -136,25 +215,18 @@ window.renderTeamBeheer = function() {
                 aankomendeEvenementen.forEach(ev => {
                     let dParts = ev.isoDatum.split('-');
                     let mooieDatum = `${dParts[2]}-${dParts[1]}`; 
-                    let badgeKleur = team.kleur || '#3498db';
-                    
-                    // --- NIEUW: Dynamische subtitel (Categorie | Tijd | Locatie) ---
-                    // Zoek de juiste categorienaam op (of gebruik 'Taak' als fallback)
                     let catObj = kalenderCategorieen.find(c => c.id === ev.type);
                     let catNaam = catObj ? catObj.naam : 'Taak/Event';
                     
-                    // Bouw het slimme zinnetje op
                     let metaInfo = [`📌 ${catNaam}`];
                     if (ev.tijd) metaInfo.push(`⏰ ${ev.tijd}`);
                     if (ev.locatie) metaInfo.push(`📍 ${ev.locatie}`);
                     
-                    let subtitelTekst = metaInfo.join(' | ');
-                    
                     evenementenHtml += `
-                        <div style="background:#fff; border:1px solid #eee; border-left:4px solid ${badgeKleur}; padding:8px; border-radius:4px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
+                        <div style="background:#fff; border:1px dashed #bdc3c7; border-left:4px solid #9b59b6; padding:8px; border-radius:4px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
                             <div style="flex:1; overflow:hidden; margin-right:10px;">
-                                <strong style="color:var(--secondary-color); display:block; font-size:0.9rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${ev.titel || "Activiteit"}</strong>
-                                <span style="font-size:0.75rem; color:#7f8c8d; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${subtitelTekst}">${subtitelTekst}</span>
+                                <strong style="color:var(--secondary-color); display:block; font-size:0.9rem;">${ev.titel || "Activiteit"}</strong>
+                                <span style="font-size:0.75rem; color:#7f8c8d; display:block;">${metaInfo.join(' | ')}</span>
                             </div>
                             <div style="background:#f8f9fa; padding:4px 6px; border-radius:4px; font-weight:bold; color:#2c3e50; font-size:0.8rem; border:1px solid #e2e8f0; white-space:nowrap;">
                                 📅 ${mooieDatum}
@@ -163,21 +235,28 @@ window.renderTeamBeheer = function() {
                     `;
                 });
             } else {
-                evenementenHtml = '<span style="color:#bdc3c7; font-style:italic; font-size:0.85rem;">Geen speciale team-taken gepland in deze periode.</span>';
+                evenementenHtml = '<span style="color:#bdc3c7; font-style:italic; font-size:0.85rem;">Geen speciale team-taken gepland.</span>';
             }
+
            // --- OPMAAK VAN DE KAART ---
             let kaderBadge = team.isVrijwilliger ? '<span style="background:#9b59b6; color:white; padding:4px 8px; border-radius:4px; font-size:0.8rem; margin-left:10px; vertical-align:middle;">KADER</span>' : '';
             let recreantBadge = team.isRecreant ? '<span style="background:#f39c12; color:white; padding:4px 8px; border-radius:4px; font-size:0.8rem; margin-left:10px; vertical-align:middle;">RECREANTEN</span>' : '';
             let ringColor = team.kleur || (team.isVrijwilliger ? '#9b59b6' : 'var(--primary-color)');
-            let aliasTekst = team.aliassen ? ` &nbsp;|&nbsp; 🔗 Aliassen: <strong>${team.aliassen}</strong>` : '';
+            
+            // Koppel ID's naar leesbare namen
+            let coachNaam = window.naamUitId(team.coach, 'N.n.b.');
+            let trainerNaam = window.naamUitId(team.trainer, 'N.n.b.');
 
             lijstHTML += `
                 <li style="background:white; border-radius:8px; border:1px solid var(--border-color); border-top: 4px solid ${ringColor}; overflow:hidden; box-shadow:0 2px 4px rgba(0,0,0,0.05); margin-bottom: 20px;">
                     <div style="background:#fafafa; padding:15px 20px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
                         <div>
                             <h3 style="margin:0; color:${ringColor}; font-size:1.4rem; display:inline-block;">${team.naam || 'Groep'}</h3>${kaderBadge}${recreantBadge}
-                            <div style="font-size:0.95rem; color:#34495e; margin-top:5px;">
-                                👨‍💼 Coach: <strong>${team.coach || 'N.n.b.'}</strong> &nbsp;|&nbsp; 🏃‍♂️ Trainer: <strong>${team.trainer || 'N.n.b.'}</strong>${aliasTekst}
+                            <div style="font-size:0.95rem; color:#34495e; margin-top:5px; display:flex; flex-wrap:wrap; gap:10px;">
+                                <span>👨‍💼 Coach: <strong>${coachNaam}</strong></span>
+                                <span>🏃‍♂️ Trainer: <strong>${trainerNaam}</strong></span>
+                                <span>⏱️ Thuisduur: <strong>${teamDuur}m</strong></span>
+                                <span>🚗 Auto's Uit: <strong>${maxAutos} max</strong></span>
                             </div>
                         </div>
                         <div>
@@ -188,38 +267,39 @@ window.renderTeamBeheer = function() {
 
                     <div style="padding:20px; display:flex; gap:20px; flex-wrap:wrap;">
                         
-                        <div style="flex:1.5; min-width:250px;">
+                        <!-- Leden & Planning -->
+                        <div style="flex:1.5; min-width:300px;">
                             <h4 style="margin-top:0; color:var(--secondary-color); border-bottom:2px solid #eee; padding-bottom:5px;">👥 Ledenpool (${teamSpelers.length})</h4>
                             <div style="margin-bottom:15px; display:flex; flex-wrap:wrap;">${spelersHtml}</div>
-                            <button onclick="window.location.href='spelers.html'" style="background:#3498db; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.85rem;">+ Beheer via Spelers-pagina</button>
-                        </div>
-
-                        <div style="flex:1; min-width:220px; border-left:1px dashed #eee; padding-left:20px;">
-                            <h4 style="margin-top:0; color:var(--secondary-color); border-bottom:2px solid #eee; padding-bottom:5px;">🗓️ Planning</h4>
+                            
+                            <h4 style="margin-top:20px; color:var(--secondary-color); border-bottom:2px solid #eee; padding-bottom:5px;">🗓️ Planning (Trainingen)</h4>
                             <div style="margin-bottom:15px;">${trainingenHtml}</div>
 
                             <div style="display:flex; flex-direction:column; gap:5px; background:#f9f9f9; padding:10px; border-radius:6px; border:1px solid #eee;">
-                                <strong style="font-size:0.85rem;">+ Tijd toevoegen:</strong>
+                                <strong style="font-size:0.85rem;">+ Training toevoegen:</strong>
                                 <div style="display:flex; gap:5px;">
                                     <select id="tr-dag-${index}" style="padding:6px; flex:1; font-size:0.8rem;"><option value="1">Ma</option><option value="2">Di</option><option value="3">Wo</option><option value="4">Do</option><option value="5">Vr</option></select>
                                     <input type="time" id="tr-start-${index}" style="padding:6px; flex:1; font-size:0.8rem;">
-                                    <input type="number" id="tr-duur-${index}" placeholder="Duur (min)" value="90" style="padding:6px; width:80px; font-size:0.8rem;">
-                                </div>
-                                <div style="display:flex; gap:5px;">
-                                    <input type="text" id="tr-zaal-${index}" placeholder="Locatie/Zaal..." style="padding:6px; flex:2; font-size:0.8rem;">
-                                    <input type="text" id="tr-veld-${index}" placeholder="Veld..." style="padding:6px; width:70px; font-size:0.8rem;">
-                                    <button onclick="window.snelleTrainingToevoegen(${index})" style="background:#27ae60; color:white; border:none; padding:6px; flex:1; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.8rem;">Vastzetten</button>
+                                    <input type="number" id="tr-duur-${index}" placeholder="Minuten" value="90" style="padding:6px; width:70px; font-size:0.8rem;">
+                                    <input type="text" id="tr-zaal-${index}" placeholder="Locatie..." style="padding:6px; flex:2; font-size:0.8rem;">
+                                    <button onclick="window.snelleTrainingToevoegen(${index})" style="background:#27ae60; color:white; border:none; padding:6px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.8rem;">Toevoegen</button>
                                 </div>
                             </div>
                         </div>
 
-                        <div style="flex:1; min-width:220px; border-left:1px dashed #eee; padding-left:20px;">
-                            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #eee; padding-bottom:5px; margin-bottom:10px;">
-                                <h4 style="margin:0; color:var(--secondary-color);">📌 Komende Team-taken</h4>
-                                <button onclick="window.openSnelEventModal('${team.id}')" style="background:#27ae60; color:white; border:none; width:24px; height:24px; border-radius:50%; cursor:pointer; font-weight:bold; display:flex; align-items:center; justify-content:center; font-size:1.1rem; box-shadow:0 2px 4px rgba(0,0,0,0.1);" title="Nieuwe taak/event voor dit team">+</button>
+                        <!-- Wedstrijden & Events -->
+                        <div style="flex:1; min-width:280px; border-left:1px dashed #eee; padding-left:20px;">
+                            <div style="margin-bottom:20px;">
+                                <h4 style="margin:0 0 10px 0; color:var(--secondary-color); border-bottom:2px solid #eee; padding-bottom:5px;">🏀 Komende NBB Wedstrijden</h4>
+                                <div style="display:flex; flex-direction:column; gap:4px;">${wedstrijdenHtml}</div>
                             </div>
-                            <div style="display:flex; flex-direction:column; gap:4px;">
-                                ${evenementenHtml}
+
+                            <div>
+                                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #eee; padding-bottom:5px; margin-bottom:10px;">
+                                    <h4 style="margin:0; color:var(--secondary-color);">📌 Overige Team-taken</h4>
+                                    <button onclick="window.openSnelEventModal('${team.id}')" style="background:#27ae60; color:white; border:none; width:24px; height:24px; border-radius:50%; cursor:pointer; font-weight:bold; display:flex; align-items:center; justify-content:center; font-size:1.1rem; box-shadow:0 2px 4px rgba(0,0,0,0.1);" title="Nieuwe taak/event voor dit team">+</button>
+                                </div>
+                                <div style="display:flex; flex-direction:column; gap:4px;">${evenementenHtml}</div>
                             </div>
                         </div>
 
@@ -240,7 +320,6 @@ window.snelleTrainingToevoegen = function(teamIndex) {
     const startEl = document.getElementById(`tr-start-${teamIndex}`);
     const duurEl = document.getElementById(`tr-duur-${teamIndex}`);
     const zaalEl = document.getElementById(`tr-zaal-${teamIndex}`);
-    const veldEl = document.getElementById(`tr-veld-${teamIndex}`);
 
     if (!dagEl || !startEl || !zaalEl) return;
 
@@ -248,7 +327,6 @@ window.snelleTrainingToevoegen = function(teamIndex) {
     const start = startEl.value;
     const duur = parseInt(duurEl.value) || 90;
     const zaal = zaalEl.value.trim();
-    const veld = veldEl ? veldEl.value.trim() : "";
 
     if (!start || !zaal) return alert("Vul een starttijd en zaal in.");
 
@@ -261,7 +339,7 @@ window.snelleTrainingToevoegen = function(teamIndex) {
     let eind = `${eindUur.toString().padStart(2, '0')}:${eindRestMin.toString().padStart(2, '0')}`;
 
     if (!Array.isArray(window.teamsDB[teamIndex].trainingen)) window.teamsDB[teamIndex].trainingen = [];
-    window.teamsDB[teamIndex].trainingen.push({ dag, start, eind, zaal, veld, duur });
+    window.teamsDB[teamIndex].trainingen.push({ dag, start, eind, zaal, duur });
 
     localStorage.setItem('blackshots_teams', JSON.stringify(window.teamsDB));
     window.renderTeamBeheer();
@@ -269,49 +347,22 @@ window.snelleTrainingToevoegen = function(teamIndex) {
 
 window.kiesTeamKleur = function(kleurCode) {
     document.getElementById('edit-team-kleur').value = kleurCode;
-    
-    // Reset alle bolletjes
     let swatches = document.querySelectorAll('.kleur-swatch');
     swatches.forEach(s => { 
-        if (s.id !== 'custom-kleur-knop') {
-            s.style.border = '2px solid transparent'; 
-            s.style.transform = 'scale(1)'; 
-        }
+        if (s.id !== 'custom-kleur-knop') { s.style.border = '2px solid transparent'; s.style.transform = 'scale(1)'; }
     });
-    
-    // Zet een randje om de geselecteerde
     let actieveSwatch = document.querySelector(`.kleur-swatch[data-kleur="${kleurCode}"]`);
-    if (actieveSwatch) {
-        actieveSwatch.style.border = '2px solid #2c3e50';
-        actieveSwatch.style.transform = 'scale(1.1)';
-    }
-
-    // Reset de plus-knop visueel
+    if (actieveSwatch) { actieveSwatch.style.border = '2px solid #2c3e50'; actieveSwatch.style.transform = 'scale(1.1)'; }
     let customKnop = document.getElementById('custom-kleur-knop');
-    if (customKnop) {
-        customKnop.style.backgroundColor = '#fff';
-        customKnop.style.border = '2px dashed #bdc3c7';
-        customKnop.style.color = '#7f8c8d';
-    }
+    if (customKnop) { customKnop.style.backgroundColor = '#fff'; customKnop.style.border = '2px dashed #bdc3c7'; customKnop.style.color = '#7f8c8d'; }
 };
 
 window.kiesEigenKleur = function(kleurCode) {
     document.getElementById('edit-team-kleur').value = kleurCode;
-    
-    // Reset vaste bolletjes
     let swatches = document.querySelectorAll('.kleur-swatch');
-    swatches.forEach(s => { 
-        s.style.border = '2px solid transparent'; 
-        s.style.transform = 'scale(1)'; 
-    });
-    
-    // Geef de plus-knop de gekozen kleur en haal het plusje tijdelijk weg
+    swatches.forEach(s => { s.style.border = '2px solid transparent'; s.style.transform = 'scale(1)'; });
     let customKnop = document.getElementById('custom-kleur-knop');
-    if (customKnop) {
-        customKnop.style.backgroundColor = kleurCode;
-        customKnop.style.border = '2px solid #2c3e50';
-        customKnop.style.color = 'transparent'; 
-    }
+    if (customKnop) { customKnop.style.backgroundColor = kleurCode; customKnop.style.border = '2px solid #2c3e50'; customKnop.style.color = 'transparent'; }
 };
 
 window.bewerkTeam = function(index) {
@@ -321,23 +372,21 @@ window.bewerkTeam = function(index) {
     document.getElementById('edit-team-index').value = index;
     document.getElementById('edit-team-naam').value = team.naam || '';
     document.getElementById('edit-team-aliassen').value = team.aliassen || '';
+    
+    // NIEUW: De ID dropdowns vullen
     document.getElementById('edit-team-coach').value = team.coach || '';
     document.getElementById('edit-team-trainer').value = team.trainer || '';
+    document.getElementById('edit-team-duur').value = team.thuisWedstrijdDuur || 90;
+    document.getElementById('edit-team-autos').value = team.autoAantal || 3;
     
     document.getElementById('edit-team-vrijwilliger').checked = team.isVrijwilliger || false;
     document.getElementById('edit-team-recreant').checked = team.isRecreant || false;
 
-    // Slim inladen van de kleuren
     let opgeslagenKleur = team.kleur || '#3498db';
     let standaardKleuren = ['#f1c40f', '#e67e22', '#e74c3c', '#9b59b6', '#3498db', '#2980b9', '#1abc9c', '#2ecc71', '#34495e'];
     
-    if (standaardKleuren.includes(opgeslagenKleur)) {
-        window.kiesTeamKleur(opgeslagenKleur);
-    } else {
-        // Hij was custom, zet hem op de plus-knop!
-        window.kiesEigenKleur(opgeslagenKleur);
-        document.getElementById('edit-team-custom-kleur').value = opgeslagenKleur; 
-    }
+    if (standaardKleuren.includes(opgeslagenKleur)) window.kiesTeamKleur(opgeslagenKleur);
+    else { window.kiesEigenKleur(opgeslagenKleur); document.getElementById('edit-team-custom-kleur').value = opgeslagenKleur; }
 
     document.getElementById('team-edit-modal').style.display = 'flex';
 };
@@ -345,6 +394,7 @@ window.bewerkTeam = function(index) {
 window.sluitTeamModal = function() {
     document.getElementById('team-edit-modal').style.display = 'none';
 };
+
 window.slaTeamBewerkingOp = function() {
     let index = document.getElementById('edit-team-index').value;
     let team = window.teamsDB[index];
@@ -355,9 +405,12 @@ window.slaTeamBewerkingOp = function() {
 
     team.naam = nieuweNaam;
     team.aliassen = document.getElementById('edit-team-aliassen').value.trim();
-    team.coach = document.getElementById('edit-team-coach').value.trim();
-    team.trainer = document.getElementById('edit-team-trainer').value.trim();
-    team.kleur = document.getElementById('edit-team-kleur').value; // Nieuw!
+    team.coach = document.getElementById('edit-team-coach').value;
+    team.trainer = document.getElementById('edit-team-trainer').value;
+    team.thuisWedstrijdDuur = parseInt(document.getElementById('edit-team-duur').value) || 90;
+    team.autoAantal = parseInt(document.getElementById('edit-team-autos').value) || 3;
+    
+    team.kleur = document.getElementById('edit-team-kleur').value; 
     team.isVrijwilliger = document.getElementById('edit-team-vrijwilliger').checked;
     team.isRecreant = document.getElementById('edit-team-recreant').checked;
 
@@ -370,14 +423,18 @@ window.voegTeamToe = function() {
     const naamEl = document.getElementById('nieuw-team-naam');
     const coachEl = document.getElementById('nieuw-team-coach');
     const trainerEl = document.getElementById('nieuw-team-trainer');
+    const duurEl = document.getElementById('nieuw-team-duur');
+    const autosEl = document.getElementById('nieuw-team-autos');
     const kaderCheckbox = document.getElementById('nieuw-team-is-vrijwilliger');
 
     if (!naamEl) return alert("Invoerveld voor naam ontbreekt op de pagina!");
 
     const naam = naamEl.value.trim();
-    const coach = coachEl ? coachEl.value.trim() : "";
-    const trainer = trainerEl ? trainerEl.value.trim() : "";
+    const coach = coachEl ? coachEl.value : "";
+    const trainer = trainerEl ? trainerEl.value : "";
     const isKader = kaderCheckbox ? kaderCheckbox.checked : false;
+    const duur = duurEl ? (parseInt(duurEl.value) || 90) : 90;
+    const autos = autosEl ? (parseInt(autosEl.value) || 3) : 3;
 
     if (naam) {
         let nieuwId = naam.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -388,6 +445,8 @@ window.voegTeamToe = function() {
             naam: naam, 
             coach: coach, 
             trainer: trainer, 
+            thuisWedstrijdDuur: duur,
+            autoAantal: autos,
             isVrijwilliger: isKader,
             trainingen: [] 
         });
@@ -407,14 +466,10 @@ window.voegTeamToe = function() {
 window.verwijderTeam = function(index) {
     if (confirm("Weet je zeker dat je dit team wilt wissen? De leden worden 'Vrije Speler'.")) {
         let teamId = window.teamsDB[index].id;
-        
         if (Array.isArray(window.spelersDB)) {
-            window.spelersDB.forEach(speler => {
-                if (speler.teamId === teamId) speler.teamId = ""; 
-            });
+            window.spelersDB.forEach(speler => { if (speler.teamId === teamId) speler.teamId = ""; });
             localStorage.setItem('blackshots_spelers', JSON.stringify(window.spelersDB));
         }
-
         window.teamsDB.splice(index, 1);
         localStorage.setItem('blackshots_teams', JSON.stringify(window.teamsDB));
         window.renderTeamBeheer();
@@ -432,11 +487,6 @@ window.haalSpelerUitTeam = function(spelerId) {
     }
 };
 
-
-// ============================================================================
-// JAARPLANNING SNEL-TOEVOEGEN FUNCTIES
-// ============================================================================
-
 window.openSnelEventModal = function(teamId) {
     const team = window.teamsDB.find(t => t.id === teamId);
     if(!team) return;
@@ -446,11 +496,8 @@ window.openSnelEventModal = function(teamId) {
     document.getElementById('snel-event-titel').value = '';
     document.getElementById('snel-event-tijd').value = '';
     document.getElementById('snel-event-locatie').value = '';
-    
-    // Zet de datum standaard op vandaag
     document.getElementById('snel-event-datum').value = new Date().toISOString().split('T')[0];
 
-    // Laad de categorieën uit de jaarplanning dynamisch in
     let cats = JSON.parse(localStorage.getItem('blackshots_jaarplanning_categorieen')) || [];
     let typeSelect = document.getElementById('snel-event-type');
     if (typeSelect) {
@@ -460,9 +507,7 @@ window.openSnelEventModal = function(teamId) {
     document.getElementById('snel-event-modal').style.display = 'flex';
 };
 
-window.sluitSnelEventModal = function() {
-    document.getElementById('snel-event-modal').style.display = 'none';
-};
+window.sluitSnelEventModal = function() { document.getElementById('snel-event-modal').style.display = 'none'; };
 
 window.slaSnelEventOp = function() {
     let teamId = document.getElementById('snel-event-team-id').value;
@@ -474,37 +519,15 @@ window.slaSnelEventOp = function() {
 
     if(!titel || !datum) return alert("Vul op z'n minst een titel en datum in.");
 
-    // Pak de bestaande data uit de jaarplanning
     let jaarplanningData = JSON.parse(localStorage.getItem('blackshots_jaarplanning_data')) || [];
+    jaarplanningData.push({
+        id: "snel_" + Date.now(), isoDatum: datum, eindDatum: datum,
+        type: type, tijd: tijd, locatie: locatie, titel: titel,
+        omschrijving: "Toegevoegd via Teampagina", teams: [teamId]
+    });
 
-    // Maak het nieuwe item aan
-    let nieuwItem = {
-        id: "snel_" + Date.now(),
-        isoDatum: datum,
-        eindDatum: datum,
-        type: type,
-        tijd: tijd,
-        locatie: locatie,
-        titel: titel,
-        omschrijving: "Toegevoegd via Teampagina",
-        teams: [teamId] // Koppel hem DIRECT aan dit team!
-    };
-
-    // Opslaan
-    jaarplanningData.push(nieuwItem);
     localStorage.setItem('blackshots_jaarplanning_data', JSON.stringify(jaarplanningData));
-
-    // UI verversen
     window.sluitSnelEventModal();
-    window.renderTeamBeheer();
-    
-    // Kleine visuele bevestiging
-    console.log("Item succesvol toegevoegd aan Jaarplanning voor team: " + teamId);
-};
-
-window.verwijderVasteTraining = function(teamIndex, trIndex) {
-    window.teamsDB[teamIndex].trainingen.splice(trIndex, 1);
-    localStorage.setItem('blackshots_teams', JSON.stringify(window.teamsDB));
     window.renderTeamBeheer();
 };
 
@@ -514,4 +537,3 @@ document.addEventListener('keydown', function(event) {
         if (modal && modal.style.display === 'flex') window.sluitTeamModal();
     }
 });
-
