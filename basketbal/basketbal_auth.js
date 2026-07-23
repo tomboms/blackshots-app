@@ -29,13 +29,9 @@ window.checkBeveiligingEnBouwMenu = function() {
         let topNav = document.querySelector('.top-nav');
         if (!topNav) return;
 
-        // --- A. TOP NAV MODERNISEREN (STICKY & GLASSMORPHISM) ---
+        // --- A. TOP NAV MODERNISEREN ---
         topNav.style.cssText = `
-            position: sticky; 
-            top: 0; 
-            z-index: 999999; 
-            background: rgba(44, 62, 80, 0.85); 
-            backdrop-filter: blur(10px); 
+            background: rgba(44, 62, 80, 1); 
             display: flex; 
             justify-content: space-between; 
             align-items: center; 
@@ -77,7 +73,6 @@ window.checkBeveiligingEnBouwMenu = function() {
         `;
         topNav.appendChild(profielContainer);
 
-        // Events voor Profiel Knoppen
         setTimeout(() => {
             let dmBtn = document.getElementById('darkmode-toggle');
             let uitlogBtn = document.getElementById('uitlog-btn');
@@ -99,17 +94,18 @@ window.checkBeveiligingEnBouwMenu = function() {
             }
         }, 100);
 
-
         // --- C. CSS INJECTEREN VOOR HET MODERNE MENU ---
         if (!document.getElementById('bs-dropdown-css')) {
             const style = document.createElement('style');
             style.id = 'bs-dropdown-css';
             style.innerHTML = `
+                /* Sticky navigatie balk bovenaan */
                 .tab-menu { 
                     display: flex; flex-wrap: wrap; background: #fff; padding: 10px 20px; 
                     box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-bottom: 2px solid var(--primary-color);
-                    gap: 5px; position: sticky; top: 56px; z-index: 99998; 
+                    gap: 5px; position: sticky; top: 0; z-index: 999998; 
                 }
+                
                 .tab-btn {
                     background: transparent; border: 1px solid transparent; color: #34495e; 
                     padding: 8px 14px; border-radius: 6px; font-weight: bold; cursor: pointer; 
@@ -119,11 +115,15 @@ window.checkBeveiligingEnBouwMenu = function() {
                 .tab-btn.active { background: var(--primary-color); color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
                 
                 .nav-dropdown { position: relative; display: inline-block; }
+                
+                /* De brug om het gat tussen de knop en het menu te dichten */
                 .nav-dropdown-content { 
                     display: none; position: absolute; background-color: #fff; min-width: 220px; 
                     box-shadow: 0px 10px 25px rgba(0,0,0,0.15); z-index: 999999; border-radius: 8px; 
-                    top: 100%; left: 0; overflow: hidden; border: 1px solid #e2e8f0; margin-top: 5px;
+                    top: 100%; left: 0; border: 1px solid #e2e8f0; 
+                    margin-top: -5px; padding-top: 5px; 
                 }
+                
                 .nav-dropdown:hover .nav-dropdown-content { display: block; animation: fadeIn 0.2s ease-out; }
                 
                 .nav-drop-btn { 
