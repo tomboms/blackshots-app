@@ -259,9 +259,11 @@ window.renderMatrix = function() {
     html += '<th>Scheidsrechter info</th>';
     
     window.speeldagenDB.forEach(datum => {
-        let delen = datum.split('-'); // Datum is opgeslagen als YYYY-MM-DD
-        // FIX: Draai het om naar DD-MM-YY (delen[2] is Dag, delen[1] is Maand, delen[0] is Jaar)
-        let weergaveDatum = delen.length === 3 ? `${delen[2]}-${delen[1]}-${delen[0].substring(2)}` : datum; 
+        let weergaveDatum = datum;
+        if (/^\d{4}-\d{2}-\d{2}$/.test(datum)) {
+            let d = datum.split('-');
+            weergaveDatum = `${d[2]}-${d[1]}-${d[0].substring(2)}`; 
+        }
         
         html += `<th style="min-width:130px;">
                     ${weergaveDatum}
@@ -290,18 +292,17 @@ window.renderMatrix = function() {
                  </td>`;
         
         window.speeldagenDB.forEach(datum => {
-        let weergaveDatum = datum;
-        // Zet yyyy-mm-dd (die er nu altijd uitrolt) veilig om naar DD-MM-YYYY voor het beeldscherm
-        if (/^\d{4}-\d{2}-\d{2}$/.test(datum)) {
-            let d = datum.split('-');
-            weergaveDatum = `${d[2]}-${d[1]}-${d[0]}`; 
-        }
-        
-        html += `<th style="min-width:130px;">
-                    ${weergaveDatum}
-                    <button class="actie-btn" style="color:#e74c3c; margin-left:8px;" onclick="window.verwijderSpeeldag('${datum}')" title="Verwijder datum">🗑️</button>
-                 </th>`;
-    });
+            let key = `${sr.id}_${datum}`;
+            let status = window.beschikbaarheidDB[key] || 'nnb';
+            
+            let btnClass = 'status-nnb'; let btnText = '➖ N.N.B.';
+            if (status === 'aan') { btnClass = 'status-aan'; btnText = '✔️ Aanwezig'; }
+            if (status === 'af') { btnClass = 'status-af'; btnText = '❌ Afwezig'; }
+
+            html += `<td>
+                        <button id="btn-${key}" class="status-btn ${btnClass}" onclick="window.toggleStatus('${sr.id}', '${datum}')">${btnText}</button>
+                     </td>`;
+        });
         html += `</tr>`;
     });
 

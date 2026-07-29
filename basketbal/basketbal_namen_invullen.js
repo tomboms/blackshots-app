@@ -18,10 +18,13 @@ const START_UUR = 9; const EIND_UUR = 22; const PIXEL_SCALE = 2;
 // BASIS HELPERS
 // ============================================================================
 window.normaalDatum = function(d) {
-    if(!d) return "";
-    let str = String(d).trim().substring(0, 10); 
-    if (/^\d{2}-\d{2}-\d{4}$/.test(str)) { let delen = str.split('-'); return `${delen[2]}-${delen[1]}-${delen[0]}`; }
-    return str;
+    if (!d) return "";
+    let str = String(d).trim().split(' ')[0]; 
+    let matchNl = str.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
+    if (matchNl) return `${matchNl[3]}-${matchNl[2].padStart(2, '0')}-${matchNl[1].padStart(2, '0')}`;
+    let matchIso = str.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);
+    if (matchIso) return `${matchIso[1]}-${matchIso[2].padStart(2, '0')}-${matchIso[3].padStart(2, '0')}`;
+    return str; 
 };
 
 window.genereerUniekId = function(w) {
@@ -223,48 +226,52 @@ window.laadNamenBord = function() {
 
         let alleWedstrijden = [...window.nbbWedstrijden, ...window.customWedstrijden];
         
-        let toonWedstrijden = alleWedstrijden.filter(w => {
-            let id = window.genereerUniekId(w);
-            if (window.verborgenDB.includes(id)) return false;
+        toonWedstrijden = alleWedstrijden.filter(w => {
+        let id = window.genereerUniekId(w);
+        if (window.verborgenDB.includes(id)) return false;
+        
+        if (periode === 'dag') {
+            // Check op datum, en check op de variabele 'schoneDatum' OF 'speelDatum' afhankelijk van het bestand
+            let matchDatumVeld = typeof schoneDatum !== 'undefined' ? schoneDatum : speelDatum;
+            if (window.normaalDatum(w.Datum) !== matchDatumVeld) return false;
+            // (Check op planStatus is hier weggehaald, zodat de Wachtkamer óók in de lijst komt!)
+        } else {
+            if (!window.planStatusDB[id]) return false; 
+        }
+
+        let isThuis = (w.Thuisteam || '').toLowerCase().includes('black shots');
+        if (!isAllesAangevinkt) {
+            if (actieveTeams.length === 0) return false; 
+            let wCanon = window.getCanonicalTeam(isThuis ? (w.Thuisteam || '').replace(/Black Shots\s*-?\s*/i, '') : (w.Uitteam || '').replace(/Black Shots\s*-?\s*/i, ''));
+            if (!wCanon || !actieveTeams.includes(wCanon.id)) return false;
+        }
+        return true;
+    });
+
+    // Sorteer voor lijst (Met Crash-Beveiliging voor lege teams!)
+    toonWedstrijden.sort((a, b) => {
+        let dA = window.normaalDatum(a.Datum); let dB = window.normaalDatum(b.Datum);
+        let tA = window.planStatusDB[window.genereerUniekId(a)] ? window.tijdNaarMinuten(window.planStatusDB[window.genereerUniekId(a)].tijd) : 9999;
+        let tB = window.planStatusDB[window.genereerUniekId(b)] ? window.tijdNaarMinuten(window.planStatusDB[window.genereerUniekId(b)].tijd) : 9999;
+        
+        if (sortering === 'team') {
+            let isThuisA = (a.Thuisteam || '').toLowerCase().includes('black shots');
+            let isThuisB = (b.Thuisteam || '').toLowerCase().includes('black shots');
             
-            if (periode === 'dag') {
-                if (window.normaalDatum(w.Datum) !== speelDatum) return false;
-                if (!window.planStatusDB[id]) return false; 
-            } else {
-                if (!window.planStatusDB[id]) return false; 
-            }
-
-            let isThuis = (w.Thuisteam || '').toLowerCase().includes('black shots');
-            if (locatie === 'thuis' && !isThuis) return false;
-            if (locatie === 'uit' && isThuis) return false;
-
-            if (!isAllesAangevinkt) {
-                if (actieveTeams.length === 0) return false; 
-                let wCanon = window.getCanonicalTeam(isThuis ? w.Thuisteam.replace(/Black Shots\s*-?\s*/i, '') : w.Uitteam.replace(/Black Shots\s*-?\s*/i, ''));
-                if (!wCanon || !actieveTeams.includes(wCanon.id)) return false;
-            }
-            return true;
-        });
-
-        toonWedstrijden.sort((a, b) => {
-            let dA = window.normaalDatum(a.Datum); let dB = window.normaalDatum(b.Datum);
-            let tA = window.planStatusDB[window.genereerUniekId(a)] ? window.tijdNaarMinuten(window.planStatusDB[window.genereerUniekId(a)].tijd) : 9999;
-            let tB = window.planStatusDB[window.genereerUniekId(b)] ? window.tijdNaarMinuten(window.planStatusDB[window.genereerUniekId(b)].tijd) : 9999;
+            let teamA = isThuisA ? (a.Thuisteam || '').replace(/Black Shots\s*-?\s*/i, '') : (a.Uitteam || '').replace(/Black Shots\s*-?\s*/i, '');
+            let teamB = isThuisB ? (b.Thuisteam || '').replace(/Black Shots\s*-?\s*/i, '') : (b.Uitteam || '').replace(/Black Shots\s*-?\s*/i, '');
             
-            if (sortering === 'team') {
-                let teamA = a.Thuisteam.includes('Black Shots') ? a.Thuisteam.replace(/Black Shots\s*-?\s*/i, '') : a.Uitteam.replace(/Black Shots\s*-?\s*/i, '');
-                let teamB = b.Thuisteam.includes('Black Shots') ? b.Thuisteam.replace(/Black Shots\s*-?\s*/i, '') : b.Uitteam.replace(/Black Shots\s*-?\s*/i, '');
-                let canonA = window.getCanonicalTeam(teamA); let canonB = window.getCanonicalTeam(teamB);
-                let naamA = canonA ? canonA.naam : teamA; let naamB = canonB ? canonB.naam : teamB;
-                
-                if (naamA !== naamB) return naamA.localeCompare(naamB);
-                if (dA !== dB) return dA.localeCompare(dB);
-                return tA - tB;
-            } else {
-                if (dA !== dB) return dA.localeCompare(dB);
-                return tA - tB;
-            }
-        });
+            let canonA = window.getCanonicalTeam(teamA); let canonB = window.getCanonicalTeam(teamB);
+            let naamA = canonA ? canonA.naam : teamA; let naamB = canonB ? canonB.naam : teamB;
+            
+            if (naamA !== naamB) return naamA.localeCompare(naamB);
+            if (dA !== dB) return dA.localeCompare(dB);
+            return tA - tB;
+        } else {
+            if (dA !== dB) return dA.localeCompare(dB);
+            return tA - tB;
+        }
+    });
 
         let html = `<div style="background:white; border-radius:8px; padding:20px; width:100%;"><h3 style="margin-top:0; color:#8e44ad;">🗂️ Overzichtslijst (${toonWedstrijden.length} gevonden)</h3><div style="display:flex; flex-direction:column; gap:15px;">`;
 
