@@ -11,12 +11,31 @@ window.takenDB = window.veiligObject('blackshots_wedstrijd_taken');
 window.planStatusDB = window.veiligObject('blackshots_plan_status');
 
 window.normaalDatum = function(d) {
-    if(!d) return "";
-    let str = String(d).trim().substring(0, 10); 
-    if (/^\d{2}-\d{2}-\d{4}$/.test(str)) {
-        let delen = str.split('-'); return `${delen[2]}-${delen[1]}-${delen[0]}`;
+    if (!d) return "";
+    
+    // Pak de datum en haal eventuele achtergebleven tijdstippen (zoals 14:00) eraf
+    let str = String(d).trim().split(' ')[0]; 
+    
+    // Check of het in het format dd-mm-yyyy of d-m-yyyy staat (bijv. 5-10-2025 of 05/10/2025)
+    let matchNl = str.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
+    if (matchNl) {
+        let dag = matchNl[1].padStart(2, '0');     // Zorgt dat '5' altijd '05' wordt
+        let maand = matchNl[2].padStart(2, '0');   // Zorgt dat '8' altijd '08' wordt
+        let jaar = matchNl[3];
+        // Geef ALTIJD yyyy-mm-dd (ISO) terug voor de rekenmotor
+        return `${jaar}-${maand}-${dag}`;
     }
-    return str;
+    
+    // Voor de zekerheid: als de bond het stiekem al als yyyy-mm-dd aanlevert
+    let matchIso = str.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);
+    if (matchIso) {
+        let jaar = matchIso[1];
+        let maand = matchIso[2].padStart(2, '0');
+        let dag = matchIso[3].padStart(2, '0');
+        return `${jaar}-${maand}-${dag}`;
+    }
+
+    return str; // Fallback als niks werkt
 };
 
 window.genereerUniekId = function(w) {

@@ -18,10 +18,25 @@ window.teamTakenDB = window.veiligObject('blackshots_wedstrijd_taken');
 window.speeldagenDB = window.veiligeArray('blackshots_speeldagen');
 
 window.normaalDatum = function(d) {
-    if(!d) return "";
-    let str = String(d).trim().substring(0, 10); 
-    if (/^\d{2}-\d{2}-\d{4}$/.test(str)) { let delen = str.split('-'); return `${delen[2]}-${delen[1]}-${delen[0]}`; }
-    return str;
+    if (!d) return "";
+    let str = String(d).trim().split(' ')[0]; 
+    
+    let matchNl = str.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
+    if (matchNl) {
+        let dag = matchNl[1].padStart(2, '0');
+        let maand = matchNl[2].padStart(2, '0');
+        let jaar = matchNl[3];
+        return `${jaar}-${maand}-${dag}`;
+    }
+    
+    let matchIso = str.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);
+    if (matchIso) {
+        let jaar = matchIso[1];
+        let maand = matchIso[2].padStart(2, '0');
+        let dag = matchIso[3].padStart(2, '0');
+        return `${jaar}-${maand}-${dag}`;
+    }
+    return str; 
 };
 
 window.genereerUniekId = function(w) {

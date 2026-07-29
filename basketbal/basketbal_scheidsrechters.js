@@ -11,11 +11,27 @@ window.nbbWedstrijden = window.veiligeArray('blackshots_wedstrijden_json');
 window.customWedstrijden = window.veiligeArray('blackshots_custom_wedstrijden');
 
 // HELPER: Zorgt dat elke datum (NBB of Handmatig) er hetzelfde uitziet
+// HELPER: Zorgt dat elke datum (NBB of Handmatig) er hetzelfde uitziet
 window.normaalDatum = function(d) {
-    if(!d) return "";
-    let str = String(d).trim().substring(0, 10); 
-    if (/^\d{2}-\d{2}-\d{4}$/.test(str)) { let delen = str.split('-'); return `${delen[2]}-${delen[1]}-${delen[0]}`; }
-    return str;
+    if (!d) return "";
+    let str = String(d).trim().split(' ')[0]; 
+    
+    let matchNl = str.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
+    if (matchNl) {
+        let dag = matchNl[1].padStart(2, '0');
+        let maand = matchNl[2].padStart(2, '0');
+        let jaar = matchNl[3];
+        return `${jaar}-${maand}-${dag}`;
+    }
+    
+    let matchIso = str.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);
+    if (matchIso) {
+        let jaar = matchIso[1];
+        let maand = matchIso[2].padStart(2, '0');
+        let dag = matchIso[3].padStart(2, '0');
+        return `${jaar}-${maand}-${dag}`;
+    }
+    return str; 
 };
 
 window.initScheidsMatrix = function() {
@@ -274,17 +290,18 @@ window.renderMatrix = function() {
                  </td>`;
         
         window.speeldagenDB.forEach(datum => {
-            let key = `${sr.id}_${datum}`;
-            let status = window.beschikbaarheidDB[key] || 'nnb';
-            
-            let btnClass = 'status-nnb'; let btnText = '➖ N.N.B.';
-            if (status === 'aan') { btnClass = 'status-aan'; btnText = '✔️ Aanwezig'; }
-            if (status === 'af') { btnClass = 'status-af'; btnText = '❌ Afwezig'; }
-
-            html += `<td>
-                        <button id="btn-${key}" class="status-btn ${btnClass}" onclick="window.toggleStatus('${sr.id}', '${datum}')">${btnText}</button>
-                     </td>`;
-        });
+        let weergaveDatum = datum;
+        // Zet yyyy-mm-dd (die er nu altijd uitrolt) veilig om naar DD-MM-YYYY voor het beeldscherm
+        if (/^\d{4}-\d{2}-\d{2}$/.test(datum)) {
+            let d = datum.split('-');
+            weergaveDatum = `${d[2]}-${d[1]}-${d[0]}`; 
+        }
+        
+        html += `<th style="min-width:130px;">
+                    ${weergaveDatum}
+                    <button class="actie-btn" style="color:#e74c3c; margin-left:8px;" onclick="window.verwijderSpeeldag('${datum}')" title="Verwijder datum">🗑️</button>
+                 </th>`;
+    });
         html += `</tr>`;
     });
 
