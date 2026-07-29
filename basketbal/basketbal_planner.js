@@ -568,13 +568,6 @@ window.laadPlanbord = function() {
 // ============================================================================
 // 🎨 BORD RENDERING & HOVER TOOLTIPS
 // ============================================================================
-
-// ============================================================================
-// 🎨 BORD RENDERING & HOVER TOOLTIPS
-// ============================================================================
-// ============================================================================
-// 🎨 BORD RENDERING & HOVER TOOLTIPS
-// ============================================================================
 window.plaatsWedstrijdenInWachtkamer = function(datum) {
     let speelDatum = window.normaalDatum(datum);
     let container = document.getElementById('te-plannen-container');
@@ -583,17 +576,28 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
     }
 
     let alleWedstrijden = [...window.nbbWedstrijden, ...window.customWedstrijden];
+
+    // 1. Zorg dat geannuleerde wedstrijden over het HELE seizoen van het bord worden gehaald
+    let dataGewijzigd = false;
+    alleWedstrijden.forEach(w => {
+        let nbbStatus = w.Status ? w.Status.toLowerCase() : '';
+        let isTeruggetrokken = nbbStatus.includes('teruggetrokken');
+        let uniekId = window.genereerUniekId(w);
+
+        if (isTeruggetrokken && window.planStatusDB[uniekId]) {
+            delete window.planStatusDB[uniekId];
+            if (window.takenDB[uniekId]) delete window.takenDB[uniekId];
+            dataGewijzigd = true;
+        }
+    });
+    if (dataGewijzigd) window.slaPlannerDataOp();
+
     let dagWedstrijden = alleWedstrijden.filter(w => {
         let matchDatum = window.normaalDatum(w.Datum);
         let isThuis = (w.Thuisteam || '').toLowerCase().includes('black shots');
         let isUit = (w.Uitteam || '').toLowerCase().includes('black shots');
         return matchDatum === speelDatum && (isThuis || isUit) && !window.verborgenDB.includes(window.genereerUniekId(w));
     });
-
-    // FIX: Repareer de Wachtkamer Teller! Hij telt nu alléén de wedstrijden die écht nog niet gepland zijn.
-    let wachtkamerMatches = dagWedstrijden.filter(w => !window.planStatusDB[window.genereerUniekId(w)]);
-    if (document.getElementById('aantal-te-plannen')) document.getElementById('aantal-te-plannen').innerText = wachtkamerMatches.length;
-    if (document.getElementById('wachtkamer-leeg')) document.getElementById('wachtkamer-leeg').style.display = wachtkamerMatches.length === 0 ? 'block' : 'none';
 
     window.werkTellerBij(dagWedstrijden);
 
@@ -619,13 +623,16 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
             let id = window.genereerUniekId(w);
             if (window.verborgenDB.includes(id)) return false;
             
+            let isThuis = (w.Thuisteam || '').toLowerCase().includes('black shots');
+            let isUit = (w.Uitteam || '').toLowerCase().includes('black shots');
+            if (!isThuis && !isUit) return false; // Alleen eigen wedstrijden
+
             if (periode === 'dag') {
                 if (window.normaalDatum(w.Datum) !== speelDatum) return false;
-            } else {
-                if (!window.planStatusDB[id]) return false; 
-            }
+            } 
+            // 💡 HIER ZAT DE BUG: Bij "alles" (totale seizoen) gooiden we voorheen ongeplande wedstrijden weg.
+            // Dat filter is er nu uit, dus alle ongeplande wedstrijden blijven veilig in de wachtkamer staan!
 
-            let isThuis = (w.Thuisteam || '').toLowerCase().includes('black shots');
             if (!isAllesAangevinkt) {
                 if (actieveTeams.length === 0) return false; 
                 let wCanon = window.getCanonicalTeam(isThuis ? w.Thuisteam.replace(/Black Shots\s*-?\s*/i, '') : w.Uitteam.replace(/Black Shots\s*-?\s*/i, ''));
@@ -658,6 +665,15 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
     } else {
         toonWedstrijden = dagWedstrijden;
     }
+
+    // 2. Repareer de Wachtkamer Teller! Hij telt nu o.b.v. wat er daadwerkelijk in 'toonWedstrijden' zit.
+    let wachtkamerMatches = toonWedstrijden.filter(w => {
+        let isTeruggetrokken = (w.Status || '').toLowerCase().includes('teruggetrokken');
+        return !window.planStatusDB[window.genereerUniekId(w)] || isTeruggetrokken;
+    });
+    
+    if (document.getElementById('aantal-te-plannen')) document.getElementById('aantal-te-plannen').innerText = wachtkamerMatches.length;
+    if (document.getElementById('wachtkamer-leeg')) document.getElementById('wachtkamer-leeg').style.display = wachtkamerMatches.length === 0 ? 'block' : 'none';
 
     dagWedstrijden.forEach(w => {
         let uniekId = window.genereerUniekId(w);
@@ -701,13 +717,13 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
         let cssPositie = `position: relative;`;
         let cssHoogte = `height: auto; min-height: 80px; padding-bottom:5px; margin-bottom:10px;`; 
         
-        if (dbStatus) {
+        if (dbStatus && !isTeruggetrokken) {
             if (window.huidigeWeergave === 'lijst') {
                 cssPositie = `position: relative;`;
                 cssHoogte = `height: auto; padding-bottom:10px; margin-bottom: 10px;`;
             } else {
                 cssHoogte = `height: ${pixelHoogte}px;`;
-                let zIndex = isTeruggetrokken ? 5 : 10; 
+                let zIndex = 10; 
                 
                 if (dbStatus.veld === 'uit') {
                     let overlapIndex = uitOverlaps[startMinuten] || 0;
@@ -854,7 +870,7 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
         `;
         
         let targetDivId = 'te-plannen-container';
-        if (dbStatus) {
+        if (dbStatus && !isTeruggetrokken) {
             if (window.huidigeWeergave === 'lijst') {
                 targetDivId = isThuis ? 'lijst-container-thuis' : 'lijst-container-uit';
             } else {
