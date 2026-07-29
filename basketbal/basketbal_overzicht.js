@@ -256,7 +256,12 @@ window.berekenEnRenderOverzicht = function() {
             let matchDatum = window.normaalDatum(w.Datum);
             let isThuis = (w.Thuisteam || '').toLowerCase().includes('black shots');
             let isUit = (w.Uitteam || '').toLowerCase().includes('black shots');
-            return (matchDatum === schoneDatum) && (isThuis || isUit);
+            
+            // HIER IS DE FIX: Kijk of de bond hem heeft teruggetrokken
+            let isGeannuleerd = (w.Status || '').toLowerCase().includes('teruggetrokken');
+            
+            // Alleen toevoegen aan het dashboard als hij NIET geannuleerd is
+            return (matchDatum === schoneDatum) && (isThuis || isUit) && !isGeannuleerd;
         });
         
         dagMatches.forEach(w => {

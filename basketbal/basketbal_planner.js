@@ -869,13 +869,16 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
             </div>
         `;
         
+        // --- HIER BEPAALT HIJ WAAR HET KAARTJE HEEN GAAT ---
         let targetDivId = 'te-plannen-container';
-        if (dbStatus && !isTeruggetrokken) {
-            if (window.huidigeWeergave === 'lijst') {
-                targetDivId = isThuis ? 'lijst-container-thuis' : 'lijst-container-uit';
-            } else {
-                targetDivId = `wedstrijd-container-${dbStatus.veld}`;
-            }
+        
+        if (window.huidigeWeergave === 'lijst') {
+            // FIX: In de lijstweergave gooien we ALLES (gepland, ongepland én geannuleerd)
+            // gewoon in de grote centrale lijst. Zo is je seizoen-overzicht 100% compleet!
+            targetDivId = isThuis ? 'lijst-container-thuis' : 'lijst-container-uit';
+        } else if (dbStatus && !isTeruggetrokken) {
+            // In het blokkenschema gaan ze alleen op de velden als ze écht actief gepland zijn
+            targetDivId = `wedstrijd-container-${dbStatus.veld}`;
         }
         
         let targetDiv = document.getElementById(targetDivId);
