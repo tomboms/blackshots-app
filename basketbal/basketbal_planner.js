@@ -191,7 +191,7 @@ window.bepaalWedstrijdDuur = function(teamNaam) {
 // ============================================================================
 // 🤖 AUTO-PLANNER (Plaatst bekende tijden uit NBB direct op het bord)
 // ============================================================================
-indow.autoPlanBekendeTijden = function(schoneDatum) {
+window.autoPlanBekendeTijden = function(schoneDatum) {
     let gewijzigd = false;
     let alleWedstrijden = [...window.nbbWedstrijden, ...window.customWedstrijden];
     let dagMatches = alleWedstrijden.filter(w => window.normaalDatum(w.Datum) === schoneDatum && !window.verborgenDB.includes(window.genereerUniekId(w)));
