@@ -385,3 +385,103 @@ window.stuurDoorNaarPlanner = function(datum) {
     localStorage.setItem('blackshots_actieve_datum', datum);
     window.location.href = 'planner.html';
 };
+
+// ============================================================================
+// 💾 DATA BEHEER: TAKEN & SCHEIDSRECHTERS EXPORTEREN/IMPORTEREN
+// ============================================================================
+
+window.downloadTakenEnScheidsrechters = function() {
+    // 1. Verzamel de specifieke data
+    let backupData = {
+        'blackshots_wedstrijd_taken': JSON.parse(localStorage.getItem('blackshots_wedstrijd_taken')) || {},
+        'blackshots_scheidsrechters': JSON.parse(localStorage.getItem('blackshots_scheidsrechters')) || [],
+        'blackshots_plan_status': JSON.parse(localStorage.getItem('blackshots_plan_status')) || {} // Handig voor de handmatige tijden/velden
+    };
+
+    // 2. Zet om naar een JSON bestand
+    const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    
+    // 3. Simuleer een klik om de download te starten
+    const a = document.createElement("a");
+    a.href = url;
+    let datumStr = new Date().toISOString().split('T')[0];
+    a.download = `BlackShots_TakenBackup_${datumStr}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+};
+
+window.triggerTakenUpload = function() {
+    let input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json, application/json';
+    input.onchange = e => {
+        let file = e.target.files[0];
+        if (!file) return;
+
+        let reader = new FileReader();
+        reader.onload = function(event) {
+            try {
+                let data = JSON.parse(event.target.result);
+                
+                // Valideer of het het juiste bestand is
+                if (!data.blackshots_wedstrijd_taken && !data.blackshots_scheidsrechters) {
+                    return alert("🚨 Dit lijkt geen geldig Taken-backup bestand te zijn.");
+                }
+
+                // Terugschrijven naar geheugen
+                if(data.blackshots_wedstrijd_taken) localStorage.setItem('blackshots_wedstrijd_taken', JSON.stringify(data.blackshots_wedstrijd_taken));
+                if(data.blackshots_scheidsrechters) localStorage.setItem('blackshots_scheidsrechters', JSON.stringify(data.blackshots_scheidsrechters));
+                if(data.blackshots_plan_status) localStorage.setItem('blackshots_plan_status', JSON.stringify(data.blackshots_plan_status));
+                
+                // Forceer ook een Cloud Sync (als firebase aan staat)
+                if (typeof window.opslaanInFirebase === 'function') {
+                    if(data.blackshots_wedstrijd_taken) window.opslaanInFirebase('blackshots_wedstrijd_taken', data.blackshots_wedstrijd_taken);
+                    if(data.blackshots_scheidsrechters) window.opslaanInFirebase('blackshots_scheidsrechters', data.blackshots_scheidsrechters);
+                    if(data.blackshots_plan_status) window.opslaanInFirebase('blackshots_plan_status', data.blackshots_plan_status);
+                }
+                
+                alert("✅ Taken en Scheidsrechters succesvol teruggezet!");
+                window.location.reload();
+
+            } catch(err) {
+                alert("🚨 Fout bij inladen van het bestand. Bestand is mogelijk corrupt.");
+            }
+        };
+        reader.readAsText(file);
+    };
+    input.click();
+};
+
+// ============================================================================
+// 🗑️ NIEUW SEIZOEN: SCHEMA VOLLEDIG WISSEN
+// ============================================================================
+
+window.resetNieuwSeizoen = function() {
+    let check1 = confirm("⚠️ LET OP: Dit verwijdert ALLE wedstrijden (NBB én handmatig) en alle opgeslagen speeldagen uit de database! Weet je het zeker?");
+    if (!check1) return;
+    
+    let check2 = confirm("🚨 LAATSTE WAARSCHUWING: Heb je netjes de 'Taken' gedownload via de Data Beheer knop als je die wilt behouden? Typ OK om door te gaan, Annuleren om te stoppen.");
+    if (!check2) return;
+
+    // Alles leegmaken in LocalStorage
+    localStorage.setItem('blackshots_speeldagen', '[]');
+    localStorage.setItem('blackshots_wedstrijden_json', '[]');
+    localStorage.setItem('blackshots_custom_wedstrijden', '[]');
+
+    // (Optioneel: Cloud updaten indien deze functie bestaat)
+    if (typeof window.opslaanInFirebase === 'function') {
+        window.opslaanInFirebase('blackshots_speeldagen', []);
+        window.opslaanInFirebase('blackshots_wedstrijden_json', []);
+        window.opslaanInFirebase('blackshots_custom_wedstrijden', []);
+    }
+
+    alert("✅ Schoonmaak voltooid. Het wedstrijdschema is volledig leeg. De pagina wordt nu ververst.");
+    
+    // Geef de Firebase-cloud (als die actief is) een fractie om dit door te geven voordat de pagina herlaadt
+    setTimeout(() => {
+        window.location.reload();
+    }, 1000);
+};

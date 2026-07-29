@@ -112,22 +112,34 @@
 
     <main class="content-sectie active" style="max-width: 98%; margin: 20px auto; padding: 0 20px;">
         
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; margin-bottom:15px; border-bottom:2px solid var(--border-color); padding-bottom:10px;">
             <div>
-                <h2 style="margin: 0; color: var(--secondary-color);">📅 Seizoens-Dashboard & Speeldagen</h2>
-                <p style="color: #7f8c8d; margin: 5px 0 0 0; font-size: 0.95rem;">Helikopterview over alle speeldagen (Thuis & Uit) en de totale lastenverdeling.</p>
+                <h2 style="margin:0;">📊 Seizoens-Overzicht</h2>
+                <p style="color: #7f8c8d; margin-top:5px;">In vogelvlucht de balans van het hele seizoen bekijken.</p>
             </div>
-            <div style="display:flex; gap:10px;">
-                <button onclick="window.triggerJsonUpload()" style="background:#2980b9; color:white; border:none; padding:10px 20px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.95rem; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">📥 Upload NBB Schema (JSON)</button>
-                <button onclick="window.openWedstrijddagModal()" style="background:#27ae60; color:white; border:none; padding:10px 20px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.95rem; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">➕ Wedstrijddag Aanmaken</button>
-            </div>
-        </div>
+            
+            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                
+                <div class="nav-dropdown">
+                    <button class="primary-btn nav-drop-btn" style="background:#8e44ad; padding:10px 15px; text-align:center;">
+                        💾 Data Beheer ▼
+                    </button>
+                    <div class="nav-dropdown-content" style="min-width:250px;">
+                        <button onclick="window.downloadTakenEnScheidsrechters()" class="nav-drop-btn" style="color:#2980b9;">📥 Download Taken & Scheidsrechters (.json)</button>
+                        <button onclick="window.triggerTakenUpload()" class="nav-drop-btn" style="color:#27ae60;">📤 Importeer Taken & Scheidsrechters (.json)</button>
+                    </div>
+                </div>
 
-        <div class="stats-grid">
-            <div class="stats-card"><h3>Alle Speeldagen</h3><div class="stats-number" id="stat-totaal-dagen">0</div></div>
-            <div class="stats-card" style="border-top-color: #27ae60;"><h3>Totaal Aantal Taken</h3><div class="stats-number" id="stat-totaal-taken">0</div></div>
-            <div class="stats-card" style="border-top-color: #e67e22;"><h3>Open / Vrije Taken</h3><div class="stats-number" id="stat-open-taken">0</div></div>
-            <div class="stats-card" style="border-top-color: #c0392b;"><h3>Meest Belaste Team</h3><div class="stats-number" id="stat-drukste-team" style="font-size: 1.4rem; padding-top: 5px;">--</div></div>
+                <button onclick="window.triggerJsonUpload()" class="primary-btn" style="background:#2980b9; box-shadow:0 4px 6px rgba(0,0,0,0.1); display:flex; align-items:center; gap:8px;">
+                    <span>📅</span> Upload NBB Export (Thuiswedstrijden)
+                </button>
+                <button onclick="window.openWedstrijddagModal()" class="primary-btn" style="background:#f39c12; box-shadow:0 4px 6px rgba(0,0,0,0.1); display:flex; align-items:center; gap:8px;">
+                    <span>➕</span> Voeg Speeldag Toe (Handmatig)
+                </button>
+                <button onclick="window.resetNieuwSeizoen()" class="primary-btn admin-only" style="background:#e74c3c; box-shadow:0 4px 6px rgba(0,0,0,0.1); display:flex; align-items:center; gap:8px;">
+                    <span>🗑️</span> Nieuw Seizoen (Wis Schema)
+                </button>
+            </div>
         </div>
  
 
