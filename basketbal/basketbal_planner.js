@@ -572,8 +572,11 @@ window.laadPlanbord = function() {
 // ============================================================================
 // 🎨 BORD RENDERING & HOVER TOOLTIPS
 // ============================================================================
+// ============================================================================
+// 🎨 BORD RENDERING & HOVER TOOLTIPS
+// ============================================================================
 window.plaatsWedstrijdenInWachtkamer = function(datum) {
-    let speelDatum = window.normaalDatum(datum); // Dit was de missende variabele die VS Code boos maakte!
+    let speelDatum = window.normaalDatum(datum);
     let container = document.getElementById('te-plannen-container');
     if (container) {
         Array.from(container.children).forEach(child => { if (!child.classList.contains('wachtkamer-header') && child.id !== 'wachtkamer-leeg') child.remove(); });
@@ -587,23 +590,10 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
         return matchDatum === speelDatum && (isThuis || isUit) && !window.verborgenDB.includes(window.genereerUniekId(w));
     });
 
-    // 1. Zorg dat geannuleerde wedstrijden áltijd van het bord naar de wachtkamer gaan
-    let dataGewijzigd = false;
-    dagWedstrijden.forEach(w => {
-        let nbbStatus = w.Status ? w.Status.toLowerCase() : '';
-        let isTeruggetrokken = nbbStatus.includes('teruggetrokken');
-        let uniekId = window.genereerUniekId(w);
-
-        if (isTeruggetrokken && window.planStatusDB[uniekId]) {
-            delete window.planStatusDB[uniekId];
-            if (window.takenDB[uniekId]) delete window.takenDB[uniekId];
-            dataGewijzigd = true;
-        }
-    });
-    if (dataGewijzigd) window.slaPlannerDataOp();
-
-    if (document.getElementById('aantal-te-plannen')) document.getElementById('aantal-te-plannen').innerText = dagWedstrijden.length;
-    if (document.getElementById('wachtkamer-leeg')) document.getElementById('wachtkamer-leeg').style.display = dagWedstrijden.length === 0 ? 'block' : 'none';
+    // FIX: Repareer de Wachtkamer Teller! Hij telt nu alléén de wedstrijden die écht nog niet gepland zijn.
+    let wachtkamerMatches = dagWedstrijden.filter(w => !window.planStatusDB[window.genereerUniekId(w)]);
+    if (document.getElementById('aantal-te-plannen')) document.getElementById('aantal-te-plannen').innerText = wachtkamerMatches.length;
+    if (document.getElementById('wachtkamer-leeg')) document.getElementById('wachtkamer-leeg').style.display = wachtkamerMatches.length === 0 ? 'block' : 'none';
 
     window.werkTellerBij(dagWedstrijden);
 
@@ -711,14 +701,13 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
         let cssPositie = `position: relative;`;
         let cssHoogte = `height: auto; min-height: 80px; padding-bottom:5px; margin-bottom:10px;`; 
         
-        // Teruggetrokken wedstrijden krijgen NOOIT board-coördinaten, ze blijven puur en alleen in de lijst styling
-        if (dbStatus && !isTeruggetrokken) {
+        if (dbStatus) {
             if (window.huidigeWeergave === 'lijst') {
                 cssPositie = `position: relative;`;
                 cssHoogte = `height: auto; padding-bottom:10px; margin-bottom: 10px;`;
             } else {
                 cssHoogte = `height: ${pixelHoogte}px;`;
-                let zIndex = 10; 
+                let zIndex = isTeruggetrokken ? 5 : 10; 
                 
                 if (dbStatus.veld === 'uit') {
                     let overlapIndex = uitOverlaps[startMinuten] || 0;
@@ -754,7 +743,6 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
         let randKleur = isThuis ? '#e67e22' : '#3498db';
         let badgeBg = dbStatus ? (isThuis ? '#27ae60' : '#2980b9') : (isThuis ? '#e67e22' : '#7f8c8d');
 
-        // KLEUREN VOOR TERUGGETROKKEN / UITGESPEELD
         if (isTeruggetrokken) {
             bgKleur = 'rgba(250, 219, 216, 0.85)'; randKleur = '#c0392b'; badgeBg = '#e74c3c';
         } else if (isUitgespeeld) {
@@ -866,8 +854,7 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
         `;
         
         let targetDivId = 'te-plannen-container';
-        // Enkel als hij een status én NIET teruggetrokken is, mag hij op het echte bord
-        if (dbStatus && !isTeruggetrokken) {
+        if (dbStatus) {
             if (window.huidigeWeergave === 'lijst') {
                 targetDivId = isThuis ? 'lijst-container-thuis' : 'lijst-container-uit';
             } else {
