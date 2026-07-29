@@ -191,41 +191,44 @@ window.bepaalWedstrijdDuur = function(teamNaam) {
 // ============================================================================
 // 🤖 AUTO-PLANNER (Plaatst bekende tijden uit NBB direct op het bord)
 // ============================================================================
-window.autoPlanBekendeTijden = function(schoneDatum) {
+indow.autoPlanBekendeTijden = function(schoneDatum) {
     let gewijzigd = false;
     let alleWedstrijden = [...window.nbbWedstrijden, ...window.customWedstrijden];
     let dagMatches = alleWedstrijden.filter(w => window.normaalDatum(w.Datum) === schoneDatum && !window.verborgenDB.includes(window.genereerUniekId(w)));
 
     let bezetVeld1 = []; let bezetVeld2 = [];
 
-    // Eerst scannen we wat er AL op het bord staat
+    // 1. Scan wat er AL op het bord staat (negeer geannuleerde wedstrijden, zij nemen fysiek geen echte ruimte meer in)
     dagMatches.forEach(w => {
         let id = window.genereerUniekId(w);
-        if (window.planStatusDB[id]) {
+        let isTeruggetrokken = (w.Status || '').toLowerCase().includes('teruggetrokken');
+        
+        if (window.planStatusDB[id] && !isTeruggetrokken) {
             let st = window.planStatusDB[id];
             let isThuis = (w.Thuisteam || '').toLowerCase().includes('black shots');
-            let duur = w.handmatigeDuur || window.bepaalWedstrijdDuur(isThuis ? w.Thuisteam.replace('Black Shots ','') : w.Uitteam.replace('Black Shots ',''));
+            let duur = w.handmatigeDuur || window.bepaalWedstrijdDuur(isThuis ? (w.Thuisteam||'').replace(/Black Shots\s*-?\s*/i,'').trim() : (w.Uitteam||'').replace(/Black Shots\s*-?\s*/i,'').trim());
             let min = window.tijdNaarMinuten(st.tijd);
             if(st.veld === 1) bezetVeld1.push({start: min, eind: min+duur});
             if(st.veld === 2) bezetVeld2.push({start: min, eind: min+duur});
         }
     });
 
-    // Dan kijken we welke we automatisch kunnen plaatsen
+    // 2. Plaats nieuwe wedstrijden automatisch
     dagMatches.forEach(w => {
         let id = window.genereerUniekId(w);
-        if (!window.planStatusDB[id] && w.Tijd && w.Tijd !== "Te plannen" && w.Tijd !== "N.t.b." && w.Tijd !== "00:00:00") {
+        let isTeruggetrokken = (w.Status || '').toLowerCase().includes('teruggetrokken');
+        
+        // Alleen plannen als hij nog NIET gepland is, NIET geannuleerd is, en een geldige tijd heeft
+        if (!window.planStatusDB[id] && !isTeruggetrokken && w.Tijd && w.Tijd !== "Te plannen" && w.Tijd !== "N.t.b." && w.Tijd !== "00:00:00") {
             let isThuis = (w.Thuisteam || '').toLowerCase().includes('black shots');
             let startMin = window.tijdNaarMinuten(w.Tijd.substring(0,5));
-            let duur = w.handmatigeDuur || window.bepaalWedstrijdDuur(isThuis ? w.Thuisteam.replace('Black Shots ','') : w.Uitteam.replace('Black Shots ',''));
+            let duur = w.handmatigeDuur || window.bepaalWedstrijdDuur(isThuis ? (w.Thuisteam||'').replace(/Black Shots\s*-?\s*/i,'').trim() : (w.Uitteam||'').replace(/Black Shots\s*-?\s*/i,'').trim());
             let eindMin = startMin + duur;
 
             if (!isThuis) {
-                // Uitwedstrijd gaat direct naar de Uit-kolom
                 window.planStatusDB[id] = { veld: 'uit', tijd: w.Tijd.substring(0,5) };
                 gewijzigd = true;
             } else {
-                // Thuiswedstrijd: Check veld voorkeur en ruimte
                 let voorkeurVeld = (w.Veld && w.Veld.includes('2')) ? 2 : 1;
                 let pastOp1 = !bezetVeld1.some(b => startMin < b.eind && eindMin > b.start);
                 let pastOp2 = !bezetVeld2.some(b => startMin < b.eind && eindMin > b.start);
@@ -561,11 +564,16 @@ window.laadPlanbord = function() {
 
     window.plaatsWedstrijdenInWachtkamer(speelDatum);
 };
+
+// ============================================================================
+// 🎨 BORD RENDERING & HOVER TOOLTIPS
+// ============================================================================
+
 // ============================================================================
 // 🎨 BORD RENDERING & HOVER TOOLTIPS
 // ============================================================================
 window.plaatsWedstrijdenInWachtkamer = function(datum) {
-    let schoneDatum = window.normaalDatum(datum);
+    let speelDatum = window.normaalDatum(datum); // Dit was de missende variabele die VS Code boos maakte!
     let container = document.getElementById('te-plannen-container');
     if (container) {
         Array.from(container.children).forEach(child => { if (!child.classList.contains('wachtkamer-header') && child.id !== 'wachtkamer-leeg') child.remove(); });
@@ -576,15 +584,31 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
         let matchDatum = window.normaalDatum(w.Datum);
         let isThuis = (w.Thuisteam || '').toLowerCase().includes('black shots');
         let isUit = (w.Uitteam || '').toLowerCase().includes('black shots');
-        return matchDatum === schoneDatum && (isThuis || isUit) && !window.verborgenDB.includes(window.genereerUniekId(w));
+        return matchDatum === speelDatum && (isThuis || isUit) && !window.verborgenDB.includes(window.genereerUniekId(w));
     });
+
+    // 1. Zorg dat geannuleerde wedstrijden áltijd van het bord naar de wachtkamer gaan
+    let dataGewijzigd = false;
+    dagWedstrijden.forEach(w => {
+        let nbbStatus = w.Status ? w.Status.toLowerCase() : '';
+        let isTeruggetrokken = nbbStatus.includes('teruggetrokken');
+        let uniekId = window.genereerUniekId(w);
+
+        if (isTeruggetrokken && window.planStatusDB[uniekId]) {
+            delete window.planStatusDB[uniekId];
+            if (window.takenDB[uniekId]) delete window.takenDB[uniekId];
+            dataGewijzigd = true;
+        }
+    });
+    if (dataGewijzigd) window.slaPlannerDataOp();
 
     if (document.getElementById('aantal-te-plannen')) document.getElementById('aantal-te-plannen').innerText = dagWedstrijden.length;
     if (document.getElementById('wachtkamer-leeg')) document.getElementById('wachtkamer-leeg').style.display = dagWedstrijden.length === 0 ? 'block' : 'none';
 
     window.werkTellerBij(dagWedstrijden);
 
-    let geplandeDataLijst = []; let teamStartTijden = {}; 
+    let geplandeDataLijst = []; 
+    let teamStartTijden = {}; 
     let uitOverlaps = {}; 
 
     // --- FILTER LOGICA VOOR LIJSTWEERGAVE ---
@@ -602,56 +626,49 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
         }
 
         toonWedstrijden = alleWedstrijden.filter(w => {
-        let id = window.genereerUniekId(w);
-        if (window.verborgenDB.includes(id)) return false;
-        
-        if (periode === 'dag') {
-            // Check op datum, en check op de variabele 'schoneDatum' OF 'speelDatum' afhankelijk van het bestand
-            let matchDatumVeld = typeof schoneDatum !== 'undefined' ? schoneDatum : speelDatum;
-            if (window.normaalDatum(w.Datum) !== matchDatumVeld) return false;
-            // (Check op planStatus is hier weggehaald, zodat de Wachtkamer óók in de lijst komt!)
-        } else {
-            if (!window.planStatusDB[id]) return false; 
-        }
+            let id = window.genereerUniekId(w);
+            if (window.verborgenDB.includes(id)) return false;
+            
+            if (periode === 'dag') {
+                if (window.normaalDatum(w.Datum) !== speelDatum) return false;
+            } else {
+                if (!window.planStatusDB[id]) return false; 
+            }
 
-        let isThuis = (w.Thuisteam || '').toLowerCase().includes('black shots');
-        if (!isAllesAangevinkt) {
-            if (actieveTeams.length === 0) return false; 
-            let wCanon = window.getCanonicalTeam(isThuis ? (w.Thuisteam || '').replace(/Black Shots\s*-?\s*/i, '') : (w.Uitteam || '').replace(/Black Shots\s*-?\s*/i, ''));
-            if (!wCanon || !actieveTeams.includes(wCanon.id)) return false;
-        }
-        return true;
-    });
+            let isThuis = (w.Thuisteam || '').toLowerCase().includes('black shots');
+            if (!isAllesAangevinkt) {
+                if (actieveTeams.length === 0) return false; 
+                let wCanon = window.getCanonicalTeam(isThuis ? w.Thuisteam.replace(/Black Shots\s*-?\s*/i, '') : w.Uitteam.replace(/Black Shots\s*-?\s*/i, ''));
+                if (!wCanon || !actieveTeams.includes(wCanon.id)) return false;
+            }
+            return true;
+        });
 
-    // Sorteer voor lijst (Met Crash-Beveiliging voor lege teams!)
-    toonWedstrijden.sort((a, b) => {
-        let dA = window.normaalDatum(a.Datum); let dB = window.normaalDatum(b.Datum);
-        let tA = window.planStatusDB[window.genereerUniekId(a)] ? window.tijdNaarMinuten(window.planStatusDB[window.genereerUniekId(a)].tijd) : 9999;
-        let tB = window.planStatusDB[window.genereerUniekId(b)] ? window.tijdNaarMinuten(window.planStatusDB[window.genereerUniekId(b)].tijd) : 9999;
-        
-        if (sortering === 'team') {
-            let isThuisA = (a.Thuisteam || '').toLowerCase().includes('black shots');
-            let isThuisB = (b.Thuisteam || '').toLowerCase().includes('black shots');
+        toonWedstrijden.sort((a, b) => {
+            let dA = window.normaalDatum(a.Datum); let dB = window.normaalDatum(b.Datum);
+            let tA = window.planStatusDB[window.genereerUniekId(a)] ? window.tijdNaarMinuten(window.planStatusDB[window.genereerUniekId(a)].tijd) : 9999;
+            let tB = window.planStatusDB[window.genereerUniekId(b)] ? window.tijdNaarMinuten(window.planStatusDB[window.genereerUniekId(b)].tijd) : 9999;
             
-            let teamA = isThuisA ? (a.Thuisteam || '').replace(/Black Shots\s*-?\s*/i, '') : (a.Uitteam || '').replace(/Black Shots\s*-?\s*/i, '');
-            let teamB = isThuisB ? (b.Thuisteam || '').replace(/Black Shots\s*-?\s*/i, '') : (b.Uitteam || '').replace(/Black Shots\s*-?\s*/i, '');
-            
-            let canonA = window.getCanonicalTeam(teamA); let canonB = window.getCanonicalTeam(teamB);
-            let naamA = canonA ? canonA.naam : teamA; let naamB = canonB ? canonB.naam : teamB;
-            
-            if (naamA !== naamB) return naamA.localeCompare(naamB);
-            if (dA !== dB) return dA.localeCompare(dB);
-            return tA - tB;
-        } else {
-            if (dA !== dB) return dA.localeCompare(dB);
-            return tA - tB;
-        }
-    });
+            if (sortering === 'team') {
+                let isThuisA = (a.Thuisteam || '').toLowerCase().includes('black shots');
+                let isThuisB = (b.Thuisteam || '').toLowerCase().includes('black shots');
+                let teamA = isThuisA ? (a.Thuisteam || '').replace(/Black Shots\s*-?\s*/i, '') : (a.Uitteam || '').replace(/Black Shots\s*-?\s*/i, '');
+                let teamB = isThuisB ? (b.Thuisteam || '').replace(/Black Shots\s*-?\s*/i, '') : (b.Uitteam || '').replace(/Black Shots\s*-?\s*/i, '');
+                let canonA = window.getCanonicalTeam(teamA); let canonB = window.getCanonicalTeam(teamB);
+                let naamA = canonA ? canonA.naam : teamA; let naamB = canonB ? canonB.naam : teamB;
+                
+                if (naamA !== naamB) return naamA.localeCompare(naamB);
+                if (dA !== dB) return dA.localeCompare(dB);
+                return tA - tB;
+            } else {
+                if (dA !== dB) return dA.localeCompare(dB);
+                return tA - tB;
+            }
+        });
     } else {
         toonWedstrijden = dagWedstrijden;
     }
 
-    // Bouw data voor checkConflicten (doen we alleen voor wedstrijden van VANDAAG, niet hele seizoen overlap checken)
     dagWedstrijden.forEach(w => {
         let uniekId = window.genereerUniekId(w);
         let dbStatus = window.planStatusDB[uniekId];
@@ -677,12 +694,6 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
         let isUitgespeeld = nbbStatus.includes('uitgespeeld');
         let uniekId = window.genereerUniekId(w);
 
-        if (isTeruggetrokken && window.planStatusDB[uniekId]) {
-            delete window.planStatusDB[uniekId];
-            if (window.takenDB[uniekId]) delete window.takenDB[uniekId];
-            window.slaPlannerDataOp();
-        }
-
         let isThuis = (w.Thuisteam || '').toLowerCase().includes('black shots');
         let wedstrijdNaam = isThuis ? (w.Thuisteam || '').replace(/Black Shots\s*-?\s*/i, '').trim() : (w.Uitteam || '').replace(/Black Shots\s*-?\s*/i, '').trim();
         let tegenstander = isThuis ? (w.Uitteam || '').replace(/Black Shots\s*-?\s*/i, '').trim() : (w.Thuisteam || '').replace(/Black Shots\s*-?\s*/i, '').trim();
@@ -698,20 +709,23 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
         
         // --- CSS & LAYOUT LOGICA VOOR LIJST OF GRID ---
         let cssPositie = `position: relative;`;
-        let cssHoogte = `height: auto; min-height: 80px; padding-bottom:5px; margin-bottom:10px;`; // Wachtkamer standaard
+        let cssHoogte = `height: auto; min-height: 80px; padding-bottom:5px; margin-bottom:10px;`; 
         
-        if (dbStatus) {
+        // Teruggetrokken wedstrijden krijgen NOOIT board-coördinaten, ze blijven puur en alleen in de lijst styling
+        if (dbStatus && !isTeruggetrokken) {
             if (window.huidigeWeergave === 'lijst') {
                 cssPositie = `position: relative;`;
                 cssHoogte = `height: auto; padding-bottom:10px; margin-bottom: 10px;`;
             } else {
                 cssHoogte = `height: ${pixelHoogte}px;`;
+                let zIndex = 10; 
+                
                 if (dbStatus.veld === 'uit') {
                     let overlapIndex = uitOverlaps[startMinuten] || 0;
-                    cssPositie = `position: absolute; top: ${topPixels}px; left: ${5 + (overlapIndex * 35)}px; right: 5px; width: calc(100% - ${10 + overlapIndex * 35}px); z-index: ${10 + overlapIndex};`;
+                    cssPositie = `position: absolute; top: ${topPixels}px; left: ${5 + (overlapIndex * 35)}px; right: 5px; width: calc(100% - ${10 + overlapIndex * 35}px); z-index: ${zIndex + overlapIndex};`;
                     uitOverlaps[startMinuten] = overlapIndex + 1;
                 } else {
-                    cssPositie = `position: absolute; top: ${topPixels}px; left: 5px; right: 5px; width: auto; z-index: 10;`;
+                    cssPositie = `position: absolute; top: ${topPixels}px; left: 5px; right: 5px; width: auto; z-index: ${zIndex};`;
                 }
             }
         }
@@ -721,7 +735,7 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
         let taken = window.takenDB[uniekId] || {};
 
         let regelBanners = [];
-        if (dbStatus && isThuis && !isTeruggetrokken && window.normaalDatum(w.Datum) === schoneDatum) { // Alleen voor VANDAAG rules
+        if (dbStatus && isThuis && !isTeruggetrokken && window.normaalDatum(w.Datum) === speelDatum) {
             let huidigeCanon = window.getCanonicalTeam(wedstrijdNaam);
             if (huidigeCanon) {
                 (window.clubRegelsDB || []).forEach(regel => {
@@ -740,8 +754,9 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
         let randKleur = isThuis ? '#e67e22' : '#3498db';
         let badgeBg = dbStatus ? (isThuis ? '#27ae60' : '#2980b9') : (isThuis ? '#e67e22' : '#7f8c8d');
 
+        // KLEUREN VOOR TERUGGETROKKEN / UITGESPEELD
         if (isTeruggetrokken) {
-            bgKleur = '#fadbd8'; randKleur = '#c0392b'; badgeBg = '#e74c3c';
+            bgKleur = 'rgba(250, 219, 216, 0.85)'; randKleur = '#c0392b'; badgeBg = '#e74c3c';
         } else if (isUitgespeeld) {
             bgKleur = '#d4efdf'; randKleur = '#27ae60'; badgeBg = '#27ae60';
         }
@@ -749,17 +764,16 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
         let htmlTakenBlok = '';
 
         if (isTeruggetrokken) {
-            htmlTakenBlok = `<div style="padding:4px; color:#c0392b; font-weight:bold; font-size:0.8rem; text-align:center; background:rgba(255,255,255,0.7); border-radius:4px; margin-top:5px;">🚫 Geannuleerd</div>`;
+            htmlTakenBlok = `<div style="padding:4px; color:#c0392b; font-weight:bold; font-size:0.8rem; text-align:center; background:rgba(255,255,255,0.8); border-radius:4px; margin-top:5px; border:1px solid #c0392b;">🚫 Geannuleerd (Verwijder met prullenbakje)</div>`;
         } else if (isThuis) {
             let tA = { status: 'groen', berichten: [] }; let tB = { status: 'groen', berichten: [] }; 
             let tTab = { status: 'groen', berichten: [] }; let tSco = { status: 'groen', berichten: [] };
             
-            // Check alleen overlap als datum van VANDAAG is (niet heel seizoen scannen in lijst)
-            if (window.normaalDatum(w.Datum) === schoneDatum) {
-                tA = window.checkConflicten(taken.sA, startMinuten, startMinuten + duurMinuten, schoneDatum, geplandeDataLijst, uniekId, taken, 'sA');
-                tB = window.checkConflicten(taken.sB, startMinuten, startMinuten + duurMinuten, schoneDatum, geplandeDataLijst, uniekId, taken, 'sB');
-                tTab = window.checkConflicten(taken.tab, startMinuten, startMinuten + duurMinuten, schoneDatum, geplandeDataLijst, uniekId, taken, 'tab');
-                tSco = window.checkConflicten(taken.sco, startMinuten, startMinuten + duurMinuten, schoneDatum, geplandeDataLijst, uniekId, taken, 'sco');
+            if (window.normaalDatum(w.Datum) === speelDatum) {
+                tA = window.checkConflicten(taken.sA, startMinuten, startMinuten + duurMinuten, speelDatum, geplandeDataLijst, uniekId, taken, 'sA');
+                tB = window.checkConflicten(taken.sB, startMinuten, startMinuten + duurMinuten, speelDatum, geplandeDataLijst, uniekId, taken, 'sB');
+                tTab = window.checkConflicten(taken.tab, startMinuten, startMinuten + duurMinuten, speelDatum, geplandeDataLijst, uniekId, taken, 'tab');
+                tSco = window.checkConflicten(taken.sco, startMinuten, startMinuten + duurMinuten, speelDatum, geplandeDataLijst, uniekId, taken, 'sco');
             }
 
             let aantalConflicten = 0;
@@ -770,23 +784,16 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
             let conflictBanner = aantalConflicten > 0 ? `<div class="conflict-banner">⚠️ ${aantalConflicten} Taak Conflict(en)!</div>` : '';
 
             let formatTaak = (naam, obj) => { 
-                let css = naam ? "taak-gevuld" : ""; 
-                let inline = "";
-                let out = naam || "Vrij"; 
-                let tooltip = obj.berichten.length > 0 ? `title="${obj.berichten.join(' | ')}"` : "";
-                
-                if(obj.status === 'rood') css = "conflict-text"; 
-                else if(obj.status === 'oranje') css = "warning-text"; 
-                else if(obj.status === 'blauw') {
-                    css = "taak-gevuld"; inline = "color: #2980b9; font-weight: bold;"; out = "ℹ️ " + out; 
-                }
+                let css = naam ? "taak-gevuld" : ""; let inline = "";
+                let out = naam || "Vrij"; let tooltip = obj.berichten.length > 0 ? `title="${obj.berichten.join(' | ')}"` : "";
+                if(obj.status === 'rood') css = "conflict-text"; else if(obj.status === 'oranje') css = "warning-text"; 
+                else if(obj.status === 'blauw') { css = "taak-gevuld"; inline = "color: #2980b9; font-weight: bold;"; out = "ℹ️ " + out; }
                 return { out: out, css: css, inline: inline, tooltip: tooltip }; 
             };
             
             let fA = formatTaak(taken.sA, tA); let fB = formatTaak(taken.sB, tB); 
             let fT = formatTaak(taken.tab, tTab); let fS = formatTaak(taken.sco, tSco);
             
-            // In lijstweergave zetten we ze mooi op 1 rij
             if (window.huidigeWeergave === 'lijst') {
                 htmlTakenBlok = `
                     ${conflictBanner}
@@ -844,11 +851,11 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
         }
 
         html += `
-            <div class="wedstrijd-blok" id="${uniekId}" draggable="true" ondragstart="window.onDragStart(event)" ondragend="window.onDragEnd(event)" style="background:${bgKleur}; border-color:${randKleur}; ${cssPositie} ${cssHoogte}">
+            <div class="wedstrijd-blok" id="${uniekId}" draggable="${!isTeruggetrokken}" ondragstart="window.onDragStart(event)" ondragend="window.onDragEnd(event)" style="background:${bgKleur}; border-color:${randKleur}; ${cssPositie} ${cssHoogte}">
                 ${clubRegelHtml}
                 <div class="wb-titel" style="color:${titelKleur};">
                     <span>${icoon} ${wedstrijdNaam} <span style="color:#7f8c8d; font-size:0.75rem;">vs ${tegenstander}</span></span>
-                    <button onmousedown="event.stopPropagation();" onclick="window.verwijderWedstrijd('${uniekId}')" style="background:none; border:none; cursor:pointer; font-size:1rem; padding:0; margin-left:auto; opacity:0.5;">🗑️</button>
+                    <button onmousedown="event.stopPropagation();" onclick="window.verwijderWedstrijd('${uniekId}')" style="background:none; border:none; cursor:pointer; font-size:1rem; padding:0; margin-left:auto; opacity:0.8;" title="Verwijder van bord">🗑️</button>
                 </div>
                 <div class="wb-meta">
                     <span class="wb-tijd-badge" id="tijd-label-${uniekId}" onmousedown="event.stopPropagation();" onclick="window.wijzigTijdHandmatig('${uniekId}')" style="background:${badgeBg}; cursor:pointer;" title="Klik om de starttijd te wijzigen">⏱️ ${tijdWeergave}</span> 
@@ -858,9 +865,9 @@ window.plaatsWedstrijdenInWachtkamer = function(datum) {
             </div>
         `;
         
-        // --- HIER BEPAALT HIJ WAAR HET KAARTJE HEEN GAAT ---
         let targetDivId = 'te-plannen-container';
-        if (dbStatus) {
+        // Enkel als hij een status én NIET teruggetrokken is, mag hij op het echte bord
+        if (dbStatus && !isTeruggetrokken) {
             if (window.huidigeWeergave === 'lijst') {
                 targetDivId = isThuis ? 'lijst-container-thuis' : 'lijst-container-uit';
             } else {
