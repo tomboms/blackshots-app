@@ -16,6 +16,7 @@ window.planStatusDB = window.veiligObject('blackshots_plan_status');
 window.persoonsTakenDB = window.veiligObject('blackshots_persoons_taken');
 window.teamTakenDB = window.veiligObject('blackshots_wedstrijd_taken');
 window.speeldagenDB = window.veiligeArray('blackshots_speeldagen');
+window.zaalhuurDB = window.veiligeArray('blackshots_zaalhuur_data');
 
 window.normaalDatum = function(d) {
     if (!d) return "";
@@ -827,7 +828,7 @@ window.genereerRegistratieFormulier = function() {
 };
 
 // ============================================================================
-// RAPPORT 6: ZAALHUUR OVERZICHT (Met check op niet aansluitende tijden!)
+// RAPPORT 6: ZAALHUUR OPTIMALISATOR (Zoekt naar verloren tijd en geld!)
 // ============================================================================
 window.genereerZaalhuurOverzicht = function() {
     let alleWedstrijden = [...window.nbbWedstrijden, ...window.customWedstrijden];
@@ -836,88 +837,122 @@ window.genereerZaalhuurOverzicht = function() {
         return window.planStatusDB[id] && (w.Thuisteam || '').toLowerCase().includes('black shots');
     });
 
-    if(thuisWedstrijden.length === 0) return alert("Geen geplande thuiswedstrijden gevonden.");
+    let zaalhuur = window.zaalhuurDB || [];
 
-    // Groepeer op datum en vervolgens op veld
-    let perDagEnVeld = {};
+    if(thuisWedstrijden.length === 0 && zaalhuur.length === 0) return alert("Geen geplande thuiswedstrijden of zaalhuur gevonden in het systeem.");
+
+    let perDag = {};
+    
+    // 1. Verzamel de gehuurde tijden
+    zaalhuur.forEach(z => {
+        if (z.geannuleerd) return;
+        let d = z.isoDatum;
+        if(!perDag[d]) perDag[d] = { huur: [], matchen: [] };
+        perDag[d].huur.push(z);
+    });
+
+    // 2. Verzamel de wedstrijdtijden
     thuisWedstrijden.forEach(w => {
         let d = window.normaalDatum(w.Datum);
         let id = window.genereerUniekId(w);
         let st = window.planStatusDB[id];
-        let veld = st.veld || '1';
-        let hal = w.Accommodatie || w.Locatie || w.Plaats || 'Veka-sportcentrum';
         
         let startMin = window.tijdNaarMinuten(st.tijd);
         let duur = w.handmatigeDuur || window.bepaalWedstrijdDuur(w.Thuisteam.replace(/Black Shots\s*-?\s*/i, '').trim());
         let eindMin = startMin + duur;
 
-        if(!perDagEnVeld[d]) perDagEnVeld[d] = {};
-        if(!perDagEnVeld[d][veld]) perDagEnVeld[d][veld] = { hal: hal, blokken: [] };
-        
-        perDagEnVeld[d][veld].blokken.push({ start: startMin, eind: eindMin });
+        if(!perDag[d]) perDag[d] = { huur: [], matchen: [] };
+        perDag[d].matchen.push({ start: startMin, eind: eindMin, veld: st.veld });
     });
 
     let html = `
         <div class="print-header" style="display:flex; justify-content:space-between; align-items:flex-start;">
             <div>
-                <h1 style="margin:0 0 5px 0; font-size:1.6rem; color:#2c3e50;">Zaalhuur Overzicht</h1>
-                <div style="font-size:0.9rem; color:#7f8c8d; margin-top:5px;">Aangemaakt op: ${new Date().toLocaleDateString('nl-NL')}</div>
+                <h1 style="margin:0 0 5px 0; font-size:1.6rem; color:#2c3e50;">Zaalhuur Optimalisator</h1>
+                <div style="font-size:0.9rem; color:#7f8c8d; margin-top:5px;">Vind "loze" gaten in het rooster en bespaar direct op huurkosten.</div>
             </div>
-            <img src="Logo Zwart.png" style="width:90px; height:auto; object-fit:contain;">
+            <img src="Logo Zwart.png" style="width:110px; height:auto; object-fit:contain;">
         </div>
-
         <table class="print-table">
             <thead>
                 <tr>
-                    <th style="width:160px;">Datum</th>
-                    <th style="width:200px;">Tijd</th>
-                    <th style="width:70px;">Veld</th>
-                    <th style="width:150px;">Hal</th>
-                    <th>Opmerking</th>
+                    <th style="width:140px;">Datum</th>
+                    <th style="width:160px;">Gehuurde Tijd</th>
+                    <th style="width:160px;">Wedstrijd Tijd</th>
+                    <th>💡 Huur-Advies</th>
                 </tr>
             </thead>
             <tbody>
     `;
 
-    let gesorteerdeDagen = Object.keys(perDagEnVeld).sort();
+    let gesorteerdeDagen = Object.keys(perDag).sort();
 
     gesorteerdeDagen.forEach(dag => {
-        let veldenOpDag = perDagEnVeld[dag];
-        let mooieDatum = new Date(dag).toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+        let dagData = perDag[dag];
+        let mooieDatum = new Date(dag).toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
         
-        // Loop per veld
-        Object.keys(veldenOpDag).sort().forEach((veldId, veldIdx) => {
-            let data = veldenOpDag[veldId];
-            data.blokken.sort((a,b) => a.start - b.start);
-
-            let tijdenStr = "";
-            let opmerking = "";
-            let vorigEind = null;
-
-            data.blokken.forEach((blok, idx) => {
-                tijdenStr += `${window.minutenNaarTijd(blok.start)}-${window.minutenNaarTijd(blok.eind)}`;
-                if (idx < data.blokken.length - 1) tijdenStr += "<br>";
-                
-                // Slimme check: Sluit de eindtijd aan op de volgende starttijd? (Marge van 5 minuten toegestaan)
-                if (vorigEind !== null && (blok.start - vorigEind) > 5) {
-                    opmerking = `<span style="color:#e74c3c; font-weight:bold;">Tijden sluiten niet aan</span>`;
-                }
-                vorigEind = blok.eind;
-            });
-
-            // Alleen de datum tonen bij de allereerste rij van die dag
-            let toonDatum = veldIdx === 0 ? `<strong>${mooieDatum}</strong>` : '';
-            
-            html += `
-                <tr class="avoid-break">
-                    <td>${toonDatum}</td>
-                    <td style="font-family:monospace; font-size:0.95rem;">${tijdenStr}</td>
-                    <td>Veld ${veldId}</td>
-                    <td>${data.hal}</td>
-                    <td>${opmerking}</td>
-                </tr>
-            `;
+        // Bereken eerste start en laatste eind van wedstrijden op deze dag
+        let eersteMatchMin = 9999;
+        let laatsteMatchMin = 0;
+        
+        dagData.matchen.forEach(m => {
+            if (m.start < eersteMatchMin) eersteMatchMin = m.start;
+            if (m.eind > laatsteMatchMin) laatsteMatchMin = m.eind;
         });
+
+        // Bepaal de gehuurde tijden
+        let eersteHuurMin = 9999;
+        let laatsteHuurMin = 0;
+        let huurTekst = "Niet gehuurd!";
+        
+        if (dagData.huur.length > 0) {
+            dagData.huur.forEach(h => {
+                let hStart = window.tijdNaarMinuten(h.startTijd);
+                let hEind = window.tijdNaarMinuten(h.eindTijd);
+                if (hStart < eersteHuurMin) eersteHuurMin = hStart;
+                if (hEind > laatsteHuurMin) laatsteHuurMin = hEind;
+            });
+            huurTekst = `${window.minutenNaarTijd(eersteHuurMin)} - ${window.minutenNaarTijd(laatsteHuurMin)}`;
+        }
+
+        let matchTekst = dagData.matchen.length > 0 ? `${window.minutenNaarTijd(eersteMatchMin)} - ${window.minutenNaarTijd(laatsteMatchMin)}` : "Geen wedstrijden";
+        let advies = "";
+
+        if (dagData.matchen.length === 0 && dagData.huur.length > 0) {
+            advies = `<span style="color:#c0392b; font-weight:bold;">⚠️ Volledige zaalhuur annuleren!</span>`;
+        } else if (dagData.huur.length === 0 && dagData.matchen.length > 0) {
+            advies = `<span style="color:#c0392b; font-weight:bold;">🚨 LET OP: Wel wedstrijden, géén zaal gehuurd!</span>`;
+        } else {
+            let verliesVooraf = eersteMatchMin - eersteHuurMin;
+            let verliesAchteraf = laatsteHuurMin - laatsteMatchMin;
+            let besparingMogelijk = false;
+            
+            // We zoeken naar minimaal 30 minuten loze tijd aan de randen
+            if (verliesVooraf >= 30) {
+                advies += `<span style="color:#e67e22; font-weight:bold;">🕒 ${verliesVooraf} min. ongebruikt aan het begin.</span><br>`;
+                besparingMogelijk = true;
+            }
+            if (verliesAchteraf >= 30) {
+                advies += `<span style="color:#e67e22; font-weight:bold;">🕒 ${verliesAchteraf} min. ongebruikt aan het eind.</span><br>`;
+                besparingMogelijk = true;
+            }
+            if (verliesVooraf < 0 || verliesAchteraf < 0) {
+                advies += `<span style="color:#c0392b; font-weight:bold;">🚨 Wedstrijd valt buiten gehuurde tijd!</span><br>`;
+            }
+            
+            if (!besparingMogelijk && verliesVooraf >= 0 && verliesAchteraf >= 0) {
+                advies = `<span style="color:#27ae60;">✅ Strak gepland, geen onnodige uren.</span>`;
+            }
+        }
+
+        html += `
+            <tr class="avoid-break">
+                <td style="font-weight:bold;">${mooieDatum}</td>
+                <td>${huurTekst}</td>
+                <td>${matchTekst}</td>
+                <td>${advies}</td>
+            </tr>
+        `;
     });
 
     html += `</tbody></table>`;
