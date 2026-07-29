@@ -509,3 +509,156 @@ window.resetNieuwSeizoen = function() {
         window.location.reload();
     }, 1000);
 };
+
+
+// ============================================================================
+// 📅 GOOGLE AGENDA EXPORT (.ICS)
+// ============================================================================
+window.openAgendaExport = function() {
+    let teamSelect = document.getElementById('agenda-export-team');
+    if (teamSelect) {
+        teamSelect.innerHTML = '<option value="">-- Selecteer Team --</option>';
+        (window.teamsDB || []).forEach(t => {
+            if(!t.isVrijwilliger && !t.isRecreant && t.naam) {
+                teamSelect.innerHTML += `<option value="${t.id}">${t.naam}</option>`;
+            }
+        });
+    }
+    document.getElementById('agenda-export-modal').style.display = 'flex';
+};
+
+window.genereerICS = function() {
+    let teamId = document.getElementById('agenda-export-team').value;
+    let exportType = document.getElementById('agenda-export-type').value;
+
+    if (!teamId) return alert("Selecteer eerst een team!");
+
+    // Helper om het juiste team te matchen
+    let getCanonical = function(identifier) {
+        if (!identifier) return null;
+        let cleanZoek = String(identifier).toLowerCase().replace(/[-\s]/g, '');
+        return (window.teamsDB || []).find(team => {
+            let tId = String(team.id || '').toLowerCase().replace(/[-\s]/g, '');
+            let tNaam = String(team.naam || '').toLowerCase().replace(/[-\s]/g, '');
+            if (cleanZoek === tId || cleanZoek === tNaam) return true;
+            if (team.aliassen) {
+                let aliasArray = team.aliassen.toLowerCase().split(',').map(a => a.replace(/[-\s]/g, ''));
+                if (aliasArray.includes(cleanZoek)) return true;
+            }
+            return false;
+        });
+    };
+
+    let tCanon = getCanonical(teamId);
+    if (!tCanon) return alert("Team niet gevonden in database.");
+
+    // Haal de up-to-date data op uit het geheugen
+    let alleWedstrijden = [...(JSON.parse(localStorage.getItem('blackshots_wedstrijden_json')) || []), ...(JSON.parse(localStorage.getItem('blackshots_custom_wedstrijden')) || [])];
+    let verborgen = JSON.parse(localStorage.getItem('blackshots_verborgen_wedstrijden')) || [];
+    let planStatus = JSON.parse(localStorage.getItem('blackshots_plan_status')) || {};
+    let taken = JSON.parse(localStorage.getItem('blackshots_wedstrijd_taken')) || {};
+
+    let gefilterd = alleWedstrijden.filter(w => {
+        let id = window.genereerUniekId(w);
+        if (verborgen.includes(id)) return false;
+        if ((w.Status || '').toLowerCase().includes('teruggetrokken')) return false;
+
+        let isThuis = (w.Thuisteam || '').toLowerCase().includes('black shots');
+        let wCanon = getCanonical(isThuis ? w.Thuisteam.replace(/Black Shots\s*-?\s*/i, '') : w.Uitteam.replace(/Black Shots\s*-?\s*/i, ''));
+
+        if (!wCanon || wCanon.id !== tCanon.id) return false;
+
+        if (exportType === 'thuis' && !isThuis) return false;
+        if (exportType === 'uit' && isThuis) return false;
+
+        return true;
+    });
+
+    if (gefilterd.length === 0) return alert("Er staan geen geplande wedstrijden voor deze selectie in het systeem.");
+
+    let icsRegels = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//Black Shots//Clubbeheer//NL",
+        "CALSCALE:GREGORIAN",
+        "METHOD:PUBLISH"
+    ];
+
+    gefilterd.forEach(w => {
+        let id = window.genereerUniekId(w);
+        let isThuis = (w.Thuisteam || '').toLowerCase().includes('black shots');
+        let st = planStatus[id];
+        
+        // Alleen wedstrijden met een geldige tijd kunnen in de agenda
+        let startTijd = st ? st.tijd : (w.Tijd && !w.Tijd.includes("Te plannen") && w.Tijd !== "00:00:00" ? w.Tijd.substring(0,5) : null);
+        if (!startTijd) return;
+
+        let datumIso = window.normaalDatum(w.Datum);
+        let parts = datumIso.split('-');
+        if (parts.length !== 3) return;
+        let jaar = parts[0], maand = parts[1], dag = parts[2];
+        let [uur, min] = startTijd.split(':');
+
+        // Bereken automatische eindtijd voor de agenda
+        let duur = w.handmatigeDuur || (tCanon.naam.toUpperCase().match(/(14|16|18|20|22|SE)/) ? 105 : 90);
+        let eindMinTotaal = parseInt(uur) * 60 + parseInt(min) + duur;
+        let eindUur = Math.floor(eindMinTotaal / 60);
+        let eindMin = eindMinTotaal % 60;
+
+        let formatTijd = (y,m,d,h,mi) => `${y}${m}${d}T${String(h).padStart(2,'0')}${String(mi).padStart(2,'0')}00`;
+
+        let dtStart = formatTijd(jaar, maand, dag, uur, min);
+        let dtEnd = formatTijd(jaar, maand, dag, eindUur, eindMin);
+
+        let accommodatie = w.Accommodatie || w.Locatie || w.Plaats || (isThuis ? 'De Veste, Helmond' : 'Uitwedstrijd');
+        if (st && st.veld && st.veld !== 'uit' && isThuis) accommodatie += ` (Veld ${st.veld})`;
+
+        let thuisNaam = (w.Thuisteam || '').replace(/Black Shots\s*-?\s*/i, 'BS ').trim();
+        let uitNaam = (w.Uitteam || '').replace(/Black Shots\s*-?\s*/i, 'BS ').trim();
+        let wedstrijdTitel = `${thuisNaam} vs ${uitNaam}`;
+
+        let t = taken[id] || {};
+        // Bouw een mooie beschrijving voor in Google Agenda
+        let beschrijving = `Tegenstander: ${isThuis ? w.Uitteam : w.Thuisteam}\\n`;
+        beschrijving += `Wedstrijdnummer: ${w.Wedstrijdnummer || w.ID || 'Custom'}\\n\\n`;
+
+        if (isThuis) {
+            beschrijving += `👨‍⚖️ Scheidsrechters: ${t.sA || 'N.t.b.'} & ${t.sB || 'N.t.b.'}\\n`;
+            beschrijving += `💻 Tafel: ${t.tab || 'N.t.b.'} (Tablet) | ⏱️ ${t.sco || 'N.t.b.'} (Scorebord)\\n`;
+        } else {
+            beschrijving += `🚗 Chauffeurs / Vervoer: ${t.auto1 || 'N.t.b.'}, ${t.auto2 || 'N.t.b.'}, ${t.auto3 || 'N.t.b.'}\\n`;
+        }
+
+        icsRegels.push(
+            "BEGIN:VEVENT",
+            `UID:${id}@blackshots.nl`,
+            `DTSTAMP:${formatTijd(jaar, maand, dag, uur, min)}Z`,
+            `DTSTART;TZID=Europe/Amsterdam:${dtStart}`,
+            `DTEND;TZID=Europe/Amsterdam:${dtEnd}`,
+            `SUMMARY:${wedstrijdTitel}`,
+            `LOCATION:${accommodatie}`,
+            `DESCRIPTION:${beschrijving}`,
+            "END:VEVENT"
+        );
+    });
+
+    icsRegels.push("END:VCALENDAR");
+
+    // Maak het bestand aan en forceer de download
+    let icsData = icsRegels.join("\r\n");
+    let blob = new Blob([icsData], { type: 'text/calendar;charset=utf-8' });
+    let url = URL.createObjectURL(blob);
+    let a = document.createElement('a');
+    a.href = url;
+    
+    // Mooie bestandsnaam zonder spaties
+    let veiligeNaam = tCanon.naam.replace(/\s+/g, '_');
+    a.download = `BlackShots_${veiligeNaam}_${exportType.toUpperCase()}.ics`;
+    
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    document.getElementById('agenda-export-modal').style.display = 'none';
+};

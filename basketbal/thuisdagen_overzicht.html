@@ -125,6 +125,7 @@
                         💾 Data Beheer ▼
                     </button>
                     <div class="nav-dropdown-content" style="min-width:250px;">
+                        <button onclick="window.openAgendaExport()" class="nav-drop-btn" style="color:#e67e22;">📅 Export naar Google Agenda</button>
                         <button onclick="window.downloadTakenEnScheidsrechters()" class="nav-drop-btn" style="color:#2980b9;">📥 Download Taken & Scheidsrechters (.json)</button>
                         <button onclick="window.triggerTakenUpload()" class="nav-drop-btn" style="color:#27ae60;">📤 Importeer Taken & Scheidsrechters (.json)</button>
                     </div>
@@ -188,5 +189,29 @@
     <script src="basketbal_overzicht.js"></script>
     <script type="module" src="firebase_motor.js"></script>
     <script>document.addEventListener('DOMContentLoaded', () => { setTimeout(() => { window.initSeizoensOverzicht(); }, 200); });</script>
+<!-- Agenda Export Modal -->
+<div id="agenda-export-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9999; justify-content:center; align-items:center;">
+    <div style="background:white; padding:25px; border-radius:8px; width:400px; max-width:90%; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
+        <h2 style="margin-top:0; color:#2980b9;">📅 Export naar Agenda (.ics)</h2>
+        <p style="color:#7f8c8d; font-size:0.9rem;">Download een agenda-bestand dat je direct in Google Agenda, Apple Calendar of Outlook kunt toevoegen.</p>
+
+        <label style="font-weight:bold; display:block; margin-top:15px; margin-bottom:5px; color:#2c3e50;">Kies Team:</label>
+        <select id="agenda-export-team" style="width:100%; padding:10px; border-radius:4px; border:1px solid #bdc3c7; font-size:1rem;">
+        </select>
+
+        <label style="font-weight:bold; display:block; margin-top:15px; margin-bottom:5px; color:#2c3e50;">Welke wedstrijden?</label>
+        <select id="agenda-export-type" style="width:100%; padding:10px; border-radius:4px; border:1px solid #bdc3c7; font-size:1rem;">
+            <option value="beide">Thuis- & Uitwedstrijden</option>
+            <option value="thuis">Alleen Thuiswedstrijden</option>
+            <option value="uit">Alleen Uitwedstrijden</option>
+        </select>
+
+        <div style="display:flex; justify-content:space-between; margin-top:25px;">
+            <button onclick="document.getElementById('agenda-export-modal').style.display='none'" style="background:#e74c3c; color:white; border:none; padding:10px 15px; border-radius:4px; cursor:pointer; font-weight:bold;">Annuleren</button>
+            <button onclick="window.genereerICS()" style="background:#27ae60; color:white; border:none; padding:10px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">⬇️ Download Agenda (.ics)</button>
+        </div>
+    </div>
+</div>
+
 </body>
 </html>
